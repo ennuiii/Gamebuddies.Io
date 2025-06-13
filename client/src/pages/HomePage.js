@@ -1,24 +1,39 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import GameCard from '../components/GameCard';
 import CreateRoom from '../components/CreateRoom';
-import GameSelection from '../components/GameSelection';
-import RoomReady from '../components/RoomReady';
+import JoinRoom from '../components/JoinRoom';
+import RoomLobby from '../components/RoomLobby';
 import './HomePage.css';
 
 const HomePage = () => {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
   const [games, setGames] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateRoom, setShowCreateRoom] = useState(false);
-  const [showGameSelection, setShowGameSelection] = useState(false);
-  const [showRoomReady, setShowRoomReady] = useState(false);
+  const [showJoinRoom, setShowJoinRoom] = useState(false);
   const [currentRoom, setCurrentRoom] = useState(null);
-  const [selectedGameType, setSelectedGameType] = useState(null);
+  const [playerName, setPlayerName] = useState('');
+  const [inLobby, setInLobby] = useState(false);
+  const [joinRoomCode, setJoinRoomCode] = useState('');
 
   useEffect(() => {
     fetchGames();
-  }, []);
+    
+    // Check if there's a join parameter in the URL
+    const joinCode = searchParams.get('join');
+    const rejoinCode = searchParams.get('rejoin');
+    
+    if (joinCode || rejoinCode) {
+      setJoinRoomCode(joinCode || rejoinCode);
+      setShowJoinRoom(true);
+      // Clear the URL parameter after using it
+      navigate('/', { replace: true });
+    }
+  }, [searchParams, navigate]);
 
   const fetchGames = async () => {
     try {
@@ -35,26 +50,47 @@ const HomePage = () => {
     setShowCreateRoom(true);
   };
 
-  const handleRoomCreated = (room) => {
-    setCurrentRoom(room);
-    setShowCreateRoom(false);
-    setShowGameSelection(true);
+  const handleJoinRoomClick = () => {
+    setShowJoinRoom(true);
   };
 
-  const handleGameSelected = (updatedRoom, gameType) => {
-    setCurrentRoom(updatedRoom);
-    setSelectedGameType(gameType);
-    setShowGameSelection(false);
-    setShowRoomReady(true);
+  const handleRoomCreated = (room) => {
+    setCurrentRoom(room);
+    setPlayerName(room.creatorName);
+    setShowCreateRoom(false);
+    setInLobby(true);
+  };
+
+  const handleJoinRoom = (roomCode, name) => {
+    // The actual room data will be fetched in RoomLobby
+    setCurrentRoom({ roomCode });
+    setPlayerName(name);
+    setShowJoinRoom(false);
+    setInLobby(true);
+  };
+
+  const handleLeaveLobby = () => {
+    setInLobby(false);
+    setCurrentRoom(null);
+    setPlayerName('');
   };
 
   const handleCloseModals = () => {
     setShowCreateRoom(false);
-    setShowGameSelection(false);
-    setShowRoomReady(false);
-    setCurrentRoom(null);
-    setSelectedGameType(null);
+    setShowJoinRoom(false);
+    setJoinRoomCode('');
   };
+
+  // If in lobby, show the lobby component
+  if (inLobby && currentRoom) {
+    return (
+      <RoomLobby 
+        room={currentRoom}
+        playerName={playerName}
+        onLeave={handleLeaveLobby}
+      />
+    );
+  }
 
   return (
     <div className="homepage">
@@ -78,24 +114,34 @@ const HomePage = () => {
             <span className="brand-text">GameBuddies</span><span className="brand-dot">.io</span>
           </h1>
           <p className="hero-subtitle">
-            Your ultimate destination for amazing online games
+            Play amazing online games with friends
           </p>
-          <motion.button
-            className="cta-button"
-            onClick={handleCreateRoomClick}
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-          >
-            Create Room
-          </motion.button>
+          <div className="hero-buttons">
+            <motion.button
+              className="cta-button"
+              onClick={handleCreateRoomClick}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              Create Room
+            </motion.button>
+            <motion.button
+              className="cta-button secondary"
+              onClick={handleJoinRoomClick}
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              Join Room
+            </motion.button>
+          </div>
         </motion.div>
       </section>
 
       {/* Games Section */}
       <section className="games-section" id="games-section">
         <div className="container">
-          <h2 className="section-title">Available Games</h2>
-          <p className="section-subtitle">Choose from our collection of exciting games</p>
+          <h2 className="section-title">Quick Play</h2>
+          <p className="section-subtitle">Jump into a game directly</p>
           
           {loading ? (
             <div className="loading-container">
@@ -135,18 +181,10 @@ const HomePage = () => {
         />
       )}
 
-      {showGameSelection && currentRoom && (
-        <GameSelection
-          room={currentRoom}
-          onGameSelected={handleGameSelected}
-          onClose={handleCloseModals}
-        />
-      )}
-
-      {showRoomReady && currentRoom && selectedGameType && (
-        <RoomReady
-          room={currentRoom}
-          gameType={selectedGameType}
+      {showJoinRoom && (
+        <JoinRoom
+          initialRoomCode={joinRoomCode}
+          onJoinRoom={handleJoinRoom}
           onClose={handleCloseModals}
         />
       )}
