@@ -99,6 +99,7 @@ const RoomLobby = ({ room, playerName, onLeave }) => {
     };
 
     const handleGameSelected = ({ game }) => {
+      console.log('Game selected event received:', game);
       if (!isCancelled) {
         setLobbyState(prev => ({ ...prev, selectedGame: game }));
         setShowGameSelection(false);
@@ -284,14 +285,20 @@ const RoomLobby = ({ room, playerName, onLeave }) => {
   const fetchAvailableGames = async () => {
     try {
       const response = await fetch('/api/games/available');
-      const games = await response.json();
-      setAvailableGames(games);
+      const gamesArray = await response.json();
+      // Convert array to object keyed by type
+      const gamesObject = {};
+      gamesArray.forEach(game => {
+        gamesObject[game.type] = game;
+      });
+      setAvailableGames(gamesObject);
     } catch (err) {
       console.error('Failed to fetch games:', err);
     }
   };
 
   const handleSelectGame = (gameType) => {
+    console.log('Selecting game:', gameType, 'for room:', roomCodeRef.current);
     socketService.selectGame(roomCodeRef.current, gameType);
   };
 

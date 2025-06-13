@@ -182,9 +182,11 @@ io.on('connection', (socket) => {
   
   // Host selects/changes game
   socket.on('selectGame', ({ roomCode, gameType }) => {
+    console.log(`[selectGame] Room ${roomCode} attempting to select game: ${gameType}`);
     const room = rooms.get(roomCode);
     
     if (!room) {
+      console.error(`[selectGame] Room ${roomCode} not found`);
       socket.emit('error', 'Room not found');
       return;
     }
@@ -450,7 +452,8 @@ app.get('/api/games/available', (req, res) => {
       name: game.name,
       description: game.description,
       maxPlayers: game.maxPlayers,
-      path: game.path
+      path: game.path,
+      icon: game.icon  // Add the missing icon property
     }));
     res.json(games);
   } catch (error) {
