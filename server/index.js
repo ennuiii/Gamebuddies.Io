@@ -251,12 +251,23 @@ io.on('connection', (socket) => {
       const baseUrl = `${room.selectedGame.path}?room=${roomCode}&players=${room.players.length}&name=${encodedName}`;
       const gameUrl = p.isHost ? `${baseUrl}&role=gm` : baseUrl;
       
-      // Send personalized game URL to each player
-      io.to(p.id).emit('gameStarted', {
-        gameUrl,
-        gameType: room.gameType,
-        isHost: p.isHost
-      });
+      if (p.isHost) {
+        // Send host immediately so they can create the room
+        io.to(p.id).emit('gameStarted', {
+          gameUrl,
+          gameType: room.gameType,
+          isHost: p.isHost
+        });
+      } else {
+        // Delay player redirects by 2 seconds to give host time to create room
+        setTimeout(() => {
+          io.to(p.id).emit('gameStarted', {
+            gameUrl,
+            gameType: room.gameType,
+            isHost: p.isHost
+          });
+        }, 2000); // 2 second delay for players
+      }
     });
     
     console.log(`Room ${roomCode} started game: ${room.gameType}`);
