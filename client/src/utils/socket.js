@@ -20,8 +20,9 @@ class SocketService {
     }
 
     // If socket exists but is disconnected, remove it
-    if (this.socket && !this.socket.connected) {
+    if (this.socket) {
       this.socket.removeAllListeners();
+      this.socket.close();
       this.socket = null;
     }
 
@@ -34,6 +35,8 @@ class SocketService {
         reconnection: true,
         reconnectionAttempts: 5,
         reconnectionDelay: 1000,
+        forceNew: true, // Force new connection
+        timeout: 10000 // 10 second timeout
       });
 
       this.socket.on('connect', () => {
@@ -44,16 +47,31 @@ class SocketService {
       this.socket.on('disconnect', (reason) => {
         console.log('Disconnected from server:', reason);
         this.isConnecting = false;
+        // Clean up socket on disconnect
+        if (this.socket) {
+          this.socket.removeAllListeners();
+          this.socket = null;
+        }
       });
 
       this.socket.on('error', (error) => {
         console.error('Socket error:', error);
         this.isConnecting = false;
+        // Clean up socket on error
+        if (this.socket) {
+          this.socket.removeAllListeners();
+          this.socket = null;
+        }
       });
 
       this.socket.on('connect_error', (error) => {
         console.error('Connection error:', error.message);
         this.isConnecting = false;
+        // Clean up socket on connection error
+        if (this.socket) {
+          this.socket.removeAllListeners();
+          this.socket = null;
+        }
       });
     }
     return this.socket;
@@ -61,8 +79,12 @@ class SocketService {
 
   disconnect() {
     if (this.socket) {
+      // Remove all listeners first
       this.socket.removeAllListeners();
+      // Then disconnect
       this.socket.disconnect();
+      // Finally, close the socket
+      this.socket.close();
       this.socket = null;
       this.isConnecting = false;
     }

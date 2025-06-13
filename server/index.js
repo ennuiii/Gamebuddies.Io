@@ -14,7 +14,12 @@ const io = socketIo(server, {
   cors: {
     origin: "*",
     methods: ["GET", "POST"]
-  }
+  },
+  pingTimeout: 60000,
+  pingInterval: 25000,
+  connectTimeout: 10000,
+  allowUpgrades: true,
+  transports: ['websocket', 'polling']
 });
 
 const PORT = process.env.PORT || 3033;
@@ -78,59 +83,79 @@ setInterval(() => {
 io.on('connection', (socket) => {
   console.log('New client connected:', socket.id);
   
+  // Set up ping timeout
+  socket.conn.setTimeout(60000);
+  
+  // Handle ping timeout
+  socket.conn.on('timeout', () => {
+    console.log('Socket timeout:', socket.id);
+    socket.disconnect(true);
+  });
+  
+  // Handle errors
+  socket.conn.on('error', (error) => {
+    console.error('Socket error:', socket.id, error);
+    socket.disconnect(true);
+  });
+  
   // Join a room
   socket.on('joinRoom', ({ roomCode, playerName }) => {
-    const room = rooms.get(roomCode);
-    
-    if (!room) {
-      socket.emit('joinError', 'Room not found');
-      return;
-    }
-    
-    if (room.players.length >= room.maxPlayers && room.maxPlayers) {
-      socket.emit('joinError', 'Room is full');
-      return;
-    }
-    
-    // Check if player is already in room (prevent duplicates)
-    const existingPlayer = room.players.find(p => p.id === socket.id);
-    if (existingPlayer) {
-      // Player already in room, just send current state
+    try {
+      const room = rooms.get(roomCode);
+      
+      if (!room) {
+        socket.emit('joinError', 'Room not found');
+        return;
+      }
+      
+      if (room.players.length >= room.maxPlayers && room.maxPlayers) {
+        socket.emit('joinError', 'Room is full');
+        return;
+      }
+      
+      // Check if player is already in room (prevent duplicates)
+      const existingPlayer = room.players.find(p => p.id === socket.id);
+      if (existingPlayer) {
+        // Player already in room, just send current state
+        socket.emit('roomJoined', {
+          room,
+          playerId: socket.id,
+          isHost: existingPlayer.isHost
+        });
+        return;
+      }
+      
+      // Add player to room
+      const player = {
+        id: socket.id,
+        name: playerName,
+        isHost: room.players.length === 0, // First player is host
+        joinedAt: Date.now()
+      };
+      
+      room.players.push(player);
+      socket.join(roomCode);
+      socket.roomCode = roomCode;
+      socket.playerId = socket.id;
+      
+      // Send room info to the joining player
       socket.emit('roomJoined', {
         room,
         playerId: socket.id,
-        isHost: existingPlayer.isHost
+        isHost: player.isHost
       });
-      return;
+      
+      // Notify all players in the room (including the new player)
+      io.to(roomCode).emit('playerJoined', {
+        player,
+        players: room.players
+      });
+      
+      console.log(`Player ${playerName} joined room ${roomCode} (${room.players.length} players now)`);
+    } catch (error) {
+      console.error('Error in joinRoom:', error);
+      socket.emit('joinError', 'Internal server error');
     }
-    
-    // Add player to room
-    const player = {
-      id: socket.id,
-      name: playerName,
-      isHost: room.players.length === 0, // First player is host
-      joinedAt: Date.now()
-    };
-    
-    room.players.push(player);
-    socket.join(roomCode);
-    socket.roomCode = roomCode;
-    socket.playerId = socket.id;
-    
-    // Send room info to the joining player
-    socket.emit('roomJoined', {
-      room,
-      playerId: socket.id,
-      isHost: player.isHost
-    });
-    
-    // Notify all players in the room (including the new player)
-    io.to(roomCode).emit('playerJoined', {
-      player,
-      players: room.players
-    });
-    
-    console.log(`Player ${playerName} joined room ${roomCode} (${room.players.length} players now)`);
   });
   
   // Leave room
@@ -217,53 +242,57 @@ io.on('connection', (socket) => {
   });
   
   // Handle disconnection
-  socket.on('disconnect', () => {
+  socket.on('disconnect', (reason) => {
+    console.log('Client disconnected:', socket.id, 'Reason:', reason);
     handlePlayerLeave(socket);
-    console.log('Client disconnected:', socket.id);
   });
 });
 
 // Helper function to handle player leaving
 function handlePlayerLeave(socket) {
-  const roomCode = socket.roomCode;
-  if (!roomCode) return;
-  
-  const room = rooms.get(roomCode);
-  if (!room) return;
-  
-  // Remove player from room
-  const playerIndex = room.players.findIndex(p => p.id === socket.id);
-  if (playerIndex === -1) return;
-  
-  const leavingPlayer = room.players[playerIndex];
-  room.players.splice(playerIndex, 1);
-  
-  socket.leave(roomCode);
-  
-  // If room is empty, delete it
-  if (room.players.length === 0) {
-    rooms.delete(roomCode);
-    console.log(`Room ${roomCode} deleted (empty)`);
-    return;
-  }
-  
-  // If host left, assign new host
-  if (leavingPlayer.isHost && room.players.length > 0) {
-    room.players[0].isHost = true;
-    io.to(roomCode).emit('hostChanged', {
-      newHostId: room.players[0].id,
-      newHostName: room.players[0].name
+  try {
+    const roomCode = socket.roomCode;
+    if (!roomCode) return;
+    
+    const room = rooms.get(roomCode);
+    if (!room) return;
+    
+    // Remove player from room
+    const playerIndex = room.players.findIndex(p => p.id === socket.id);
+    if (playerIndex === -1) return;
+    
+    const leavingPlayer = room.players[playerIndex];
+    room.players.splice(playerIndex, 1);
+    
+    socket.leave(roomCode);
+    
+    // If room is empty, delete it
+    if (room.players.length === 0) {
+      rooms.delete(roomCode);
+      console.log(`Room ${roomCode} deleted (empty)`);
+      return;
+    }
+    
+    // If host left, assign new host
+    if (leavingPlayer.isHost && room.players.length > 0) {
+      room.players[0].isHost = true;
+      io.to(roomCode).emit('hostChanged', {
+        newHostId: room.players[0].id,
+        newHostName: room.players[0].name
+      });
+    }
+    
+    // Notify remaining players
+    io.to(roomCode).emit('playerLeft', {
+      playerId: socket.id,
+      playerName: leavingPlayer.name,
+      players: room.players
     });
+    
+    console.log(`Player ${leavingPlayer.name} left room ${roomCode}`);
+  } catch (error) {
+    console.error('Error in handlePlayerLeave:', error);
   }
-  
-  // Notify remaining players
-  io.to(roomCode).emit('playerLeft', {
-    playerId: socket.id,
-    playerName: leavingPlayer.name,
-    players: room.players
-  });
-  
-  console.log(`Player ${leavingPlayer.name} left room ${roomCode}`);
 }
 
 // Room API endpoints

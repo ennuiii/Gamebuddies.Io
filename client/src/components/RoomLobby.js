@@ -48,6 +48,7 @@ const RoomLobby = ({ room, playerName, onLeave }) => {
     let isCancelled = false;
     let loadingTimeout = null;
     let roomJoinedHandler = null;
+    let socket = null;
 
     // Define all event handlers
     const handleRoomJoined = ({ room: updatedRoom, playerId, isHost: hostStatus }) => {
@@ -56,7 +57,6 @@ const RoomLobby = ({ room, playerName, onLeave }) => {
         playerId, 
         isHost: hostStatus 
       });
-      console.log('isCancelled:', isCancelled);
       
       if (!isCancelled) {
         console.log('Attempting to update state...');
@@ -145,13 +145,17 @@ const RoomLobby = ({ room, playerName, onLeave }) => {
       try {
         console.log('Setting up socket connection...');
         // Connect to socket
-        const socket = socketService.connect();
+        socket = socketService.connect();
         
         // Set a timeout to handle stuck loading states
         loadingTimeout = setTimeout(() => {
           if (!isCancelled && loadingStateRef.current) {
             console.error('Loading timeout - failed to join room');
             setLobbyState(prev => ({ ...prev, error: 'Failed to join room - timeout', isLoading: false }));
+            // Clean up socket on timeout
+            if (socket) {
+              socketService.disconnect();
+            }
           }
         }, 10000); // 10 second timeout
         
@@ -216,40 +220,41 @@ const RoomLobby = ({ room, playerName, onLeave }) => {
         console.error('Failed to setup connection:', error);
         if (!isCancelled) {
           setLobbyState(prev => ({ ...prev, error: 'Failed to connect to server', isLoading: false }));
+          // Clean up socket on error
+          if (socket) {
+            socketService.disconnect();
+          }
         }
       }
     };
 
     setupConnection();
 
-    // Cleanup function - only runs on unmount
+    // Cleanup function
     return () => {
+      console.log('Cleaning up RoomLobby...');
       isCancelled = true;
       
-      // Clear any pending timeouts
       if (loadingTimeout) {
         clearTimeout(loadingTimeout);
       }
       
-      // Remove the extra roomJoined handler if it exists
-      if (roomJoinedHandler) {
-        socketService.off('roomJoined', roomJoinedHandler);
-      }
+      // Remove all event listeners
+      socketService.off('roomJoined');
+      socketService.off('playerJoined');
+      socketService.off('playerLeft');
+      socketService.off('hostChanged');
+      socketService.off('gameSelected');
+      socketService.off('gameStarted');
+      socketService.off('joinError');
+      socketService.off('roomExpired');
       
-      // Remove event listeners
-      socketService.off('roomJoined', handleRoomJoined);
-      socketService.off('playerJoined', handlePlayerJoined);
-      socketService.off('playerLeft', handlePlayerLeft);
-      socketService.off('hostChanged', handleHostChanged);
-      socketService.off('gameSelected', handleGameSelected);
-      socketService.off('gameStarted', handleGameStarted);
-      socketService.off('joinError', handleJoinError);
-      socketService.off('roomExpired', handleRoomExpired);
+      // Disconnect socket
+      socketService.disconnect();
       
-      // Leave room
-      socketService.leaveRoom();
+      console.log('RoomLobby cleanup complete');
     };
-  }, []); // Empty dependency array - only runs once!
+  }, []); // Empty dependency array
 
   const fetchAvailableGames = async () => {
     try {
