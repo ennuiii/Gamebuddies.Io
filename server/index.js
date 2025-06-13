@@ -12,14 +12,22 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server, {
   cors: {
-    origin: "*",
-    methods: ["GET", "POST"]
+    origin: process.env.NODE_ENV === 'production' 
+      ? ["https://gamebuddies.io", "https://www.gamebuddies.io", "https://gamebuddies-homepage.onrender.com"]
+      : "*",
+    methods: ["GET", "POST"],
+    credentials: true
   },
   pingTimeout: 60000,
   pingInterval: 25000,
   connectTimeout: 10000,
   allowUpgrades: true,
-  transports: ['websocket', 'polling']
+  transports: ['websocket', 'polling'],
+  // Additional production settings
+  ...(process.env.NODE_ENV === 'production' && {
+    path: '/socket.io/',
+    serveClient: false
+  })
 });
 
 const PORT = process.env.PORT || 3033;
@@ -31,6 +39,14 @@ app.use(helmet({
 app.use(compression());
 app.use(cors());
 app.use(express.json()); // Add JSON body parser
+
+// Request logging middleware for debugging in production
+app.use((req, res, next) => {
+  if (process.env.NODE_ENV === 'production') {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.path} - Origin: ${req.headers.origin || 'none'}`);
+  }
+  next();
+});
 
 // Room Management System
 // In-memory storage for rooms
@@ -81,7 +97,7 @@ setInterval(() => {
 
 // Socket.io connection handling
 io.on('connection', (socket) => {
-  console.log('New client connected:', socket.id);
+  console.log('New client connected:', socket.id, 'from:', socket.handshake.headers.origin || 'unknown origin');
   
   // Set up ping timeout
   socket.conn.setTimeout(60000);
@@ -101,9 +117,12 @@ io.on('connection', (socket) => {
   // Join a room
   socket.on('joinRoom', ({ roomCode, playerName }) => {
     try {
+      console.log(`[joinRoom] Attempt to join room ${roomCode} by ${playerName} (socket: ${socket.id})`);
+      
       const room = rooms.get(roomCode);
       
       if (!room) {
+        console.error(`[joinRoom] Room ${roomCode} not found`);
         socket.emit('joinError', 'Room not found');
         return;
       }
@@ -423,6 +442,9 @@ const gameProxies = {
   }
 };
 
+// IMPORTANT: API routes MUST be defined BEFORE static file serving
+// This ensures API routes are not intercepted by the static file middleware
+
 // Add health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok' });
@@ -468,11 +490,16 @@ app.get('/api/games', (req, res) => {
 });
 
 // Set up reverse proxies for each game
+// These must come BEFORE static file serving
 Object.entries(gameProxies).forEach(([path, config]) => {
   app.use(path, createProxyMiddleware(config));
 });
 
+// Screenshots should be served before the React app
+app.use('/screenshots', express.static(path.join(__dirname, 'screenshots')));
+
 // Serve static files from React build
+// This MUST come AFTER all API routes and proxies
 // Handle both development (server run from server/) and production (server run from root) paths
 const isDevelopment = process.env.NODE_ENV !== 'production';
 const clientBuildPath = isDevelopment 
@@ -489,8 +516,8 @@ console.log('Current directory:', __dirname);
 console.log('Client build path:', actualClientBuildPath);
 console.log('Screenshots path:', path.join(__dirname, 'screenshots'));
 
+// Static files for the React app - MUST be last before catch-all
 app.use(express.static(actualClientBuildPath));
-app.use('/screenshots', express.static(path.join(__dirname, 'screenshots')));
 
 // Add error handling middleware
 app.use((err, req, res, next) => {
