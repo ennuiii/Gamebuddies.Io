@@ -26,6 +26,13 @@ const gameProxies = {
     pathRewrite: {
       '^/ddf': '', // Remove /ddf prefix when forwarding
     },
+    onError: (err, req, res) => {
+      console.error('Proxy error for /ddf:', err.message);
+      res.status(500).send('Proxy error: ' + err.message);
+    },
+    onProxyReq: (proxyReq, req, res) => {
+      console.log('Proxying request to DDF:', req.url, '->', process.env.DDF_URL);
+    },
   },
   '/schooled': {
     target: process.env.SCHOOLED_URL || 'http://localhost:3002',
@@ -33,6 +40,13 @@ const gameProxies = {
     ws: true,
     pathRewrite: {
       '^/schooled': '',
+    },
+    onError: (err, req, res) => {
+      console.error('Proxy error for /schooled:', err.message);
+      res.status(500).send('Proxy error: ' + err.message);
+    },
+    onProxyReq: (proxyReq, req, res) => {
+      console.log('Proxying request to Schooled:', req.url, '->', process.env.SCHOOLED_URL);
     },
   },
   // Add more games here as needed
@@ -97,4 +111,7 @@ app.get('*', (req, res) => {
 app.listen(PORT, () => {
   console.log(`GameBuddies server running on port ${PORT}`);
   console.log('Game proxies configured:', Object.keys(gameProxies));
+  console.log('Environment variables:');
+  console.log('DDF_URL:', process.env.DDF_URL);
+  console.log('SCHOOLED_URL:', process.env.SCHOOLED_URL);
 }); 
