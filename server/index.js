@@ -473,7 +473,23 @@ Object.entries(gameProxies).forEach(([path, config]) => {
 });
 
 // Serve static files from React build
-app.use(express.static(path.join(__dirname, '../client/build')));
+// Handle both development (server run from server/) and production (server run from root) paths
+const isDevelopment = process.env.NODE_ENV !== 'production';
+const clientBuildPath = isDevelopment 
+  ? path.join(__dirname, '../client/build')
+  : path.join(__dirname, '../client/build');
+
+// Check if we're running from root directory (production) or server directory (development)
+const isRunFromRoot = __dirname.endsWith('server');
+const actualClientBuildPath = isRunFromRoot 
+  ? path.join(__dirname, '../client/build')
+  : path.join(__dirname, 'client/build');
+
+console.log('Current directory:', __dirname);
+console.log('Client build path:', actualClientBuildPath);
+console.log('Screenshots path:', path.join(__dirname, 'screenshots'));
+
+app.use(express.static(actualClientBuildPath));
 app.use('/screenshots', express.static(path.join(__dirname, 'screenshots')));
 
 // Add error handling middleware
@@ -484,7 +500,7 @@ app.use((err, req, res, next) => {
 
 // Catch all handler - send React app for any route not handled above
 app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../client/build', 'index.html'));
+  res.sendFile(path.join(actualClientBuildPath, 'index.html'));
 });
 
 // Add timeout configuration for Render.com
