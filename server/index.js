@@ -487,7 +487,11 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../client/build', 'index.html'));
 });
 
-server.listen(PORT, () => {
+// Add timeout configuration for Render.com
+server.keepAliveTimeout = 120000; // 120 seconds
+server.headersTimeout = 120000; // 120 seconds
+
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`GameBuddies server running on port ${PORT}`);
   console.log('Game proxies configured:', Object.keys(gameProxies));
   console.log('Environment variables:');
