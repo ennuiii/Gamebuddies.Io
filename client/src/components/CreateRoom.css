@@ -1,0 +1,158 @@
+.create-room-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 20px;
+}
+
+.create-room-modal {
+  background: var(--card-bg);
+  border-radius: 20px;
+  padding: 2rem;
+  max-width: 450px;
+  width: 100%;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.create-room-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 2rem;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 2rem;
+  background: linear-gradient(135deg, var(--text-primary) 0%, var(--secondary-color) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.create-room-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.form-group label {
+  color: var(--text-secondary);
+  font-weight: 500;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.form-group input[type="text"] {
+  padding: 0.8rem 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  color: var(--text-primary);
+  font-size: 1rem;
+  transition: all 0.3s ease;
+}
+
+.form-group input[type="text"]:focus {
+  outline: none;
+  border-color: var(--secondary-color);
+  box-shadow: 0 0 20px rgba(0, 217, 255, 0.3);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.checkbox-group label {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 1rem;
+  text-transform: none;
+  letter-spacing: normal;
+}
+
+.checkbox-group input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  accent-color: var(--secondary-color);
+}
+
+.error-message {
+  background: rgba(233, 69, 96, 0.2);
+  border: 1px solid var(--primary-color);
+  color: var(--primary-color);
+  padding: 0.8rem;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+.form-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: 1rem;
+}
+
+.cancel-button,
+.create-button {
+  flex: 1;
+  padding: 0.8rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 25px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.cancel-button {
+  background: transparent;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  color: var(--text-secondary);
+}
+
+.cancel-button:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.4);
+  color: var(--text-primary);
+}
+
+.create-button {
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
+  color: white;
+  box-shadow: 0 5px 20px rgba(233, 69, 96, 0.4);
+}
+
+.create-button:hover:not(:disabled) {
+  box-shadow: 0 8px 30px rgba(233, 69, 96, 0.6);
+  transform: translateY(-2px);
+}
+
+.cancel-button:disabled,
+.create-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 480px) {
+  .create-room-modal {
+    padding: 1.5rem;
+  }
+  
+  .create-room-title {
+    font-size: 1.5rem;
+  }
+} 

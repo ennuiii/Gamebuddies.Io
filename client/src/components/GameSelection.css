@@ -1,0 +1,223 @@
+.game-selection-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 20px;
+}
+
+.game-selection-modal {
+  background: var(--card-bg);
+  border-radius: 20px;
+  padding: 2rem;
+  max-width: 800px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.room-info {
+  text-align: center;
+  margin-bottom: 2rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.room-code-label {
+  font-size: 1rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.room-code-display {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.room-code {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 3rem;
+  font-weight: 900;
+  color: var(--secondary-color);
+  text-shadow: 0 0 20px rgba(0, 217, 255, 0.5);
+  letter-spacing: 0.2em;
+}
+
+.copy-button {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  padding: 0.5rem;
+  font-size: 1.5rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.copy-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.1);
+}
+
+.room-creator {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.game-selection-content {
+  margin-bottom: 2rem;
+}
+
+.select-game-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 2rem;
+  color: var(--text-primary);
+}
+
+.games-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+}
+
+.game-option {
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 15px;
+  padding: 2rem 1.5rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-align: center;
+  color: var(--text-primary);
+}
+
+.game-option:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: var(--secondary-color);
+  box-shadow: 0 10px 30px rgba(0, 217, 255, 0.3);
+}
+
+.game-option:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.game-icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.game-name {
+  font-family: 'Inter', sans-serif;
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  color: var(--text-primary);
+}
+
+.game-description {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin-bottom: 1rem;
+  line-height: 1.5;
+}
+
+.game-meta {
+  display: flex;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.max-players {
+  background: rgba(0, 217, 255, 0.2);
+  color: var(--secondary-color);
+  padding: 0.3rem 0.8rem;
+  border-radius: 15px;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+.close-button {
+  display: block;
+  margin: 0 auto;
+  padding: 0.8rem 2rem;
+  background: transparent;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  border-radius: 25px;
+  color: var(--text-secondary);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.close-button:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.4);
+  color: var(--text-primary);
+}
+
+.close-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--card-bg);
+  border-top-color: var(--secondary-color);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.error-message {
+  background: rgba(233, 69, 96, 0.2);
+  border: 1px solid var(--primary-color);
+  color: var(--primary-color);
+  padding: 1rem;
+  border-radius: 10px;
+  text-align: center;
+  margin: 1rem 0;
+}
+
+@media (max-width: 768px) {
+  .game-selection-modal {
+    padding: 1.5rem;
+  }
+  
+  .room-code {
+    font-size: 2.5rem;
+  }
+  
+  .games-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .game-option {
+    padding: 1.5rem 1rem;
+  }
+} 
