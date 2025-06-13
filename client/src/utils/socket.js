@@ -35,8 +35,9 @@ class SocketService {
         reconnection: true,
         reconnectionAttempts: 5,
         reconnectionDelay: 1000,
-        forceNew: true, // Force new connection
-        timeout: 10000 // 10 second timeout
+        reconnectionDelayMax: 5000,
+        timeout: 10000,
+        forceNew: true
       });
 
       this.socket.on('connect', () => {
@@ -73,6 +74,15 @@ class SocketService {
           this.socket = null;
         }
       });
+
+      this.socket.on('reconnect_attempt', (attemptNumber) => {
+        console.log('Reconnection attempt:', attemptNumber);
+      });
+
+      this.socket.on('reconnect_failed', () => {
+        console.error('Failed to reconnect after all attempts');
+        this.isConnecting = false;
+      });
     }
     return this.socket;
   }
@@ -98,7 +108,13 @@ class SocketService {
       if (socket.connected) {
         socket.emit('joinRoom', { roomCode, playerName });
       } else {
+        const timeout = setTimeout(() => {
+          console.error('Timeout waiting for socket connection');
+          this.disconnect();
+        }, 10000);
+
         socket.once('connect', () => {
+          clearTimeout(timeout);
           socket.emit('joinRoom', { roomCode, playerName });
         });
       }

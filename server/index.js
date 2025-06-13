@@ -387,14 +387,13 @@ app.delete('/api/rooms/:code', (req, res) => {
 });
 
 // Game configurations - Add your game URLs here
-// IMPORTANT: Update these with your actual Render.com game URLs
 const gameProxies = {
   '/ddf': {
     target: process.env.DDF_URL || 'http://localhost:3001',
     changeOrigin: true,
-    ws: true, // Enable WebSocket support
+    ws: true,
     pathRewrite: {
-      '^/ddf': '', // Remove /ddf prefix when forwarding
+      '^/ddf': '',
     },
     onError: (err, req, res) => {
       console.error('Proxy error for /ddf:', err.message);
@@ -403,6 +402,9 @@ const gameProxies = {
     onProxyReq: (proxyReq, req, res) => {
       console.log('Proxying request to DDF:', req.url, '->', process.env.DDF_URL);
     },
+    secure: false,
+    timeout: 5000,
+    proxyTimeout: 5000
   },
   '/schooled': {
     target: process.env.SCHOOLED_URL || 'http://localhost:3002',
@@ -418,22 +420,59 @@ const gameProxies = {
     onProxyReq: (proxyReq, req, res) => {
       console.log('Proxying request to Schooled:', req.url, '->', process.env.SCHOOLED_URL);
     },
-  },
-  // Add more games here as needed
-  // Example:
-  // '/snake': {
-  //   target: process.env.SNAKE_GAME_URL || 'https://snake-game.onrender.com',
-  //   changeOrigin: true,
-  //   ws: true,
-  //   pathRewrite: {
-  //     '^/snake': '',
-  //   },
-  // },
+    secure: false,
+    timeout: 5000,
+    proxyTimeout: 5000
+  }
 };
 
 // Set up reverse proxies for each game
 Object.entries(gameProxies).forEach(([path, config]) => {
   app.use(path, createProxyMiddleware(config));
+});
+
+// Add error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Server error:', err);
+  res.status(500).json({ error: 'Internal server error' });
+});
+
+// Add 404 handler
+app.use((req, res) => {
+  res.status(404).json({ error: 'Not found' });
+});
+
+// Add CORS headers for all routes
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*');
+  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Content-Type');
+  next();
+});
+
+// Handle OPTIONS requests
+app.options('*', cors());
+
+// Add health check endpoint
+app.get('/health', (req, res) => {
+  res.status(200).json({ status: 'ok' });
+});
+
+// Add games endpoint
+app.get('/api/games/available', (req, res) => {
+  try {
+    const games = Object.entries(AVAILABLE_GAMES).map(([type, game]) => ({
+      type,
+      name: game.name,
+      description: game.description,
+      maxPlayers: game.maxPlayers,
+      path: game.path
+    }));
+    res.json(games);
+  } catch (error) {
+    console.error('Error fetching available games:', error);
+    res.status(500).json({ error: 'Failed to fetch available games' });
+  }
 });
 
 // API endpoint to get game list (for the homepage)

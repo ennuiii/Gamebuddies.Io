@@ -49,6 +49,7 @@ const RoomLobby = ({ room, playerName, onLeave }) => {
     let loadingTimeout = null;
     let roomJoinedHandler = null;
     let socket = null;
+    let connectionTimeout = null;
 
     // Define all event handlers
     const handleRoomJoined = ({ room: updatedRoom, playerId, isHost: hostStatus }) => {
@@ -118,10 +119,18 @@ const RoomLobby = ({ room, playerName, onLeave }) => {
       }
     };
 
-    const handleJoinError = (errorMessage) => {
+    const handleJoinError = (error) => {
+      console.error('Join error:', error);
       if (!isCancelled) {
-        setLobbyState(prev => ({ ...prev, error: errorMessage, isLoading: false }));
-        console.log('Join error:', errorMessage);
+        setLobbyState(prev => ({ 
+          ...prev, 
+          error: typeof error === 'string' ? error : 'Failed to join room',
+          isLoading: false 
+        }));
+        // Clean up socket on error
+        if (socket) {
+          socketService.disconnect();
+        }
       }
     };
 
@@ -151,7 +160,11 @@ const RoomLobby = ({ room, playerName, onLeave }) => {
         loadingTimeout = setTimeout(() => {
           if (!isCancelled && loadingStateRef.current) {
             console.error('Loading timeout - failed to join room');
-            setLobbyState(prev => ({ ...prev, error: 'Failed to join room - timeout', isLoading: false }));
+            setLobbyState(prev => ({ 
+              ...prev, 
+              error: 'Failed to join room - timeout', 
+              isLoading: false 
+            }));
             // Clean up socket on timeout
             if (socket) {
               socketService.disconnect();
@@ -162,12 +175,12 @@ const RoomLobby = ({ room, playerName, onLeave }) => {
         // Wait for socket to be connected
         if (!socket.connected) {
           await new Promise((resolve, reject) => {
-            const timeout = setTimeout(() => {
+            connectionTimeout = setTimeout(() => {
               reject(new Error('Socket connection timeout'));
             }, 5000);
             
             socket.once('connect', () => {
-              clearTimeout(timeout);
+              clearTimeout(connectionTimeout);
               console.log('Socket connected!');
               resolve();
             });
@@ -176,6 +189,7 @@ const RoomLobby = ({ room, playerName, onLeave }) => {
         
         if (isCancelled) {
           clearTimeout(loadingTimeout);
+          clearTimeout(connectionTimeout);
           return;
         }
         
@@ -211,6 +225,10 @@ const RoomLobby = ({ room, playerName, onLeave }) => {
             clearTimeout(loadingTimeout);
             loadingTimeout = null;
           }
+          if (connectionTimeout) {
+            clearTimeout(connectionTimeout);
+            connectionTimeout = null;
+          }
         };
         socketService.on('roomJoined', roomJoinedHandler);
         
@@ -219,7 +237,11 @@ const RoomLobby = ({ room, playerName, onLeave }) => {
       } catch (error) {
         console.error('Failed to setup connection:', error);
         if (!isCancelled) {
-          setLobbyState(prev => ({ ...prev, error: 'Failed to connect to server', isLoading: false }));
+          setLobbyState(prev => ({ 
+            ...prev, 
+            error: 'Failed to connect to server', 
+            isLoading: false 
+          }));
           // Clean up socket on error
           if (socket) {
             socketService.disconnect();
@@ -237,6 +259,9 @@ const RoomLobby = ({ room, playerName, onLeave }) => {
       
       if (loadingTimeout) {
         clearTimeout(loadingTimeout);
+      }
+      if (connectionTimeout) {
+        clearTimeout(connectionTimeout);
       }
       
       // Remove all event listeners
