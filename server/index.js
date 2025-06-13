@@ -18,15 +18,17 @@ const io = socketIo(server, {
     methods: ["GET", "POST"],
     credentials: true
   },
-  pingTimeout: 60000,
-  pingInterval: 25000,
-  connectTimeout: 10000,
+  pingTimeout: 60000,  // 60 seconds before considering connection dead
+  pingInterval: 25000, // Ping every 25 seconds
+  connectTimeout: 10000, // 10 seconds to establish connection
   allowUpgrades: true,
   transports: ['websocket', 'polling'],
   // Additional production settings
   ...(process.env.NODE_ENV === 'production' && {
     path: '/socket.io/',
-    serveClient: false
+    serveClient: false,
+    // Ensure no request entity too large errors
+    maxHttpBufferSize: 1e6 // 1MB
   })
 });
 
@@ -99,19 +101,15 @@ setInterval(() => {
 io.on('connection', (socket) => {
   console.log('New client connected:', socket.id, 'from:', socket.handshake.headers.origin || 'unknown origin');
   
-  // Set up ping timeout
-  socket.conn.setTimeout(60000);
-  
-  // Handle ping timeout
-  socket.conn.on('timeout', () => {
-    console.log('Socket timeout:', socket.id);
-    socket.disconnect(true);
+  // Handle errors
+  socket.on('error', (error) => {
+    console.error('Socket error:', socket.id, error);
   });
   
-  // Handle errors
-  socket.conn.on('error', (error) => {
-    console.error('Socket error:', socket.id, error);
-    socket.disconnect(true);
+  // Handle disconnect
+  socket.on('disconnect', (reason) => {
+    console.log('Client disconnected:', socket.id, 'Reason:', reason);
+    handlePlayerLeave(socket);
   });
   
   // Join a room
@@ -258,12 +256,6 @@ io.on('connection', (socket) => {
     });
     
     console.log(`Room ${roomCode} started game: ${room.gameType}`);
-  });
-  
-  // Handle disconnection
-  socket.on('disconnect', (reason) => {
-    console.log('Client disconnected:', socket.id, 'Reason:', reason);
-    handlePlayerLeave(socket);
   });
 });
 

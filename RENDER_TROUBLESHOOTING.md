@@ -1,9 +1,14 @@
 # Render.com Deployment Troubleshooting Guide
 
-## Issue: 502 Bad Gateway and Socket.io Timeouts
+## Issues Fixed
 
-### Root Cause
-The main issue was the middleware order in `server/index.js`. The static file middleware was being registered BEFORE the API routes, causing API requests to be intercepted and resulting in 502 errors.
+### 1. 502 Bad Gateway Error
+
+**Root Cause**: The middleware order in `server/index.js`. The static file middleware was being registered BEFORE the API routes, causing API requests to be intercepted and resulting in 502 errors.
+
+### 2. Socket.io Connection Crashes
+
+**Root Cause**: `socket.conn.setTimeout` is not a valid function in production Socket.io versions, causing server crashes when clients connect.
 
 ### Solution Applied
 
