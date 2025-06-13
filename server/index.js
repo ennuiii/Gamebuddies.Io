@@ -367,10 +367,7 @@ app.get('/api/rooms/:code', (req, res) => {
   res.json(room);
 });
 
-// List available games
-app.get('/api/games/available', (req, res) => {
-  res.json(AVAILABLE_GAMES);
-});
+// This endpoint is handled later with better formatting
 
 // Delete a room (optional)
 app.delete('/api/rooms/:code', (req, res) => {
@@ -426,33 +423,6 @@ const gameProxies = {
   }
 };
 
-// Set up reverse proxies for each game
-Object.entries(gameProxies).forEach(([path, config]) => {
-  app.use(path, createProxyMiddleware(config));
-});
-
-// Add error handling middleware
-app.use((err, req, res, next) => {
-  console.error('Server error:', err);
-  res.status(500).json({ error: 'Internal server error' });
-});
-
-// Add 404 handler
-app.use((req, res) => {
-  res.status(404).json({ error: 'Not found' });
-});
-
-// Add CORS headers for all routes
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type');
-  next();
-});
-
-// Handle OPTIONS requests
-app.options('*', cors());
-
 // Add health check endpoint
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok' });
@@ -476,7 +446,6 @@ app.get('/api/games/available', (req, res) => {
 });
 
 // API endpoint to get game list (for the homepage)
-// IMPORTANT: Update this with your actual game names, descriptions, and paths
 app.get('/api/games', (req, res) => {
   res.json([
     {
@@ -494,23 +463,24 @@ app.get('/api/games', (req, res) => {
       screenshot: '/screenshots/schooled.png',
       path: '/schooled',
       available: true,
-    },
-    // Add more games here
-    // Example:
-    // {
-    //   id: 'snake',
-    //   name: 'Snake Game',
-    //   description: 'Classic snake game with modern graphics',
-    //   screenshot: '/screenshots/snake.jpg',
-    //   path: '/snake',
-    //   available: true,
-    // },
+    }
   ]);
+});
+
+// Set up reverse proxies for each game
+Object.entries(gameProxies).forEach(([path, config]) => {
+  app.use(path, createProxyMiddleware(config));
 });
 
 // Serve static files from React build
 app.use(express.static(path.join(__dirname, '../client/build')));
 app.use('/screenshots', express.static(path.join(__dirname, 'screenshots')));
+
+// Add error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Server error:', err);
+  res.status(500).json({ error: 'Internal server error' });
+});
 
 // Catch all handler - send React app for any route not handled above
 app.get('*', (req, res) => {
