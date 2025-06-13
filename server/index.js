@@ -10,6 +10,8 @@ require('dotenv').config();
 
 const app = express();
 const server = http.createServer(app);
+
+// Socket.io configuration with proper CORS settings
 const io = socketIo(server, {
   cors: {
     origin: process.env.NODE_ENV === 'production' 
@@ -401,13 +403,15 @@ const gameProxies = {
   '/ddf': {
     target: process.env.DDF_URL || 'http://localhost:3001',
     changeOrigin: true,
-    ws: true,
+    ws: false,  // Disable WebSocket proxying to prevent conflicts with Socket.io
     pathRewrite: {
       '^/ddf': '',
     },
     onError: (err, req, res) => {
       console.error('Proxy error for /ddf:', err.message);
-      res.status(500).send('Proxy error: ' + err.message);
+      if (res && !res.headersSent) {
+        res.status(500).send('Proxy error: ' + err.message);
+      }
     },
     onProxyReq: (proxyReq, req, res) => {
       console.log('Proxying request to DDF:', req.url, '->', process.env.DDF_URL);
@@ -419,13 +423,15 @@ const gameProxies = {
   '/schooled': {
     target: process.env.SCHOOLED_URL || 'http://localhost:3002',
     changeOrigin: true,
-    ws: true,
+    ws: false,  // Disable WebSocket proxying to prevent conflicts with Socket.io
     pathRewrite: {
       '^/schooled': '',
     },
     onError: (err, req, res) => {
       console.error('Proxy error for /schooled:', err.message);
-      res.status(500).send('Proxy error: ' + err.message);
+      if (res && !res.headersSent) {
+        res.status(500).send('Proxy error: ' + err.message);
+      }
     },
     onProxyReq: (proxyReq, req, res) => {
       console.log('Proxying request to Schooled:', req.url, '->', process.env.SCHOOLED_URL);
