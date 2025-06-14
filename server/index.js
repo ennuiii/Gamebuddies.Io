@@ -348,26 +348,23 @@ io.on('connection', async (socket) => {
         data.playerName
       );
 
-      // Check if this user is the room creator (should be host)
-      // Since we use unique external_ids, check by username and room metadata
-      const isRoomCreator = room.metadata?.created_by_name === data.playerName;
-      const userRole = isRoomCreator ? 'host' : 'player';
+      // Check if this is the room creator trying to rejoin
+      const isOriginalCreator = room.metadata?.created_by_name === data.playerName;
       
       console.log(`🚪 [DEBUG] User joining room:`, {
         userId: user.id,
         username: user.username,
-        roomCreatorId: room.creator_id,
-        isRoomCreator: isRoomCreator,
-        assignedRole: userRole
+        roomCode: data.roomCode,
+        isOriginalCreator: isOriginalCreator
       });
 
-      // Check for duplicate player names in room (allow room creator to rejoin)
+      // Check for duplicate player names in room
       const existingParticipant = room.participants?.find(p => 
         p.user?.username === data.playerName && 
         p.connection_status === 'connected'
       );
       
-      if (existingParticipant && !isRoomCreator) {
+      if (existingParticipant) {
         console.log(`❌ [DEBUG] Duplicate name blocked: ${data.playerName} already in room ${data.roomCode}`);
         socket.emit('error', { 
           message: 'A player with this name is already in the room. Please choose a different name.',
@@ -376,15 +373,9 @@ io.on('connection', async (socket) => {
         return;
       }
       
-      // If room creator is rejoining, update existing participant instead of creating new one
-      if (existingParticipant && isRoomCreator) {
-        console.log(`🔄 [DEBUG] Room creator ${data.playerName} reconnecting to room ${data.roomCode}`);
-        // Update existing participant's connection status
-        await db.updateParticipantConnection(existingParticipant.user_id, socket.id, 'connected');
-      } else {
-        // Add new participant to room
-        await db.addParticipant(room.id, user.id, socket.id, userRole);
-      }
+      // Determine role: original room creator becomes host, others are players
+      const userRole = isOriginalCreator ? 'host' : 'player';
+      await db.addParticipant(room.id, user.id, socket.id, userRole);
 
       // Join socket room
       socket.join(data.roomCode);
@@ -420,7 +411,7 @@ io.on('connection', async (socket) => {
         player: {
           id: user.id,
           name: data.playerName,
-          isHost: isRoomCreator,
+          isHost: isOriginalCreator,
           socketId: socket.id
         },
         players: players,
@@ -430,7 +421,7 @@ io.on('connection', async (socket) => {
       // Send success response to joining player
       socket.emit('roomJoined', {
         roomCode: data.roomCode,
-        isHost: isRoomCreator,
+        isHost: isOriginalCreator,
         players: players,
         room: updatedRoom
       });
