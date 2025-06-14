@@ -77,8 +77,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
         roomCode: data.roomCode,
         playerCount: data.players?.length || 0,
         room_id: data.room?.id,
-        game_type: data.room?.game_type,
-        storage_info: data.room?.storage_type || 'unknown'
+        game_type: data.room?.game_type
       });
       
       setPlayers(data.players || []);

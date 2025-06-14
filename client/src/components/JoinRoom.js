@@ -68,8 +68,7 @@ const JoinRoom = ({ onRoomJoined, onCancel }) => {
           roomCode: data.roomCode,
           isHost: data.isHost,
           playerCount: data.players?.length || 0,
-          room_id: data.room?.id,
-          storage_info: data.room?.storage_type || 'unknown'
+          room_id: data.room?.id
         });
         
         socket.disconnect();

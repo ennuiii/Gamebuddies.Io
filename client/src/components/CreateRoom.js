@@ -54,8 +54,7 @@ const CreateRoom = ({ onRoomCreated, onCancel }) => {
         console.log('🔍 [CLIENT DEBUG] Room data:', {
           roomCode: data.roomCode,
           isHost: data.isHost,
-          room_id: data.room?.id,
-          storage_info: data.room?.storage_type || 'unknown'
+          room_id: data.room?.id
         });
         
         socket.disconnect();
@@ -75,8 +74,7 @@ const CreateRoom = ({ onRoomCreated, onCancel }) => {
         console.error('🔍 [CLIENT DEBUG] Error details:', {
           message: error.message,
           code: error.code,
-          debug: error.debug,
-          storage_type: error.debug?.storage_type || 'unknown'
+          debug: error.debug
         });
         
         setError(error.message || 'Failed to create room. Please try again.');
