@@ -78,6 +78,9 @@ Object.values(gameProxies).forEach(proxy => {
 // Serve static files from React build
 app.use(express.static(path.join(__dirname, '../client/build')));
 
+// Serve screenshots
+app.use('/screenshots', express.static(path.join(__dirname, 'screenshots')));
+
 // ===== NEW API ENDPOINTS =====
 
 // Games endpoint - returns available games
@@ -88,7 +91,7 @@ app.get('/api/games', (req, res) => {
       name: 'Der dümmste fliegt',
       description: 'A fun quiz game where the worst player gets eliminated each round!',
       path: '/ddf',
-      screenshot: '/images/ddf-preview.jpg', // Will fallback to placeholder if not found
+      screenshot: '/screenshots/DDF.png',
       available: true,
       maxPlayers: 8
     },
@@ -97,7 +100,7 @@ app.get('/api/games', (req, res) => {
       name: 'School Quiz Game',
       description: 'Test your knowledge in this educational quiz game!',
       path: '/schooled',
-      screenshot: '/images/schooled-preview.jpg', // Will fallback to placeholder if not found
+      screenshot: '/screenshots/schooled.png',
       available: true,
       maxPlayers: 6
     }
