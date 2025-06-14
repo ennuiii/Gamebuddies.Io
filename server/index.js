@@ -88,7 +88,7 @@ app.get('/api/games', (req, res) => {
       name: 'Der dümmste fliegt',
       description: 'A fun quiz game where the worst player gets eliminated each round!',
       path: '/ddf',
-      screenshot: '/screenshots/ddf.png',
+      screenshot: '/images/ddf-preview.jpg', // Will fallback to placeholder if not found
       available: true,
       maxPlayers: 8
     },
@@ -97,7 +97,7 @@ app.get('/api/games', (req, res) => {
       name: 'School Quiz Game',
       description: 'Test your knowledge in this educational quiz game!',
       path: '/schooled',
-      screenshot: '/screenshots/schooled.png',
+      screenshot: '/images/schooled-preview.jpg', // Will fallback to placeholder if not found
       available: true,
       maxPlayers: 6
     }
