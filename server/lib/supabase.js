@@ -114,42 +114,47 @@ class DatabaseService {
   // User management
   async getOrCreateUser(externalId, username, displayName) {
     try {
-      // Try to get existing user
-      let { data: user, error: getUserError } = await this.adminClient
+      // Always check by external_id first
+      let { data: user, error } = await this.adminClient
         .from('user_profiles')
         .select('*')
         .eq('external_id', externalId)
         .single();
 
-      if (getUserError && getUserError.code !== 'PGRST116') {
-        throw getUserError;
+      if (error && error.code !== 'PGRST116') {
+        // PGRST116 means no rows found, which is ok
+        throw error;
       }
 
-      // Create user if doesn't exist
-      if (!user) {
-        const { data: newUser, error: createError } = await this.adminClient
-          .from('user_profiles')
-          .insert([{
-            external_id: externalId,
-            username: username.toLowerCase().replace(/\s+/g, '_'),
-            display_name: displayName
-          }])
-          .select()
-          .single();
-
-        if (createError) throw createError;
-        user = newUser;
-      } else {
-        // Update last seen
+      if (user) {
+        console.log('✅ Found existing user:', user.username);
+        // Update last_seen
         await this.adminClient
           .from('user_profiles')
           .update({ last_seen: new Date().toISOString() })
           .eq('id', user.id);
+        
+        return user;
       }
 
-      return user;
+      // Create new user - username doesn't need to be unique anymore
+      const { data: newUser, error: createError } = await this.adminClient
+        .from('user_profiles')
+        .insert({
+          external_id: externalId,
+          username: username,
+          display_name: displayName || username
+        })
+        .select()
+        .single();
+
+      if (createError) throw createError;
+
+      console.log('✅ Created new user:', newUser.username);
+      return newUser;
+
     } catch (error) {
-      console.error('Error getting/creating user:', error);
+      console.error('Error in getOrCreateUser:', error);
       throw error;
     }
   }

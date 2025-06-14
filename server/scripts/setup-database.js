@@ -23,7 +23,7 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE TABLE IF NOT EXISTS user_profiles (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     external_id VARCHAR(100) UNIQUE NOT NULL,
-    username VARCHAR(50) UNIQUE NOT NULL,
+    username VARCHAR(50) NOT NULL,
     display_name VARCHAR(100) NOT NULL,
     avatar_url TEXT,
     preferences JSONB DEFAULT '{"notifications": true, "sound": true}',
@@ -63,7 +63,6 @@ CREATE TABLE IF NOT EXISTS room_participants (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     room_id UUID REFERENCES game_rooms(id) ON DELETE CASCADE,
     user_id UUID REFERENCES user_profiles(id),
-    socket_id VARCHAR(100),
     role VARCHAR(20) DEFAULT 'player',
     team_id INTEGER,
     joined_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -151,6 +150,45 @@ BEGIN
     RETURN result;
 END;
 $$ LANGUAGE plpgsql;
+
+-- User management function (allows duplicate usernames, uses external_id as unique identifier)
+CREATE OR REPLACE FUNCTION get_or_create_user(
+  p_external_id VARCHAR(100),
+  p_username VARCHAR(50),
+  p_display_name VARCHAR(100) DEFAULT NULL
+)
+RETURNS user_profiles
+LANGUAGE plpgsql
+AS $$
+DECLARE
+  v_user user_profiles;
+BEGIN
+  -- Try to find by external_id
+  SELECT * INTO v_user
+  FROM user_profiles
+  WHERE external_id = p_external_id;
+  
+  IF FOUND THEN
+    -- Update last_seen
+    UPDATE user_profiles
+    SET last_seen = NOW()
+    WHERE id = v_user.id;
+    
+    RETURN v_user;
+  END IF;
+  
+  -- Create new user
+  INSERT INTO user_profiles (external_id, username, display_name)
+  VALUES (
+    p_external_id,
+    p_username,
+    COALESCE(p_display_name, p_username)
+  )
+  RETURNING * INTO v_user;
+  
+  RETURN v_user;
+END;
+$$;
 
 -- Auto-update participant count
 CREATE OR REPLACE FUNCTION update_participant_count()
