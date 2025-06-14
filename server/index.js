@@ -122,18 +122,16 @@ app.get('/api/rooms/:code', async (req, res) => {
 app.get('/api/health', async (req, res) => {
   try {
     // Test database connection
-    if (db.isSupabase) {
-      await db.client.from('game_rooms').select('id').limit(1);
-    }
+    await db.adminClient.from('game_rooms').select('id').limit(1);
     
     res.json({ 
       status: 'healthy', 
       timestamp: new Date().toISOString(),
-      version: '2.0.0',
+      version: '2.1.0',
       storage: {
-        type: db.isSupabase ? 'SUPABASE' : 'FALLBACK',
-        persistent: db.isSupabase,
-        description: db.isSupabase ? 'Using Supabase database' : 'Using in-memory fallback storage'
+        type: 'SUPABASE',
+        persistent: true,
+        description: 'Using Supabase database'
       }
     });
   } catch (error) {
@@ -141,8 +139,8 @@ app.get('/api/health', async (req, res) => {
       status: 'unhealthy', 
       error: error.message,
       storage: {
-        type: db.isSupabase ? 'SUPABASE' : 'FALLBACK',
-        persistent: db.isSupabase
+        type: 'SUPABASE',
+        persistent: true
       }
     });
   }
@@ -151,20 +149,14 @@ app.get('/api/health', async (req, res) => {
 // Debug endpoint to check storage status
 app.get('/api/debug/storage', (req, res) => {
   res.json({
-    storage_type: db.isSupabase ? 'SUPABASE' : 'FALLBACK',
-    is_persistent: db.isSupabase,
-    supabase_configured: !!process.env.SUPABASE_URL,
+    storage_type: 'SUPABASE',
+    is_persistent: true,
+    supabase_configured: true,
     environment_vars: {
       SUPABASE_URL: !!process.env.SUPABASE_URL,
       SUPABASE_ANON_KEY: !!process.env.SUPABASE_ANON_KEY,
       SUPABASE_SERVICE_ROLE_KEY: !!process.env.SUPABASE_SERVICE_ROLE_KEY
-    },
-    fallback_stats: !db.isSupabase ? {
-      rooms_count: db.client.rooms?.size || 0,
-      users_count: db.client.users?.size || 0,
-      participants_count: db.client.participants?.size || 0,
-      events_count: db.client.events?.length || 0
-    } : null
+    }
   });
 });
 
@@ -189,7 +181,6 @@ io.on('connection', async (socket) => {
     try {
       console.log(`🏠 [SUPABASE] Creating room for ${data.playerName}`);
       console.log(`🔍 [DEBUG] Socket ID: ${socket.id}`);
-      console.log(`🔍 [DEBUG] Using Supabase: ${db.isSupabase ? 'YES' : 'NO (Fallback)'}`);
       
       // Get or create user profile
       console.log(`👤 [DEBUG] Creating/getting user profile...`);
@@ -217,8 +208,7 @@ io.on('connection', async (socket) => {
       console.log(`✅ [DEBUG] Room created:`, { 
         id: room.id, 
         room_code: room.room_code, 
-        creator_id: room.creator_id,
-        storage_type: db.isSupabase ? 'SUPABASE' : 'FALLBACK'
+        creator_id: room.creator_id
       });
 
       // Add creator as participant
@@ -226,8 +216,7 @@ io.on('connection', async (socket) => {
       const participant = await db.addParticipant(room.id, user.id, socket.id, 'host');
       console.log(`✅ [DEBUG] Participant added:`, { 
         participant_id: participant.id, 
-        role: participant.role,
-        storage_type: db.isSupabase ? 'SUPABASE' : 'FALLBACK'
+        role: participant.role
       });
 
       // Join socket room
@@ -256,20 +245,18 @@ io.on('connection', async (socket) => {
         }
       });
 
-      console.log(`🎉 [SUCCESS] Room ${room.room_code} created by ${data.playerName} using ${db.isSupabase ? 'SUPABASE' : 'FALLBACK'} storage`);
+      console.log(`🎉 [SUCCESS] Room ${room.room_code} created by ${data.playerName} using SUPABASE storage`);
 
     } catch (error) {
       console.error('❌ [ERROR] Room creation failed:', error);
       console.error('🔍 [DEBUG] Error details:', {
         message: error.message,
-        stack: error.stack,
-        storage_type: db.isSupabase ? 'SUPABASE' : 'FALLBACK'
+        stack: error.stack
       });
       socket.emit('error', { 
         message: 'Failed to create room. Please try again.',
         code: 'ROOM_CREATION_FAILED',
         debug: {
-          storage_type: db.isSupabase ? 'SUPABASE' : 'FALLBACK',
           error_message: error.message
         }
       });
@@ -281,18 +268,16 @@ io.on('connection', async (socket) => {
     try {
       console.log(`🚪 [SUPABASE] ${data.playerName} attempting to join room ${data.roomCode}`);
       console.log(`🔍 [DEBUG] Socket ID: ${socket.id}`);
-      console.log(`🔍 [DEBUG] Using Supabase: ${db.isSupabase ? 'YES' : 'NO (Fallback)'}`);
 
       // Get room from database
       console.log(`🔍 [DEBUG] Looking up room in database...`);
       const room = await db.getRoomByCode(data.roomCode);
       if (!room) {
-        console.log(`❌ [DEBUG] Room ${data.roomCode} not found in ${db.isSupabase ? 'SUPABASE' : 'FALLBACK'} storage`);
+        console.log(`❌ [DEBUG] Room ${data.roomCode} not found in SUPABASE storage`);
         socket.emit('error', { 
           message: 'Room not found. Please check the room code.',
           code: 'ROOM_NOT_FOUND',
           debug: {
-            storage_type: db.isSupabase ? 'SUPABASE' : 'FALLBACK',
             room_code: data.roomCode
           }
         });
@@ -303,8 +288,7 @@ io.on('connection', async (socket) => {
         room_code: room.room_code, 
         status: room.status,
         current_players: room.current_players,
-        max_players: room.max_players,
-        storage_type: db.isSupabase ? 'SUPABASE' : 'FALLBACK'
+        max_players: room.max_players
       });
 
       // Check if room is full
@@ -315,7 +299,7 @@ io.on('connection', async (socket) => {
         });
         return;
       }
-
+      
       // Check if room is still accepting players
       if (room.status !== 'waiting_for_players') {
         socket.emit('error', { 
@@ -324,7 +308,7 @@ io.on('connection', async (socket) => {
         });
         return;
       }
-
+      
       // Get or create user profile
       const user = await db.getOrCreateUser(
         socket.id,
@@ -344,7 +328,7 @@ io.on('connection', async (socket) => {
         });
         return;
       }
-
+      
       // Add participant to room
       await db.addParticipant(room.id, user.id, socket.id, 'player');
 
@@ -408,9 +392,9 @@ io.on('connection', async (socket) => {
       const connection = activeConnections.get(socket.id);
       if (!connection?.roomId) {
         socket.emit('error', { message: 'Not in a room' });
-        return;
-      }
-
+      return;
+    }
+    
       // Update room with selected game
       const updatedRoom = await db.updateRoom(connection.roomId, {
         game_type: data.gameType,
@@ -437,16 +421,16 @@ io.on('connection', async (socket) => {
       const connection = activeConnections.get(socket.id);
       if (!connection?.roomId) {
         socket.emit('error', { message: 'Not in a room' });
-        return;
-      }
-
+      return;
+    }
+    
       // Get room data
       const room = await db.getRoomByCode(data.roomCode);
       if (!room) {
         socket.emit('error', { message: 'Room not found' });
-        return;
-      }
-
+      return;
+    }
+    
       // Verify user is host
       const userParticipant = room.participants?.find(p => 
         p.user_id === connection.userId && p.role === 'host'
@@ -454,9 +438,9 @@ io.on('connection', async (socket) => {
       
       if (!userParticipant) {
         socket.emit('error', { message: 'Only the host can start the game' });
-        return;
-      }
-
+      return;
+    }
+    
       // Update room status
       await db.updateRoom(room.id, {
         status: 'launching',
@@ -467,9 +451,9 @@ io.on('connection', async (socket) => {
       const gameProxy = gameProxies[room.game_type];
       if (!gameProxy) {
         socket.emit('error', { message: 'Game not supported' });
-        return;
-      }
-
+      return;
+    }
+    
       // Send game URLs to participants with delay for non-hosts
       const participants = room.participants?.filter(p => 
         p.connection_status === 'connected'
@@ -614,18 +598,11 @@ process.on('SIGTERM', async () => {
 // Start server
 const PORT = process.env.PORT || 3033;
 server.listen(PORT, () => {
-  console.log(`🚀 GameBuddies Server v2.0.0 running on port ${PORT}`);
+  console.log(`🚀 GameBuddies Server v2.1.0 running on port ${PORT}`);
   console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🗄️ Storage: ${db.isSupabase ? 'SUPABASE (Persistent)' : 'FALLBACK (In-Memory)'}`);
+  console.log(`🗄️ Storage: SUPABASE (Persistent)`);
   console.log(`🎮 Game proxies configured: ${Object.keys(gameProxies).join(', ')}`);
-  
-  // Log Supabase configuration status
-  if (db.isSupabase) {
-    console.log(`✅ Supabase configured - using persistent database storage`);
-  } else {
-    console.log(`⚠️  Supabase NOT configured - using fallback in-memory storage`);
-    console.log(`   To enable Supabase: Set SUPABASE_URL, SUPABASE_ANON_KEY, and SUPABASE_SERVICE_ROLE_KEY`);
-  }
+  console.log(`✅ Supabase configured - using persistent database storage`);
 });
 
 module.exports = { app, server, io }; 

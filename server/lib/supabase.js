@@ -1,75 +1,45 @@
 const { createClient } = require('@supabase/supabase-js');
-require('dotenv').config();
 
-// Check if Supabase is configured
-const isSupabaseConfigured = process.env.SUPABASE_URL && 
-                             process.env.SUPABASE_ANON_KEY && 
-                             process.env.SUPABASE_SERVICE_ROLE_KEY;
+// Initialize Supabase client
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
-if (!isSupabaseConfigured) {
-  console.warn('⚠️  Supabase not configured - falling back to in-memory storage');
-  console.warn('   Set SUPABASE_URL, SUPABASE_ANON_KEY, and SUPABASE_SERVICE_ROLE_KEY to enable database persistence');
+if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceKey) {
+  console.error('❌ CRITICAL ERROR: Supabase configuration missing!');
+  console.error('   Required environment variables:');
+  console.error('   - SUPABASE_URL');
+  console.error('   - SUPABASE_ANON_KEY');
+  console.error('   - SUPABASE_SERVICE_ROLE_KEY');
+  console.error('   GameBuddies now requires Supabase for persistent storage.');
+  process.exit(1);
 }
 
-// Regular Supabase client (for public operations)
-const supabase = isSupabaseConfigured ? createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_ANON_KEY,
-  {
-    auth: {
-      autoRefreshToken: true,
-      persistSession: true
-    },
-    realtime: {
-      params: {
-        eventsPerSecond: 10
-      }
-    }
-  }
-) : null;
+// Create Supabase clients
+const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-// Admin Supabase client (for server operations)
-const supabaseAdmin = isSupabaseConfigured ? createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  }
-) : null;
+console.log('✅ Supabase clients initialized successfully');
 
-// Import fallback storage
-const FallbackStorage = require('./fallback-storage');
-
-// Database helper functions
+// Database service class
 class DatabaseService {
   constructor() {
-    if (isSupabaseConfigured) {
-      this.client = supabaseAdmin;
-      this.isSupabase = true;
-    } else {
-      this.client = new FallbackStorage();
-      this.isSupabase = false;
-    }
+    this.client = supabase;
+    this.adminClient = supabaseAdmin;
+    this.isSupabase = true; // Always true now
   }
 
   // Room management
   async createRoom(roomData) {
     try {
-      if (!this.isSupabase) {
-        return await this.client.createRoom(roomData);
-      }
-
       // Generate room code using database function
-      const { data: roomCode, error: codeError } = await this.client
+      const { data: roomCode, error: codeError } = await this.adminClient
         .rpc('generate_room_code');
 
       if (codeError) throw codeError;
 
       // Create the room
-      const { data: room, error: roomError } = await this.client
+      const { data: room, error: roomError } = await this.adminClient
         .from('game_rooms')
         .insert([{
           room_code: roomCode,
@@ -95,11 +65,7 @@ class DatabaseService {
 
   async getRoomByCode(roomCode) {
     try {
-      if (!this.isSupabase) {
-        return await this.client.getRoomByCode(roomCode);
-      }
-
-      const { data: room, error } = await this.client
+      const { data: room, error } = await this.adminClient
         .from('game_rooms')
         .select(`
           *,
@@ -128,7 +94,7 @@ class DatabaseService {
 
   async updateRoom(roomId, updates) {
     try {
-      const { data: room, error } = await this.client
+      const { data: room, error } = await this.adminClient
         .from('game_rooms')
         .update({
           ...updates,
@@ -149,12 +115,8 @@ class DatabaseService {
   // User management
   async getOrCreateUser(externalId, username, displayName) {
     try {
-      if (!this.isSupabase) {
-        return await this.client.getOrCreateUser(externalId, username, displayName);
-      }
-
       // Try to get existing user
-      let { data: user, error: getUserError } = await this.client
+      let { data: user, error: getUserError } = await this.adminClient
         .from('user_profiles')
         .select('*')
         .eq('external_id', externalId)
@@ -166,7 +128,7 @@ class DatabaseService {
 
       // Create user if doesn't exist
       if (!user) {
-        const { data: newUser, error: createError } = await this.client
+        const { data: newUser, error: createError } = await this.adminClient
           .from('user_profiles')
           .insert([{
             external_id: externalId,
@@ -180,7 +142,7 @@ class DatabaseService {
         user = newUser;
       } else {
         // Update last seen
-        await this.client
+        await this.adminClient
           .from('user_profiles')
           .update({ last_seen: new Date().toISOString() })
           .eq('id', user.id);
@@ -196,11 +158,7 @@ class DatabaseService {
   // Participant management
   async addParticipant(roomId, userId, socketId, role = 'player') {
     try {
-      if (!this.isSupabase) {
-        return await this.client.addParticipant(roomId, userId, socketId, role);
-      }
-
-      const { data: participant, error } = await this.client
+      const { data: participant, error } = await this.adminClient
         .from('room_participants')
         .upsert({
           room_id: roomId,
@@ -235,7 +193,7 @@ class DatabaseService {
 
   async removeParticipant(roomId, userId) {
     try {
-      const { error } = await this.client
+      const { error } = await this.adminClient
         .from('room_participants')
         .delete()
         .eq('room_id', roomId)
@@ -255,7 +213,7 @@ class DatabaseService {
 
   async updateParticipantConnection(userId, socketId, status = 'connected') {
     try {
-      const { error } = await this.client
+      const { error } = await this.adminClient
         .from('room_participants')
         .update({
           socket_id: socketId,
@@ -275,7 +233,7 @@ class DatabaseService {
   // Event logging
   async logEvent(roomId, userId, eventType, eventData = {}) {
     try {
-      const { error } = await this.client
+      const { error } = await this.adminClient
         .from('room_events')
         .insert([{
           room_id: roomId,
@@ -299,7 +257,7 @@ class DatabaseService {
   async saveGameState(roomId, gameType, stateData, createdBy) {
     try {
       // Get current max version
-      const { data: maxVersion } = await this.client
+      const { data: maxVersion } = await this.adminClient
         .from('game_states')
         .select('state_version')
         .eq('room_id', roomId)
@@ -309,7 +267,7 @@ class DatabaseService {
 
       const nextVersion = (maxVersion?.state_version || 0) + 1;
 
-      const { data: gameState, error } = await this.client
+      const { data: gameState, error } = await this.adminClient
         .from('game_states')
         .insert([{
           room_id: roomId,
@@ -332,7 +290,7 @@ class DatabaseService {
 
   async getLatestGameState(roomId) {
     try {
-      const { data: gameState, error } = await this.client
+      const { data: gameState, error } = await this.adminClient
         .from('game_states')
         .select('*')
         .eq('room_id', roomId)
@@ -356,7 +314,7 @@ class DatabaseService {
 
   async cleanupStaleConnections() {
     try {
-      const { error } = await this.client.rpc('cleanup_stale_connections');
+      const { error } = await this.adminClient.rpc('cleanup_stale_connections');
       if (error) throw error;
     } catch (error) {
       console.error('Error cleaning up stale connections:', error);
@@ -365,7 +323,7 @@ class DatabaseService {
 
   async refreshActiveRoomsView() {
     try {
-      const { error } = await this.client.rpc('refresh_active_rooms');
+      const { error } = await this.adminClient.rpc('refresh_active_rooms');
       if (error) throw error;
     } catch (error) {
       console.error('Error refreshing active rooms view:', error);
@@ -375,7 +333,7 @@ class DatabaseService {
   // Get active rooms for discovery
   async getActiveRooms(filters = {}) {
     try {
-      let query = this.client
+      let query = this.adminClient
         .from('active_rooms_view')
         .select('*');
 
