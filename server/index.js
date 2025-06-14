@@ -75,7 +75,36 @@ Object.values(gameProxies).forEach(proxy => {
   }));
 });
 
+// Serve static files from React build
+app.use(express.static(path.join(__dirname, '../client/build')));
+
 // ===== NEW API ENDPOINTS =====
+
+// Games endpoint - returns available games
+app.get('/api/games', (req, res) => {
+  const games = [
+    {
+      id: 'ddf',
+      name: 'Der dümmste fliegt',
+      description: 'A fun quiz game where the worst player gets eliminated each round!',
+      path: '/ddf',
+      screenshot: '/screenshots/ddf.png',
+      available: true,
+      maxPlayers: 8
+    },
+    {
+      id: 'schooled',
+      name: 'School Quiz Game',
+      description: 'Test your knowledge in this educational quiz game!',
+      path: '/schooled',
+      screenshot: '/screenshots/schooled.png',
+      available: true,
+      maxPlayers: 6
+    }
+  ];
+  
+  res.json(games);
+});
 
 // Room discovery endpoint
 app.get('/api/rooms', async (req, res) => {
@@ -593,6 +622,16 @@ process.on('SIGTERM', async () => {
     console.log('✅ Server closed');
     process.exit(0);
   });
+});
+
+// Catch-all handler: send back React's index.html file for non-API routes
+app.get('*', (req, res) => {
+  // Don't serve index.html for API routes or socket.io
+  if (req.path.startsWith('/api/') || req.path.startsWith('/socket.io/')) {
+    return res.status(404).json({ error: 'Not found' });
+  }
+  
+  res.sendFile(path.join(__dirname, '../client/build/index.html'));
 });
 
 // Start server
