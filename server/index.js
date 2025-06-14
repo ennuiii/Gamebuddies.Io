@@ -520,7 +520,7 @@ io.on('connection', async (socket) => {
     
       // Update room status
       await db.updateRoom(room.id, {
-        status: 'in_game',
+        status: 'active',
         started_at: new Date().toISOString()
       });
 

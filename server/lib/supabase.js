@@ -346,7 +346,7 @@ class DatabaseService {
         .eq('room_id', roomId)
         .eq('connection_status', 'connected')
         .neq('user_id', leavingHostUserId)
-        .order('created_at', { ascending: true }); // Oldest participant first
+        .order('joined_at', { ascending: true }); // Oldest participant first
 
       if (error) throw error;
 
