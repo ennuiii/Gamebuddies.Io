@@ -333,12 +333,24 @@ io.on('connection', async (socket) => {
       }
       
       // Check if room is still accepting players
-      if (room.status !== 'waiting_for_players') {
+      // Allow original creator to rejoin even if room is active (for auto-rejoin after game)
+      const isOriginalCreator = room.metadata?.created_by_name === data.playerName;
+      
+      if (room.status !== 'waiting_for_players' && !isOriginalCreator) {
         socket.emit('error', { 
           message: 'Room is no longer accepting players.',
           code: 'ROOM_NOT_ACCEPTING'
         });
         return;
+      }
+      
+      // If original creator is rejoining an active room, reset it to lobby
+      if (room.status === 'active' && isOriginalCreator) {
+        console.log(`🔄 [DEBUG] Original creator rejoining active room, resetting to lobby`);
+        await db.updateRoom(room.id, {
+          status: 'waiting_for_players',
+          game_type: 'lobby'
+        });
       }
       
       // Get or create user profile
@@ -347,9 +359,6 @@ io.on('connection', async (socket) => {
         data.playerName,
         data.playerName
       );
-
-      // Check if this is the room creator trying to rejoin
-      const isOriginalCreator = room.metadata?.created_by_name === data.playerName;
       
       console.log(`🚪 [DEBUG] User joining room:`, {
         userId: user.id,
