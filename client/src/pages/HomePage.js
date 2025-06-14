@@ -56,15 +56,15 @@ const HomePage = () => {
 
   const handleRoomCreated = (room) => {
     setCurrentRoom(room);
-    setPlayerName(room.creatorName);
+    setPlayerName(room.playerName);
     setShowCreateRoom(false);
     setInLobby(true);
   };
 
-  const handleJoinRoom = (roomCode, name) => {
+  const handleJoinRoom = (room) => {
     // The actual room data will be fetched in RoomLobby
-    setCurrentRoom({ roomCode });
-    setPlayerName(name);
+    setCurrentRoom(room);
+    setPlayerName(room.playerName);
     setShowJoinRoom(false);
     setInLobby(true);
   };
@@ -85,8 +85,9 @@ const HomePage = () => {
   if (inLobby && currentRoom) {
     return (
       <RoomLobby 
-        room={currentRoom}
+        roomCode={currentRoom.roomCode}
         playerName={playerName}
+        isHost={currentRoom.isHost}
         onLeave={handleLeaveLobby}
       />
     );
