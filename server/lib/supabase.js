@@ -260,6 +260,129 @@ class DatabaseService {
     }
   }
 
+  // Host transfer functionality
+  async transferHost(roomId, currentHostUserId, newHostUserId) {
+    try {
+      console.log(`🔄 Transferring host in room ${roomId} from ${currentHostUserId} to ${newHostUserId}`);
+
+      // Start a transaction-like operation
+      // First, verify current host
+      const { data: currentHost, error: currentHostError } = await this.adminClient
+        .from('room_participants')
+        .select('*')
+        .eq('room_id', roomId)
+        .eq('user_id', currentHostUserId)
+        .eq('role', 'host')
+        .single();
+
+      if (currentHostError || !currentHost) {
+        throw new Error('Current user is not the host of this room');
+      }
+
+      // Verify new host is in the room
+      const { data: newHost, error: newHostError } = await this.adminClient
+        .from('room_participants')
+        .select('*')
+        .eq('room_id', roomId)
+        .eq('user_id', newHostUserId)
+        .single();
+
+      if (newHostError || !newHost) {
+        throw new Error('Target user is not in this room');
+      }
+
+      // Update current host to player
+      const { error: demoteError } = await this.adminClient
+        .from('room_participants')
+        .update({ role: 'player' })
+        .eq('room_id', roomId)
+        .eq('user_id', currentHostUserId);
+
+      if (demoteError) throw demoteError;
+
+      // Update new user to host
+      const { error: promoteError } = await this.adminClient
+        .from('room_participants')
+        .update({ role: 'host' })
+        .eq('room_id', roomId)
+        .eq('user_id', newHostUserId);
+
+      if (promoteError) {
+        // Rollback: restore original host
+        await this.adminClient
+          .from('room_participants')
+          .update({ role: 'host' })
+          .eq('room_id', roomId)
+          .eq('user_id', currentHostUserId);
+        throw promoteError;
+      }
+
+      // Log the host transfer event
+      await this.logEvent(roomId, currentHostUserId, 'host_transferred', {
+        old_host_id: currentHostUserId,
+        new_host_id: newHostUserId
+      });
+
+      console.log(`✅ Host transferred successfully in room ${roomId}`);
+      return true;
+
+    } catch (error) {
+      console.error('Error transferring host:', error);
+      throw error;
+    }
+  }
+
+  async autoTransferHost(roomId, leavingHostUserId) {
+    try {
+      console.log(`🔄 Auto-transferring host in room ${roomId} after host ${leavingHostUserId} left`);
+
+      // Find the next suitable host (longest-connected player)
+      const { data: participants, error } = await this.adminClient
+        .from('room_participants')
+        .select(`
+          *,
+          user:user_profiles(username, display_name)
+        `)
+        .eq('room_id', roomId)
+        .eq('connection_status', 'connected')
+        .neq('user_id', leavingHostUserId)
+        .order('created_at', { ascending: true }); // Oldest participant first
+
+      if (error) throw error;
+
+      if (!participants || participants.length === 0) {
+        console.log('⚠️ No connected participants left for auto host transfer');
+        return null;
+      }
+
+      // Select the first (oldest) participant as new host
+      const newHost = participants[0];
+
+      // Update their role to host
+      const { error: updateError } = await this.adminClient
+        .from('room_participants')
+        .update({ role: 'host' })
+        .eq('room_id', roomId)
+        .eq('user_id', newHost.user_id);
+
+      if (updateError) throw updateError;
+
+      // Log the auto host transfer event
+      await this.logEvent(roomId, newHost.user_id, 'host_auto_transferred', {
+        old_host_id: leavingHostUserId,
+        new_host_id: newHost.user_id,
+        reason: 'original_host_left'
+      });
+
+      console.log(`✅ Auto-transferred host to ${newHost.user?.display_name || newHost.user?.username}`);
+      return newHost;
+
+    } catch (error) {
+      console.error('Error auto-transferring host:', error);
+      throw error;
+    }
+  }
+
   // Event logging
   async logEvent(roomId, userId, eventType, eventData = {}) {
     try {
@@ -357,6 +480,246 @@ class DatabaseService {
       if (error) throw error;
     } catch (error) {
       console.error('Error refreshing active rooms view:', error);
+    }
+  }
+
+  // Room cleanup methods
+  async cleanupInactiveRooms(options = {}) {
+    try {
+      const {
+        maxAgeHours = 24,        // Rooms older than 24 hours
+        maxIdleMinutes = 30,     // Rooms idle for 30 minutes
+        includeAbandoned = true, // Include abandoned rooms
+        includeCompleted = true, // Include completed games
+        dryRun = false          // If true, only return what would be deleted
+      } = options;
+
+      console.log('🧹 Starting room cleanup...', {
+        maxAgeHours,
+        maxIdleMinutes,
+        includeAbandoned,
+        includeCompleted,
+        dryRun
+      });
+
+      // Calculate cutoff times
+      const maxAgeDate = new Date(Date.now() - (maxAgeHours * 60 * 60 * 1000));
+      const maxIdleDate = new Date(Date.now() - (maxIdleMinutes * 60 * 1000));
+
+      // Build query for rooms to cleanup
+      let query = this.adminClient
+        .from('game_rooms')
+        .select(`
+          id,
+          room_code,
+          status,
+          created_at,
+          last_activity,
+          current_players,
+          participants:room_participants(
+            id,
+            user_id,
+            connection_status,
+            last_ping
+          )
+        `);
+
+      // Add conditions for cleanup
+      const conditions = [];
+      
+      // Old rooms
+      conditions.push(`created_at.lt.${maxAgeDate.toISOString()}`);
+      
+      // Idle rooms (no activity recently)
+      conditions.push(`last_activity.lt.${maxIdleDate.toISOString()}`);
+      
+      // Abandoned rooms (no connected players)
+      if (includeAbandoned) {
+        conditions.push(`status.eq.abandoned`);
+      }
+      
+      // Completed games
+      if (includeCompleted) {
+        conditions.push(`status.eq.completed`);
+      }
+
+      // Get rooms matching any of these conditions
+      const { data: roomsToCleanup, error: queryError } = await this.adminClient
+        .from('game_rooms')
+        .select(`
+          id,
+          room_code,
+          status,
+          created_at,
+          last_activity,
+          current_players,
+          participants:room_participants(
+            id,
+            user_id,
+            connection_status,
+            last_ping
+          )
+        `)
+        .or(`created_at.lt.${maxAgeDate.toISOString()},last_activity.lt.${maxIdleDate.toISOString()},status.eq.abandoned,status.eq.completed`);
+
+      if (queryError) throw queryError;
+
+      if (!roomsToCleanup || roomsToCleanup.length === 0) {
+        console.log('✅ No rooms need cleanup');
+        return { cleaned: 0, rooms: [] };
+      }
+
+      // Filter rooms that actually need cleanup
+      const roomsNeedingCleanup = roomsToCleanup.filter(room => {
+        const roomAge = Date.now() - new Date(room.created_at).getTime();
+        const roomIdle = Date.now() - new Date(room.last_activity || room.created_at).getTime();
+        const hasConnectedPlayers = room.participants?.some(p => p.connection_status === 'connected');
+
+        return (
+          // Too old
+          roomAge > (maxAgeHours * 60 * 60 * 1000) ||
+          // Too idle
+          roomIdle > (maxIdleMinutes * 60 * 1000) ||
+          // Abandoned
+          (includeAbandoned && room.status === 'abandoned') ||
+          // Completed
+          (includeCompleted && room.status === 'completed') ||
+          // No connected players and idle
+          (!hasConnectedPlayers && roomIdle > (maxIdleMinutes * 60 * 1000))
+        );
+      });
+
+      console.log(`🔍 Found ${roomsNeedingCleanup.length} rooms to cleanup:`, 
+        roomsNeedingCleanup.map(r => ({
+          code: r.room_code,
+          status: r.status,
+          age: Math.round((Date.now() - new Date(r.created_at).getTime()) / (60 * 60 * 1000)) + 'h',
+          idle: Math.round((Date.now() - new Date(r.last_activity || r.created_at).getTime()) / (60 * 1000)) + 'm'
+        }))
+      );
+
+      if (dryRun) {
+        return { 
+          cleaned: 0, 
+          rooms: roomsNeedingCleanup.map(r => r.room_code),
+          wouldClean: roomsNeedingCleanup.length
+        };
+      }
+
+      // Actually delete the rooms
+      let cleanedCount = 0;
+      const cleanedRooms = [];
+
+      for (const room of roomsNeedingCleanup) {
+        try {
+          await this.deleteRoom(room.id);
+          cleanedCount++;
+          cleanedRooms.push(room.room_code);
+          console.log(`🗑️ Cleaned up room: ${room.room_code}`);
+        } catch (error) {
+          console.error(`❌ Failed to cleanup room ${room.room_code}:`, error);
+        }
+      }
+
+      console.log(`✅ Room cleanup completed: ${cleanedCount} rooms cleaned`);
+      return { cleaned: cleanedCount, rooms: cleanedRooms };
+
+    } catch (error) {
+      console.error('❌ Error during room cleanup:', error);
+      throw error;
+    }
+  }
+
+  async deleteRoom(roomId) {
+    try {
+      // Delete in order due to foreign key constraints
+      
+      // 1. Delete game states
+      await this.adminClient
+        .from('game_states')
+        .delete()
+        .eq('room_id', roomId);
+
+      // 2. Delete room events
+      await this.adminClient
+        .from('room_events')
+        .delete()
+        .eq('room_id', roomId);
+
+      // 3. Delete participants
+      await this.adminClient
+        .from('room_participants')
+        .delete()
+        .eq('room_id', roomId);
+
+      // 4. Delete the room itself
+      const { error } = await this.adminClient
+        .from('game_rooms')
+        .delete()
+        .eq('id', roomId);
+
+      if (error) throw error;
+
+      return true;
+    } catch (error) {
+      console.error('Error deleting room:', error);
+      throw error;
+    }
+  }
+
+  async getRoomStats() {
+    try {
+      const { data: stats, error } = await this.adminClient
+        .from('game_rooms')
+        .select('status, created_at, last_activity, current_players');
+
+      if (error) throw error;
+
+      const now = Date.now();
+      const oneHourAgo = now - (60 * 60 * 1000);
+      const oneDayAgo = now - (24 * 60 * 60 * 1000);
+      const oneWeekAgo = now - (7 * 24 * 60 * 60 * 1000);
+
+      const summary = {
+        total: stats.length,
+        byStatus: {},
+        byAge: {
+          lastHour: 0,
+          lastDay: 0,
+          lastWeek: 0,
+          older: 0
+        },
+        byActivity: {
+          active: 0,
+          idle: 0,
+          stale: 0
+        }
+      };
+
+      stats.forEach(room => {
+        // Count by status
+        summary.byStatus[room.status] = (summary.byStatus[room.status] || 0) + 1;
+
+        // Count by age
+        const roomAge = now - new Date(room.created_at).getTime();
+        if (roomAge < oneHourAgo) summary.byAge.lastHour++;
+        else if (roomAge < oneDayAgo) summary.byAge.lastDay++;
+        else if (roomAge < oneWeekAgo) summary.byAge.lastWeek++;
+        else summary.byAge.older++;
+
+        // Count by activity
+        const lastActivity = new Date(room.last_activity || room.created_at).getTime();
+        const idleTime = now - lastActivity;
+        
+        if (idleTime < (10 * 60 * 1000)) summary.byActivity.active++; // Active in last 10 min
+        else if (idleTime < (60 * 60 * 1000)) summary.byActivity.idle++; // Idle for less than 1 hour
+        else summary.byActivity.stale++; // Stale for more than 1 hour
+      });
+
+      return summary;
+    } catch (error) {
+      console.error('Error getting room stats:', error);
+      return null;
     }
   }
 

@@ -520,7 +520,7 @@ io.on('connection', async (socket) => {
     
       // Update room status
       await db.updateRoom(room.id, {
-        status: 'launching',
+        status: 'in_game',
         started_at: new Date().toISOString()
       });
 
@@ -575,16 +575,27 @@ io.on('connection', async (socket) => {
         return;
       }
 
+      // Check if leaving player is the host
+      const room = await db.getRoomByCode(data.roomCode);
+      const leavingParticipant = room?.participants?.find(p => p.user_id === connection.userId);
+      const isLeavingHost = leavingParticipant?.role === 'host';
+
       // Remove participant from database
       await db.removeParticipant(connection.roomId, connection.userId);
 
       // Leave socket room
       socket.leave(data.roomCode);
 
+      // Handle host transfer if the host is leaving
+      let newHost = null;
+      if (isLeavingHost && room) {
+        newHost = await db.autoTransferHost(connection.roomId, connection.userId);
+      }
+
       // Get updated room data
-      const room = await db.getRoomByCode(data.roomCode);
-      if (room) {
-        const remainingPlayers = room.participants
+      const updatedRoom = await db.getRoomByCode(data.roomCode);
+      if (updatedRoom) {
+        const remainingPlayers = updatedRoom.participants
           ?.filter(p => p.connection_status === 'connected')
           .map(p => ({
             id: p.user_id,
@@ -594,10 +605,21 @@ io.on('connection', async (socket) => {
           })) || [];
 
         // Notify remaining players
-        io.to(data.roomCode).emit('playerLeft', {
+        const eventData = {
           playerId: connection.userId,
           players: remainingPlayers
-        });
+        };
+
+        // Add host transfer info if applicable
+        if (newHost) {
+          eventData.hostTransferred = {
+            newHostId: newHost.user_id,
+            newHostName: newHost.user?.display_name || newHost.user?.username,
+            reason: 'original_host_left'
+          };
+        }
+
+        io.to(data.roomCode).emit('playerLeft', eventData);
 
         // If no players left, mark room as abandoned
         if (remainingPlayers.length === 0) {
@@ -611,10 +633,136 @@ io.on('connection', async (socket) => {
       connection.roomId = null;
       connection.userId = null;
 
-      console.log(`👋 Player left room ${data.roomCode}`);
+      console.log(`👋 Player left room ${data.roomCode}${isLeavingHost ? ' (was host)' : ''}`);
+      if (newHost) {
+        console.log(`👑 Auto-transferred host to ${newHost.user?.display_name || newHost.user?.username}`);
+      }
 
     } catch (error) {
       console.error('❌ Error leaving room:', error);
+    }
+  });
+
+  // Handle GM-initiated return to lobby
+  socket.on('returnToLobby', async (data) => {
+    try {
+      console.log(`🔄 GM initiating return to lobby for room ${data.roomCode}`);
+      
+      const connection = activeConnections.get(socket.id);
+      if (!connection?.roomId || !connection?.userId) {
+        socket.emit('error', { message: 'Not in a room' });
+        return;
+      }
+
+      // Get room and verify user is host
+      const room = await db.getRoomByCode(data.roomCode);
+      if (!room) {
+        socket.emit('error', { message: 'Room not found' });
+        return;
+      }
+
+      // Check if user is host
+      const participant = room.participants?.find(p => p.user_id === connection.userId);
+      if (!participant || participant.role !== 'host') {
+        socket.emit('error', { message: 'Only the host can return everyone to lobby' });
+        return;
+      }
+
+      // Update room status back to waiting for players
+      await db.updateRoom(room.id, {
+        status: 'waiting_for_players',
+        game_type: 'lobby'
+      });
+
+      // Get all participants in the room
+      const participants = room.participants?.filter(p => 
+        p.connection_status === 'connected'
+      ) || [];
+
+      // Send return to lobby event to all participants
+      participants.forEach(p => {
+        const userConnection = Array.from(activeConnections.values())
+          .find(conn => conn.userId === p.user_id);
+        
+        if (userConnection?.socketId) {
+          io.to(userConnection.socketId).emit('returnToLobbyInitiated', {
+            roomCode: room.room_code,
+            playerName: p.user?.display_name || p.user?.username,
+            isHost: p.role === 'host',
+            returnUrl: process.env.NODE_ENV === 'production' 
+              ? 'https://gamebuddies.io' 
+              : 'http://localhost:3000'
+          });
+        }
+      });
+
+      console.log(`🔄 Return to lobby initiated for ${participants.length} players in room ${room.room_code}`);
+
+    } catch (error) {
+      console.error('❌ Error returning to lobby:', error);
+      socket.emit('error', { message: 'Failed to return to lobby' });
+    }
+  });
+
+  // Handle manual host transfer
+  socket.on('transferHost', async (data) => {
+    try {
+      console.log(`👑 Host transfer requested: ${data.targetUserId} in room ${data.roomCode}`);
+      
+      const connection = activeConnections.get(socket.id);
+      if (!connection?.roomId || !connection?.userId) {
+        socket.emit('error', { message: 'Not in a room' });
+        return;
+      }
+
+      // Get room and verify current user is host
+      const room = await db.getRoomByCode(data.roomCode);
+      if (!room) {
+        socket.emit('error', { message: 'Room not found' });
+        return;
+      }
+
+      // Check if current user is host
+      const currentParticipant = room.participants?.find(p => p.user_id === connection.userId);
+      if (!currentParticipant || currentParticipant.role !== 'host') {
+        socket.emit('error', { message: 'Only the host can transfer host privileges' });
+        return;
+      }
+
+      // Verify target user is in the room
+      const targetParticipant = room.participants?.find(p => p.user_id === data.targetUserId);
+      if (!targetParticipant) {
+        socket.emit('error', { message: 'Target player not found in room' });
+        return;
+      }
+
+      // Perform the host transfer
+      await db.transferHost(room.id, connection.userId, data.targetUserId);
+
+      // Get updated room data
+      const updatedRoom = await db.getRoomByCode(data.roomCode);
+      const updatedPlayers = updatedRoom.participants
+        ?.filter(p => p.connection_status === 'connected')
+        .map(p => ({
+          id: p.user_id,
+          name: p.user?.display_name || p.user?.username,
+          isHost: p.role === 'host',
+          socketId: null
+        })) || [];
+
+      // Notify all players about the host change
+      io.to(data.roomCode).emit('hostTransferred', {
+        oldHostId: connection.userId,
+        newHostId: data.targetUserId,
+        newHostName: targetParticipant.user?.display_name || targetParticipant.user?.username,
+        players: updatedPlayers
+      });
+
+      console.log(`👑 Host transferred from ${currentParticipant.user?.display_name} to ${targetParticipant.user?.display_name}`);
+
+    } catch (error) {
+      console.error('❌ Error transferring host:', error);
+      socket.emit('error', { message: 'Failed to transfer host' });
     }
   });
 
@@ -625,6 +773,16 @@ io.on('connection', async (socket) => {
       
       const connection = activeConnections.get(socket.id);
       if (connection?.userId) {
+        // Check if disconnecting user is the host
+        let isDisconnectingHost = false;
+        let room = null;
+        
+        if (connection.roomId) {
+          room = await db.getRoomById(connection.roomId);
+          const disconnectingParticipant = room?.participants?.find(p => p.user_id === connection.userId);
+          isDisconnectingHost = disconnectingParticipant?.role === 'host';
+        }
+
         // Update participant connection status
         await db.updateParticipantConnection(
           connection.userId, 
@@ -632,14 +790,57 @@ io.on('connection', async (socket) => {
           'disconnected'
         );
 
-        // If in a room, notify other players
-        if (connection.roomId) {
-          const room = await db.getRoomById(connection.roomId);
-          if (room) {
-            socket.to(room.room_code).emit('playerDisconnected', {
-              playerId: connection.userId
-            });
-          }
+        // Handle host transfer if host disconnected
+        let newHost = null;
+        if (isDisconnectingHost && room) {
+          // Give host a grace period to reconnect (30 seconds)
+          setTimeout(async () => {
+            try {
+              // Check if original host reconnected
+              const updatedRoom = await db.getRoomById(connection.roomId);
+              const originalHost = updatedRoom?.participants?.find(p => 
+                p.user_id === connection.userId && p.connection_status === 'connected'
+              );
+
+              if (!originalHost) {
+                // Host didn't reconnect, transfer to someone else
+                newHost = await db.autoTransferHost(connection.roomId, connection.userId);
+                
+                if (newHost && updatedRoom) {
+                  // Get updated player list
+                  const updatedPlayers = updatedRoom.participants
+                    ?.filter(p => p.connection_status === 'connected')
+                    .map(p => ({
+                      id: p.user_id,
+                      name: p.user?.display_name || p.user?.username,
+                      isHost: p.role === 'host' || p.user_id === newHost.user_id,
+                      socketId: null
+                    })) || [];
+
+                  // Notify remaining players about host transfer
+                  io.to(updatedRoom.room_code).emit('hostTransferred', {
+                    oldHostId: connection.userId,
+                    newHostId: newHost.user_id,
+                    newHostName: newHost.user?.display_name || newHost.user?.username,
+                    reason: 'original_host_disconnected',
+                    players: updatedPlayers
+                  });
+
+                  console.log(`👑 Auto-transferred host to ${newHost.user?.display_name} after disconnect timeout`);
+                }
+              }
+            } catch (error) {
+              console.error('❌ Error in delayed host transfer:', error);
+            }
+          }, 30000); // 30 second grace period
+        }
+
+        // If in a room, notify other players about disconnection
+        if (connection.roomId && room) {
+          socket.to(room.room_code).emit('playerDisconnected', {
+            playerId: connection.userId,
+            wasHost: isDisconnectingHost
+          });
         }
       }
 

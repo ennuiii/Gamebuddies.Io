@@ -26,8 +26,24 @@ const HomePage = () => {
     // Check if there's a join parameter in the URL
     const joinCode = searchParams.get('join');
     const rejoinCode = searchParams.get('rejoin');
+    const autoRejoinCode = searchParams.get('autorejoin');
+    const autoRejoinName = searchParams.get('name');
+    const autoRejoinHost = searchParams.get('host') === 'true';
     
-    if (joinCode || rejoinCode) {
+    if (autoRejoinCode && autoRejoinName) {
+      // Automatic rejoin from GM-initiated return
+      console.log('🔄 Auto-rejoining room:', autoRejoinCode, 'as', autoRejoinName);
+      setCurrentRoom({
+        roomCode: autoRejoinCode,
+        playerName: autoRejoinName,
+        isHost: autoRejoinHost
+      });
+      setPlayerName(autoRejoinName);
+      setInLobby(true);
+      // Clear the URL parameters
+      navigate('/', { replace: true });
+    } else if (joinCode || rejoinCode) {
+      // Manual join/rejoin
       setJoinRoomCode(joinCode || rejoinCode);
       setShowJoinRoom(true);
       // Clear the URL parameter after using it

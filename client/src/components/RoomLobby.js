@@ -150,6 +150,27 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       setIsLoading(false);
     };
 
+    const handleHostTransferred = (data) => {
+      console.log('👑 Host transferred:', data);
+      
+      // Update players list with new host status
+      setPlayers(data.players || []);
+      
+      // Update local host status if this user is the new host
+      if (data.newHostId === players.find(p => p.name === playerNameRef.current)?.id) {
+        isHostRef.current = true;
+      } else if (data.oldHostId === players.find(p => p.name === playerNameRef.current)?.id) {
+        isHostRef.current = false;
+      }
+      
+      // Show notification
+      const reason = data.reason === 'original_host_left' ? 'left the room' : 
+                    data.reason === 'original_host_disconnected' ? 'disconnected' : 'transferred host';
+      
+      // You could add a toast notification here
+      console.log(`👑 ${data.newHostName} is now the host (previous host ${reason})`);
+    };
+
     // Add event listeners BEFORE connecting
     newSocket.on('connect', handleConnect);
     newSocket.on('disconnect', handleDisconnect);
@@ -160,6 +181,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
     newSocket.on('playerDisconnected', handlePlayerDisconnected);
     newSocket.on('gameSelected', handleGameSelected);
     newSocket.on('gameStarted', handleGameStarted);
+    newSocket.on('hostTransferred', handleHostTransferred);
     newSocket.on('error', handleError);
 
     // Cleanup function
@@ -177,6 +199,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
         newSocket.off('playerDisconnected', handlePlayerDisconnected);
         newSocket.off('gameSelected', handleGameSelected);
         newSocket.off('gameStarted', handleGameStarted);
+        newSocket.off('hostTransferred', handleHostTransferred);
         newSocket.off('error', handleError);
         
         // Copy ref value to avoid stale closure
@@ -211,6 +234,16 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
     }
     if (onLeave) {
       onLeave();
+    }
+  };
+
+  const handleTransferHost = (targetPlayerId) => {
+    if (socket && isHostRef.current) {
+      console.log('👑 Transferring host to player:', targetPlayerId);
+      socket.emit('transferHost', { 
+        roomCode: roomCodeRef.current,
+        targetUserId: targetPlayerId
+      });
     }
   };
 
@@ -294,13 +327,25 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
                 key={player.id} 
                 className={`player-card ${player.isHost ? 'host' : ''}`}
               >
-                <div className="player-avatar">
-                  {player.name.charAt(0).toUpperCase()}
+                <div className="player-card-content">
+                  <div className="player-avatar">
+                    {player.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="player-info">
+                    <span className="player-name">{player.name}</span>
+                    {player.isHost && <span className="host-badge">Host</span>}
+                  </div>
                 </div>
-                <div className="player-info">
-                  <span className="player-name">{player.name}</span>
-                  {player.isHost && <span className="host-badge">Host</span>}
-                </div>
+                {/* Show "Make Host" button if current user is host and this is not the host */}
+                {isHostRef.current && !player.isHost && (
+                  <button 
+                    className="make-host-btn"
+                    onClick={() => handleTransferHost(player.id)}
+                    title={`Make ${player.name} the host`}
+                  >
+                    👑 Make Host
+                  </button>
+                )}
               </div>
             ))}
           </div>

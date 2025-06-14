@@ -505,4 +505,49 @@
   color: rgba(255, 255, 255, 0.8);
   font-size: 1.1rem;
   margin: 0;
+}
+
+/* Host Transfer Button */
+.make-host-btn {
+  background: linear-gradient(135deg, #4CAF50, #45a049);
+  color: white;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 4px;
+  opacity: 0.8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.make-host-btn:hover {
+  opacity: 1;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+}
+
+.make-host-btn:active {
+  transform: translateY(0);
+}
+
+/* Update player card to accommodate the button */
+.player-card {
+  background: var(--card-bg);
+  border-radius: 15px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  border: 2px solid transparent;
+  transition: all 0.3s ease;
+}
+
+.player-card-content {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
 } 
