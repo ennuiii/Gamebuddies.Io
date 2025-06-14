@@ -1,4 +1,4 @@
-services:
+nservices:
   - type: web
     name: gamebuddies-homepage
     runtime: node

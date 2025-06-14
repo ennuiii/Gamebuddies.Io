@@ -6,550 +6,542 @@ const helmet = require('helmet');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 const http = require('http');
 const socketIo = require('socket.io');
+const { db } = require('./lib/supabase');
 require('dotenv').config();
 
 const app = express();
 const server = http.createServer(app);
 
-// Socket.io configuration with proper CORS settings
-const io = socketIo(server, {
-  cors: {
-    origin: process.env.NODE_ENV === 'production' 
-      ? ["https://gamebuddies.io", "https://www.gamebuddies.io", "https://gamebuddies-homepage.onrender.com"]
-      : "*",
-    methods: ["GET", "POST"],
-    credentials: true
-  },
-  pingTimeout: 60000,  // 60 seconds before considering connection dead
-  pingInterval: 25000, // Ping every 25 seconds
-  connectTimeout: 10000, // 10 seconds to establish connection
-  allowUpgrades: true,
-  transports: ['websocket', 'polling'],
-  // Additional production settings
-  ...(process.env.NODE_ENV === 'production' && {
-    path: '/socket.io/',
-    serveClient: false,
-    // Ensure no request entity too large errors
-    maxHttpBufferSize: 1e6 // 1MB
-  })
-});
+// Enhanced CORS configuration
+const corsOptions = {
+  origin: process.env.CORS_ORIGINS?.split(',') || [
+    'http://localhost:3000',
+    'https://gamebuddies.io',
+    'https://gamebuddies-client.onrender.com'
+  ],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+};
 
-const PORT = process.env.PORT || 3033;
-
-// Security and optimization middleware
+// Middleware
 app.use(helmet({
-  contentSecurityPolicy: false, // Disable for game iframes
+  contentSecurityPolicy: false,
+  crossOriginEmbedderPolicy: false
 }));
 app.use(compression());
-app.use(cors());
-app.use(express.json()); // Add JSON body parser
+app.use(cors(corsOptions));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// Request logging middleware for debugging in production
-app.use((req, res, next) => {
-  if (process.env.NODE_ENV === 'production') {
-    console.log(`[${new Date().toISOString()}] ${req.method} ${req.path} - Origin: ${req.headers.origin || 'none'}`);
-  }
-  next();
+// Socket.io setup with enhanced configuration
+const io = socketIo(server, {
+  cors: corsOptions,
+  pingTimeout: 60000,
+  pingInterval: 25000,
+  maxHttpBufferSize: 1e6,
+  transports: ['websocket', 'polling']
 });
 
-// Room Management System
-// In-memory storage for rooms
-const rooms = new Map();
-
-// Available games configuration
-const AVAILABLE_GAMES = {
-  'schoolquiz': {
-    name: 'School Quiz Game',
-    url: process.env.SCHOOLED_URL || 'https://schoolquizgame.onrender.com',
-    description: 'Educational quiz game',
-    maxPlayers: 50,
-    icon: '🎓',
-    path: '/schooled'
-  },
-  'ddf': {
-    name: 'Der dümmste fliegt',
-    url: process.env.DDF_URL || 'https://ddf-game.onrender.com',
-    description: 'A fun quiz game where knowledge and quick thinking are key!',
-    maxPlayers: 30,
-    icon: '🎮',
-    path: '/ddf'
-  }
-};
-
-// Generate random room code
-function generateRoomCode() {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let code = '';
-  for (let i = 0; i < 6; i++) {
-    code += chars.charAt(Math.floor(Math.random() * chars.length));
-  }
-  return code;
-}
-
-// Clean up expired rooms
-setInterval(() => {
-  const now = Date.now();
-  for (const [code, room] of rooms.entries()) {
-    if (room.expiresAt < now) {
-      // Notify all players in the room
-      io.to(code).emit('roomExpired');
-      rooms.delete(code);
-      console.log(`Room ${code} expired and was deleted`);
-    }
-  }
-}, 60000); // Check every minute
-
-// Socket.io connection handling
-io.on('connection', (socket) => {
-  console.log('New client connected:', socket.id, 'from:', socket.handshake.headers.origin || 'unknown origin');
-  
-  // Handle errors
-  socket.on('error', (error) => {
-    console.error('Socket error:', socket.id, error);
-  });
-  
-  // Handle disconnect
-  socket.on('disconnect', (reason) => {
-    console.log('Client disconnected:', socket.id, 'Reason:', reason);
-    handlePlayerLeave(socket);
-  });
-  
-  // Join a room
-  socket.on('joinRoom', ({ roomCode, playerName }) => {
-    try {
-      console.log(`[joinRoom] Attempt to join room ${roomCode} by ${playerName} (socket: ${socket.id})`);
-      
-      const room = rooms.get(roomCode);
-      
-      if (!room) {
-        console.error(`[joinRoom] Room ${roomCode} not found`);
-        socket.emit('joinError', 'Room not found');
-        return;
-      }
-      
-      if (room.players.length >= room.maxPlayers && room.maxPlayers) {
-        socket.emit('joinError', 'Room is full');
-        return;
-      }
-      
-      // Check if player is already in room (prevent duplicates)
-      const existingPlayer = room.players.find(p => p.id === socket.id);
-      if (existingPlayer) {
-        // Player already in room, just send current state
-        socket.emit('roomJoined', {
-          room,
-          playerId: socket.id,
-          isHost: existingPlayer.isHost
-        });
-        return;
-      }
-      
-      // Add player to room
-      const player = {
-        id: socket.id,
-        name: playerName,
-        isHost: room.players.length === 0, // First player is host
-        joinedAt: Date.now()
-      };
-      
-      room.players.push(player);
-      socket.join(roomCode);
-      socket.roomCode = roomCode;
-      socket.playerId = socket.id;
-      
-      // Send room info to the joining player
-      socket.emit('roomJoined', {
-        room,
-        playerId: socket.id,
-        isHost: player.isHost
-      });
-      
-      // Notify all players in the room (including the new player)
-      io.to(roomCode).emit('playerJoined', {
-        player,
-        players: room.players
-      });
-      
-      console.log(`Player ${playerName} joined room ${roomCode} (${room.players.length} players now)`);
-    } catch (error) {
-      console.error('Error in joinRoom:', error);
-      socket.emit('joinError', 'Internal server error');
-    }
-  });
-  
-  // Leave room
-  socket.on('leaveRoom', () => {
-    handlePlayerLeave(socket);
-  });
-  
-  // Host selects/changes game
-  socket.on('selectGame', ({ roomCode, gameType }) => {
-    console.log(`[selectGame] Room ${roomCode} attempting to select game: ${gameType}`);
-    const room = rooms.get(roomCode);
-    
-    if (!room) {
-      console.error(`[selectGame] Room ${roomCode} not found`);
-      socket.emit('error', 'Room not found');
-      return;
-    }
-    
-    // Check if player is host
-    const player = room.players.find(p => p.id === socket.id);
-    if (!player || !player.isHost) {
-      socket.emit('error', 'Only host can select game');
-      return;
-    }
-    
-    if (!AVAILABLE_GAMES[gameType]) {
-      socket.emit('error', 'Invalid game type');
-      return;
-    }
-    
-    const game = AVAILABLE_GAMES[gameType];
-    room.gameType = gameType;
-    room.gameServerUrl = game.url;
-    room.maxPlayers = game.maxPlayers;
-    room.selectedGame = game;
-    room.status = 'in_lobby';
-    
-    // Notify all players
-    io.to(roomCode).emit('gameSelected', {
-      gameType,
-      game: room.selectedGame
-    });
-    
-    console.log(`Room ${roomCode} selected game: ${gameType}`);
-  });
-  
-  // Host starts the game
-  socket.on('startGame', ({ roomCode }) => {
-    const room = rooms.get(roomCode);
-    
-    if (!room) {
-      socket.emit('error', 'Room not found');
-      return;
-    }
-    
-    // Check if player is host
-    const player = room.players.find(p => p.id === socket.id);
-    if (!player || !player.isHost) {
-      socket.emit('error', 'Only host can start game');
-      return;
-    }
-    
-    if (!room.gameType) {
-      socket.emit('error', 'No game selected');
-      return;
-    }
-    
-    room.status = 'in_game';
-    
-    // Send different URLs to each player based on their role
-    room.players.forEach(p => {
-      // Encode player name for URL
-      const encodedName = encodeURIComponent(p.name);
-      const baseUrl = `${room.selectedGame.path}?room=${roomCode}&players=${room.players.length}&name=${encodedName}`;
-      const gameUrl = p.isHost ? `${baseUrl}&role=gm` : baseUrl;
-      
-      if (p.isHost) {
-        // Send host immediately so they can create the room
-        io.to(p.id).emit('gameStarted', {
-          gameUrl,
-          gameType: room.gameType,
-          isHost: p.isHost
-        });
-      } else {
-        // Delay player redirects by 2 seconds to give host time to create room
-        setTimeout(() => {
-          io.to(p.id).emit('gameStarted', {
-            gameUrl,
-            gameType: room.gameType,
-            isHost: p.isHost
-          });
-        }, 2000); // 2 second delay for players
-      }
-    });
-    
-    console.log(`Room ${roomCode} started game: ${room.gameType}`);
-  });
-});
-
-// Helper function to handle player leaving
-function handlePlayerLeave(socket) {
-  try {
-    const roomCode = socket.roomCode;
-    if (!roomCode) return;
-    
-    const room = rooms.get(roomCode);
-    if (!room) return;
-    
-    // Remove player from room
-    const playerIndex = room.players.findIndex(p => p.id === socket.id);
-    if (playerIndex === -1) return;
-    
-    const leavingPlayer = room.players[playerIndex];
-    room.players.splice(playerIndex, 1);
-    
-    socket.leave(roomCode);
-    
-    // If room is empty, delete it
-    if (room.players.length === 0) {
-      rooms.delete(roomCode);
-      console.log(`Room ${roomCode} deleted (empty)`);
-      return;
-    }
-    
-    // If host left, assign new host
-    if (leavingPlayer.isHost && room.players.length > 0) {
-      room.players[0].isHost = true;
-      io.to(roomCode).emit('hostChanged', {
-        newHostId: room.players[0].id,
-        newHostName: room.players[0].name
-      });
-    }
-    
-    // Notify remaining players
-    io.to(roomCode).emit('playerLeft', {
-      playerId: socket.id,
-      playerName: leavingPlayer.name,
-      players: room.players
-    });
-    
-    console.log(`Player ${leavingPlayer.name} left room ${roomCode}`);
-  } catch (error) {
-    console.error('Error in handlePlayerLeave:', error);
-  }
-}
-
-// Room API endpoints
-// Create a new room
-app.post('/api/rooms', (req, res) => {
-  const { creatorName, isPrivate } = req.body;
-  
-  if (!creatorName || creatorName.trim().length === 0) {
-    return res.status(400).json({ error: 'Creator name is required' });
-  }
-  
-  // Generate unique room code
-  let roomCode;
-  do {
-    roomCode = generateRoomCode();
-  } while (rooms.has(roomCode));
-  
-  const room = {
-    roomCode,
-    creatorName: creatorName.trim(),
-    gameType: null,
-    gameServerUrl: null,
-    selectedGame: null,
-    status: 'waiting_for_players',
-    createdAt: Date.now(),
-    expiresAt: Date.now() + (2 * 60 * 60 * 1000), // 2 hours
-    isPrivate: isPrivate || false,
-    players: [],
-    maxPlayers: null
-  };
-  
-  rooms.set(roomCode, room);
-  console.log(`Room ${roomCode} created by ${creatorName}`);
-  
-  res.json(room);
-});
-
-// Select game for a room
-app.post('/api/rooms/:code/select-game', (req, res) => {
-  const { code } = req.params;
-  const { gameType } = req.body;
-  
-  const room = rooms.get(code);
-  if (!room) {
-    return res.status(404).json({ error: 'Room not found' });
-  }
-  
-  if (!AVAILABLE_GAMES[gameType]) {
-    return res.status(400).json({ error: 'Invalid game type' });
-  }
-  
-  const game = AVAILABLE_GAMES[gameType];
-  room.gameType = gameType;
-  room.gameServerUrl = game.url;
-  room.maxPlayers = game.maxPlayers;
-  room.status = 'waiting_for_players';
-  
-  console.log(`Room ${code} selected game: ${gameType}`);
-  
-  res.json(room);
-});
-
-// Get room details
-app.get('/api/rooms/:code', (req, res) => {
-  const { code } = req.params;
-  const room = rooms.get(code);
-  
-  if (!room) {
-    return res.status(404).json({ error: 'Room not found' });
-  }
-  
-  res.json(room);
-});
-
-// This endpoint is handled later with better formatting
-
-// Delete a room (optional)
-app.delete('/api/rooms/:code', (req, res) => {
-  const { code } = req.params;
-  
-  if (!rooms.has(code)) {
-    return res.status(404).json({ error: 'Room not found' });
-  }
-  
-  rooms.delete(code);
-  console.log(`Room ${code} was deleted`);
-  
-  res.json({ message: 'Room deleted successfully' });
-});
-
-// Game configurations - Add your game URLs here
+// Game proxy configuration
 const gameProxies = {
-  '/ddf': {
-    target: process.env.DDF_URL || 'http://localhost:3001',
-    changeOrigin: true,
-    ws: false,  // Disable WebSocket proxying to prevent conflicts with Socket.io
-    pathRewrite: {
-      '^/ddf': '',
-    },
-    onError: (err, req, res) => {
-      console.error('Proxy error for /ddf:', err.message);
-      if (res && !res.headersSent) {
-        res.status(500).send('Proxy error: ' + err.message);
-      }
-    },
-    onProxyReq: (proxyReq, req, res) => {
-      console.log('Proxying request to DDF:', req.url, '->', process.env.DDF_URL);
-    },
-    secure: false,
-    timeout: 5000,
-    proxyTimeout: 5000
+  ddf: {
+    path: '/ddf',
+    target: process.env.DDF_URL || 'https://ddf-game.onrender.com',
+    pathRewrite: { '^/ddf': '' }
   },
-  '/schooled': {
-    target: process.env.SCHOOLED_URL || 'http://localhost:3002',
-    changeOrigin: true,
-    ws: false,  // Disable WebSocket proxying to prevent conflicts with Socket.io
-    pathRewrite: {
-      '^/schooled': '',
-    },
-    onError: (err, req, res) => {
-      console.error('Proxy error for /schooled:', err.message);
-      if (res && !res.headersSent) {
-        res.status(500).send('Proxy error: ' + err.message);
-      }
-    },
-    onProxyReq: (proxyReq, req, res) => {
-      console.log('Proxying request to Schooled:', req.url, '->', process.env.SCHOOLED_URL);
-    },
-    secure: false,
-    timeout: 5000,
-    proxyTimeout: 5000
+  schooled: {
+    path: '/schooled', 
+    target: process.env.SCHOOLED_URL || 'https://schooled-game.onrender.com',
+    pathRewrite: { '^/schooled': '' }
   }
 };
 
-// IMPORTANT: API routes MUST be defined BEFORE static file serving
-// This ensures API routes are not intercepted by the static file middleware
-
-// Add health check endpoint
-app.get('/health', (req, res) => {
-  res.status(200).json({ status: 'ok' });
+// Setup game proxies
+Object.values(gameProxies).forEach(proxy => {
+  app.use(proxy.path, createProxyMiddleware({
+    target: proxy.target,
+    changeOrigin: true,
+    pathRewrite: proxy.pathRewrite,
+    timeout: 30000,
+    proxyTimeout: 30000,
+    onError: (err, req, res) => {
+      console.error(`Proxy error for ${proxy.path}:`, err.message);
+      res.status(502).json({ 
+        error: 'Game service temporarily unavailable',
+        message: 'Please try again in a few moments'
+      });
+    }
+  }));
 });
 
-// Add games endpoint
-app.get('/api/games/available', (req, res) => {
+// ===== NEW API ENDPOINTS =====
+
+// Room discovery endpoint
+app.get('/api/rooms', async (req, res) => {
   try {
-    const games = Object.entries(AVAILABLE_GAMES).map(([type, game]) => ({
-      type,
-      name: game.name,
-      description: game.description,
-      maxPlayers: game.maxPlayers,
-      path: game.path,
-      icon: game.icon  // Add the missing icon property
-    }));
-    res.json(games);
+    const filters = {
+      gameType: req.query.gameType || 'all',
+      status: req.query.status || 'waiting_for_players',
+      showFull: req.query.showFull === 'true',
+      visibility: req.query.visibility || 'public'
+    };
+
+    const rooms = await db.getActiveRooms(filters);
+    res.json({ success: true, rooms });
   } catch (error) {
-    console.error('Error fetching available games:', error);
-    res.status(500).json({ error: 'Failed to fetch available games' });
+    console.error('Error fetching rooms:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to fetch rooms' 
+    });
   }
 });
 
-// API endpoint to get game list (for the homepage)
-app.get('/api/games', (req, res) => {
-  res.json([
-    {
-      id: 'ddf',
-      name: 'Der dümmste fliegt',
-      description: 'A fun quiz game where knowledge and quick thinking are key!',
-      screenshot: '/screenshots/DDF.png',
-      path: '/ddf',
-      available: true,
-    },
-    {
-      id: 'schooled',
-      name: 'Schooled',
-      description: 'Test your knowledge with questions from the German school system',
-      screenshot: '/screenshots/schooled.png',
-      path: '/schooled',
-      available: true,
+// Get specific room details
+app.get('/api/rooms/:code', async (req, res) => {
+  try {
+    const room = await db.getRoomByCode(req.params.code);
+    if (!room) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Room not found' 
+      });
     }
-  ]);
+    res.json({ success: true, room });
+  } catch (error) {
+    console.error('Error fetching room:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Failed to fetch room details' 
+    });
+  }
 });
 
-// Set up reverse proxies for each game
-// These must come BEFORE static file serving
-Object.entries(gameProxies).forEach(([path, config]) => {
-  app.use(path, createProxyMiddleware(config));
+// Health check endpoint
+app.get('/api/health', async (req, res) => {
+  try {
+    // Test database connection
+    await db.client.from('game_rooms').select('id').limit(1);
+    res.json({ 
+      status: 'healthy', 
+      timestamp: new Date().toISOString(),
+      version: '2.0.0'
+    });
+  } catch (error) {
+    res.status(503).json({ 
+      status: 'unhealthy', 
+      error: error.message 
+    });
+  }
 });
 
-// Screenshots should be served before the React app
-app.use('/screenshots', express.static(path.join(__dirname, 'screenshots')));
+// ===== SOCKET.IO EVENT HANDLERS =====
 
-// Serve static files from React build
-// This MUST come AFTER all API routes and proxies
-// Handle both development (server run from server/) and production (server run from root) paths
-const isDevelopment = process.env.NODE_ENV !== 'production';
-const clientBuildPath = isDevelopment 
-  ? path.join(__dirname, '../client/build')
-  : path.join(__dirname, '../client/build');
+// Track active connections
+const activeConnections = new Map();
 
-// Check if we're running from root directory (production) or server directory (development)
-const isRunFromRoot = __dirname.endsWith('server');
-const actualClientBuildPath = isRunFromRoot 
-  ? path.join(__dirname, '../client/build')
-  : path.join(__dirname, 'client/build');
+io.on('connection', async (socket) => {
+  console.log(`🔌 User connected: ${socket.id}`);
+  
+  // Store connection info
+  activeConnections.set(socket.id, {
+    socketId: socket.id,
+    connectedAt: new Date(),
+    userId: null,
+    roomId: null
+  });
 
-console.log('Current directory:', __dirname);
-console.log('Client build path:', actualClientBuildPath);
-console.log('Screenshots path:', path.join(__dirname, 'screenshots'));
+  // Handle room creation
+  socket.on('createRoom', async (data) => {
+    try {
+      console.log(`🏠 Creating room for ${data.playerName}`);
+      
+      // Get or create user profile
+      const user = await db.getOrCreateUser(
+        socket.id, // Using socket.id as external_id for now
+        data.playerName,
+        data.playerName
+      );
 
-// Static files for the React app - MUST be last before catch-all
-app.use(express.static(actualClientBuildPath));
+      // Create room in database
+      const room = await db.createRoom({
+        creator_id: user.id,
+        game_type: 'lobby', // Will be updated when game is selected
+        status: 'waiting_for_players',
+        visibility: 'public',
+        max_players: 10,
+        settings: {},
+        metadata: {
+          created_by_name: data.playerName
+        },
+        created_from: 'web_client'
+      });
 
-// Add error handling middleware
-app.use((err, req, res, next) => {
-  console.error('Server error:', err);
-  res.status(500).json({ error: 'Internal server error' });
+      // Add creator as participant
+      await db.addParticipant(room.id, user.id, socket.id, 'host');
+
+      // Join socket room
+      socket.join(room.room_code);
+      
+      // Update connection tracking
+      const connection = activeConnections.get(socket.id);
+      if (connection) {
+        connection.userId = user.id;
+        connection.roomId = room.id;
+      }
+
+      // Send success response
+      socket.emit('roomCreated', {
+        roomCode: room.room_code,
+        isHost: true,
+        room: {
+          ...room,
+          players: [{
+            id: user.id,
+            name: data.playerName,
+            isHost: true,
+            socketId: socket.id
+          }]
+        }
+      });
+
+      console.log(`✅ Room created: ${room.room_code} by ${data.playerName}`);
+
+    } catch (error) {
+      console.error('❌ Error creating room:', error);
+      socket.emit('error', { 
+        message: 'Failed to create room. Please try again.',
+        code: 'ROOM_CREATION_FAILED'
+      });
+    }
+  });
+
+  // Handle room joining
+  socket.on('joinRoom', async (data) => {
+    try {
+      console.log(`🚪 ${data.playerName} attempting to join room ${data.roomCode}`);
+
+      // Get room from database
+      const room = await db.getRoomByCode(data.roomCode);
+      if (!room) {
+        socket.emit('error', { 
+          message: 'Room not found. Please check the room code.',
+          code: 'ROOM_NOT_FOUND'
+        });
+        return;
+      }
+
+      // Check if room is full
+      if (room.current_players >= room.max_players) {
+        socket.emit('error', { 
+          message: 'Room is full. Cannot join.',
+          code: 'ROOM_FULL'
+        });
+        return;
+      }
+
+      // Check if room is still accepting players
+      if (room.status !== 'waiting_for_players') {
+        socket.emit('error', { 
+          message: 'Room is no longer accepting players.',
+          code: 'ROOM_NOT_ACCEPTING'
+        });
+        return;
+      }
+
+      // Get or create user profile
+      const user = await db.getOrCreateUser(
+        socket.id,
+        data.playerName,
+        data.playerName
+      );
+
+      // Check for duplicate player names in room
+      const existingParticipant = room.participants?.find(p => 
+        p.user?.username === user.username && p.connection_status === 'connected'
+      );
+      
+      if (existingParticipant) {
+        socket.emit('error', { 
+          message: 'A player with this name is already in the room.',
+          code: 'DUPLICATE_PLAYER'
+        });
+        return;
+      }
+
+      // Add participant to room
+      await db.addParticipant(room.id, user.id, socket.id, 'player');
+
+      // Join socket room
+      socket.join(data.roomCode);
+
+      // Update connection tracking
+      const connection = activeConnections.get(socket.id);
+      if (connection) {
+        connection.userId = user.id;
+        connection.roomId = room.id;
+      }
+
+      // Get updated room data
+      const updatedRoom = await db.getRoomByCode(data.roomCode);
+      
+      // Prepare player list
+      const players = updatedRoom.participants
+        ?.filter(p => p.connection_status === 'connected')
+        .map(p => ({
+          id: p.user_id,
+          name: p.user?.display_name || p.user?.username,
+          isHost: p.role === 'host',
+          socketId: p.socket_id
+        })) || [];
+
+      // Notify all players in room
+      io.to(data.roomCode).emit('playerJoined', {
+        player: {
+          id: user.id,
+          name: data.playerName,
+          isHost: false,
+          socketId: socket.id
+        },
+        players: players,
+        room: updatedRoom
+      });
+
+      // Send success response to joining player
+      socket.emit('roomJoined', {
+        roomCode: data.roomCode,
+        isHost: false,
+        players: players,
+        room: updatedRoom
+      });
+
+      console.log(`✅ ${data.playerName} joined room ${data.roomCode}`);
+
+    } catch (error) {
+      console.error('❌ Error joining room:', error);
+      socket.emit('error', { 
+        message: 'Failed to join room. Please try again.',
+        code: 'JOIN_FAILED'
+      });
+    }
+  });
+
+  // Handle game selection
+  socket.on('selectGame', async (data) => {
+    try {
+      const connection = activeConnections.get(socket.id);
+      if (!connection?.roomId) {
+        socket.emit('error', { message: 'Not in a room' });
+        return;
+      }
+
+      // Update room with selected game
+      const updatedRoom = await db.updateRoom(connection.roomId, {
+        game_type: data.gameType,
+        settings: data.settings || {}
+      });
+
+      // Notify all players in room
+      io.to(updatedRoom.room_code).emit('gameSelected', {
+        gameType: data.gameType,
+        settings: data.settings
+      });
+
+      console.log(`🎮 Game selected: ${data.gameType} for room ${updatedRoom.room_code}`);
+
+    } catch (error) {
+      console.error('❌ Error selecting game:', error);
+      socket.emit('error', { message: 'Failed to select game' });
+    }
+  });
+
+  // Handle game start
+  socket.on('startGame', async (data) => {
+    try {
+      const connection = activeConnections.get(socket.id);
+      if (!connection?.roomId) {
+        socket.emit('error', { message: 'Not in a room' });
+        return;
+      }
+
+      // Get room data
+      const room = await db.getRoomByCode(data.roomCode);
+      if (!room) {
+        socket.emit('error', { message: 'Room not found' });
+        return;
+      }
+
+      // Verify user is host
+      const userParticipant = room.participants?.find(p => 
+        p.user_id === connection.userId && p.role === 'host'
+      );
+      
+      if (!userParticipant) {
+        socket.emit('error', { message: 'Only the host can start the game' });
+        return;
+      }
+
+      // Update room status
+      await db.updateRoom(room.id, {
+        status: 'launching',
+        started_at: new Date().toISOString()
+      });
+
+      // Get game proxy configuration
+      const gameProxy = gameProxies[room.game_type];
+      if (!gameProxy) {
+        socket.emit('error', { message: 'Game not supported' });
+        return;
+      }
+
+      // Send game URLs to participants with delay for non-hosts
+      const participants = room.participants?.filter(p => 
+        p.connection_status === 'connected'
+      ) || [];
+
+      participants.forEach(p => {
+        const encodedName = encodeURIComponent(p.user?.display_name || p.user?.username);
+        const baseUrl = `${gameProxy.path}?room=${room.room_code}&players=${participants.length}&name=${encodedName}`;
+        const gameUrl = p.role === 'host' ? `${baseUrl}&role=gm` : baseUrl;
+        
+        const delay = p.role === 'host' ? 0 : 2000; // 2 second delay for players
+        
+        setTimeout(() => {
+          io.to(p.socket_id).emit('gameStarted', {
+            gameUrl,
+            gameType: room.game_type,
+            isHost: p.role === 'host',
+            roomCode: room.room_code
+          });
+        }, delay);
+      });
+
+      console.log(`🚀 Game started: ${room.game_type} for room ${room.room_code}`);
+
+    } catch (error) {
+      console.error('❌ Error starting game:', error);
+      socket.emit('error', { message: 'Failed to start game' });
+    }
+  });
+
+  // Handle leaving room
+  socket.on('leaveRoom', async (data) => {
+    try {
+      const connection = activeConnections.get(socket.id);
+      if (!connection?.roomId || !connection?.userId) {
+        return;
+      }
+
+      // Remove participant from database
+      await db.removeParticipant(connection.roomId, connection.userId);
+
+      // Leave socket room
+      socket.leave(data.roomCode);
+
+      // Get updated room data
+      const room = await db.getRoomByCode(data.roomCode);
+      if (room) {
+        const remainingPlayers = room.participants
+          ?.filter(p => p.connection_status === 'connected')
+          .map(p => ({
+            id: p.user_id,
+            name: p.user?.display_name || p.user?.username,
+            isHost: p.role === 'host',
+            socketId: p.socket_id
+          })) || [];
+
+        // Notify remaining players
+        io.to(data.roomCode).emit('playerLeft', {
+          playerId: connection.userId,
+          players: remainingPlayers
+        });
+
+        // If no players left, mark room as abandoned
+        if (remainingPlayers.length === 0) {
+          await db.updateRoom(connection.roomId, {
+            status: 'abandoned'
+          });
+        }
+      }
+
+      // Clear connection tracking
+      connection.roomId = null;
+      connection.userId = null;
+
+      console.log(`👋 Player left room ${data.roomCode}`);
+
+    } catch (error) {
+      console.error('❌ Error leaving room:', error);
+    }
+  });
+
+  // Handle disconnection
+  socket.on('disconnect', async () => {
+    try {
+      console.log(`🔌 User disconnected: ${socket.id}`);
+      
+      const connection = activeConnections.get(socket.id);
+      if (connection?.userId) {
+        // Update participant connection status
+        await db.updateParticipantConnection(
+          connection.userId, 
+          socket.id, 
+          'disconnected'
+        );
+
+        // If in a room, notify other players
+        if (connection.roomId) {
+          const room = await db.getRoomByCode(connection.roomCode);
+          if (room) {
+            socket.to(room.room_code).emit('playerDisconnected', {
+              playerId: connection.userId
+            });
+          }
+        }
+      }
+
+      // Remove from active connections
+      activeConnections.delete(socket.id);
+
+    } catch (error) {
+      console.error('❌ Error handling disconnect:', error);
+    }
+  });
 });
 
-// Catch all handler - send React app for any route not handled above
-app.get('*', (req, res) => {
-  res.sendFile(path.join(actualClientBuildPath, 'index.html'));
+// ===== CLEANUP AND MAINTENANCE =====
+
+// Periodic cleanup of stale connections
+setInterval(async () => {
+  try {
+    await db.cleanupStaleConnections();
+    await db.refreshActiveRoomsView();
+  } catch (error) {
+    console.error('❌ Cleanup error:', error);
+  }
+}, 5 * 60 * 1000); // Every 5 minutes
+
+// Graceful shutdown
+process.on('SIGTERM', async () => {
+  console.log('🛑 SIGTERM received, shutting down gracefully...');
+  
+  // Close all socket connections
+  io.close();
+  
+  // Close server
+  server.close(() => {
+    console.log('✅ Server closed');
+    process.exit(0);
+  });
 });
 
-// Add timeout configuration for Render.com
-server.keepAliveTimeout = 120000; // 120 seconds
-server.headersTimeout = 120000; // 120 seconds
+// Start server
+const PORT = process.env.PORT || 3033;
+server.listen(PORT, () => {
+  console.log(`🚀 GameBuddies Server v2.0.0 running on port ${PORT}`);
+  console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`🎮 Game proxies configured: ${Object.keys(gameProxies).join(', ')}`);
+});
 
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`GameBuddies server running on port ${PORT}`);
-  console.log('Game proxies configured:', Object.keys(gameProxies));
-  console.log('Environment variables:');
-  console.log('DDF_URL:', process.env.DDF_URL);
-  console.log('SCHOOLED_URL:', process.env.SCHOOLED_URL);
-}); 
+module.exports = { app, server, io }; 

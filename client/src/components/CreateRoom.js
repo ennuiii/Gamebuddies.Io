@@ -1,64 +1,96 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import io from 'socket.io-client';
 import './CreateRoom.css';
 
-const CreateRoom = ({ onRoomCreated, onClose }) => {
-  const [creatorName, setCreatorName] = useState('');
-  const [isPrivate, setIsPrivate] = useState(false);
-  const [loading, setLoading] = useState(false);
+const CreateRoom = ({ onRoomCreated, onCancel }) => {
+  const [playerName, setPlayerName] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState('');
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!creatorName.trim()) {
+    if (!playerName.trim()) {
       setError('Please enter your name');
       return;
     }
 
-    setLoading(true);
+    if (playerName.trim().length < 2) {
+      setError('Name must be at least 2 characters long');
+      return;
+    }
+
+    if (playerName.trim().length > 20) {
+      setError('Name must be less than 20 characters');
+      return;
+    }
+
+    setIsCreating(true);
     setError('');
 
     try {
-      const response = await fetch('/api/rooms', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          creatorName: creatorName.trim(),
-          isPrivate,
-        }),
+      console.log('🏠 Creating room for:', playerName.trim());
+      
+      const socket = io(process.env.REACT_APP_SERVER_URL || 'http://localhost:3033', {
+        transports: ['websocket', 'polling'],
+        timeout: 10000
       });
 
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to create room');
-      }
+      // Set up event handlers
+      socket.on('connect', () => {
+        console.log('✅ Connected, creating room...');
+        socket.emit('createRoom', { 
+          playerName: playerName.trim()
+        });
+      });
 
-      const room = await response.json();
-      onRoomCreated(room);
-    } catch (err) {
-      setError(err.message);
-      setLoading(false);
+      socket.on('roomCreated', (data) => {
+        console.log('✅ Room created:', data);
+        socket.disconnect();
+        
+        if (onRoomCreated) {
+          onRoomCreated({
+            roomCode: data.roomCode,
+            playerName: playerName.trim(),
+            isHost: true,
+            room: data.room
+          });
+        }
+      });
+
+      socket.on('error', (error) => {
+        console.error('❌ Room creation error:', error);
+        setError(error.message || 'Failed to create room. Please try again.');
+        setIsCreating(false);
+        socket.disconnect();
+      });
+
+      socket.on('connect_error', (error) => {
+        console.error('❌ Connection error:', error);
+        setError('Failed to connect to server. Please check your internet connection.');
+        setIsCreating(false);
+        socket.disconnect();
+      });
+
+      // Timeout fallback
+      setTimeout(() => {
+        if (isCreating) {
+          setError('Room creation timed out. Please try again.');
+          setIsCreating(false);
+          socket.disconnect();
+        }
+      }, 15000);
+
+    } catch (error) {
+      console.error('❌ Unexpected error:', error);
+      setError('An unexpected error occurred. Please try again later.');
+      setIsCreating(false);
     }
   };
 
   return (
-    <motion.div
-      className="create-room-overlay"
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      onClick={onClose}
-    >
-      <motion.div
-        className="create-room-modal"
-        initial={{ scale: 0.8, opacity: 0 }}
-        animate={{ scale: 1, opacity: 1 }}
-        transition={{ type: 'spring', damping: 20 }}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="create-room-overlay">
+      <div className="create-room-modal">
         <h2 className="create-room-title">Create Game Room</h2>
         
         <form onSubmit={handleSubmit} className="create-room-form">
@@ -67,25 +99,13 @@ const CreateRoom = ({ onRoomCreated, onClose }) => {
             <input
               type="text"
               id="name"
-              value={creatorName}
-              onChange={(e) => setCreatorName(e.target.value)}
+              value={playerName}
+              onChange={(e) => setPlayerName(e.target.value)}
               placeholder="Enter your name"
               maxLength={20}
-              disabled={loading}
+              disabled={isCreating}
               autoFocus
             />
-          </div>
-
-          <div className="form-group checkbox-group">
-            <label>
-              <input
-                type="checkbox"
-                checked={isPrivate}
-                onChange={(e) => setIsPrivate(e.target.checked)}
-                disabled={loading}
-              />
-              <span>Private room (only joinable with code)</span>
-            </label>
           </div>
 
           {error && (
@@ -95,23 +115,23 @@ const CreateRoom = ({ onRoomCreated, onClose }) => {
           <div className="form-actions">
             <button
               type="button"
-              onClick={onClose}
+              onClick={onCancel}
               className="cancel-button"
-              disabled={loading}
+              disabled={isCreating}
             >
               Cancel
             </button>
             <button
               type="submit"
               className="create-button"
-              disabled={loading}
+              disabled={isCreating}
             >
-              {loading ? 'Creating...' : 'Create Room'}
+              {isCreating ? 'Creating...' : 'Create Room'}
             </button>
           </div>
         </form>
-      </motion.div>
-    </motion.div>
+      </div>
+    </div>
   );
 };
 

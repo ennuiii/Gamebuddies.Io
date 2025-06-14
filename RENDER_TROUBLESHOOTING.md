@@ -10,6 +10,10 @@
 
 **Root Cause**: `socket.conn.setTimeout` is not a valid function in production Socket.io versions, causing server crashes when clients connect.
 
+### 3. WebSocket Proxy Conflicts
+
+**Root Cause**: The http-proxy-middleware was configured with `ws: true` which caused it to try to handle ALL WebSocket connections, including Socket.io's, resulting in `ERR_STREAM_WRITE_AFTER_END` errors.
+
 ### Solution Applied
 
 1. **Fixed Middleware Order** (Critical):
@@ -18,15 +22,20 @@
    - Static files for React app come LAST
    - This ensures API calls reach their handlers properly
 
-2. **Enhanced Socket.io Configuration**:
-   - Added production-specific CORS settings
-   - Whitelisted specific origins for production
-   - Added credentials support
-   - Improved error logging
+2. **Fixed Socket.io Crashes**:
+   - Removed invalid `socket.conn.setTimeout` calls
+   - Using Socket.io's built-in timeout configuration
+   - Proper disconnect handling
 
-3. **Added Request Logging**:
-   - Production requests are now logged with timestamps
-   - Helps debug routing issues
+3. **Resolved WebSocket Proxy Conflicts**:
+   - Set `ws: false` in proxy configurations
+   - Prevents proxy middleware from interfering with Socket.io
+   - Socket.io now handles all WebSocket connections exclusively
+
+4. **Enhanced Production Configuration**:
+   - Production-specific CORS settings
+   - Request logging with timestamps
+   - Better error handling
 
 ### Deployment Checklist
 
