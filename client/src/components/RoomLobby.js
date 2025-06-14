@@ -14,11 +14,11 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
   const [error, setError] = useState(null);
   const [roomData, setRoomData] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState('connecting');
+  const [currentIsHost, setCurrentIsHost] = useState(isHost); // State for re-rendering
   
   // Use refs for values that shouldn't trigger re-renders
   const roomCodeRef = useRef(roomCode);
   const playerNameRef = useRef(playerName);
-  const isHostRef = useRef(isHost);
 
   useEffect(() => {
     // Prevent duplicate connections in development StrictMode
@@ -64,7 +64,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       console.log('🔍 [CLIENT DEBUG] Socket ID:', newSocket.id);
       console.log('🔍 [CLIENT DEBUG] Room code:', roomCodeRef.current);
       console.log('🔍 [CLIENT DEBUG] Player name:', playerNameRef.current);
-      console.log('🔍 [CLIENT DEBUG] Is host:', isHostRef.current);
+      console.log('🔍 [CLIENT DEBUG] Is host:', currentIsHost);
       
       setConnectionStatus('connected');
       setSocket(newSocket);
@@ -102,6 +102,14 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       setPlayers(data.players || []);
       setRoomData(data.room);
       setSelectedGame(data.room?.game_type !== 'lobby' ? data.room.game_type : null);
+      
+      // Update host status based on server response
+      const currentUser = data.players?.find(p => p.name === playerNameRef.current);
+      if (currentUser) {
+        console.log(`🔍 [CLIENT DEBUG] Initial host status: ${playerNameRef.current} is host: ${currentUser.isHost}`);
+        setCurrentIsHost(currentUser.isHost);
+      }
+      
       setIsLoading(false);
       setError(null);
     };
@@ -110,6 +118,13 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       console.log('👋 Player joined:', data.player.name);
       setPlayers(data.players || []);
       setRoomData(data.room);
+      
+      // Ensure host status is maintained when players join
+      const currentUser = data.players?.find(p => p.name === playerNameRef.current);
+      if (currentUser && currentUser.isHost !== currentIsHost) {
+        console.log(`🔍 [CLIENT DEBUG] Host status sync: ${playerNameRef.current} is host: ${currentUser.isHost}`);
+        setCurrentIsHost(currentUser.isHost);
+      }
     };
 
     const handlePlayerLeft = (data) => {
@@ -156,11 +171,12 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       // Update players list with new host status
       setPlayers(data.players || []);
       
-      // Update local host status if this user is the new host
-      if (data.newHostId === players.find(p => p.name === playerNameRef.current)?.id) {
-        isHostRef.current = true;
-      } else if (data.oldHostId === players.find(p => p.name === playerNameRef.current)?.id) {
-        isHostRef.current = false;
+      // Update local host status - check if current user is the new host
+      const currentUser = data.players?.find(p => p.name === playerNameRef.current);
+      if (currentUser) {
+        const newHostStatus = currentUser.isHost;
+        console.log(`🔍 [CLIENT DEBUG] Host status update: ${playerNameRef.current} is now host: ${newHostStatus}`);
+        setCurrentIsHost(newHostStatus);
       }
       
       // Show notification
@@ -215,14 +231,14 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
   }, []); // Empty dependency array to prevent re-running
 
   const handleGameSelect = (gameType) => {
-    if (socket && isHostRef.current) {
+    if (socket && currentIsHost) {
       console.log('🎮 Selecting game:', gameType);
       socket.emit('selectGame', { gameType });
     }
   };
 
   const handleStartGame = () => {
-    if (socket && isHostRef.current) {
+    if (socket && currentIsHost) {
       console.log('🚀 Starting game');
       socket.emit('startGame', { roomCode: roomCodeRef.current });
     }
@@ -238,7 +254,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
   };
 
   const handleTransferHost = (targetPlayerId) => {
-    if (socket && isHostRef.current) {
+    if (socket && currentIsHost) {
       console.log('👑 Transferring host to player:', targetPlayerId);
       socket.emit('transferHost', { 
         roomCode: roomCodeRef.current,
@@ -337,7 +353,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
                   </div>
                 </div>
                 {/* Show "Make Host" button if current user is host and this is not the host */}
-                {isHostRef.current && !player.isHost && (
+                {currentIsHost && !player.isHost && (
                   <button 
                     className="make-host-btn"
                     onClick={() => handleTransferHost(player.id)}
@@ -356,7 +372,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
           {!selectedGame ? (
             <GamePicker 
               onGameSelect={handleGameSelect}
-              isHost={isHostRef.current}
+              isHost={currentIsHost}
               disabled={!socket || connectionStatus !== 'connected'}
             />
           ) : (
@@ -369,7 +385,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
                 <p>{selectedGame === 'ddf' ? 'Quiz game where the worst player gets eliminated' : 'Educational quiz game for students'}</p>
                 <span className="max-players">Max {selectedGame === 'ddf' ? '8' : '10'} players</span>
               </div>
-              {isHostRef.current && (
+              {currentIsHost && (
                 <div>
                   <button 
                     onClick={handleStartGame}
@@ -388,7 +404,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
                   </button>
                 </div>
               )}
-              {!isHostRef.current && (
+              {!currentIsHost && (
                 <div style={{ textAlign: 'center' }}>
                   <p>Waiting for host to start the game...</p>
                 </div>
