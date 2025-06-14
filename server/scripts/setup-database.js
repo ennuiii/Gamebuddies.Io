@@ -220,8 +220,7 @@ SELECT
     json_build_object(
       'user_id', p.user_id,
       'username', u.username,
-      'role', p.role,
-      'socket_id', p.socket_id
+      'role', p.role
     )
   ) FILTER (WHERE p.user_id IS NOT NULL) as participants
 FROM game_rooms r

@@ -73,7 +73,6 @@ class DatabaseService {
           participants:room_participants(
             id,
             user_id,
-            socket_id,
             role,
             connection_status,
             is_ready,
