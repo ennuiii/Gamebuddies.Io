@@ -217,7 +217,7 @@ io.on('connection', async (socket) => {
       // Get or create user profile
       console.log(`👤 [DEBUG] Creating/getting user profile...`);
       const user = await db.getOrCreateUser(
-        data.playerName, // Using playerName as external_id to prevent duplicates
+        `${socket.id}_${data.playerName}`, // Unique per connection to prevent conflicts
         data.playerName,
         data.playerName
       );
@@ -343,13 +343,14 @@ io.on('connection', async (socket) => {
       
       // Get or create user profile
       const user = await db.getOrCreateUser(
-        data.playerName, // Using playerName as external_id to prevent duplicates
+        `${socket.id}_${data.playerName}`, // Unique per connection to prevent conflicts
         data.playerName,
         data.playerName
       );
 
       // Check if this user is the room creator (should be host)
-      const isRoomCreator = room.creator_id === user.id;
+      // Since we use unique external_ids, check by username and room metadata
+      const isRoomCreator = room.metadata?.created_by_name === data.playerName;
       const userRole = isRoomCreator ? 'host' : 'player';
       
       console.log(`🚪 [DEBUG] User joining room:`, {
@@ -360,23 +361,30 @@ io.on('connection', async (socket) => {
         assignedRole: userRole
       });
 
-      // Check for duplicate player names in room (but allow room creator to rejoin)
+      // Check for duplicate player names in room (allow room creator to rejoin)
       const existingParticipant = room.participants?.find(p => 
-        p.user?.username === user.username && 
-        p.connection_status === 'connected' &&
-        p.user_id !== user.id // Allow same user to rejoin with new connection
+        p.user?.username === data.playerName && 
+        p.connection_status === 'connected'
       );
       
-      if (existingParticipant) {
+      if (existingParticipant && !isRoomCreator) {
+        console.log(`❌ [DEBUG] Duplicate name blocked: ${data.playerName} already in room ${data.roomCode}`);
         socket.emit('error', { 
-          message: 'A player with this name is already in the room.',
+          message: 'A player with this name is already in the room. Please choose a different name.',
           code: 'DUPLICATE_PLAYER'
         });
         return;
       }
       
-      // Add participant to room with correct role
-      await db.addParticipant(room.id, user.id, socket.id, userRole);
+      // If room creator is rejoining, update existing participant instead of creating new one
+      if (existingParticipant && isRoomCreator) {
+        console.log(`🔄 [DEBUG] Room creator ${data.playerName} reconnecting to room ${data.roomCode}`);
+        // Update existing participant's connection status
+        await db.updateParticipantConnection(existingParticipant.user_id, socket.id, 'connected');
+      } else {
+        // Add new participant to room
+        await db.addParticipant(room.id, user.id, socket.id, userRole);
+      }
 
       // Join socket room
       socket.join(data.roomCode);
@@ -653,17 +661,146 @@ io.on('connection', async (socket) => {
   });
 });
 
-// ===== CLEANUP AND MAINTENANCE =====
+// ===== API ENDPOINTS =====
 
-// Periodic cleanup of stale connections
-setInterval(async () => {
+// Room cleanup API endpoint
+app.post('/api/admin/cleanup-rooms', async (req, res) => {
   try {
+    const {
+      maxAgeHours = 24,
+      maxIdleMinutes = 30,
+      includeAbandoned = true,
+      includeCompleted = true,
+      dryRun = false
+    } = req.body;
+
+    const result = await db.cleanupInactiveRooms({
+      maxAgeHours,
+      maxIdleMinutes,
+      includeAbandoned,
+      includeCompleted,
+      dryRun
+    });
+
+    res.json({
+      success: true,
+      ...result,
+      message: dryRun 
+        ? `Would clean ${result.wouldClean} rooms` 
+        : `Cleaned ${result.cleaned} rooms`
+    });
+  } catch (error) {
+    console.error('❌ Room cleanup API error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Room stats API endpoint
+app.get('/api/admin/room-stats', async (req, res) => {
+  try {
+    const stats = await db.getRoomStats();
+    res.json({
+      success: true,
+      stats
+    });
+  } catch (error) {
+    console.error('❌ Room stats API error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Manual cleanup trigger
+app.post('/api/admin/cleanup-now', async (req, res) => {
+  try {
+    console.log('🧹 Manual cleanup triggered');
+    
+    // Run all cleanup tasks
     await db.cleanupStaleConnections();
     await db.refreshActiveRoomsView();
+    
+    const roomCleanup = await db.cleanupInactiveRooms({
+      maxAgeHours: 2,      // More aggressive for manual cleanup
+      maxIdleMinutes: 15,  // More aggressive for manual cleanup
+      includeAbandoned: true,
+      includeCompleted: true,
+      dryRun: false
+    });
+
+    res.json({
+      success: true,
+      roomsCleanedUp: roomCleanup.cleaned,
+      cleanedRooms: roomCleanup.rooms,
+      message: `Manual cleanup completed: ${roomCleanup.cleaned} rooms cleaned`
+    });
   } catch (error) {
-    console.error('❌ Cleanup error:', error);
+    console.error('❌ Manual cleanup error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
   }
-}, 5 * 60 * 1000); // Every 5 minutes
+});
+
+// ===== CLEANUP AND MAINTENANCE =====
+
+// Periodic cleanup of stale connections and inactive rooms
+setInterval(async () => {
+  try {
+    console.log('🧹 Running periodic cleanup...');
+    
+    // Clean up stale connections
+    await db.cleanupStaleConnections();
+    await db.refreshActiveRoomsView();
+    
+    // Clean up inactive rooms (less aggressive than manual)
+    const roomCleanup = await db.cleanupInactiveRooms({
+      maxAgeHours: 24,     // Rooms older than 24 hours
+      maxIdleMinutes: 60,  // Rooms idle for 1 hour
+      includeAbandoned: true,
+      includeCompleted: true,
+      dryRun: false
+    });
+    
+    if (roomCleanup.cleaned > 0) {
+      console.log(`🧹 Periodic cleanup: ${roomCleanup.cleaned} rooms cleaned`);
+    }
+    
+  } catch (error) {
+    console.error('❌ Periodic cleanup error:', error);
+  }
+}, 15 * 60 * 1000); // Every 15 minutes
+
+// More aggressive cleanup during off-peak hours (runs once per hour)
+setInterval(async () => {
+  try {
+    const hour = new Date().getHours();
+    
+    // Run more aggressive cleanup during off-peak hours (2 AM - 6 AM)
+    if (hour >= 2 && hour <= 6) {
+      console.log('🌙 Running off-peak aggressive cleanup...');
+      
+      const roomCleanup = await db.cleanupInactiveRooms({
+        maxAgeHours: 12,     // More aggressive: 12 hours
+        maxIdleMinutes: 30,  // More aggressive: 30 minutes
+        includeAbandoned: true,
+        includeCompleted: true,
+        dryRun: false
+      });
+      
+      if (roomCleanup.cleaned > 0) {
+        console.log(`🌙 Off-peak cleanup: ${roomCleanup.cleaned} rooms cleaned`);
+      }
+    }
+  } catch (error) {
+    console.error('❌ Off-peak cleanup error:', error);
+  }
+}, 60 * 60 * 1000); // Every hour
 
 // Graceful shutdown
 process.on('SIGTERM', async () => {
