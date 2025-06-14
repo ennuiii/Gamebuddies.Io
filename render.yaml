@@ -1,10 +1,10 @@
-nservices:
+services:
   - type: web
     name: gamebuddies-homepage
     runtime: node
     buildCommand: npm run install:all && npm run build
     startCommand: npm start
-    healthCheckPath: /health
+    healthCheckPath: /api/health
     envVars:
       - key: NODE_ENV
         value: production
@@ -13,4 +13,14 @@ nservices:
       - key: DDF_URL
         value: https://ddf-game.onrender.com
       - key: SCHOOLED_URL
-        value: https://schoolquizgame.onrender.com 
+        value: https://schoolquizgame.onrender.com
+      - key: SUPABASE_URL
+        value: https://your-project-ref.supabase.co
+      - key: SUPABASE_ANON_KEY
+        value: your-anon-key-here
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        value: your-service-role-key-here
+      - key: JWT_SECRET
+        value: your-generated-secret-here
+      - key: CORS_ORIGINS
+        value: https://gamebuddies-homepage.onrender.com 

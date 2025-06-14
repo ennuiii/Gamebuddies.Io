@@ -1,16 +1,18 @@
 const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
 
-// Validate required environment variables
-const requiredEnvVars = ['SUPABASE_URL', 'SUPABASE_ANON_KEY', 'SUPABASE_SERVICE_ROLE_KEY'];
-for (const envVar of requiredEnvVars) {
-  if (!process.env[envVar]) {
-    throw new Error(`Missing required environment variable: ${envVar}`);
-  }
+// Check if Supabase is configured
+const isSupabaseConfigured = process.env.SUPABASE_URL && 
+                             process.env.SUPABASE_ANON_KEY && 
+                             process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!isSupabaseConfigured) {
+  console.warn('⚠️  Supabase not configured - falling back to in-memory storage');
+  console.warn('   Set SUPABASE_URL, SUPABASE_ANON_KEY, and SUPABASE_SERVICE_ROLE_KEY to enable database persistence');
 }
 
 // Regular Supabase client (for public operations)
-const supabase = createClient(
+const supabase = isSupabaseConfigured ? createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_ANON_KEY,
   {
@@ -24,10 +26,10 @@ const supabase = createClient(
       }
     }
   }
-);
+) : null;
 
 // Admin Supabase client (for server operations)
-const supabaseAdmin = createClient(
+const supabaseAdmin = isSupabaseConfigured ? createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY,
   {
@@ -36,17 +38,30 @@ const supabaseAdmin = createClient(
       persistSession: false
     }
   }
-);
+) : null;
+
+// Import fallback storage
+const FallbackStorage = require('./fallback-storage');
 
 // Database helper functions
 class DatabaseService {
   constructor() {
-    this.client = supabaseAdmin;
+    if (isSupabaseConfigured) {
+      this.client = supabaseAdmin;
+      this.isSupabase = true;
+    } else {
+      this.client = new FallbackStorage();
+      this.isSupabase = false;
+    }
   }
 
   // Room management
   async createRoom(roomData) {
     try {
+      if (!this.isSupabase) {
+        return await this.client.createRoom(roomData);
+      }
+
       // Generate room code using database function
       const { data: roomCode, error: codeError } = await this.client
         .rpc('generate_room_code');
@@ -80,6 +95,10 @@ class DatabaseService {
 
   async getRoomByCode(roomCode) {
     try {
+      if (!this.isSupabase) {
+        return await this.client.getRoomByCode(roomCode);
+      }
+
       const { data: room, error } = await this.client
         .from('game_rooms')
         .select(`
@@ -130,6 +149,10 @@ class DatabaseService {
   // User management
   async getOrCreateUser(externalId, username, displayName) {
     try {
+      if (!this.isSupabase) {
+        return await this.client.getOrCreateUser(externalId, username, displayName);
+      }
+
       // Try to get existing user
       let { data: user, error: getUserError } = await this.client
         .from('user_profiles')
@@ -173,6 +196,10 @@ class DatabaseService {
   // Participant management
   async addParticipant(roomId, userId, socketId, role = 'player') {
     try {
+      if (!this.isSupabase) {
+        return await this.client.addParticipant(roomId, userId, socketId, role);
+      }
+
       const { data: participant, error } = await this.client
         .from('room_participants')
         .upsert({
