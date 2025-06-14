@@ -589,7 +589,7 @@ io.on('connection', async (socket) => {
 
         // If in a room, notify other players
         if (connection.roomId) {
-          const room = await db.getRoomByCode(connection.roomCode);
+          const room = await db.getRoomById(connection.roomId);
           if (room) {
             socket.to(room.room_code).emit('playerDisconnected', {
               playerId: connection.userId

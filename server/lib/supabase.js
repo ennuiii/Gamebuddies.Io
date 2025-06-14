@@ -91,6 +91,34 @@ class DatabaseService {
     }
   }
 
+  async getRoomById(roomId) {
+    try {
+      const { data: room, error } = await this.adminClient
+        .from('game_rooms')
+        .select(`
+          *,
+          creator:user_profiles!creator_id(username, display_name),
+          participants:room_participants(
+            id,
+            user_id,
+            role,
+            connection_status,
+            is_ready,
+            joined_at,
+            user:user_profiles(username, display_name)
+          )
+        `)
+        .eq('id', roomId)
+        .single();
+
+      if (error) throw error;
+      return room;
+    } catch (error) {
+      console.error('Error getting room by ID:', error);
+      return null;
+    }
+  }
+
   async updateRoom(roomId, updates) {
     try {
       const { data: room, error } = await this.adminClient

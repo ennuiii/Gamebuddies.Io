@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
-import GameSelection from './GameSelection';
-import RoomReady from './RoomReady';
+import GamePicker from './GamePicker';
 import './RoomLobby.css';
 
 // Track active connection to prevent duplicates in StrictMode
@@ -294,20 +293,46 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
 
         <div className="game-section">
           {!selectedGame ? (
-            <GameSelection 
+            <GamePicker 
               onGameSelect={handleGameSelect}
               isHost={isHostRef.current}
               disabled={!socket || connectionStatus !== 'connected'}
             />
           ) : (
-            <RoomReady 
-              selectedGame={selectedGame}
-              players={players}
-              isHost={isHostRef.current}
-              onStartGame={handleStartGame}
-              onChangeGame={() => setSelectedGame(null)}
-              disabled={!socket || connectionStatus !== 'connected'}
-            />
+            <div className="game-ready">
+              <div className="selected-game">
+                <h3>Game Selected</h3>
+                <div className="game-info">
+                  <span className="game-icon">
+                    {selectedGame === 'ddf' ? '🎮' : '🎓'}
+                  </span>
+                  <span className="game-name">
+                    {selectedGame === 'ddf' ? 'Der dümmste fliegt' : 'School Quiz'}
+                  </span>
+                </div>
+                {isHostRef.current && (
+                  <div className="host-controls">
+                    <button 
+                      onClick={handleStartGame}
+                      className="start-game-btn"
+                      disabled={!socket || connectionStatus !== 'connected'}
+                    >
+                      Start Game
+                    </button>
+                    <button 
+                      onClick={() => setSelectedGame(null)}
+                      className="change-game-btn"
+                      disabled={!socket || connectionStatus !== 'connected'}
+                    >
+                      Change Game
+                    </button>
+                  </div>
+                )}
+                {!isHostRef.current && (
+                  <p className="waiting-message">Waiting for host to start the game...</p>
+                )}
+              </div>
+            </div>
           )}
         </div>
       </div>
