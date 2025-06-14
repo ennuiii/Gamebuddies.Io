@@ -160,8 +160,11 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
         newSocket.off('gameStarted', handleGameStarted);
         newSocket.off('error', handleError);
         
-        // Leave room before disconnecting
-        newSocket.emit('leaveRoom', { roomCode: roomCodeRef.current });
+        // Copy ref value to avoid stale closure
+        const currentRoomCode = roomCodeRef.current;
+        if (currentRoomCode) {
+          newSocket.emit('leaveRoom', { roomCode: currentRoomCode });
+        }
         newSocket.disconnect();
       }
       
