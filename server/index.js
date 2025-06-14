@@ -384,7 +384,7 @@ io.on('connection', async (socket) => {
           id: p.user_id,
           name: p.user?.display_name || p.user?.username,
           isHost: p.role === 'host',
-          socketId: p.socket_id
+          socketId: null // Socket IDs are tracked in activeConnections, not stored in DB
         })) || [];
 
       // Notify all players in room
@@ -498,14 +498,20 @@ io.on('connection', async (socket) => {
         
         const delay = p.role === 'host' ? 0 : 2000; // 2 second delay for players
         
-        setTimeout(() => {
-          io.to(p.socket_id).emit('gameStarted', {
-            gameUrl,
-            gameType: room.game_type,
-            isHost: p.role === 'host',
-            roomCode: room.room_code
-          });
-        }, delay);
+        // Find the socket ID from activeConnections
+        const userConnection = Array.from(activeConnections.values())
+          .find(conn => conn.userId === p.user_id);
+        
+        if (userConnection?.socketId) {
+          setTimeout(() => {
+            io.to(userConnection.socketId).emit('gameStarted', {
+              gameUrl,
+              gameType: room.game_type,
+              isHost: p.role === 'host',
+              roomCode: room.room_code
+            });
+          }, delay);
+        }
       });
 
       console.log(`🚀 Game started: ${room.game_type} for room ${room.room_code}`);
@@ -539,7 +545,7 @@ io.on('connection', async (socket) => {
             id: p.user_id,
             name: p.user?.display_name || p.user?.username,
             isHost: p.role === 'host',
-            socketId: p.socket_id
+            socketId: null // Socket IDs are tracked in activeConnections, not stored in DB
           })) || [];
 
         // Notify remaining players

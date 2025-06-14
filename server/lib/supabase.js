@@ -163,7 +163,6 @@ class DatabaseService {
         .upsert({
           room_id: roomId,
           user_id: userId,
-          socket_id: socketId,
           role: role,
           connection_status: 'connected',
           last_ping: new Date().toISOString()
@@ -216,7 +215,6 @@ class DatabaseService {
       const { error } = await this.adminClient
         .from('room_participants')
         .update({
-          socket_id: socketId,
           connection_status: status,
           last_ping: new Date().toISOString()
         })
