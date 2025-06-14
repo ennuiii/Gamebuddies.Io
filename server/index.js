@@ -217,7 +217,7 @@ io.on('connection', async (socket) => {
       // Get or create user profile
       console.log(`👤 [DEBUG] Creating/getting user profile...`);
       const user = await db.getOrCreateUser(
-        socket.id, // Using socket.id as external_id for now
+        data.playerName, // Using playerName as external_id to prevent duplicates
         data.playerName,
         data.playerName
       );
@@ -343,7 +343,7 @@ io.on('connection', async (socket) => {
       
       // Get or create user profile
       const user = await db.getOrCreateUser(
-        socket.id,
+        data.playerName, // Using playerName as external_id to prevent duplicates
         data.playerName,
         data.playerName
       );
