@@ -38,14 +38,26 @@ const CreateRoom = ({ onRoomCreated, onCancel }) => {
 
       // Set up event handlers
       socket.on('connect', () => {
-        console.log('✅ Connected, creating room...');
+        console.log('✅ [CLIENT] Connected to server, creating room...');
+        console.log('🔍 [CLIENT DEBUG] Socket ID:', socket.id);
+        console.log('🔍 [CLIENT DEBUG] Player name:', playerName.trim());
+        console.log('🔍 [CLIENT DEBUG] Server URL:', process.env.REACT_APP_SERVER_URL || 'http://localhost:3033');
+        
         socket.emit('createRoom', { 
           playerName: playerName.trim()
         });
+        console.log('📤 [CLIENT] createRoom event sent');
       });
 
       socket.on('roomCreated', (data) => {
-        console.log('✅ Room created:', data);
+        console.log('✅ [CLIENT] Room created successfully:', data);
+        console.log('🔍 [CLIENT DEBUG] Room data:', {
+          roomCode: data.roomCode,
+          isHost: data.isHost,
+          room_id: data.room?.id,
+          storage_info: data.room?.storage_type || 'unknown'
+        });
+        
         socket.disconnect();
         
         if (onRoomCreated) {
@@ -59,7 +71,14 @@ const CreateRoom = ({ onRoomCreated, onCancel }) => {
       });
 
       socket.on('error', (error) => {
-        console.error('❌ Room creation error:', error);
+        console.error('❌ [CLIENT] Room creation error:', error);
+        console.error('🔍 [CLIENT DEBUG] Error details:', {
+          message: error.message,
+          code: error.code,
+          debug: error.debug,
+          storage_type: error.debug?.storage_type || 'unknown'
+        });
+        
         setError(error.message || 'Failed to create room. Please try again.');
         setIsCreating(false);
         socket.disconnect();

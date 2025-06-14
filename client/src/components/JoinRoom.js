@@ -49,15 +49,29 @@ const JoinRoom = ({ onRoomJoined, onCancel }) => {
 
       // Set up event handlers
       socket.on('connect', () => {
-        console.log('✅ Connected, joining room...');
+        console.log('✅ [CLIENT] Connected to server, joining room...');
+        console.log('🔍 [CLIENT DEBUG] Socket ID:', socket.id);
+        console.log('🔍 [CLIENT DEBUG] Room code:', roomCode.trim().toUpperCase());
+        console.log('🔍 [CLIENT DEBUG] Player name:', playerName.trim());
+        console.log('🔍 [CLIENT DEBUG] Server URL:', process.env.REACT_APP_SERVER_URL || 'http://localhost:3033');
+        
         socket.emit('joinRoom', { 
           roomCode: roomCode.trim().toUpperCase(),
           playerName: playerName.trim()
         });
+        console.log('📤 [CLIENT] joinRoom event sent');
       });
 
       socket.on('roomJoined', (data) => {
-        console.log('✅ Room joined:', data);
+        console.log('✅ [CLIENT] Room joined successfully:', data);
+        console.log('🔍 [CLIENT DEBUG] Join data:', {
+          roomCode: data.roomCode,
+          isHost: data.isHost,
+          playerCount: data.players?.length || 0,
+          room_id: data.room?.id,
+          storage_info: data.room?.storage_type || 'unknown'
+        });
+        
         socket.disconnect();
         
         if (onRoomJoined) {

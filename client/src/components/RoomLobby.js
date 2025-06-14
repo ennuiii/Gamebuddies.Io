@@ -41,7 +41,12 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
 
     // Named event handlers for proper cleanup
     const handleConnect = () => {
-      console.log('✅ Connected to server');
+      console.log('✅ [CLIENT] Connected to server in lobby');
+      console.log('🔍 [CLIENT DEBUG] Socket ID:', newSocket.id);
+      console.log('🔍 [CLIENT DEBUG] Room code:', roomCodeRef.current);
+      console.log('🔍 [CLIENT DEBUG] Player name:', playerNameRef.current);
+      console.log('🔍 [CLIENT DEBUG] Is host:', isHostRef.current);
+      
       setConnectionStatus('connected');
       setSocket(newSocket);
       
@@ -50,6 +55,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
         roomCode: roomCodeRef.current,
         playerName: playerNameRef.current
       });
+      console.log('📤 [CLIENT] joinRoom event sent from lobby');
     };
 
     const handleDisconnect = () => {
@@ -66,7 +72,15 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
     };
 
     const handleRoomJoined = (data) => {
-      console.log('✅ Successfully joined room:', data);
+      console.log('✅ [CLIENT] Successfully joined room in lobby:', data);
+      console.log('🔍 [CLIENT DEBUG] Lobby join data:', {
+        roomCode: data.roomCode,
+        playerCount: data.players?.length || 0,
+        room_id: data.room?.id,
+        game_type: data.room?.game_type,
+        storage_info: data.room?.storage_type || 'unknown'
+      });
+      
       setPlayers(data.players || []);
       setRoomData(data.room);
       setSelectedGame(data.room?.game_type !== 'lobby' ? data.room.game_type : null);
