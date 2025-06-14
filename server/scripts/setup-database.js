@@ -54,7 +54,7 @@ CREATE TABLE IF NOT EXISTS game_rooms (
     expires_at TIMESTAMP WITH TIME ZONE DEFAULT (NOW() + INTERVAL '24 hours'),
     last_activity TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     
-    CONSTRAINT valid_game_type CHECK (game_type IN ('ddf', 'schooled', 'chess', 'poker', 'trivia', 'custom')),
+    CONSTRAINT valid_game_type CHECK (game_type IN ('ddf', 'schooled', 'chess', 'poker', 'trivia', 'custom', 'lobby')),
     CONSTRAINT valid_status CHECK (status IN ('waiting_for_players', 'launching', 'active', 'paused', 'finished', 'abandoned'))
 );
 
