@@ -31,7 +31,36 @@ const CreateRoom = ({ onRoomCreated, onCancel }) => {
     try {
       console.log('🏠 Creating room for:', playerName.trim());
       
-      const socket = io(process.env.REACT_APP_SERVER_URL || 'http://localhost:3033', {
+      // Determine server URL based on environment
+      const getServerUrl = () => {
+        console.log('🔍 [DEBUG] Determining server URL...');
+        console.log('🔍 [DEBUG] window.location.hostname:', window.location.hostname);
+        console.log('🔍 [DEBUG] window.location.origin:', window.location.origin);
+        console.log('🔍 [DEBUG] REACT_APP_SERVER_URL:', process.env.REACT_APP_SERVER_URL);
+        
+        if (process.env.REACT_APP_SERVER_URL) {
+          console.log('🔍 [DEBUG] Using REACT_APP_SERVER_URL:', process.env.REACT_APP_SERVER_URL);
+          return process.env.REACT_APP_SERVER_URL;
+        }
+        
+        // If running on Render.com (check for .onrender.com domain)
+        if (window.location.hostname.includes('onrender.com')) {
+          console.log('🔍 [DEBUG] Detected Render.com, using origin:', window.location.origin);
+          return window.location.origin;
+        }
+        
+        // If running on any production domain (not localhost)
+        if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+          console.log('🔍 [DEBUG] Detected production domain, using origin:', window.location.origin);
+          return window.location.origin;
+        }
+        
+        // For local development, connect to Render.com server
+        console.log('🔍 [DEBUG] Local development, using Render.com server');
+        return 'https://gamebuddies-io.onrender.com';
+      };
+
+      const socket = io(getServerUrl(), {
         transports: ['websocket', 'polling'],
         timeout: 10000
       });
@@ -41,7 +70,7 @@ const CreateRoom = ({ onRoomCreated, onCancel }) => {
         console.log('✅ [CLIENT] Connected to server, creating room...');
         console.log('🔍 [CLIENT DEBUG] Socket ID:', socket.id);
         console.log('🔍 [CLIENT DEBUG] Player name:', playerName.trim());
-        console.log('🔍 [CLIENT DEBUG] Server URL:', process.env.REACT_APP_SERVER_URL || 'http://localhost:3033');
+        console.log('🔍 [CLIENT DEBUG] Server URL:', getServerUrl());
         
         socket.emit('createRoom', { 
           playerName: playerName.trim()

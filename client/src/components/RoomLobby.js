@@ -31,7 +31,27 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
     console.log('🔌 Connecting to server...');
     setConnectionStatus('connecting');
     
-    const newSocket = io(process.env.REACT_APP_SERVER_URL || 'http://localhost:3033', {
+    // Determine server URL based on environment
+    const getServerUrl = () => {
+      if (process.env.REACT_APP_SERVER_URL) {
+        return process.env.REACT_APP_SERVER_URL;
+      }
+      
+      // If running on Render.com (check for .onrender.com domain)
+      if (window.location.hostname.includes('onrender.com')) {
+        return window.location.origin;
+      }
+      
+      // If running on any production domain (not localhost)
+      if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+        return window.location.origin;
+      }
+      
+      // For local development, connect to Render.com server
+      return 'https://gamebuddies-io.onrender.com';
+    };
+    
+    const newSocket = io(getServerUrl(), {
       transports: ['websocket', 'polling'],
       timeout: 20000,
       forceNew: true
