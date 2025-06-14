@@ -270,6 +270,15 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
             <button className="copy-btn" onClick={() => navigator.clipboard.writeText(roomCode)}>
               📋 Copy Code
             </button>
+            <button 
+              className="copy-link-btn" 
+              onClick={() => {
+                const roomUrl = `${window.location.origin}/?join=${roomCode}`;
+                navigator.clipboard.writeText(roomUrl);
+              }}
+            >
+              🔗 Copy Link
+            </button>
           </div>
         </div>
         
