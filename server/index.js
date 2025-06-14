@@ -348,9 +348,23 @@ io.on('connection', async (socket) => {
         data.playerName
       );
 
-      // Check for duplicate player names in room
+      // Check if this user is the room creator (should be host)
+      const isRoomCreator = room.creator_id === user.id;
+      const userRole = isRoomCreator ? 'host' : 'player';
+      
+      console.log(`🚪 [DEBUG] User joining room:`, {
+        userId: user.id,
+        username: user.username,
+        roomCreatorId: room.creator_id,
+        isRoomCreator: isRoomCreator,
+        assignedRole: userRole
+      });
+
+      // Check for duplicate player names in room (but allow room creator to rejoin)
       const existingParticipant = room.participants?.find(p => 
-        p.user?.username === user.username && p.connection_status === 'connected'
+        p.user?.username === user.username && 
+        p.connection_status === 'connected' &&
+        p.user_id !== user.id // Allow same user to rejoin with new connection
       );
       
       if (existingParticipant) {
@@ -361,8 +375,8 @@ io.on('connection', async (socket) => {
         return;
       }
       
-      // Add participant to room
-      await db.addParticipant(room.id, user.id, socket.id, 'player');
+      // Add participant to room with correct role
+      await db.addParticipant(room.id, user.id, socket.id, userRole);
 
       // Join socket room
       socket.join(data.roomCode);
@@ -372,6 +386,12 @@ io.on('connection', async (socket) => {
       if (connection) {
         connection.userId = user.id;
         connection.roomId = room.id;
+        console.log(`🚪 [DEBUG] Updated connection tracking for socket ${socket.id}:`, {
+          userId: user.id,
+          roomId: room.id,
+          username: user.username,
+          playerRole: userRole
+        });
       }
 
       // Get updated room data
@@ -392,7 +412,7 @@ io.on('connection', async (socket) => {
         player: {
           id: user.id,
           name: data.playerName,
-          isHost: false,
+          isHost: isRoomCreator,
           socketId: socket.id
         },
         players: players,
@@ -402,7 +422,7 @@ io.on('connection', async (socket) => {
       // Send success response to joining player
       socket.emit('roomJoined', {
         roomCode: data.roomCode,
-        isHost: false,
+        isHost: isRoomCreator,
         players: players,
         room: updatedRoom
       });
@@ -422,6 +442,12 @@ io.on('connection', async (socket) => {
   socket.on('selectGame', async (data) => {
     try {
       const connection = activeConnections.get(socket.id);
+      console.log(`🎮 [DEBUG] Game selection from socket: ${socket.id}`);
+      console.log(`🎮 [DEBUG] Connection data:`, { 
+        userId: connection?.userId, 
+        roomId: connection?.roomId 
+      });
+      
       if (!connection?.roomId) {
         socket.emit('error', { message: 'Not in a room' });
       return;
@@ -451,6 +477,12 @@ io.on('connection', async (socket) => {
   socket.on('startGame', async (data) => {
     try {
       const connection = activeConnections.get(socket.id);
+      console.log(`🚀 [DEBUG] Start game request from socket: ${socket.id}`);
+      console.log(`🚀 [DEBUG] Connection data:`, { 
+        userId: connection?.userId, 
+        roomId: connection?.roomId 
+      });
+      
       if (!connection?.roomId) {
         socket.emit('error', { message: 'Not in a room' });
       return;
@@ -463,10 +495,24 @@ io.on('connection', async (socket) => {
       return;
     }
     
+      console.log(`🚀 [DEBUG] Room participants:`, room.participants?.map(p => ({
+        user_id: p.user_id,
+        role: p.role,
+        connection_status: p.connection_status,
+        username: p.user?.username
+      })));
+      
       // Verify user is host
       const userParticipant = room.participants?.find(p => 
         p.user_id === connection.userId && p.role === 'host'
       );
+      
+      console.log(`🚀 [DEBUG] Looking for host with userId: ${connection.userId}`);
+      console.log(`🚀 [DEBUG] Found participant:`, userParticipant ? {
+        user_id: userParticipant.user_id,
+        role: userParticipant.role,
+        username: userParticipant.user?.username
+      } : 'NOT FOUND');
       
       if (!userParticipant) {
         socket.emit('error', { message: 'Only the host can start the game' });
