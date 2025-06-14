@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import io from 'socket.io-client';
 import './JoinRoom.css';
 
-const JoinRoom = ({ onRoomJoined, onCancel }) => {
-  const [roomCode, setRoomCode] = useState('');
+const JoinRoom = ({ initialRoomCode = '', onRoomJoined, onCancel }) => {
+  const [roomCode, setRoomCode] = useState(initialRoomCode);
   const [playerName, setPlayerName] = useState('');
   const [isJoining, setIsJoining] = useState(false);
   const [error, setError] = useState('');
@@ -164,38 +164,27 @@ const JoinRoom = ({ onRoomJoined, onCancel }) => {
   return (
     <div className="join-room-overlay">
       <div className="join-room-modal">
-        <div className="modal-header">
-          <h2>Join Room</h2>
-          <button 
-            className="close-button" 
-            onClick={onCancel}
-            disabled={isJoining}
-          >
-            ×
-          </button>
-        </div>
+        <h2 className="join-room-title">Join Room</h2>
         
         <form onSubmit={handleSubmit} className="join-room-form">
           <div className="form-group">
-            <label htmlFor="roomCode">Room Code</label>
+            <label htmlFor="roomCode">ROOM CODE</label>
             <input
               type="text"
               id="roomCode"
               value={roomCode}
               onChange={handleRoomCodeChange}
-              placeholder="Enter 6-character room code"
+              placeholder="4AJ5XQ"
               disabled={isJoining}
               maxLength={6}
               autoFocus
               className="room-code-input"
             />
-            <small className="form-hint">
-              Ask the room host for the 6-character room code
-            </small>
+            <small>Ask the room host for the 6-character room code</small>
           </div>
 
           <div className="form-group">
-            <label htmlFor="playerName">Your Name</label>
+            <label htmlFor="playerName">YOUR NAME</label>
             <input
               type="text"
               id="playerName"
@@ -205,14 +194,11 @@ const JoinRoom = ({ onRoomJoined, onCancel }) => {
               disabled={isJoining}
               maxLength={20}
             />
-            <small className="form-hint">
-              This will be your display name in the room
-            </small>
+            <small>This will be your display name in the room</small>
           </div>
 
           {error && (
             <div className="error-message">
-              <span className="error-icon">⚠️</span>
               {error}
             </div>
           )}
@@ -231,14 +217,7 @@ const JoinRoom = ({ onRoomJoined, onCancel }) => {
               className="join-button"
               disabled={isJoining || !roomCode.trim() || !playerName.trim()}
             >
-              {isJoining ? (
-                <>
-                  <span className="loading-spinner small"></span>
-                  Joining Room...
-                </>
-              ) : (
-                'Join Room'
-              )}
+              {isJoining ? 'JOINING ROOM...' : 'JOIN ROOM'}
             </button>
           </div>
         </form>

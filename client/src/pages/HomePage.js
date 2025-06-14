@@ -185,8 +185,8 @@ const HomePage = () => {
       {showJoinRoom && (
         <JoinRoom
           initialRoomCode={joinRoomCode}
-          onJoinRoom={handleJoinRoom}
-          onClose={handleCloseModals}
+          onRoomJoined={handleJoinRoom}
+          onCancel={handleCloseModals}
         />
       )}
     </div>

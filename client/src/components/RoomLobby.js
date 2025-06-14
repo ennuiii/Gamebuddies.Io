@@ -260,31 +260,37 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
   return (
     <div className="room-lobby">
       <div className="lobby-header">
-        <h2>Room {roomCode}</h2>
-        <div className="room-info">
-          <span className="player-count">{players.length} players</span>
-          <div className="connection-status connected">
-            ● Connected
-          </div>
-        </div>
-        <button onClick={handleLeaveRoom} className="leave-room-btn">
+        <button onClick={handleLeaveRoom} className="leave-button">
           Leave Room
         </button>
+        
+        <div className="room-info-header">
+          <div className="room-code-display">{roomCode}</div>
+          <div className="room-actions">
+            <button className="copy-btn" onClick={() => navigator.clipboard.writeText(roomCode)}>
+              📋 Copy Code
+            </button>
+          </div>
+        </div>
+        
+        <div style={{ width: '120px' }}></div> {/* Spacer for layout balance */}
       </div>
 
       <div className="lobby-content">
         <div className="players-section">
-          <h3>Players in Room</h3>
-          <div className="players-list">
+          <h3 className="section-title">Players in Room</h3>
+          <div className="players-grid">
             {players.map((player) => (
               <div 
                 key={player.id} 
-                className={`player-item ${player.isHost ? 'host' : ''} ${!player.connected ? 'disconnected' : ''}`}
+                className={`player-card ${player.isHost ? 'host' : ''}`}
               >
+                <div className="player-avatar">
+                  {player.name.charAt(0).toUpperCase()}
+                </div>
                 <div className="player-info">
                   <span className="player-name">{player.name}</span>
                   {player.isHost && <span className="host-badge">Host</span>}
-                  {!player.connected && <span className="disconnected-badge">Disconnected</span>}
                 </div>
               </div>
             ))}
@@ -292,6 +298,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
         </div>
 
         <div className="game-section">
+          <h3 className="section-title">Game Selection</h3>
           {!selectedGame ? (
             <GamePicker 
               onGameSelect={handleGameSelect}
@@ -299,39 +306,39 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
               disabled={!socket || connectionStatus !== 'connected'}
             />
           ) : (
-            <div className="game-ready">
-              <div className="selected-game">
-                <h3>Game Selected</h3>
-                <div className="game-info">
-                  <span className="game-icon">
-                    {selectedGame === 'ddf' ? '🎮' : '🎓'}
-                  </span>
-                  <span className="game-name">
-                    {selectedGame === 'ddf' ? 'Der dümmste fliegt' : 'School Quiz'}
-                  </span>
-                </div>
-                {isHostRef.current && (
-                  <div className="host-controls">
-                    <button 
-                      onClick={handleStartGame}
-                      className="start-game-btn"
-                      disabled={!socket || connectionStatus !== 'connected'}
-                    >
-                      Start Game
-                    </button>
-                    <button 
-                      onClick={() => setSelectedGame(null)}
-                      className="change-game-btn"
-                      disabled={!socket || connectionStatus !== 'connected'}
-                    >
-                      Change Game
-                    </button>
-                  </div>
-                )}
-                {!isHostRef.current && (
-                  <p className="waiting-message">Waiting for host to start the game...</p>
-                )}
+            <div className="selected-game-card">
+              <div className="game-icon">
+                {selectedGame === 'ddf' ? '🎮' : '🎓'}
               </div>
+              <div className="game-details">
+                <h4>{selectedGame === 'ddf' ? 'Der dümmste fliegt' : 'School Quiz'}</h4>
+                <p>{selectedGame === 'ddf' ? 'Quiz game where the worst player gets eliminated' : 'Educational quiz game for students'}</p>
+                <span className="max-players">Max {selectedGame === 'ddf' ? '8' : '10'} players</span>
+              </div>
+              {isHostRef.current && (
+                <div>
+                  <button 
+                    onClick={handleStartGame}
+                    className="start-game-button"
+                    disabled={!socket || connectionStatus !== 'connected'}
+                  >
+                    Start Game
+                  </button>
+                  <button 
+                    onClick={() => setSelectedGame(null)}
+                    className="change-game-btn"
+                    disabled={!socket || connectionStatus !== 'connected'}
+                    style={{ marginTop: '1rem' }}
+                  >
+                    Change Game
+                  </button>
+                </div>
+              )}
+              {!isHostRef.current && (
+                <div style={{ textAlign: 'center' }}>
+                  <p>Waiting for host to start the game...</p>
+                </div>
+              )}
             </div>
           )}
         </div>
