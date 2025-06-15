@@ -254,10 +254,12 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       
       // Enhanced error handling based on error code
       let userFriendlyMessage = error.message || 'An error occurred';
+      let shouldRedirect = false; // Flag for critical errors that require leaving
       
       switch (error.code) {
         case 'ROOM_NOT_FOUND':
           userFriendlyMessage = 'Room not found. It may have expired or been cleaned up.';
+          shouldRedirect = true; // Critical error - room doesn't exist
           console.error('🔍 [LOBBY DEBUG] Room not found details:', {
             roomCode: roomCodeRef.current,
             searchedFor: error.debug?.room_code,
@@ -266,9 +268,11 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
           break;
         case 'ROOM_FULL':
           userFriendlyMessage = 'Room is full. Cannot rejoin at this time.';
+          shouldRedirect = true; // Critical error - can't join
           break;
         case 'ROOM_NOT_ACCEPTING':
           userFriendlyMessage = `Room is ${error.debug?.room_status || 'not accepting players'}.`;
+          // Don't redirect - show popup and let user stay in lobby
           console.error('🔍 [LOBBY DEBUG] Room not accepting details:', {
             roomStatus: error.debug?.room_status,
             isOriginalCreator: error.debug?.is_original_creator
@@ -276,16 +280,38 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
           break;
         case 'DUPLICATE_PLAYER':
           userFriendlyMessage = 'Player name already in use. Try a different name.';
+          shouldRedirect = true; // Critical error - name conflict
           break;
         case 'JOIN_FAILED':
           userFriendlyMessage = 'Failed to join room. Please try refreshing the page.';
+          // Don't redirect - let user try actions in lobby
+          break;
+        case 'KICK_FAILED':
+          userFriendlyMessage = error.message || 'Failed to kick player. You may not have permission.';
+          // Don't redirect - just show error popup
+          break;
+        case 'NOT_HOST':
+          userFriendlyMessage = 'Only the host can perform this action.';
+          // Don't redirect - just show error popup
           break;
         default:
           console.error('🔍 [LOBBY DEBUG] Unknown error code:', error.code);
+          // For unknown errors, show popup but don't redirect
       }
       
-      setError(userFriendlyMessage);
-      setIsLoading(false);
+      // For critical errors, use the error state that redirects
+      if (shouldRedirect) {
+        setError(userFriendlyMessage);
+        setIsLoading(false);
+      } else {
+        // For non-critical errors, show popup and stay in lobby
+        alert(`⚠️ ${userFriendlyMessage}`);
+        
+        // If we were loading, stop the loading state
+        if (isLoading) {
+          setIsLoading(false);
+        }
+      }
     };
 
     const handleHostTransferred = (data) => {
@@ -370,6 +396,18 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       }
     };
 
+    const handleKickFailed = (data) => {
+      console.log('👢 [KICK DEBUG] Kick failed event received:', {
+        data,
+        error: data.error,
+        reason: data.reason,
+        timestamp: new Date().toISOString()
+      });
+
+      // Show error popup without redirecting
+      alert(`⚠️ Failed to kick player: ${data.reason || data.error || 'Unknown error'}`);
+    };
+
     // Add event listeners BEFORE connecting
     newSocket.on('connect', handleConnect);
     newSocket.on('disconnect', handleDisconnect);
@@ -383,6 +421,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
     newSocket.on('hostTransferred', handleHostTransferred);
     newSocket.on('roomStatusChanged', handleRoomStatusChanged);
     newSocket.on('playerKicked', handlePlayerKicked);
+    newSocket.on('kickFailed', handleKickFailed);
     newSocket.on('error', handleError);
 
     // Cleanup function
@@ -403,6 +442,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
         newSocket.off('hostTransferred', handleHostTransferred);
         newSocket.off('roomStatusChanged', handleRoomStatusChanged);
         newSocket.off('playerKicked', handlePlayerKicked);
+        newSocket.off('kickFailed', handleKickFailed);
         newSocket.off('error', handleError);
         
         // Copy ref value to avoid stale closure

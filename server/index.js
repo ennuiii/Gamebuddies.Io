@@ -468,34 +468,51 @@ io.on('connection', async (socket) => {
           original_role: disconnectedParticipant.role
         });
         
-        // Update connection status instead of creating new participant
+        // Update connection status for existing participant - use the ORIGINAL user ID
         await db.updateParticipantConnection(disconnectedParticipant.user_id, socket.id, 'connected');
         console.log(`✅ [REJOINING DEBUG] Updated existing participant connection status`);
+        
+        // Update connection tracking with the ORIGINAL user ID from the database
+        const connection = activeConnections.get(socket.id);
+        if (connection) {
+          connection.userId = disconnectedParticipant.user_id; // Use original user ID, not new one
+          connection.roomId = room.id;
+          console.log(`🔗 [REJOINING DEBUG] Updated connection tracking with original user ID:`, {
+            socketId: socket.id,
+            userId: disconnectedParticipant.user_id, // Original user ID
+            roomId: room.id,
+            username: user.username,
+            playerRole: disconnectedParticipant.role
+          });
+        }
+        
+        // Use original user ID for all further operations
+        user.id = disconnectedParticipant.user_id;
       } else {
         // Determine role: original room creator becomes host, others are players
         const userRole = isOriginalCreator ? 'host' : 'player';
         console.log(`👥 [REJOINING DEBUG] Adding new participant with role: ${userRole}`);
         await db.addParticipant(room.id, user.id, socket.id, userRole);
         console.log(`✅ [REJOINING DEBUG] Added new participant`);
+        
+        // Update connection tracking
+        const connection = activeConnections.get(socket.id);
+        if (connection) {
+          connection.userId = user.id;
+          connection.roomId = room.id;
+          console.log(`🔗 [REJOINING DEBUG] Updated connection tracking:`, {
+            socketId: socket.id,
+            userId: user.id,
+            roomId: room.id,
+            username: user.username,
+            playerRole: userRole
+          });
+        }
       }
 
       // Join socket room
       console.log(`🔗 [REJOINING DEBUG] Joining socket room: ${data.roomCode}`);
       socket.join(data.roomCode);
-
-      // Update connection tracking
-      const connection = activeConnections.get(socket.id);
-      if (connection) {
-        connection.userId = user.id;
-        connection.roomId = room.id;
-        console.log(`🔗 [REJOINING DEBUG] Updated connection tracking:`, {
-          socketId: socket.id,
-          userId: user.id,
-          roomId: room.id,
-          username: user.username,
-          playerRole: disconnectedParticipant?.role || (isOriginalCreator ? 'host' : 'player')
-        });
-      }
 
       // Get updated room data
       console.log(`🔄 [REJOINING DEBUG] Fetching updated room data...`);
@@ -951,7 +968,11 @@ io.on('connection', async (socket) => {
             username: currentParticipant.user?.username
           } : 'NOT_FOUND'
         });
-        socket.emit('error', { message: 'Only the host can kick players' });
+        socket.emit('kickFailed', { 
+          reason: 'Only the host can kick players',
+          error: 'NOT_HOST',
+          targetUserId: data.targetUserId
+        });
         return;
       }
 
@@ -962,7 +983,11 @@ io.on('connection', async (socket) => {
           targetUserId: data.targetUserId,
           availableParticipants: room.participants?.map(p => p.user_id)
         });
-        socket.emit('error', { message: 'Target player not found in room' });
+        socket.emit('kickFailed', { 
+          reason: 'Target player not found in room',
+          error: 'PLAYER_NOT_FOUND',
+          targetUserId: data.targetUserId
+        });
         return;
       }
 
@@ -971,7 +996,11 @@ io.on('connection', async (socket) => {
           targetUserId: data.targetUserId,
           targetRole: targetParticipant.role
         });
-        socket.emit('error', { message: 'Cannot kick the host' });
+        socket.emit('kickFailed', { 
+          reason: 'Cannot kick the host',
+          error: 'CANNOT_KICK_HOST',
+          targetUserId: data.targetUserId
+        });
         return;
       }
 
@@ -1048,7 +1077,11 @@ io.on('connection', async (socket) => {
         roomCode: data?.roomCode,
         timestamp: new Date().toISOString()
       });
-      socket.emit('error', { message: 'Failed to kick player' });
+      socket.emit('kickFailed', { 
+        reason: 'Failed to kick player due to server error',
+        error: 'SERVER_ERROR',
+        targetUserId: data?.targetUserId
+      });
     }
   });
 
