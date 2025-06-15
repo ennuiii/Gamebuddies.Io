@@ -412,53 +412,24 @@ io.on('connection', async (socket) => {
         console.log(`✅ [REJOINING DEBUG] Room status reset to waiting_for_players`);
       }
       
-      // Get or create user profile
-      console.log(`👤 [REJOINING DEBUG] Getting/creating user profile...`);
-      const user = await db.getOrCreateUser(
-        `${socket.id}_${data.playerName}`, // Unique per connection to prevent conflicts
-        data.playerName,
-        data.playerName
-      );
-      console.log(`✅ [REJOINING DEBUG] User profile:`, {
-        id: user.id,
-        username: user.username,
-        external_id: user.external_id
-      });
-      
-      // Enhanced duplicate player check
-      const existingParticipant = room.participants?.find(p => 
-        p.user?.username === data.playerName && 
-        p.connection_status === 'connected'
-      );
-      
-      console.log(`🔍 [REJOINING DEBUG] Duplicate check:`, {
-        searchingFor: data.playerName,
-        existingParticipant: existingParticipant ? {
-          user_id: existingParticipant.user_id,
-          username: existingParticipant.user?.username,
-          connection_status: existingParticipant.connection_status,
-          role: existingParticipant.role
-        } : null
-      });
-      
-      // Allow rejoining if the existing participant is the same user but disconnected
+      // Check for disconnected participant FIRST to avoid creating unnecessary user
       const disconnectedParticipant = room.participants?.find(p => 
         p.user?.username === data.playerName && 
         p.connection_status === 'disconnected'
       );
       
-      if (existingParticipant && !disconnectedParticipant) {
-        console.log(`❌ [REJOINING DEBUG] Duplicate name blocked: ${data.playerName} already in room ${data.roomCode}`);
-        socket.emit('error', { 
-          message: 'A player with this name is already in the room. Please choose a different name.',
-          code: 'DUPLICATE_PLAYER',
-          debug: {
-            existing_user_id: existingParticipant.user_id,
-            existing_connection_status: existingParticipant.connection_status
-          }
-        });
-        return;
-      }
+      console.log(`🔍 [REJOINING DEBUG] Checking for disconnected participant:`, {
+        searchingFor: data.playerName,
+        disconnectedParticipant: disconnectedParticipant ? {
+          user_id: disconnectedParticipant.user_id,
+          username: disconnectedParticipant.user?.username,
+          connection_status: disconnectedParticipant.connection_status,
+          role: disconnectedParticipant.role
+        } : null
+      });
+      
+      let user;
+      let userRole;
       
       // Handle rejoining scenario
       if (disconnectedParticipant) {
@@ -468,29 +439,77 @@ io.on('connection', async (socket) => {
           original_role: disconnectedParticipant.role
         });
         
-        // Update connection status for existing participant - use the ORIGINAL user ID
-        await db.updateParticipantConnection(disconnectedParticipant.user_id, socket.id, 'connected');
-        console.log(`✅ [REJOINING DEBUG] Updated existing participant connection status`);
+        // DON'T create a new user - use the original user data
+        user = {
+          id: disconnectedParticipant.user_id,
+          username: data.playerName,
+          external_id: disconnectedParticipant.user?.external_id
+        };
+        userRole = disconnectedParticipant.role;
         
-        // Update connection tracking with the ORIGINAL user ID from the database
+        // Update connection tracking with the ORIGINAL user ID IMMEDIATELY
         const connection = activeConnections.get(socket.id);
         if (connection) {
-          connection.userId = disconnectedParticipant.user_id; // Use original user ID, not new one
+          connection.userId = disconnectedParticipant.user_id; // Use original user ID
           connection.roomId = room.id;
           console.log(`🔗 [REJOINING DEBUG] Updated connection tracking with original user ID:`, {
             socketId: socket.id,
             userId: disconnectedParticipant.user_id, // Original user ID
             roomId: room.id,
-            username: user.username,
+            username: data.playerName,
             playerRole: disconnectedParticipant.role
           });
         }
         
-        // Use original user ID for all further operations
-        user.id = disconnectedParticipant.user_id;
+        // Update connection status for existing participant
+        await db.updateParticipantConnection(disconnectedParticipant.user_id, socket.id, 'connected');
+        console.log(`✅ [REJOINING DEBUG] Updated existing participant connection status`);
+        
       } else {
+        // Get or create user profile for new participants
+        console.log(`👤 [REJOINING DEBUG] Getting/creating user profile for new participant...`);
+        user = await db.getOrCreateUser(
+          `${socket.id}_${data.playerName}`, // Unique per connection to prevent conflicts
+          data.playerName,
+          data.playerName
+        );
+        console.log(`✅ [REJOINING DEBUG] User profile:`, {
+          id: user.id,
+          username: user.username,
+          external_id: user.external_id
+        });
+        
+        // Check for duplicate connected participant
+        const existingParticipant = room.participants?.find(p => 
+          p.user?.username === data.playerName && 
+          p.connection_status === 'connected'
+        );
+        
+        console.log(`🔍 [REJOINING DEBUG] Duplicate check:`, {
+          searchingFor: data.playerName,
+          existingParticipant: existingParticipant ? {
+            user_id: existingParticipant.user_id,
+            username: existingParticipant.user?.username,
+            connection_status: existingParticipant.connection_status,
+            role: existingParticipant.role
+          } : null
+        });
+        
+        if (existingParticipant) {
+          console.log(`❌ [REJOINING DEBUG] Duplicate name blocked: ${data.playerName} already in room ${data.roomCode}`);
+          socket.emit('error', { 
+            message: 'A player with this name is already in the room. Please choose a different name.',
+            code: 'DUPLICATE_PLAYER',
+            debug: {
+              existing_user_id: existingParticipant.user_id,
+              existing_connection_status: existingParticipant.connection_status
+            }
+          });
+          return;
+        }
+        
         // Determine role: original room creator becomes host, others are players
-        const userRole = isOriginalCreator ? 'host' : 'player';
+        userRole = isOriginalCreator ? 'host' : 'player';
         console.log(`👥 [REJOINING DEBUG] Adding new participant with role: ${userRole}`);
         await db.addParticipant(room.id, user.id, socket.id, userRole);
         console.log(`✅ [REJOINING DEBUG] Added new participant`);
@@ -531,11 +550,12 @@ io.on('connection', async (socket) => {
       console.log(`👥 [REJOINING DEBUG] Final player list:`, players);
 
       // Notify all players in room
+      const isHost = userRole === 'host';
       const joinEventData = {
         player: {
           id: user.id,
           name: data.playerName,
-          isHost: disconnectedParticipant?.role === 'host' || isOriginalCreator,
+          isHost: isHost,
           socketId: socket.id
         },
         players: players,
@@ -555,7 +575,7 @@ io.on('connection', async (socket) => {
       // Send success response to joining player
       const joinSuccessData = {
         roomCode: data.roomCode,
-        isHost: disconnectedParticipant?.role === 'host' || isOriginalCreator,
+        isHost: isHost,
         players: players,
         room: updatedRoom
       };
