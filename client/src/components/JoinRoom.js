@@ -39,30 +39,49 @@ const JoinRoom = ({ initialRoomCode = '', onRoomJoined, onCancel }) => {
     setIsJoining(true);
     setError('');
 
+    console.log('🚪 [JOIN DEBUG] Starting room join process:', {
+      roomCode: roomCode.trim().toUpperCase(),
+      playerName: playerName.trim(),
+      timestamp: new Date().toISOString(),
+      isInitialRoomCode: !!initialRoomCode,
+      currentURL: window.location.href
+    });
+
     try {
-      console.log('🚪 Joining room:', roomCode.trim().toUpperCase());
+      console.log('🚪 [JOIN DEBUG] Joining room:', roomCode.trim().toUpperCase());
       
       // Determine server URL based on environment
       const getServerUrl = () => {
+        console.log('🔍 [JOIN DEBUG] Determining server URL...');
+        console.log('🔍 [JOIN DEBUG] window.location.hostname:', window.location.hostname);
+        console.log('🔍 [JOIN DEBUG] REACT_APP_SERVER_URL:', process.env.REACT_APP_SERVER_URL);
+        
         if (process.env.REACT_APP_SERVER_URL) {
+          console.log('🔍 [JOIN DEBUG] Using REACT_APP_SERVER_URL:', process.env.REACT_APP_SERVER_URL);
           return process.env.REACT_APP_SERVER_URL;
         }
         
         // If running on Render.com (check for .onrender.com domain)
         if (window.location.hostname.includes('onrender.com')) {
+          console.log('🔍 [JOIN DEBUG] Detected Render.com, using origin:', window.location.origin);
           return window.location.origin;
         }
         
         // If running on any production domain (not localhost)
         if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+          console.log('🔍 [JOIN DEBUG] Detected production domain, using origin:', window.location.origin);
           return window.location.origin;
         }
         
         // For local development, connect to Render.com server
+        console.log('🔍 [JOIN DEBUG] Local development, using Render.com server');
         return 'https://gamebuddies-io.onrender.com';
       };
 
-      const socket = io(getServerUrl(), {
+      const serverUrl = getServerUrl();
+      console.log('🚪 [JOIN DEBUG] Connecting to server:', serverUrl);
+
+      const socket = io(serverUrl, {
         transports: ['websocket', 'polling'],
         timeout: 10000
       });
@@ -73,7 +92,8 @@ const JoinRoom = ({ initialRoomCode = '', onRoomJoined, onCancel }) => {
         console.log('🔍 [CLIENT DEBUG] Socket ID:', socket.id);
         console.log('🔍 [CLIENT DEBUG] Room code:', roomCode.trim().toUpperCase());
         console.log('🔍 [CLIENT DEBUG] Player name:', playerName.trim());
-        console.log('🔍 [CLIENT DEBUG] Server URL:', getServerUrl());
+        console.log('🔍 [CLIENT DEBUG] Server URL:', serverUrl);
+        console.log('🚪 [JOIN DEBUG] Connected, sending joinRoom event');
         
         socket.emit('joinRoom', { 
           roomCode: roomCode.trim().toUpperCase(),
@@ -90,6 +110,7 @@ const JoinRoom = ({ initialRoomCode = '', onRoomJoined, onCancel }) => {
           playerCount: data.players?.length || 0,
           room_id: data.room?.id
         });
+        console.log('🚪 [JOIN DEBUG] Join successful, cleaning up socket');
         
         socket.disconnect();
         
@@ -105,13 +126,21 @@ const JoinRoom = ({ initialRoomCode = '', onRoomJoined, onCancel }) => {
       });
 
       socket.on('error', (error) => {
-        console.error('❌ Join room error:', error);
+        console.error('❌ [JOIN DEBUG] Join room error:', {
+          error: error.message || error,
+          code: error.code,
+          debug: error.debug,
+          roomCode: roomCode.trim().toUpperCase(),
+          playerName: playerName.trim(),
+          timestamp: new Date().toISOString()
+        });
         
         // Provide user-friendly error messages
         let errorMessage = error.message;
         switch (error.code) {
           case 'ROOM_NOT_FOUND':
             errorMessage = 'Room not found. Please check the room code and try again.';
+            console.error('🔍 [JOIN DEBUG] Room not found - may have been cleaned up');
             break;
           case 'ROOM_FULL':
             errorMessage = 'This room is full. Please try joining a different room.';

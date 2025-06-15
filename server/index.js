@@ -298,33 +298,78 @@ io.on('connection', async (socket) => {
   // Handle room joining
   socket.on('joinRoom', async (data) => {
     try {
-      console.log(`🚪 [SUPABASE] ${data.playerName} attempting to join room ${data.roomCode}`);
-      console.log(`🔍 [DEBUG] Socket ID: ${socket.id}`);
+      const debugData = {
+        socketId: socket.id,
+        playerName: data.playerName,
+        roomCode: data.roomCode,
+        timestamp: new Date().toISOString(),
+        connectionCount: activeConnections.size
+      };
+      
+      console.log(`🚪 [REJOINING DEBUG] Join request received:`, debugData);
+      
+      // Check if this is a potential rejoin scenario
+      const existingConnection = activeConnections.get(socket.id);
+      const isReconnection = existingConnection?.userId !== null;
+      
+      console.log(`🔍 [REJOINING DEBUG] Connection analysis:`, {
+        hasExistingConnection: !!existingConnection,
+        isReconnection,
+        existingUserId: existingConnection?.userId,
+        existingRoomId: existingConnection?.roomId
+      });
 
       // Get room from database
-      console.log(`🔍 [DEBUG] Looking up room in database...`);
+      console.log(`🔍 [REJOINING DEBUG] Looking up room in database...`);
       const room = await db.getRoomByCode(data.roomCode);
       if (!room) {
-        console.log(`❌ [DEBUG] Room ${data.roomCode} not found in SUPABASE storage`);
+        console.log(`❌ [REJOINING DEBUG] Room ${data.roomCode} not found in database`);
+        console.log(`🔍 [REJOINING DEBUG] Database search details:`, {
+          searchCode: data.roomCode,
+          codeLength: data.roomCode?.length,
+          codeType: typeof data.roomCode
+        });
         socket.emit('error', { 
-          message: 'Room not found. Please check the room code.',
+          message: 'Room not found. The room may have been cleaned up or expired.',
           code: 'ROOM_NOT_FOUND',
           debug: {
-            room_code: data.roomCode
+            room_code: data.roomCode,
+            search_timestamp: new Date().toISOString()
           }
         });
         return;
       }
-      console.log(`✅ [DEBUG] Room found:`, { 
+      
+      console.log(`✅ [REJOINING DEBUG] Room found:`, { 
         id: room.id, 
         room_code: room.room_code, 
         status: room.status,
         current_players: room.current_players,
-        max_players: room.max_players
+        max_players: room.max_players,
+        created_at: room.created_at,
+        last_activity: room.last_activity,
+        game_type: room.game_type,
+        participants_count: room.participants?.length || 0
       });
+
+      // Enhanced participant debugging
+      console.log(`👥 [REJOINING DEBUG] Current participants:`, 
+        room.participants?.map(p => ({
+          user_id: p.user_id,
+          username: p.user?.username,
+          role: p.role,
+          connection_status: p.connection_status,
+          last_ping: p.last_ping,
+          joined_at: p.joined_at
+        })) || []
+      );
 
       // Check if room is full
       if (room.current_players >= room.max_players) {
+        console.log(`❌ [REJOINING DEBUG] Room is full:`, {
+          current: room.current_players,
+          max: room.max_players
+        });
         socket.emit('error', { 
           message: 'Room is full. Cannot join.',
           code: 'ROOM_FULL'
@@ -333,60 +378,109 @@ io.on('connection', async (socket) => {
       }
       
       // Check if room is still accepting players
-      // Allow original creator to rejoin even if room is active (for auto-rejoin after game)
       const isOriginalCreator = room.metadata?.created_by_name === data.playerName;
+      console.log(`🔍 [REJOINING DEBUG] Creator check:`, {
+        playerName: data.playerName,
+        createdByName: room.metadata?.created_by_name,
+        isOriginalCreator,
+        roomStatus: room.status
+      });
       
       if (room.status !== 'waiting_for_players' && !isOriginalCreator) {
+        console.log(`❌ [REJOINING DEBUG] Room not accepting players:`, {
+          status: room.status,
+          isOriginalCreator
+        });
         socket.emit('error', { 
-          message: 'Room is no longer accepting players.',
-          code: 'ROOM_NOT_ACCEPTING'
+          message: `Room is ${room.status} and not accepting new players.`,
+          code: 'ROOM_NOT_ACCEPTING',
+          debug: {
+            room_status: room.status,
+            is_original_creator: isOriginalCreator
+          }
         });
         return;
       }
       
       // If original creator is rejoining an active room, reset it to lobby
       if (room.status === 'active' && isOriginalCreator) {
-        console.log(`🔄 [DEBUG] Original creator rejoining active room, resetting to lobby`);
+        console.log(`🔄 [REJOINING DEBUG] Original creator rejoining active room, resetting to lobby`);
         await db.updateRoom(room.id, {
           status: 'waiting_for_players',
           game_type: 'lobby'
         });
+        console.log(`✅ [REJOINING DEBUG] Room status reset to waiting_for_players`);
       }
       
       // Get or create user profile
+      console.log(`👤 [REJOINING DEBUG] Getting/creating user profile...`);
       const user = await db.getOrCreateUser(
         `${socket.id}_${data.playerName}`, // Unique per connection to prevent conflicts
         data.playerName,
         data.playerName
       );
-      
-      console.log(`🚪 [DEBUG] User joining room:`, {
-        userId: user.id,
+      console.log(`✅ [REJOINING DEBUG] User profile:`, {
+        id: user.id,
         username: user.username,
-        roomCode: data.roomCode,
-        isOriginalCreator: isOriginalCreator
+        external_id: user.external_id
       });
-
-      // Check for duplicate player names in room
+      
+      // Enhanced duplicate player check
       const existingParticipant = room.participants?.find(p => 
         p.user?.username === data.playerName && 
         p.connection_status === 'connected'
       );
       
-      if (existingParticipant) {
-        console.log(`❌ [DEBUG] Duplicate name blocked: ${data.playerName} already in room ${data.roomCode}`);
+      console.log(`🔍 [REJOINING DEBUG] Duplicate check:`, {
+        searchingFor: data.playerName,
+        existingParticipant: existingParticipant ? {
+          user_id: existingParticipant.user_id,
+          username: existingParticipant.user?.username,
+          connection_status: existingParticipant.connection_status,
+          role: existingParticipant.role
+        } : null
+      });
+      
+      // Allow rejoining if the existing participant is the same user but disconnected
+      const disconnectedParticipant = room.participants?.find(p => 
+        p.user?.username === data.playerName && 
+        p.connection_status === 'disconnected'
+      );
+      
+      if (existingParticipant && !disconnectedParticipant) {
+        console.log(`❌ [REJOINING DEBUG] Duplicate name blocked: ${data.playerName} already in room ${data.roomCode}`);
         socket.emit('error', { 
           message: 'A player with this name is already in the room. Please choose a different name.',
-          code: 'DUPLICATE_PLAYER'
+          code: 'DUPLICATE_PLAYER',
+          debug: {
+            existing_user_id: existingParticipant.user_id,
+            existing_connection_status: existingParticipant.connection_status
+          }
         });
         return;
       }
       
-      // Determine role: original room creator becomes host, others are players
-      const userRole = isOriginalCreator ? 'host' : 'player';
-      await db.addParticipant(room.id, user.id, socket.id, userRole);
+      // Handle rejoining scenario
+      if (disconnectedParticipant) {
+        console.log(`🔄 [REJOINING DEBUG] Rejoining as disconnected participant:`, {
+          participant_id: disconnectedParticipant.id,
+          user_id: disconnectedParticipant.user_id,
+          original_role: disconnectedParticipant.role
+        });
+        
+        // Update connection status instead of creating new participant
+        await db.updateParticipantConnection(disconnectedParticipant.user_id, socket.id, 'connected');
+        console.log(`✅ [REJOINING DEBUG] Updated existing participant connection status`);
+      } else {
+        // Determine role: original room creator becomes host, others are players
+        const userRole = isOriginalCreator ? 'host' : 'player';
+        console.log(`👥 [REJOINING DEBUG] Adding new participant with role: ${userRole}`);
+        await db.addParticipant(room.id, user.id, socket.id, userRole);
+        console.log(`✅ [REJOINING DEBUG] Added new participant`);
+      }
 
       // Join socket room
+      console.log(`🔗 [REJOINING DEBUG] Joining socket room: ${data.roomCode}`);
       socket.join(data.roomCode);
 
       // Update connection tracking
@@ -394,15 +488,17 @@ io.on('connection', async (socket) => {
       if (connection) {
         connection.userId = user.id;
         connection.roomId = room.id;
-        console.log(`🚪 [DEBUG] Updated connection tracking for socket ${socket.id}:`, {
+        console.log(`🔗 [REJOINING DEBUG] Updated connection tracking:`, {
+          socketId: socket.id,
           userId: user.id,
           roomId: room.id,
           username: user.username,
-          playerRole: userRole
+          playerRole: disconnectedParticipant?.role || (isOriginalCreator ? 'host' : 'player')
         });
       }
 
       // Get updated room data
+      console.log(`🔄 [REJOINING DEBUG] Fetching updated room data...`);
       const updatedRoom = await db.getRoomByCode(data.roomCode);
       
       // Prepare player list
@@ -415,33 +511,66 @@ io.on('connection', async (socket) => {
           socketId: null // Socket IDs are tracked in activeConnections, not stored in DB
         })) || [];
 
+      console.log(`👥 [REJOINING DEBUG] Final player list:`, players);
+
       // Notify all players in room
-      io.to(data.roomCode).emit('playerJoined', {
+      const joinEventData = {
         player: {
           id: user.id,
           name: data.playerName,
-          isHost: isOriginalCreator,
+          isHost: disconnectedParticipant?.role === 'host' || isOriginalCreator,
           socketId: socket.id
         },
         players: players,
         room: updatedRoom
+      };
+      
+      console.log(`📢 [REJOINING DEBUG] Broadcasting playerJoined event:`, {
+        playerId: joinEventData.player.id,
+        playerName: joinEventData.player.name,
+        isHost: joinEventData.player.isHost,
+        totalPlayers: players.length,
+        roomCode: data.roomCode
       });
+      
+      io.to(data.roomCode).emit('playerJoined', joinEventData);
 
       // Send success response to joining player
-      socket.emit('roomJoined', {
+      const joinSuccessData = {
         roomCode: data.roomCode,
-        isHost: isOriginalCreator,
+        isHost: disconnectedParticipant?.role === 'host' || isOriginalCreator,
         players: players,
         room: updatedRoom
+      };
+      
+      console.log(`✅ [REJOINING DEBUG] Sending roomJoined success:`, {
+        roomCode: joinSuccessData.roomCode,
+        isHost: joinSuccessData.isHost,
+        playerCount: joinSuccessData.players.length,
+        roomStatus: updatedRoom.status,
+        gameType: updatedRoom.game_type
       });
+      
+      socket.emit('roomJoined', joinSuccessData);
 
-      console.log(`✅ ${data.playerName} joined room ${data.roomCode}`);
+      console.log(`🎉 [REJOINING SUCCESS] ${data.playerName} ${disconnectedParticipant ? 'rejoined' : 'joined'} room ${data.roomCode}`);
 
     } catch (error) {
-      console.error('❌ Error joining room:', error);
+      console.error('❌ [REJOINING ERROR] Room join/rejoin failed:', {
+        error: error.message,
+        stack: error.stack,
+        socketId: socket.id,
+        playerName: data?.playerName,
+        roomCode: data?.roomCode,
+        timestamp: new Date().toISOString()
+      });
       socket.emit('error', { 
         message: 'Failed to join room. Please try again.',
-        code: 'JOIN_FAILED'
+        code: 'JOIN_FAILED',
+        debug: {
+          error_message: error.message,
+          timestamp: new Date().toISOString()
+        }
       });
     }
   });
@@ -772,6 +901,154 @@ io.on('connection', async (socket) => {
     } catch (error) {
       console.error('❌ Error transferring host:', error);
       socket.emit('error', { message: 'Failed to transfer host' });
+    }
+  });
+
+  // Handle player kick
+  socket.on('kickPlayer', async (data) => {
+    try {
+      console.log(`👢 [KICK DEBUG] Kick player requested:`, {
+        targetUserId: data.targetUserId,
+        roomCode: data.roomCode,
+        kickedBy: socket.id,
+        timestamp: new Date().toISOString()
+      });
+      
+      const connection = activeConnections.get(socket.id);
+      if (!connection?.roomId || !connection?.userId) {
+        console.log(`❌ [KICK DEBUG] Kicker not in a room:`, {
+          socketId: socket.id,
+          hasConnection: !!connection,
+          roomId: connection?.roomId,
+          userId: connection?.userId
+        });
+        socket.emit('error', { message: 'Not in a room' });
+        return;
+      }
+
+      // Get room and verify current user is host
+      const room = await db.getRoomByCode(data.roomCode);
+      if (!room) {
+        console.log(`❌ [KICK DEBUG] Room not found: ${data.roomCode}`);
+        socket.emit('error', { message: 'Room not found' });
+        return;
+      }
+
+      console.log(`🔍 [KICK DEBUG] Room participants:`, room.participants?.map(p => ({
+        user_id: p.user_id,
+        username: p.user?.username,
+        role: p.role,
+        connection_status: p.connection_status
+      })));
+
+      // Check if current user is host
+      const currentParticipant = room.participants?.find(p => p.user_id === connection.userId);
+      if (!currentParticipant || currentParticipant.role !== 'host') {
+        console.log(`❌ [KICK DEBUG] User is not host:`, {
+          userId: connection.userId,
+          participant: currentParticipant ? {
+            role: currentParticipant.role,
+            username: currentParticipant.user?.username
+          } : 'NOT_FOUND'
+        });
+        socket.emit('error', { message: 'Only the host can kick players' });
+        return;
+      }
+
+      // Verify target user is in the room and is not the host
+      const targetParticipant = room.participants?.find(p => p.user_id === data.targetUserId);
+      if (!targetParticipant) {
+        console.log(`❌ [KICK DEBUG] Target player not found:`, {
+          targetUserId: data.targetUserId,
+          availableParticipants: room.participants?.map(p => p.user_id)
+        });
+        socket.emit('error', { message: 'Target player not found in room' });
+        return;
+      }
+
+      if (targetParticipant.role === 'host') {
+        console.log(`❌ [KICK DEBUG] Cannot kick host:`, {
+          targetUserId: data.targetUserId,
+          targetRole: targetParticipant.role
+        });
+        socket.emit('error', { message: 'Cannot kick the host' });
+        return;
+      }
+
+      // Find the target player's socket connection
+      const targetConnection = Array.from(activeConnections.values())
+        .find(conn => conn.userId === data.targetUserId);
+
+      console.log(`👢 [KICK DEBUG] Kicking player:`, {
+        targetUserId: data.targetUserId,
+        targetUsername: targetParticipant.user?.username,
+        targetSocketId: targetConnection?.socketId,
+        kickedBy: currentParticipant.user?.username
+      });
+
+      // Remove participant from database
+      await db.removeParticipant(room.id, data.targetUserId);
+
+      // Notify the kicked player
+      if (targetConnection?.socketId) {
+        console.log(`📤 [KICK DEBUG] Notifying kicked player on socket: ${targetConnection.socketId}`);
+        io.to(targetConnection.socketId).emit('playerKicked', {
+          reason: 'You have been removed from the room by the host',
+          kickedBy: currentParticipant.user?.display_name || currentParticipant.user?.username,
+          roomCode: data.roomCode
+        });
+
+        // Remove from socket room
+        const kickedSocket = io.sockets.sockets.get(targetConnection.socketId);
+        if (kickedSocket) {
+          kickedSocket.leave(data.roomCode);
+        }
+      }
+
+      // Get updated room data
+      const updatedRoom = await db.getRoomByCode(data.roomCode);
+      const remainingPlayers = updatedRoom.participants
+        ?.filter(p => p.connection_status === 'connected')
+        .map(p => ({
+          id: p.user_id,
+          name: p.user?.display_name || p.user?.username,
+          isHost: p.role === 'host',
+          socketId: null
+        })) || [];
+
+      console.log(`👥 [KICK DEBUG] Remaining players after kick:`, remainingPlayers.map(p => ({
+        id: p.id,
+        name: p.name,
+        isHost: p.isHost
+      })));
+
+      // Notify remaining players about the kick
+      io.to(data.roomCode).emit('playerKicked', {
+        targetUserId: data.targetUserId,
+        targetName: targetParticipant.user?.display_name || targetParticipant.user?.username,
+        kickedBy: currentParticipant.user?.display_name || currentParticipant.user?.username,
+        players: remainingPlayers,
+        isNotification: true // Flag to distinguish from personal kick notification
+      });
+
+      // Clear connection tracking for kicked player
+      if (targetConnection) {
+        targetConnection.roomId = null;
+        targetConnection.userId = null;
+      }
+
+      console.log(`✅ [KICK DEBUG] Successfully kicked ${targetParticipant.user?.username} from room ${data.roomCode}`);
+
+    } catch (error) {
+      console.error('❌ [KICK ERROR] Error kicking player:', {
+        error: error.message,
+        stack: error.stack,
+        socketId: socket.id,
+        targetUserId: data?.targetUserId,
+        roomCode: data?.roomCode,
+        timestamp: new Date().toISOString()
+      });
+      socket.emit('error', { message: 'Failed to kick player' });
     }
   });
 

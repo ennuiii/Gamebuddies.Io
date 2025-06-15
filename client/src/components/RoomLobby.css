@@ -534,11 +534,40 @@
   transform: translateY(0);
 }
 
-/* Update player card to accommodate the button */
-.player-card-content {
+/* Kick Player Button */
+.kick-player-btn {
+  background: linear-gradient(135deg, #f44336, #d32f2f);
+  color: white;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-top: 4px;
+  opacity: 0.8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.kick-player-btn:hover {
+  opacity: 1;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(244, 67, 54, 0.3);
+}
+
+.kick-player-btn:active {
+  transform: translateY(0);
+}
+
+/* Player Actions Container */
+.player-actions {
   display: flex;
-  align-items: center;
-  gap: 1rem;
+  gap: 4px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 8px;
 }
 
 /* Room Status Styles */

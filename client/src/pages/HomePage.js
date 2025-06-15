@@ -30,9 +30,36 @@ const HomePage = () => {
     const autoRejoinName = searchParams.get('name');
     const autoRejoinHost = searchParams.get('host') === 'true';
     
+    console.log('🔄 [HOMEPAGE DEBUG] URL parameters detected:', {
+      joinCode,
+      rejoinCode,
+      autoRejoinCode,
+      autoRejoinName,
+      autoRejoinHost,
+      fullURL: window.location.href,
+      searchParams: Object.fromEntries(searchParams.entries())
+    });
+
+    // Check for GameBuddies session data
+    const sessionData = {
+      roomCode: sessionStorage.getItem('gamebuddies_roomCode'),
+      playerName: sessionStorage.getItem('gamebuddies_playerName'),
+      isHost: sessionStorage.getItem('gamebuddies_isHost'),
+      gameType: sessionStorage.getItem('gamebuddies_gameType'),
+      returnUrl: sessionStorage.getItem('gamebuddies_returnUrl')
+    };
+    
+    console.log('🔄 [HOMEPAGE DEBUG] GameBuddies session storage:', sessionData);
+    
     if (autoRejoinCode && autoRejoinName) {
       // Automatic rejoin from GM-initiated return
-      console.log('🔄 Auto-rejoining room:', autoRejoinCode, 'as', autoRejoinName);
+      console.log('🔄 [HOMEPAGE DEBUG] Auto-rejoining room:', {
+        code: autoRejoinCode,
+        name: autoRejoinName,
+        isHost: autoRejoinHost,
+        source: 'GM-initiated return'
+      });
+      
       setCurrentRoom({
         roomCode: autoRejoinCode,
         playerName: autoRejoinName,
@@ -44,10 +71,32 @@ const HomePage = () => {
       navigate('/', { replace: true });
     } else if (joinCode || rejoinCode) {
       // Manual join/rejoin
+      console.log('🔄 [HOMEPAGE DEBUG] Manual join/rejoin:', {
+        joinCode,
+        rejoinCode,
+        source: 'URL parameter'
+      });
+      
       setJoinRoomCode(joinCode || rejoinCode);
       setShowJoinRoom(true);
       // Clear the URL parameter after using it
       navigate('/', { replace: true });
+    } else if (sessionData.roomCode && sessionData.playerName) {
+      // Check if we have session data but no URL parameters (potential return from game)
+      console.log('🔄 [HOMEPAGE DEBUG] Found GameBuddies session data without URL params:', {
+        roomCode: sessionData.roomCode,
+        playerName: sessionData.playerName,
+        isHost: sessionData.isHost === 'true',
+        gameType: sessionData.gameType,
+        returnUrl: sessionData.returnUrl,
+        scenario: 'potential return from game'
+      });
+      
+      // Don't automatically rejoin - let the GameBuddiesReturnHandler handle it
+      // This prevents conflicts between different return mechanisms
+      console.log('🔄 [HOMEPAGE DEBUG] Letting GameBuddiesReturnHandler manage the return flow');
+    } else {
+      console.log('🔄 [HOMEPAGE DEBUG] No rejoin scenario detected - normal homepage load');
     }
   }, [searchParams, navigate]);
 

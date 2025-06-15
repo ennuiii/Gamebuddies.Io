@@ -67,11 +67,21 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       console.log('🔍 [CLIENT DEBUG] Room code:', roomCodeRef.current);
       console.log('🔍 [CLIENT DEBUG] Player name:', playerNameRef.current);
       console.log('🔍 [CLIENT DEBUG] Is host:', currentIsHost);
+      console.log('🔍 [LOBBY DEBUG] Connection details:', {
+        socketId: newSocket.id,
+        roomCode: roomCodeRef.current,
+        playerName: playerNameRef.current,
+        isHost: currentIsHost,
+        connectionStatus: 'connected',
+        timestamp: new Date().toISOString(),
+        isReconnection: !!existingConnection
+      });
       
       setConnectionStatus('connected');
       setSocket(newSocket);
       
       // Join the room
+      console.log('📤 [LOBBY DEBUG] Sending joinRoom event...');
       newSocket.emit('joinRoom', {
         roomCode: roomCodeRef.current,
         playerName: playerNameRef.current
@@ -80,13 +90,22 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
     };
 
     const handleDisconnect = () => {
-      console.log('❌ Disconnected from server');
+      console.log('❌ [LOBBY DEBUG] Disconnected from server:', {
+        roomCode: roomCodeRef.current,
+        playerName: playerNameRef.current,
+        timestamp: new Date().toISOString()
+      });
       setConnectionStatus('disconnected');
       setError('Connection lost. Please refresh the page.');
     };
 
     const handleConnectError = (error) => {
-      console.error('❌ Connection error:', error);
+      console.error('❌ [LOBBY DEBUG] Connection error:', {
+        error: error.message,
+        roomCode: roomCodeRef.current,
+        playerName: playerNameRef.current,
+        timestamp: new Date().toISOString()
+      });
       setConnectionStatus('error');
       setError('Failed to connect to server. Please try again.');
       setIsLoading(false);
@@ -100,6 +119,20 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
         room_id: data.room?.id,
         game_type: data.room?.game_type
       });
+      console.log('🔍 [LOBBY DEBUG] Room joined details:', {
+        roomCode: data.roomCode,
+        isHost: data.isHost,
+        playerCount: data.players?.length || 0,
+        roomId: data.room?.id,
+        gameType: data.room?.game_type,
+        roomStatus: data.room?.status,
+        participants: data.players?.map(p => ({
+          id: p.id,
+          name: p.name,
+          isHost: p.isHost
+        })) || [],
+        timestamp: new Date().toISOString()
+      });
       
       setPlayers(data.players || []);
       setRoomData(data.room);
@@ -110,6 +143,12 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       const currentUser = data.players?.find(p => p.name === playerNameRef.current);
       if (currentUser) {
         console.log(`🔍 [CLIENT DEBUG] Initial host status: ${playerNameRef.current} is host: ${currentUser.isHost}`);
+        console.log(`🔍 [LOBBY DEBUG] Host status update:`, {
+          playerName: playerNameRef.current,
+          wasHost: currentIsHost,
+          nowHost: currentUser.isHost,
+          changed: currentIsHost !== currentUser.isHost
+        });
         setCurrentIsHost(currentUser.isHost);
       }
       
@@ -150,21 +189,103 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
     };
 
     const handleGameStarted = (data) => {
-      console.log('🚀 Game starting:', data);
+      console.log('🚀 [LOBBY DEBUG] Game starting event received:', {
+        gameUrl: data.gameUrl,
+        gameType: data.gameType,
+        isHost: data.isHost,
+        roomCode: data.roomCode,
+        timestamp: new Date().toISOString()
+      });
+      
       // Store GameBuddies integration data
-      sessionStorage.setItem('gamebuddies_roomCode', roomCodeRef.current);
-      sessionStorage.setItem('gamebuddies_playerName', playerNameRef.current);
-      sessionStorage.setItem('gamebuddies_isHost', data.isHost.toString());
-      sessionStorage.setItem('gamebuddies_gameType', data.gameType);
-      sessionStorage.setItem('gamebuddies_returnUrl', window.location.origin);
+      console.log('💾 [LOBBY DEBUG] Setting up GameBuddies session storage...');
+      
+      const sessionData = {
+        roomCode: roomCodeRef.current,
+        playerName: playerNameRef.current,
+        isHost: data.isHost.toString(),
+        gameType: data.gameType,
+        returnUrl: window.location.origin
+      };
+      
+      console.log('💾 [LOBBY DEBUG] Session data to store:', sessionData);
+      
+      sessionStorage.setItem('gamebuddies_roomCode', sessionData.roomCode);
+      sessionStorage.setItem('gamebuddies_playerName', sessionData.playerName);
+      sessionStorage.setItem('gamebuddies_isHost', sessionData.isHost);
+      sessionStorage.setItem('gamebuddies_gameType', sessionData.gameType);
+      sessionStorage.setItem('gamebuddies_returnUrl', sessionData.returnUrl);
+      
+      // Verify session storage was set correctly
+      const verification = {
+        roomCode: sessionStorage.getItem('gamebuddies_roomCode'),
+        playerName: sessionStorage.getItem('gamebuddies_playerName'),
+        isHost: sessionStorage.getItem('gamebuddies_isHost'),
+        gameType: sessionStorage.getItem('gamebuddies_gameType'),
+        returnUrl: sessionStorage.getItem('gamebuddies_returnUrl')
+      };
+      
+      console.log('🔍 [LOBBY DEBUG] Session storage verification:', verification);
+      
+      const allSet = Object.values(verification).every(value => value !== null);
+      console.log('✅ [LOBBY DEBUG] All session data set correctly:', allSet);
+      
+      if (!allSet) {
+        console.error('❌ [LOBBY DEBUG] Some session data failed to set!');
+      }
+      
+      console.log('🎮 [LOBBY DEBUG] Redirecting to game:', data.gameUrl);
       
       // Redirect to game
       window.location.href = data.gameUrl;
     };
 
     const handleError = (error) => {
-      console.error('❌ Socket error:', error);
-      setError(error.message || 'An error occurred');
+      console.error('❌ [LOBBY DEBUG] Socket error received:', {
+        error: error.message || error,
+        code: error.code,
+        debug: error.debug,
+        roomCode: roomCodeRef.current,
+        playerName: playerNameRef.current,
+        timestamp: new Date().toISOString(),
+        connectionStatus,
+        isLoading,
+        currentError: error
+      });
+      
+      // Enhanced error handling based on error code
+      let userFriendlyMessage = error.message || 'An error occurred';
+      
+      switch (error.code) {
+        case 'ROOM_NOT_FOUND':
+          userFriendlyMessage = 'Room not found. It may have expired or been cleaned up.';
+          console.error('🔍 [LOBBY DEBUG] Room not found details:', {
+            roomCode: roomCodeRef.current,
+            searchedFor: error.debug?.room_code,
+            timestamp: error.debug?.search_timestamp
+          });
+          break;
+        case 'ROOM_FULL':
+          userFriendlyMessage = 'Room is full. Cannot rejoin at this time.';
+          break;
+        case 'ROOM_NOT_ACCEPTING':
+          userFriendlyMessage = `Room is ${error.debug?.room_status || 'not accepting players'}.`;
+          console.error('🔍 [LOBBY DEBUG] Room not accepting details:', {
+            roomStatus: error.debug?.room_status,
+            isOriginalCreator: error.debug?.is_original_creator
+          });
+          break;
+        case 'DUPLICATE_PLAYER':
+          userFriendlyMessage = 'Player name already in use. Try a different name.';
+          break;
+        case 'JOIN_FAILED':
+          userFriendlyMessage = 'Failed to join room. Please try refreshing the page.';
+          break;
+        default:
+          console.error('🔍 [LOBBY DEBUG] Unknown error code:', error.code);
+      }
+      
+      setError(userFriendlyMessage);
       setIsLoading(false);
     };
 
@@ -209,6 +330,47 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       console.log(`🔄 Room status changed to '${data.newStatus}' by ${data.changedBy}`);
     };
 
+    const handlePlayerKicked = (data) => {
+      console.log('👢 [KICK DEBUG] Player kicked event received:', {
+        data,
+        isNotification: data.isNotification,
+        targetUserId: data.targetUserId,
+        reason: data.reason,
+        timestamp: new Date().toISOString()
+      });
+
+      if (data.isNotification) {
+        // This is a notification to other players about someone being kicked
+        console.log(`👢 [KICK DEBUG] ${data.targetName} was kicked by ${data.kickedBy}`);
+        
+        // Update players list
+        setPlayers(data.players || []);
+        
+        // You could add a toast notification here
+        alert(`${data.targetName} was removed from the room by ${data.kickedBy}`);
+      } else {
+        // This player was kicked personally
+        console.log('👢 [KICK DEBUG] You have been kicked from the room:', {
+          reason: data.reason,
+          kickedBy: data.kickedBy,
+          roomCode: data.roomCode
+        });
+        
+        // Clear socket and leave room
+        if (socket) {
+          socket.disconnect();
+        }
+        
+        // Show message and redirect to homepage
+        alert(`${data.reason}\n\nKicked by: ${data.kickedBy}`);
+        
+        // Redirect to homepage
+        if (onLeave) {
+          onLeave();
+        }
+      }
+    };
+
     // Add event listeners BEFORE connecting
     newSocket.on('connect', handleConnect);
     newSocket.on('disconnect', handleDisconnect);
@@ -221,6 +383,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
     newSocket.on('gameStarted', handleGameStarted);
     newSocket.on('hostTransferred', handleHostTransferred);
     newSocket.on('roomStatusChanged', handleRoomStatusChanged);
+    newSocket.on('playerKicked', handlePlayerKicked);
     newSocket.on('error', handleError);
 
     // Cleanup function
@@ -240,6 +403,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
         newSocket.off('gameStarted', handleGameStarted);
         newSocket.off('hostTransferred', handleHostTransferred);
         newSocket.off('roomStatusChanged', handleRoomStatusChanged);
+        newSocket.off('playerKicked', handlePlayerKicked);
         newSocket.off('error', handleError);
         
         // Copy ref value to avoid stale closure
@@ -296,6 +460,31 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
         roomCode: roomCodeRef.current,
         targetUserId: targetPlayerId
       });
+    }
+  };
+
+  const handleKickPlayer = (targetPlayerId, targetPlayerName) => {
+    if (socket && currentIsHost) {
+      // Confirm kick action
+      const confirmed = window.confirm(
+        `Are you sure you want to kick ${targetPlayerName} from the room?`
+      );
+      
+      if (confirmed) {
+        console.log('👢 [KICK DEBUG] Kicking player:', {
+          targetPlayerId,
+          targetPlayerName,
+          roomCode: roomCodeRef.current,
+          timestamp: new Date().toISOString()
+        });
+        
+        socket.emit('kickPlayer', {
+          roomCode: roomCodeRef.current,
+          targetUserId: targetPlayerId
+        });
+      } else {
+        console.log('👢 [KICK DEBUG] Kick cancelled by host');
+      }
     }
   };
 
@@ -484,15 +673,24 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
                     {player.isHost && <span className="host-badge">Host</span>}
                   </div>
                 </div>
-                {/* Show "Make Host" button if current user is host and this is not the host */}
+                {/* Show host controls if current user is host and this is not the host */}
                 {currentIsHost && !player.isHost && (
-                  <button 
-                    className="make-host-btn"
-                    onClick={() => handleTransferHost(player.id)}
-                    title={`Make ${player.name} the host`}
-                  >
-                    👑 Make Host
-                  </button>
+                  <div className="player-actions">
+                    <button 
+                      className="make-host-btn"
+                      onClick={() => handleTransferHost(player.id)}
+                      title={`Make ${player.name} the host`}
+                    >
+                      👑 Make Host
+                    </button>
+                    <button 
+                      className="kick-player-btn"
+                      onClick={() => handleKickPlayer(player.id, player.name)}
+                      title={`Kick ${player.name} from the room`}
+                    >
+                      👢 Kick
+                    </button>
+                  </div>
                 )}
               </div>
             ))}

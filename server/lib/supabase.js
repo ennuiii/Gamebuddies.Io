@@ -494,17 +494,24 @@ class DatabaseService {
         dryRun = false          // If true, only return what would be deleted
       } = options;
 
-      console.log('🧹 Starting room cleanup...', {
+      console.log('🧹 [CLEANUP DEBUG] Starting room cleanup...', {
         maxAgeHours,
         maxIdleMinutes,
         includeAbandoned,
         includeCompleted,
-        dryRun
+        dryRun,
+        timestamp: new Date().toISOString()
       });
 
       // Calculate cutoff times
       const maxAgeDate = new Date(Date.now() - (maxAgeHours * 60 * 60 * 1000));
       const maxIdleDate = new Date(Date.now() - (maxIdleMinutes * 60 * 1000));
+
+      console.log('🧹 [CLEANUP DEBUG] Cutoff times:', {
+        maxAgeDate: maxAgeDate.toISOString(),
+        maxIdleDate: maxIdleDate.toISOString(),
+        currentTime: new Date().toISOString()
+      });
 
       // Build query for rooms to cleanup
       let query = this.adminClient
@@ -516,11 +523,13 @@ class DatabaseService {
           created_at,
           last_activity,
           current_players,
+          game_type,
           participants:room_participants(
             id,
             user_id,
             connection_status,
-            last_ping
+            last_ping,
+            user:user_profiles(username, display_name)
           )
         `);
 
@@ -553,19 +562,23 @@ class DatabaseService {
           created_at,
           last_activity,
           current_players,
+          game_type,
           participants:room_participants(
             id,
             user_id,
             connection_status,
-            last_ping
+            last_ping,
+            user:user_profiles(username, display_name)
           )
         `)
         .or(`created_at.lt.${maxAgeDate.toISOString()},last_activity.lt.${maxIdleDate.toISOString()},status.eq.abandoned,status.eq.completed`);
 
       if (queryError) throw queryError;
 
+      console.log(`🧹 [CLEANUP DEBUG] Initial query found ${roomsToCleanup?.length || 0} rooms`);
+
       if (!roomsToCleanup || roomsToCleanup.length === 0) {
-        console.log('✅ No rooms need cleanup');
+        console.log('✅ [CLEANUP DEBUG] No rooms need cleanup');
         return { cleaned: 0, rooms: [] };
       }
 
@@ -574,8 +587,9 @@ class DatabaseService {
         const roomAge = Date.now() - new Date(room.created_at).getTime();
         const roomIdle = Date.now() - new Date(room.last_activity || room.created_at).getTime();
         const hasConnectedPlayers = room.participants?.some(p => p.connection_status === 'connected');
+        const connectedPlayerCount = room.participants?.filter(p => p.connection_status === 'connected').length || 0;
 
-        return (
+        const shouldCleanup = (
           // Too old
           roomAge > (maxAgeHours * 60 * 60 * 1000) ||
           // Too idle
@@ -587,18 +601,56 @@ class DatabaseService {
           // No connected players and idle
           (!hasConnectedPlayers && roomIdle > (maxIdleMinutes * 60 * 1000))
         );
+
+        // Enhanced debugging for each room
+        console.log(`🧹 [CLEANUP DEBUG] Room analysis: ${room.room_code}`, {
+          status: room.status,
+          game_type: room.game_type,
+          ageHours: Math.round(roomAge / (60 * 60 * 1000) * 100) / 100,
+          idleMinutes: Math.round(roomIdle / (60 * 1000) * 100) / 100,
+          connectedPlayers: connectedPlayerCount,
+          hasConnectedPlayers,
+          shouldCleanup,
+          reasons: {
+            tooOld: roomAge > (maxAgeHours * 60 * 60 * 1000),
+            tooIdle: roomIdle > (maxIdleMinutes * 60 * 1000),
+            isAbandoned: room.status === 'abandoned',
+            isCompleted: room.status === 'completed',
+            noPlayersAndIdle: !hasConnectedPlayers && roomIdle > (maxIdleMinutes * 60 * 1000)
+          }
+        });
+
+        // Special protection for active game rooms with connected players
+        if (room.status === 'active' && hasConnectedPlayers && room.game_type !== 'lobby') {
+          console.log(`⚠️ [CLEANUP PROTECTION] Protecting active game room: ${room.room_code}`, {
+            status: room.status,
+            game_type: room.game_type,
+            connected_players: connectedPlayerCount,
+            participants: room.participants?.map(p => ({
+              username: p.user?.username || p.user?.display_name,
+              connection_status: p.connection_status,
+              last_ping: p.last_ping
+            }))
+          });
+          return false; // Don't cleanup active game rooms with connected players
+        }
+
+        return shouldCleanup;
       });
 
-      console.log(`🔍 Found ${roomsNeedingCleanup.length} rooms to cleanup:`, 
+      console.log(`🔍 [CLEANUP DEBUG] Found ${roomsNeedingCleanup.length} rooms to cleanup:`, 
         roomsNeedingCleanup.map(r => ({
           code: r.room_code,
           status: r.status,
+          game_type: r.game_type,
           age: Math.round((Date.now() - new Date(r.created_at).getTime()) / (60 * 60 * 1000)) + 'h',
-          idle: Math.round((Date.now() - new Date(r.last_activity || r.created_at).getTime()) / (60 * 1000)) + 'm'
+          idle: Math.round((Date.now() - new Date(r.last_activity || r.created_at).getTime()) / (60 * 1000)) + 'm',
+          connected_players: r.participants?.filter(p => p.connection_status === 'connected').length || 0
         }))
       );
 
       if (dryRun) {
+        console.log('🧹 [CLEANUP DEBUG] Dry run mode - no rooms will be deleted');
         return { 
           cleaned: 0, 
           rooms: roomsNeedingCleanup.map(r => r.room_code),
@@ -609,23 +661,49 @@ class DatabaseService {
       // Actually delete the rooms
       let cleanedCount = 0;
       const cleanedRooms = [];
+      const failedCleanups = [];
 
       for (const room of roomsNeedingCleanup) {
         try {
+          console.log(`🗑️ [CLEANUP DEBUG] Deleting room: ${room.room_code}`, {
+            status: room.status,
+            game_type: room.game_type,
+            participants: room.participants?.length || 0
+          });
+          
           await this.deleteRoom(room.id);
           cleanedCount++;
           cleanedRooms.push(room.room_code);
-          console.log(`🗑️ Cleaned up room: ${room.room_code}`);
+          console.log(`✅ [CLEANUP DEBUG] Successfully cleaned up room: ${room.room_code}`);
         } catch (error) {
-          console.error(`❌ Failed to cleanup room ${room.room_code}:`, error);
+          console.error(`❌ [CLEANUP ERROR] Failed to cleanup room ${room.room_code}:`, {
+            error: error.message,
+            room_id: room.id,
+            status: room.status
+          });
+          failedCleanups.push({
+            room_code: room.room_code,
+            error: error.message
+          });
         }
       }
 
-      console.log(`✅ Room cleanup completed: ${cleanedCount} rooms cleaned`);
-      return { cleaned: cleanedCount, rooms: cleanedRooms };
+      console.log(`✅ [CLEANUP DEBUG] Room cleanup completed:`, {
+        attempted: roomsNeedingCleanup.length,
+        successful: cleanedCount,
+        failed: failedCleanups.length,
+        cleanedRooms,
+        failedCleanups
+      });
+      
+      return { cleaned: cleanedCount, rooms: cleanedRooms, failed: failedCleanups };
 
     } catch (error) {
-      console.error('❌ Error during room cleanup:', error);
+      console.error('❌ [CLEANUP ERROR] Error during room cleanup:', {
+        error: error.message,
+        stack: error.stack,
+        timestamp: new Date().toISOString()
+      });
       throw error;
     }
   }
