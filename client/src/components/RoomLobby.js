@@ -73,8 +73,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
         playerName: playerNameRef.current,
         isHost: currentIsHost,
         connectionStatus: 'connected',
-        timestamp: new Date().toISOString(),
-        isReconnection: !!existingConnection
+        timestamp: new Date().toISOString()
       });
       
       setConnectionStatus('connected');
