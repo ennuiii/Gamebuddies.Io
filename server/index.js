@@ -775,6 +775,72 @@ io.on('connection', async (socket) => {
     }
   });
 
+  // Handle room status change
+  socket.on('changeRoomStatus', async (data) => {
+    try {
+      console.log(`🔄 Room status change requested: ${data.newStatus} for room ${data.roomCode}`);
+      
+      const connection = activeConnections.get(socket.id);
+      if (!connection?.roomId || !connection?.userId) {
+        socket.emit('error', { message: 'Not in a room' });
+        return;
+      }
+
+      // Get room and verify user is host
+      const room = await db.getRoomByCode(data.roomCode);
+      if (!room) {
+        socket.emit('error', { message: 'Room not found' });
+        return;
+      }
+
+      // Check if user is host
+      const participant = room.participants?.find(p => p.user_id === connection.userId);
+      if (!participant || participant.role !== 'host') {
+        socket.emit('error', { message: 'Only the host can change room status' });
+        return;
+      }
+
+      // Validate the new status
+      const validStatuses = ['waiting_for_players', 'launching', 'active', 'paused', 'finished', 'abandoned'];
+      if (!validStatuses.includes(data.newStatus)) {
+        socket.emit('error', { message: 'Invalid room status' });
+        return;
+      }
+
+      // Update room status in database
+      const updateData = { status: data.newStatus };
+      
+      // If changing back to waiting_for_players, also reset game type to lobby
+      if (data.newStatus === 'waiting_for_players') {
+        updateData.game_type = 'lobby';
+      }
+      
+      // If finishing the room, set finished_at timestamp
+      if (data.newStatus === 'finished') {
+        updateData.finished_at = new Date().toISOString();
+      }
+
+      await db.updateRoom(room.id, updateData);
+
+      // Get updated room data
+      const updatedRoom = await db.getRoomByCode(data.roomCode);
+      
+      // Notify all players about the status change
+      io.to(data.roomCode).emit('roomStatusChanged', {
+        oldStatus: room.status,
+        newStatus: data.newStatus,
+        room: updatedRoom,
+        changedBy: participant.user?.display_name || participant.user?.username
+      });
+
+      console.log(`🔄 Room ${room.room_code} status changed from '${room.status}' to '${data.newStatus}' by ${participant.user?.display_name}`);
+
+    } catch (error) {
+      console.error('❌ Error changing room status:', error);
+      socket.emit('error', { message: 'Failed to change room status' });
+    }
+  });
+
   // Handle disconnection
   socket.on('disconnect', async () => {
     try {

@@ -15,6 +15,8 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
   const [roomData, setRoomData] = useState(null);
   const [connectionStatus, setConnectionStatus] = useState('connecting');
   const [currentIsHost, setCurrentIsHost] = useState(isHost); // State for re-rendering
+  const [roomStatus, setRoomStatus] = useState('waiting_for_players');
+  const [showStatusMenu, setShowStatusMenu] = useState(false);
   
   // Use refs for values that shouldn't trigger re-renders
   const roomCodeRef = useRef(roomCode);
@@ -101,6 +103,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       
       setPlayers(data.players || []);
       setRoomData(data.room);
+      setRoomStatus(data.room?.status || 'waiting_for_players');
       setSelectedGame(data.room?.game_type !== 'lobby' ? data.room.game_type : null);
       
       // Update host status based on server response
@@ -187,6 +190,25 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       console.log(`👑 ${data.newHostName} is now the host (previous host ${reason})`);
     };
 
+    const handleRoomStatusChanged = (data) => {
+      console.log('🔄 Room status changed:', data);
+      
+      // Update room status
+      setRoomStatus(data.newStatus);
+      setRoomData(data.room);
+      
+      // If status changed back to waiting_for_players, reset selected game
+      if (data.newStatus === 'waiting_for_players') {
+        setSelectedGame(null);
+      }
+      
+      // Hide status menu
+      setShowStatusMenu(false);
+      
+      // Show notification (you could implement a toast system here)
+      console.log(`🔄 Room status changed to '${data.newStatus}' by ${data.changedBy}`);
+    };
+
     // Add event listeners BEFORE connecting
     newSocket.on('connect', handleConnect);
     newSocket.on('disconnect', handleDisconnect);
@@ -198,6 +220,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
     newSocket.on('gameSelected', handleGameSelected);
     newSocket.on('gameStarted', handleGameStarted);
     newSocket.on('hostTransferred', handleHostTransferred);
+    newSocket.on('roomStatusChanged', handleRoomStatusChanged);
     newSocket.on('error', handleError);
 
     // Cleanup function
@@ -216,6 +239,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
         newSocket.off('gameSelected', handleGameSelected);
         newSocket.off('gameStarted', handleGameStarted);
         newSocket.off('hostTransferred', handleHostTransferred);
+        newSocket.off('roomStatusChanged', handleRoomStatusChanged);
         newSocket.off('error', handleError);
         
         // Copy ref value to avoid stale closure
@@ -229,6 +253,18 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       activeConnection = null;
     };
   }, []); // Empty dependency array to prevent re-running
+
+  // Close status menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showStatusMenu && !event.target.closest('.status-controls')) {
+        setShowStatusMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showStatusMenu]);
 
   const handleGameSelect = (gameType) => {
     if (socket && currentIsHost) {
@@ -259,6 +295,16 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       socket.emit('transferHost', { 
         roomCode: roomCodeRef.current,
         targetUserId: targetPlayerId
+      });
+    }
+  };
+
+  const handleChangeRoomStatus = (newStatus) => {
+    if (socket && currentIsHost) {
+      console.log('🔄 Changing room status to:', newStatus);
+      socket.emit('changeRoomStatus', { 
+        roomCode: roomCodeRef.current,
+        newStatus: newStatus
       });
     }
   };
@@ -315,6 +361,65 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
         
         <div className="room-info-header">
           <div className="room-code-display">{roomCode}</div>
+          <div className="room-status-section">
+            <div className="room-status-display">
+              <span className="status-label">Status:</span>
+              <span className={`status-badge status-${roomStatus}`}>
+                {roomStatus.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+              </span>
+              {currentIsHost && (
+                <div className="status-controls">
+                  <button 
+                    className="change-status-btn"
+                    onClick={() => setShowStatusMenu(!showStatusMenu)}
+                    title="Change room status"
+                  >
+                    ⚙️
+                  </button>
+                  {showStatusMenu && (
+                    <div className="status-menu">
+                      <div className="status-menu-header">Change Status</div>
+                      <button 
+                        className="status-option"
+                        onClick={() => handleChangeRoomStatus('waiting_for_players')}
+                        disabled={roomStatus === 'waiting_for_players'}
+                      >
+                        🟢 Waiting for Players
+                      </button>
+                      <button 
+                        className="status-option"
+                        onClick={() => handleChangeRoomStatus('active')}
+                        disabled={roomStatus === 'active'}
+                      >
+                        🔵 Active
+                      </button>
+                      <button 
+                        className="status-option"
+                        onClick={() => handleChangeRoomStatus('paused')}
+                        disabled={roomStatus === 'paused'}
+                      >
+                        🟡 Paused
+                      </button>
+                      <button 
+                        className="status-option"
+                        onClick={() => handleChangeRoomStatus('finished')}
+                        disabled={roomStatus === 'finished'}
+                      >
+                        🔴 Finished
+                      </button>
+                      <button 
+                        className="status-option"
+                        onClick={() => handleChangeRoomStatus('abandoned')}
+                        disabled={roomStatus === 'abandoned'}
+                      >
+                        ⚫ Abandoned
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
           <div className="room-actions">
             <button className="copy-btn" onClick={() => navigator.clipboard.writeText(roomCode)}>
               📋 Copy Code
@@ -335,6 +440,33 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       </div>
 
       <div className="lobby-content">
+        {/* Room Status Information */}
+        {!currentIsHost && roomStatus !== 'waiting_for_players' && (
+          <div className="status-info-section">
+            <div className="status-info-card">
+              <div className="status-info-icon">
+                {roomStatus === 'active' && '🔵'}
+                {roomStatus === 'paused' && '🟡'}
+                {roomStatus === 'finished' && '🔴'}
+                {roomStatus === 'abandoned' && '⚫'}
+                {roomStatus === 'launching' && '��'}
+              </div>
+              <div className="status-info-content">
+                <h4 className="status-info-title">
+                  Room is {roomStatus.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                </h4>
+                <p className="status-info-description">
+                  {roomStatus === 'active' && 'The room is currently active. New players cannot join right now.'}
+                  {roomStatus === 'paused' && 'The room is paused. The host can resume or change the status.'}
+                  {roomStatus === 'finished' && 'This room has finished. The host can reopen it for new players.'}
+                  {roomStatus === 'abandoned' && 'This room has been abandoned. The host can reactivate it.'}
+                  {roomStatus === 'launching' && 'The room is launching. Please wait for the game to start.'}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="players-section">
           <h3 className="section-title">Players in Room</h3>
           <div className="players-grid">
