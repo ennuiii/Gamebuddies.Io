@@ -1973,10 +1973,17 @@ io.on('connection', async (socket) => {
 // Supabase config endpoint for frontend
 app.get('/api/supabase-config', (req, res) => {
   try {
-    res.json({
+    const config = {
       url: process.env.SUPABASE_URL,
       anonKey: process.env.SUPABASE_ANON_KEY
+    };
+    
+    console.log('📡 [API] Providing Supabase config to frontend:', {
+      url: config.url ? `${config.url.substring(0, 20)}...` : 'MISSING',
+      anonKey: config.anonKey ? `${config.anonKey.substring(0, 20)}...` : 'MISSING'
     });
+    
+    res.json(config);
   } catch (error) {
     console.error('❌ Error providing Supabase config:', error);
     res.status(500).json({

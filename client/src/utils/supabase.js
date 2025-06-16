@@ -15,37 +15,52 @@ const getSupabaseConfig = async () => {
 };
 
 // Initialize Supabase client
-let supabase = null;
+let supabaseClient = null;
+let initializationPromise = null;
 
 const initializeSupabase = async () => {
-  if (supabase) return supabase;
+  if (supabaseClient) return supabaseClient;
 
-  const config = await getSupabaseConfig();
-  if (!config) {
-    console.error('❌ Cannot initialize Supabase client - no config available');
-    return null;
+  // Prevent multiple simultaneous initialization attempts
+  if (initializationPromise) {
+    return initializationPromise;
   }
 
-  supabase = createClient(config.url, config.anonKey, {
-    realtime: {
-      params: {
-        eventsPerSecond: 10
+  initializationPromise = (async () => {
+    try {
+      const config = await getSupabaseConfig();
+      if (!config || !config.url || !config.anonKey) {
+        console.error('❌ Cannot initialize Supabase client - invalid config:', config);
+        return null;
       }
-    }
-  });
 
-  console.log('✅ Supabase client initialized for frontend');
-  return supabase;
+      supabaseClient = createClient(config.url, config.anonKey, {
+        realtime: {
+          params: {
+            eventsPerSecond: 10
+          }
+        }
+      });
+
+      console.log('✅ Supabase client initialized for frontend');
+      return supabaseClient;
+    } catch (error) {
+      console.error('❌ Error initializing Supabase client:', error);
+      return null;
+    }
+  })();
+
+  return initializationPromise;
 };
 
 // Export a promise that resolves to the initialized client
 export const getSupabaseClient = async () => {
-  if (!supabase) {
+  if (!supabaseClient) {
     await initializeSupabase();
   }
-  return supabase;
+  return supabaseClient;
 };
 
-// For backward compatibility, export the client (will be null initially)
-export { supabase };
-export default supabase; 
+// Export null initially - client must use getSupabaseClient() for async initialization
+export const supabase = null;
+export default null; 
