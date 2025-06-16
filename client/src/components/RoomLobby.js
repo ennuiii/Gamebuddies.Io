@@ -185,6 +185,19 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       }
     };
 
+    const handlePlayerStatusUpdated = (data) => {
+      console.log('🔄 Player status updated:', data);
+      setPlayers(data.room?.participants?.map(p => ({
+        id: p.user_id,
+        name: p.user?.display_name || p.user?.username,
+        isHost: p.role === 'host',
+        isConnected: p.is_connected,
+        inGame: p.in_game,
+        lastPing: p.last_ping
+      })) || []);
+      setRoomData(data.room);
+    };
+
     const handlePlayerLeft = (data) => {
       console.log('👋 Player left');
       setPlayers(data.players || []);
@@ -439,6 +452,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
     newSocket.on('playerJoined', handlePlayerJoined);
     newSocket.on('playerLeft', handlePlayerLeft);
     newSocket.on('playerDisconnected', handlePlayerDisconnected);
+    newSocket.on('playerStatusUpdated', handlePlayerStatusUpdated);
     newSocket.on('gameSelected', handleGameSelected);
     newSocket.on('gameStarted', handleGameStarted);
     newSocket.on('hostTransferred', handleHostTransferred);
@@ -460,6 +474,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
         newSocket.off('playerJoined', handlePlayerJoined);
         newSocket.off('playerLeft', handlePlayerLeft);
         newSocket.off('playerDisconnected', handlePlayerDisconnected);
+        newSocket.off('playerStatusUpdated', handlePlayerStatusUpdated);
         newSocket.off('gameSelected', handleGameSelected);
         newSocket.off('gameStarted', handleGameStarted);
         newSocket.off('hostTransferred', handleHostTransferred);
@@ -602,6 +617,27 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
         newStatus: newStatus
       });
     }
+  };
+
+  const handleReturnToLobby = () => {
+    if (socket) {
+      console.log('🔄 Player returning to lobby');
+      socket.emit('playerReturnToLobby', {
+        roomCode: roomCodeRef.current,
+        playerName: playerNameRef.current
+      });
+    }
+  };
+
+  // Helper function to get player status
+  const getPlayerStatus = (player) => {
+    if (!player.isConnected) {
+      return { status: 'disconnected', label: 'Offline', color: '#666', icon: '⚫' };
+    }
+    if (player.inGame) {
+      return { status: 'in_game', label: 'In Game', color: '#ff6b35', icon: '🎮' };
+    }
+    return { status: 'lobby', label: 'In Lobby', color: '#4caf50', icon: '🟢' };
   };
 
   // Loading state
@@ -763,43 +799,72 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
         )}
 
         <div className="players-section">
-          <h3 className="section-title">Players in Room</h3>
-          <div className="players-grid">
-            {players.map((player) => (
-              <div 
-                key={player.id} 
-                className={`player-card ${player.isHost ? 'host' : ''}`}
+          <div className="section-header">
+            <h3 className="section-title">Players in Room</h3>
+            {/* Show return to lobby button if current player is in game */}
+            {players.find(p => p.name === playerNameRef.current)?.inGame && (
+              <button 
+                className="return-to-lobby-btn"
+                onClick={handleReturnToLobby}
+                title="Mark yourself as returned to lobby"
               >
-                <div className="player-card-content">
-                  <div className="player-avatar">
-                    {player.name.charAt(0).toUpperCase()}
+                🔄 Return to Lobby
+              </button>
+            )}
+          </div>
+          <div className="players-grid">
+            {players.map((player) => {
+              const playerStatus = getPlayerStatus(player);
+              return (
+                <div 
+                  key={player.id} 
+                  className={`player-card ${player.isHost ? 'host' : ''} ${playerStatus.status}`}
+                >
+                  <div className="player-card-content">
+                    <div className="player-avatar">
+                      {player.name.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="player-info">
+                      <span className="player-name">{player.name}</span>
+                      <div className="player-badges">
+                        {player.isHost && <span className="host-badge">Host</span>}
+                        <span 
+                          className="status-badge"
+                          style={{ backgroundColor: playerStatus.color }}
+                          title={`${player.name} is ${playerStatus.label.toLowerCase()}`}
+                        >
+                          {playerStatus.icon} {playerStatus.label}
+                        </span>
+                      </div>
+                      {player.lastPing && (
+                        <small className="last-seen">
+                          Last seen: {new Date(player.lastPing).toLocaleTimeString()}
+                        </small>
+                      )}
+                    </div>
                   </div>
-                  <div className="player-info">
-                    <span className="player-name">{player.name}</span>
-                    {player.isHost && <span className="host-badge">Host</span>}
-                  </div>
+                  {/* Show host controls if current user is host and this is not the host */}
+                  {currentIsHost && !player.isHost && (
+                    <div className="player-actions">
+                      <button 
+                        className="make-host-btn"
+                        onClick={() => handleTransferHost(player.id)}
+                        title={`Make ${player.name} the host`}
+                      >
+                        👑 Make Host
+                      </button>
+                      <button 
+                        className="kick-player-btn"
+                        onClick={() => handleKickPlayer(player.id, player.name)}
+                        title={`Kick ${player.name} from the room`}
+                      >
+                        👢 Kick
+                      </button>
+                    </div>
+                  )}
                 </div>
-                {/* Show host controls if current user is host and this is not the host */}
-                {currentIsHost && !player.isHost && (
-                  <div className="player-actions">
-                    <button 
-                      className="make-host-btn"
-                      onClick={() => handleTransferHost(player.id)}
-                      title={`Make ${player.name} the host`}
-                    >
-                      👑 Make Host
-                    </button>
-                    <button 
-                      className="kick-player-btn"
-                      onClick={() => handleKickPlayer(player.id, player.name)}
-                      title={`Kick ${player.name} from the room`}
-                    >
-                      👢 Kick
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 

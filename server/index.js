@@ -1056,15 +1056,16 @@ io.on('connection', async (socket) => {
       console.log(`🔄 [REJOINING DEBUG] Fetching updated room data...`);
       const updatedRoom = await db.getRoomByCode(data.roomCode);
       
-      // Prepare player list
-      const players = updatedRoom.participants
-        ?.filter(p => p.is_connected === true)
-        .map(p => ({
-          id: p.user_id,
-          name: p.user?.display_name || p.user?.username,
-          isHost: p.role === 'host',
-          socketId: null // Socket IDs are tracked in activeConnections, not stored in DB
-        })) || [];
+      // Prepare player list - include ALL participants with their status
+      const players = updatedRoom.participants?.map(p => ({
+        id: p.user_id,
+        name: p.user?.display_name || p.user?.username,
+        isHost: p.role === 'host',
+        isConnected: p.is_connected,
+        inGame: p.in_game,
+        lastPing: p.last_ping,
+        socketId: null // Socket IDs are tracked in activeConnections, not stored in DB
+      })) || [];
 
       console.log(`👥 [REJOINING DEBUG] Final player list:`, players);
 
@@ -1250,11 +1251,23 @@ io.on('connection', async (socket) => {
       
       console.log(`✅ [START GAME SERVER] Host validation passed - proceeding with game start`);
     
-      // Update room status
+      // Update room status and mark all connected participants as in_game
       await db.updateRoom(room.id, {
         status: 'in_game',
         game_started_at: new Date().toISOString()
       });
+
+      // Mark all connected participants as in_game
+      const connectedParticipants = room.participants?.filter(p => p.is_connected === true) || [];
+      for (const participant of connectedParticipants) {
+        await db.adminClient
+          .from('room_members')
+          .update({ in_game: true })
+          .eq('user_id', participant.user_id)
+          .eq('room_id', room.id);
+      }
+      
+      console.log(`🎮 [START GAME DEBUG] Marked ${connectedParticipants.length} participants as in_game`);
 
       // Get game proxy configuration
       const gameProxy = gameProxies[room.current_game];
@@ -1439,10 +1452,16 @@ io.on('connection', async (socket) => {
         p.is_connected === true
       ) || [];
 
-      // Mark all participants as disconnected FIRST
+      // Mark all participants as disconnected and not in_game FIRST
       for (const p of participants) {
         await db.updateParticipantConnection(p.user_id, null, 'disconnected');
-        console.log(`🔌 Disconnected player ${p.user?.username} from room ${data.roomCode}`);
+        // Also mark as not in_game
+        await db.adminClient
+          .from('room_members')
+          .update({ in_game: false })
+          .eq('user_id', p.user_id)
+          .eq('room_id', room.id);
+        console.log(`🔌 Disconnected player ${p.user?.username} from room ${data.roomCode} and marked as not in_game`);
       }
 
       // Update room status back to lobby
@@ -1474,6 +1493,54 @@ io.on('connection', async (socket) => {
     } catch (error) {
       console.error('❌ Error returning to lobby:', error);
       socket.emit('error', { message: 'Failed to return to lobby' });
+    }
+  });
+
+  // Handle individual player return to lobby
+  socket.on('playerReturnToLobby', async (data) => {
+    try {
+      console.log(`🔄 Player returning to lobby: ${data.playerName} in room ${data.roomCode}`);
+      
+      const connection = activeConnections.get(socket.id);
+      if (!connection?.roomId || !connection?.userId) {
+        socket.emit('error', { message: 'Not in a room' });
+        return;
+      }
+
+      // Get room
+      const room = await db.getRoomByCode(data.roomCode);
+      if (!room) {
+        socket.emit('error', { message: 'Room not found' });
+        return;
+      }
+
+      // Mark this player as not in_game and connected to lobby
+      await db.adminClient
+        .from('room_members')
+        .update({ 
+          in_game: false,
+          is_connected: true,
+          last_ping: new Date().toISOString()
+        })
+        .eq('user_id', connection.userId)
+        .eq('room_id', room.id);
+
+      // Get updated room data with all participants
+      const updatedRoom = await db.getRoomByCode(data.roomCode);
+      
+      // Notify all players about the status update
+      io.to(data.roomCode).emit('playerStatusUpdated', {
+        playerId: connection.userId,
+        playerName: data.playerName,
+        status: 'lobby',
+        room: updatedRoom
+      });
+
+      console.log(`✅ Player ${data.playerName} marked as returned to lobby`);
+
+    } catch (error) {
+      console.error('❌ Error handling player return to lobby:', error);
+      socket.emit('error', { message: 'Failed to update status' });
     }
   });
 
