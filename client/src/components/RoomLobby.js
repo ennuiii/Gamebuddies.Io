@@ -881,11 +881,6 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
                           {playerStatus.icon} {playerStatus.label}
                         </span>
                       </div>
-                      {player.lastPing && (
-                        <small className="last-seen">
-                          Last seen: {new Date(player.lastPing).toLocaleTimeString()}
-                        </small>
-                      )}
                     </div>
                   </div>
                   {/* Show host controls if current user is host and this is not the host */}
