@@ -278,9 +278,11 @@ class DatabaseService {
         socket_id: status === 'connected' ? socketId : null
       };
 
-      // If disconnecting, also update location
+      // Update location based on connection status
       if (status === 'disconnected') {
         updateData.current_location = 'disconnected';
+      } else if (status === 'connected') {
+        updateData.current_location = 'lobby';
       }
 
       const { error } = await this.adminClient
