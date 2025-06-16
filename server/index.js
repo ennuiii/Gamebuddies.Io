@@ -166,7 +166,7 @@ app.get('/api/game/rooms/:roomCode/validate', validateApiKey, async (req, res) =
     
     // Get room with all related data
     const { data: room, error } = await db.adminClient
-      .from('game_rooms')
+      .from('rooms')
       .select(`
         *,
         participants:room_members(
@@ -186,8 +186,8 @@ app.get('/api/game/rooms/:roomCode/validate', validateApiKey, async (req, res) =
       });
     }
     
-    // Check room status
-    if (!['waiting_for_players', 'active', 'launching'].includes(room.status)) {
+    // Check room status - V2 Schema uses 'lobby', 'in_game', 'returning'
+    if (!['lobby', 'in_game', 'returning'].includes(room.status)) {
       console.log(`❌ [API] Room ${roomCode} has invalid status: ${room.status}`);
       return res.status(400).json({ 
         valid: false, 
@@ -198,13 +198,13 @@ app.get('/api/game/rooms/:roomCode/validate', validateApiKey, async (req, res) =
     }
     
     // Check if game type matches or room is in lobby state
-    if (room.game_type !== 'lobby' && room.game_type !== req.apiKey.service_name) {
-      console.log(`❌ [API] Room ${roomCode} is for game ${room.game_type}, not ${req.apiKey.service_name}`);
+    if (room.current_game && room.current_game !== req.apiKey.service_name) {
+      console.log(`❌ [API] Room ${roomCode} is for game ${room.current_game}, not ${req.apiKey.service_name}`);
       return res.status(400).json({ 
         valid: false, 
         error: 'Room is for a different game',
         code: 'WRONG_GAME_TYPE',
-        gameType: room.game_type
+        gameType: room.current_game
       });
     }
     
@@ -233,7 +233,7 @@ app.get('/api/game/rooms/:roomCode/validate', validateApiKey, async (req, res) =
       room: {
         id: room.id,
         code: room.room_code,
-        gameType: room.game_type,
+        gameType: room.current_game,
         status: room.status,
         currentPlayers: room.current_players,
         maxPlayers: room.max_players,
@@ -286,7 +286,7 @@ app.post('/api/game/rooms/:roomCode/join', validateApiKey, async (req, res) => {
     
     // Get room
     const { data: room, error: roomError } = await db.adminClient
-      .from('game_rooms')
+      .from('rooms')
       .select('*')
       .eq('room_code', roomCode)
       .single();
@@ -311,7 +311,7 @@ app.post('/api/game/rooms/:roomCode/join', validateApiKey, async (req, res) => {
     
     // Check if already in room
     const { data: existingParticipant } = await db.adminClient
-      .from('room_participants')
+      .from('room_members')
       .select('*')
       .eq('room_id', room.id)
       .eq('user_id', user.id)
@@ -321,9 +321,9 @@ app.post('/api/game/rooms/:roomCode/join', validateApiKey, async (req, res) => {
       console.log(`🔄 [API] Player ${playerName} rejoining room ${roomCode}`);
       // Update connection status
       await db.adminClient
-        .from('room_participants')
+        .from('room_members')
         .update({
-          connection_status: 'connected',
+          is_connected: true,
           last_ping: new Date().toISOString()
         })
         .eq('id', existingParticipant.id);
@@ -338,22 +338,22 @@ app.post('/api/game/rooms/:roomCode/join', validateApiKey, async (req, res) => {
     
     // Add as new participant
     const { error: joinError } = await db.adminClient
-      .from('room_participants')
+      .from('room_members')
       .insert({
         room_id: room.id,
         user_id: user.id,
         role: 'player',
-        connection_status: 'connected'
+        is_connected: true
       });
     
     if (joinError) throw joinError;
     
-    // Update room to game type if it's still lobby
-    if (room.game_type === 'lobby') {
+    // Update room to current game if it doesn't have one
+    if (!room.current_game) {
       await db.adminClient
-        .from('game_rooms')
+        .from('rooms')
         .update({ 
-          game_type: req.apiKey.service_name,
+          current_game: req.apiKey.service_name,
           last_activity: new Date().toISOString()
         })
         .eq('id', room.id);
@@ -390,7 +390,7 @@ app.post('/api/game/rooms/:roomCode/state', validateApiKey, async (req, res) => 
     
     // Get room
     const { data: room, error: roomError } = await db.adminClient
-      .from('game_rooms')
+      .from('rooms')
       .select('id, status')
       .eq('room_code', roomCode)
       .single();
@@ -401,7 +401,7 @@ app.post('/api/game/rooms/:roomCode/state', validateApiKey, async (req, res) => 
     
     // Verify player is in room
     const { data: participant } = await db.adminClient
-      .from('room_participants')
+      .from('room_members')
       .select('id, role')
       .eq('room_id', room.id)
       .eq('user_id', playerId)
@@ -416,10 +416,10 @@ app.post('/api/game/rooms/:roomCode/state', validateApiKey, async (req, res) => 
     
     // Update room activity
     await db.adminClient
-      .from('game_rooms')
+      .from('rooms')
       .update({ 
         last_activity: new Date().toISOString(),
-        status: 'active' // Mark room as active when game state is synced
+        status: 'in_game' // Mark room as in_game when game state is synced
       })
       .eq('id', room.id);
     
@@ -456,7 +456,7 @@ app.get('/api/game/rooms/:roomCode/state', validateApiKey, async (req, res) => {
     
     // Get room
     const { data: room, error: roomError } = await db.adminClient
-      .from('game_rooms')
+      .from('rooms')
       .select('id')
       .eq('room_code', roomCode)
       .single();
@@ -505,7 +505,7 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
     
     // Get room
     const { data: room } = await db.adminClient
-      .from('game_rooms')
+      .from('rooms')
       .select('id')
       .eq('room_code', roomCode)
       .single();
@@ -516,10 +516,10 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
     
     // Update participant
     const { error: updateError } = await db.adminClient
-      .from('room_participants')
+      .from('room_members')
       .update({
-        connection_status: status,
-        game_specific_data: gameData,
+        is_connected: status === 'connected',
+        game_data: gameData,
         last_ping: new Date().toISOString()
       })
       .eq('room_id', room.id)
@@ -556,7 +556,7 @@ app.post('/api/game/rooms/:roomCode/events', validateApiKey, async (req, res) =>
     
     // Get room
     const { data: room } = await db.adminClient
-      .from('game_rooms')
+      .from('rooms')
       .select('id')
       .eq('room_code', roomCode)
       .single();
@@ -595,7 +595,7 @@ app.get('/api/rooms', async (req, res) => {
   try {
     const filters = {
       gameType: req.query.gameType || 'all',
-      status: req.query.status || 'waiting_for_players',
+      status: req.query.status || 'lobby',
       showFull: req.query.showFull === 'true',
       visibility: req.query.visibility || 'public'
     };
@@ -635,7 +635,7 @@ app.get('/api/rooms/:code', async (req, res) => {
 app.get('/api/health', async (req, res) => {
   try {
     // Test database connection
-    await db.adminClient.from('game_rooms').select('id').limit(1);
+    await db.adminClient.from('rooms').select('id').limit(1);
     
     res.json({ 
       status: 'healthy', 
@@ -840,7 +840,7 @@ io.on('connection', async (socket) => {
         max_players: room.max_players,
         created_at: room.created_at,
         last_activity: room.last_activity,
-        game_type: room.game_type,
+        current_game: room.current_game,
         participants_count: room.participants?.length || 0
       });
 
@@ -878,7 +878,8 @@ io.on('connection', async (socket) => {
         roomStatus: room.status
       });
       
-      if (room.status !== 'waiting_for_players' && !isOriginalCreator) {
+      // V2 Schema: Accept players when room status is 'lobby' or if original creator is rejoining
+      if (room.status !== 'lobby' && !isOriginalCreator) {
         console.log(`❌ [REJOINING DEBUG] Room not accepting players:`, {
           status: room.status,
           isOriginalCreator
@@ -894,14 +895,14 @@ io.on('connection', async (socket) => {
         return;
       }
       
-      // If original creator is rejoining an active room, reset it to lobby
-      if (room.status === 'active' && isOriginalCreator) {
-        console.log(`🔄 [REJOINING DEBUG] Original creator rejoining active room, resetting to lobby`);
+      // If original creator is rejoining an in_game room, reset it to lobby
+      if (room.status === 'in_game' && isOriginalCreator) {
+        console.log(`🔄 [REJOINING DEBUG] Original creator rejoining in_game room, resetting to lobby`);
         await db.updateRoom(room.id, {
-          status: 'waiting_for_players',
-          game_type: 'lobby'
+          status: 'lobby',
+          current_game: null
         });
-        console.log(`✅ [REJOINING DEBUG] Room status reset to waiting_for_players`);
+        console.log(`✅ [REJOINING DEBUG] Room status reset to lobby`);
       }
       
       // Check for disconnected participant FIRST to avoid creating unnecessary user
@@ -1104,7 +1105,7 @@ io.on('connection', async (socket) => {
         isHost: joinSuccessData.isHost,
         playerCount: joinSuccessData.players.length,
         roomStatus: updatedRoom.status,
-        gameType: updatedRoom.game_type
+        gameType: updatedRoom.current_game
       });
       
       socket.emit('roomJoined', joinSuccessData);
@@ -1148,8 +1149,8 @@ io.on('connection', async (socket) => {
     
       // Update room with selected game
       const updatedRoom = await db.updateRoom(connection.roomId, {
-        game_type: data.gameType,
-        settings: data.settings || {}
+        current_game: data.gameType,
+        game_settings: data.settings || {}
       });
 
       // Notify all players in room
@@ -1210,7 +1211,7 @@ io.on('connection', async (socket) => {
         id: room.id,
         room_code: room.room_code,
         status: room.status,
-        game_type: room.game_type,
+        current_game: room.current_game,
         participants_count: room.participants?.length || 0
       });
     
@@ -1252,12 +1253,12 @@ io.on('connection', async (socket) => {
     
       // Update room status
       await db.updateRoom(room.id, {
-        status: 'active',
-        started_at: new Date().toISOString()
+        status: 'in_game',
+        game_started_at: new Date().toISOString()
       });
 
       // Get game proxy configuration
-      const gameProxy = gameProxies[room.game_type];
+      const gameProxy = gameProxies[room.current_game];
       if (!gameProxy) {
         socket.emit('error', { message: 'Game not supported' });
       return;
@@ -1303,7 +1304,7 @@ io.on('connection', async (socket) => {
             console.log(`📤 [START GAME DEBUG] Emitting gameStarted to ${p.user?.username} (${currentSocketId})`);
             io.to(currentSocketId).emit('gameStarted', {
               gameUrl,
-              gameType: room.game_type,
+              gameType: room.current_game,
               isHost: p.role === 'host',
               roomCode: room.room_code
             });
@@ -1319,7 +1320,7 @@ io.on('connection', async (socket) => {
         }
       });
 
-      console.log(`🚀 [START GAME SERVER] Game start complete: ${room.game_type} for room ${room.room_code}`);
+      console.log(`🚀 [START GAME SERVER] Game start complete: ${room.current_game} for room ${room.room_code}`);
       console.log(`🚀 [START GAME SERVER] Total participants processed: ${participants.length}`);
       console.log(`🚀 [START GAME SERVER] ============ END START GAME PROCESSING ============`);
 
@@ -1445,10 +1446,10 @@ io.on('connection', async (socket) => {
         console.log(`🔌 Disconnected player ${p.user?.username} from room ${data.roomCode}`);
       }
 
-      // Update room status back to waiting for players
+      // Update room status back to lobby
       await db.updateRoom(room.id, {
-        status: 'waiting_for_players',
-        game_type: 'lobby'
+        status: 'lobby',
+        current_game: null
       });
 
       // Send return to lobby event to all participants
@@ -1728,8 +1729,8 @@ io.on('connection', async (socket) => {
         return;
       }
 
-      // Validate the new status
-      const validStatuses = ['waiting_for_players', 'launching', 'active', 'paused', 'finished', 'abandoned'];
+      // Validate the new status - V2 Schema
+      const validStatuses = ['lobby', 'in_game', 'returning'];
       if (!validStatuses.includes(data.newStatus)) {
         socket.emit('error', { message: 'Invalid room status' });
         return;
@@ -1738,9 +1739,9 @@ io.on('connection', async (socket) => {
       // Update room status in database
       const updateData = { status: data.newStatus };
       
-      // If changing back to waiting_for_players, also reset game type to lobby
-      if (data.newStatus === 'waiting_for_players') {
-        updateData.game_type = 'lobby';
+      // If changing back to lobby, also reset current game
+      if (data.newStatus === 'lobby') {
+        updateData.current_game = null;
       }
       
       // If finishing the room, set finished_at timestamp
