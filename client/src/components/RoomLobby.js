@@ -23,10 +23,11 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
   const playerNameRef = useRef(playerName);
 
   useEffect(() => {
-    // Prevent duplicate connections in development StrictMode
+    // Clean up any existing connection first
     if (activeConnection) {
-      console.log('⚠️ Preventing duplicate connection');
-      return;
+      console.log('🧹 Cleaning up existing connection before creating new one');
+      activeConnection.disconnect();
+      activeConnection = null;
     }
 
     console.log('🔌 Connecting to server...');
@@ -193,6 +194,9 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
         gameType: data.gameType,
         isHost: data.isHost,
         roomCode: data.roomCode,
+        currentPlayerName: playerNameRef.current,
+        currentIsHost: currentIsHost,
+        socketId: newSocket?.id,
         timestamp: new Date().toISOString()
       });
       
@@ -478,8 +482,36 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
 
   const handleStartGame = () => {
     if (socket && currentIsHost) {
-      console.log('🚀 Starting game');
+      console.log('🚀 [START GAME DEBUG] Starting game:', {
+        socketConnected: socket.connected,
+        socketId: socket.id,
+        roomCode: roomCodeRef.current,
+        playerName: playerNameRef.current,
+        isHost: currentIsHost,
+        connectionStatus,
+        timestamp: new Date().toISOString()
+      });
+      
+      if (!socket.connected) {
+        console.error('❌ [START GAME DEBUG] Socket not connected, cannot start game');
+        alert('Connection lost. Please refresh the page and try again.');
+        return;
+      }
+      
       socket.emit('startGame', { roomCode: roomCodeRef.current });
+    } else {
+      console.error('❌ [START GAME DEBUG] Cannot start game:', {
+        hasSocket: !!socket,
+        isHost: currentIsHost,
+        socketConnected: socket?.connected,
+        connectionStatus
+      });
+      
+      if (!currentIsHost) {
+        alert('Only the host can start the game.');
+      } else if (!socket) {
+        alert('Connection lost. Please refresh the page and try again.');
+      }
     }
   };
 

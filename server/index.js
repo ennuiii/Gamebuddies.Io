@@ -1178,12 +1178,21 @@ io.on('connection', async (socket) => {
         p.user_id === connection.userId && p.role === 'host'
       );
       
-      console.log(`🚀 [DEBUG] Looking for host with userId: ${connection.userId}`);
-      console.log(`🚀 [DEBUG] Found participant:`, userParticipant ? {
+      console.log(`🚀 [START GAME DEBUG] Looking for host with userId: ${connection.userId}`);
+      console.log(`🚀 [START GAME DEBUG] Found participant:`, userParticipant ? {
         user_id: userParticipant.user_id,
         role: userParticipant.role,
-        username: userParticipant.user?.username
+        username: userParticipant.user?.username,
+        connection_status: userParticipant.connection_status
       } : 'NOT FOUND');
+      
+      console.log(`🚀 [START GAME DEBUG] All participants:`, room.participants?.map(p => ({
+        user_id: p.user_id,
+        role: p.role,
+        username: p.user?.username,
+        connection_status: p.connection_status,
+        isCurrentUser: p.user_id === connection.userId
+      })));
       
       if (!userParticipant) {
         socket.emit('error', { message: 'Only the host can start the game' });
@@ -1219,8 +1228,20 @@ io.on('connection', async (socket) => {
         const userConnection = Array.from(activeConnections.values())
           .find(conn => conn.userId === p.user_id);
         
+        console.log(`🚀 [START GAME DEBUG] Sending game event to ${p.user?.username}:`, {
+          user_id: p.user_id,
+          role: p.role,
+          username: p.user?.username,
+          connection_status: p.connection_status,
+          hasUserConnection: !!userConnection,
+          socketId: userConnection?.socketId,
+          gameUrl,
+          delay
+        });
+        
         if (userConnection?.socketId) {
           setTimeout(() => {
+            console.log(`📤 [START GAME DEBUG] Emitting gameStarted to ${p.user?.username} (${userConnection.socketId})`);
             io.to(userConnection.socketId).emit('gameStarted', {
               gameUrl,
               gameType: room.game_type,
@@ -1228,6 +1249,8 @@ io.on('connection', async (socket) => {
               roomCode: room.room_code
             });
           }, delay);
+        } else {
+          console.error(`❌ [START GAME DEBUG] No socket connection found for ${p.user?.username} (${p.user_id})`);
         }
       });
 
