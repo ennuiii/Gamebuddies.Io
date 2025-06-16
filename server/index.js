@@ -109,6 +109,487 @@ app.get('/api/games', (req, res) => {
   res.json(games);
 });
 
+// ===== GAMEBUDDIES API FOR EXTERNAL GAMES =====
+
+// Middleware for API key validation
+async function validateApiKey(req, res, next) {
+  const apiKey = req.headers['x-api-key'];
+  
+  if (!apiKey) {
+    return res.status(401).json({ error: 'API key required' });
+  }
+  
+  try {
+    const { data: key, error } = await db.adminClient
+      .from('api_keys')
+      .select('*')
+      .eq('api_key', apiKey)
+      .eq('is_active', true)
+      .single();
+    
+    if (error || !key) {
+      return res.status(401).json({ error: 'Invalid API key' });
+    }
+    
+    // Update last used
+    await db.adminClient
+      .from('api_keys')
+      .update({ last_used: new Date().toISOString() })
+      .eq('id', key.id);
+    
+    // Log API request
+    await db.adminClient
+      .from('api_requests')
+      .insert({
+        api_key: apiKey,
+        endpoint: req.path,
+        method: req.method,
+        ip_address: req.ip,
+        user_agent: req.get('User-Agent')
+      });
+    
+    req.apiKey = key;
+    next();
+  } catch (error) {
+    console.error('API key validation error:', error);
+    res.status(500).json({ error: 'Server error' });
+  }
+}
+
+// Room validation endpoint
+app.get('/api/game/rooms/:roomCode/validate', validateApiKey, async (req, res) => {
+  try {
+    const { roomCode } = req.params;
+    const { playerName, playerId } = req.query;
+    
+    console.log(`🔍 [API] Validating room ${roomCode} for ${playerName} (service: ${req.apiKey.service_name})`);
+    
+    // Get room with all related data
+    const { data: room, error } = await db.adminClient
+      .from('game_rooms')
+      .select(`
+        *,
+        participants:room_participants(
+          *,
+          user:user_profiles(*)
+        )
+      `)
+      .eq('room_code', roomCode)
+      .single();
+    
+    if (error || !room) {
+      console.log(`❌ [API] Room ${roomCode} not found`);
+      return res.status(404).json({ 
+        valid: false, 
+        error: 'Room not found',
+        code: 'ROOM_NOT_FOUND'
+      });
+    }
+    
+    // Check room status
+    if (!['waiting_for_players', 'active', 'launching'].includes(room.status)) {
+      console.log(`❌ [API] Room ${roomCode} has invalid status: ${room.status}`);
+      return res.status(400).json({ 
+        valid: false, 
+        error: `Room is ${room.status}`,
+        code: 'ROOM_NOT_AVAILABLE',
+        status: room.status
+      });
+    }
+    
+    // Check if game type matches or room is in lobby state
+    if (room.game_type !== 'lobby' && room.game_type !== req.apiKey.service_name) {
+      console.log(`❌ [API] Room ${roomCode} is for game ${room.game_type}, not ${req.apiKey.service_name}`);
+      return res.status(400).json({ 
+        valid: false, 
+        error: 'Room is for a different game',
+        code: 'WRONG_GAME_TYPE',
+        gameType: room.game_type
+      });
+    }
+    
+    // Find participant if playerName or playerId provided
+    let participant = null;
+    if (playerName || playerId) {
+      participant = room.participants?.find(p => 
+        (playerName && p.user?.username === playerName) || 
+        (playerId && p.user_id === playerId)
+      );
+    }
+    
+    // Get latest game state if exists
+    const { data: gameState } = await db.adminClient
+      .from('game_states')
+      .select('*')
+      .eq('room_id', room.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+    
+    console.log(`✅ [API] Room ${roomCode} validated successfully`);
+    
+    res.json({
+      valid: true,
+      room: {
+        id: room.id,
+        code: room.room_code,
+        gameType: room.game_type,
+        status: room.status,
+        currentPlayers: room.current_players,
+        maxPlayers: room.max_players,
+        settings: room.settings,
+        metadata: room.metadata,
+        createdAt: room.created_at,
+        startedAt: room.started_at
+      },
+      participant: participant ? {
+        id: participant.user_id,
+        role: participant.role,
+        isHost: participant.role === 'host',
+        isReady: participant.is_ready,
+        gameData: participant.game_specific_data
+      } : null,
+      participants: room.participants
+        ?.filter(p => p.connection_status !== 'disconnected')
+        .map(p => ({
+          id: p.user_id,
+          name: p.user?.display_name || p.user?.username,
+          role: p.role,
+          isReady: p.is_ready,
+          status: p.connection_status
+        })),
+      gameState: gameState ? {
+        id: gameState.id,
+        data: gameState.state_data,
+        version: gameState.state_version,
+        createdAt: gameState.created_at
+      } : null
+    });
+    
+  } catch (error) {
+    console.error('❌ [API] Room validation error:', error);
+    res.status(500).json({ 
+      valid: false, 
+      error: 'Server error',
+      code: 'SERVER_ERROR'
+    });
+  }
+});
+
+// Player join/register endpoint
+app.post('/api/game/rooms/:roomCode/join', validateApiKey, async (req, res) => {
+  try {
+    const { roomCode } = req.params;
+    const { playerName, playerId } = req.body;
+    
+    console.log(`🚪 [API] Player ${playerName} joining room ${roomCode} (service: ${req.apiKey.service_name})`);
+    
+    // Get room
+    const { data: room, error: roomError } = await db.adminClient
+      .from('game_rooms')
+      .select('*')
+      .eq('room_code', roomCode)
+      .single();
+    
+    if (roomError || !room) {
+      console.log(`❌ [API] Room ${roomCode} not found for join`);
+      return res.status(404).json({ error: 'Room not found' });
+    }
+    
+    // Check if room is full
+    if (room.current_players >= room.max_players) {
+      console.log(`❌ [API] Room ${roomCode} is full (${room.current_players}/${room.max_players})`);
+      return res.status(400).json({ 
+        error: 'Room is full',
+        code: 'ROOM_FULL'
+      });
+    }
+    
+    // Get or create user
+    const externalId = playerId || `${req.apiKey.service_name}_${playerName}_${Date.now()}`;
+    const user = await db.getOrCreateUser(externalId, playerName, playerName);
+    
+    // Check if already in room
+    const { data: existingParticipant } = await db.adminClient
+      .from('room_participants')
+      .select('*')
+      .eq('room_id', room.id)
+      .eq('user_id', user.id)
+      .single();
+    
+    if (existingParticipant) {
+      console.log(`🔄 [API] Player ${playerName} rejoining room ${roomCode}`);
+      // Update connection status
+      await db.adminClient
+        .from('room_participants')
+        .update({
+          connection_status: 'connected',
+          last_ping: new Date().toISOString()
+        })
+        .eq('id', existingParticipant.id);
+        
+      return res.json({
+        success: true,
+        playerId: user.id,
+        role: existingParticipant.role,
+        isRejoining: true
+      });
+    }
+    
+    // Add as new participant
+    const { error: joinError } = await db.adminClient
+      .from('room_participants')
+      .insert({
+        room_id: room.id,
+        user_id: user.id,
+        role: 'player',
+        connection_status: 'connected'
+      });
+    
+    if (joinError) throw joinError;
+    
+    // Update room to game type if it's still lobby
+    if (room.game_type === 'lobby') {
+      await db.adminClient
+        .from('game_rooms')
+        .update({ 
+          game_type: req.apiKey.service_name,
+          last_activity: new Date().toISOString()
+        })
+        .eq('id', room.id);
+    }
+    
+    // Log event
+    await db.logEvent(room.id, user.id, 'player_joined_via_api', { 
+      playerName, 
+      service: req.apiKey.service_name 
+    });
+    
+    console.log(`✅ [API] Player ${playerName} joined room ${roomCode} successfully`);
+    
+    res.json({
+      success: true,
+      playerId: user.id,
+      role: 'player',
+      isRejoining: false
+    });
+    
+  } catch (error) {
+    console.error('❌ [API] Player join error:', error);
+    res.status(500).json({ error: 'Failed to join room' });
+  }
+});
+
+// Game state sync endpoint
+app.post('/api/game/rooms/:roomCode/state', validateApiKey, async (req, res) => {
+  try {
+    const { roomCode } = req.params;
+    const { playerId, gameState, stateType = 'full' } = req.body;
+    
+    console.log(`📊 [API] Syncing game state for room ${roomCode} by player ${playerId}`);
+    
+    // Get room
+    const { data: room, error: roomError } = await db.adminClient
+      .from('game_rooms')
+      .select('id, status')
+      .eq('room_code', roomCode)
+      .single();
+    
+    if (roomError || !room) {
+      return res.status(404).json({ error: 'Room not found' });
+    }
+    
+    // Verify player is in room
+    const { data: participant } = await db.adminClient
+      .from('room_participants')
+      .select('id, role')
+      .eq('room_id', room.id)
+      .eq('user_id', playerId)
+      .single();
+    
+    if (!participant) {
+      return res.status(403).json({ error: 'Player not in room' });
+    }
+    
+    // Save new state using existing method
+    const savedState = await db.saveGameState(room.id, req.apiKey.service_name, gameState, playerId);
+    
+    // Update room activity
+    await db.adminClient
+      .from('game_rooms')
+      .update({ 
+        last_activity: new Date().toISOString(),
+        status: 'active' // Mark room as active when game state is synced
+      })
+      .eq('id', room.id);
+    
+    // Broadcast via Socket.io if available
+    if (io) {
+      io.to(roomCode).emit('gameStateUpdated', {
+        stateId: savedState.id,
+        version: savedState.state_version,
+        updatedBy: playerId,
+        stateType,
+        timestamp: savedState.created_at
+      });
+    }
+    
+    console.log(`✅ [API] Game state synced for room ${roomCode}, version ${savedState.state_version}`);
+    
+    res.json({
+      success: true,
+      stateId: savedState.id,
+      version: savedState.state_version
+    });
+    
+  } catch (error) {
+    console.error('❌ [API] State sync error:', error);
+    res.status(500).json({ error: 'Failed to sync state' });
+  }
+});
+
+// Get latest game state
+app.get('/api/game/rooms/:roomCode/state', validateApiKey, async (req, res) => {
+  try {
+    const { roomCode } = req.params;
+    const { version } = req.query;
+    
+    // Get room
+    const { data: room, error: roomError } = await db.adminClient
+      .from('game_rooms')
+      .select('id')
+      .eq('room_code', roomCode)
+      .single();
+    
+    if (roomError || !room) {
+      return res.status(404).json({ error: 'Room not found' });
+    }
+    
+    // Get state by version or latest
+    let query = db.adminClient
+      .from('game_states')
+      .select('*')
+      .eq('room_id', room.id);
+    
+    if (version) {
+      query = query.eq('state_version', version);
+    } else {
+      query = query.order('state_version', { ascending: false }).limit(1);
+    }
+    
+    const { data: gameState, error } = await query.single();
+    
+    if (error || !gameState) {
+      return res.status(404).json({ error: 'No game state found' });
+    }
+    
+    res.json({
+      id: gameState.id,
+      version: gameState.state_version,
+      data: gameState.state_data,
+      createdBy: gameState.created_by,
+      createdAt: gameState.created_at
+    });
+    
+  } catch (error) {
+    console.error('❌ [API] Get state error:', error);
+    res.status(500).json({ error: 'Failed to get state' });
+  }
+});
+
+// Player status update
+app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, async (req, res) => {
+  try {
+    const { roomCode, playerId } = req.params;
+    const { status, gameData } = req.body;
+    
+    // Get room
+    const { data: room } = await db.adminClient
+      .from('game_rooms')
+      .select('id')
+      .eq('room_code', roomCode)
+      .single();
+    
+    if (!room) {
+      return res.status(404).json({ error: 'Room not found' });
+    }
+    
+    // Update participant
+    const { error: updateError } = await db.adminClient
+      .from('room_participants')
+      .update({
+        connection_status: status,
+        game_specific_data: gameData,
+        last_ping: new Date().toISOString()
+      })
+      .eq('room_id', room.id)
+      .eq('user_id', playerId);
+    
+    if (updateError) throw updateError;
+    
+    // Log event
+    await db.logEvent(room.id, playerId, 'player_status_update', { status, gameData });
+    
+    // Broadcast if needed
+    if (io) {
+      io.to(roomCode).emit('playerStatusUpdated', {
+        playerId,
+        status,
+        gameData,
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    res.json({ success: true });
+    
+  } catch (error) {
+    console.error('❌ [API] Status update error:', error);
+    res.status(500).json({ error: 'Failed to update status' });
+  }
+});
+
+// Game events endpoint
+app.post('/api/game/rooms/:roomCode/events', validateApiKey, async (req, res) => {
+  try {
+    const { roomCode } = req.params;
+    const { playerId, eventType, eventData } = req.body;
+    
+    // Get room
+    const { data: room } = await db.adminClient
+      .from('game_rooms')
+      .select('id')
+      .eq('room_code', roomCode)
+      .single();
+    
+    if (!room) {
+      return res.status(404).json({ error: 'Room not found' });
+    }
+    
+    // Log event
+    await db.logEvent(room.id, playerId, `game_${eventType}`, {
+      ...eventData,
+      service: req.apiKey.service_name,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Broadcast event
+    if (io) {
+      io.to(roomCode).emit('gameEvent', {
+        playerId,
+        eventType,
+        eventData,
+        timestamp: new Date().toISOString()
+      });
+    }
+    
+    res.json({ success: true });
+    
+  } catch (error) {
+    console.error('❌ [API] Event logging error:', error);
+    res.status(500).json({ error: 'Failed to log event' });
+  }
+});
+
 // Room discovery endpoint
 app.get('/api/rooms', async (req, res) => {
   try {
