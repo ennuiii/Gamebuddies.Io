@@ -83,29 +83,31 @@ const GameBuddiesReturnHandler = () => {
       sessionStorage.setItem('gamebuddies_isHost', data.isHost.toString());
       sessionStorage.setItem('gamebuddies_returnUrl', data.returnUrl);
       
-      // Construct redirect URL
-      const redirectUrl = `${data.returnUrl}?autorejoin=${data.roomCode}&name=${encodeURIComponent(data.playerName)}&host=${data.isHost}`;
+      // Construct redirect URL with special rejoin flag to prevent duplicate errors
+      const redirectUrl = `${data.returnUrl}?rejoin=${data.roomCode}&name=${encodeURIComponent(data.playerName)}&host=${data.isHost}&fromGame=true`;
       console.log('🔄 [RETURN HANDLER DEBUG] Redirecting to GameBuddies:', redirectUrl);
       
-      // Redirect to GameBuddies with auto-rejoin
-      window.location.href = redirectUrl;
+      // Disconnect from current socket before redirecting to prevent conflicts
+      socket.disconnect();
+      
+      // Small delay to ensure disconnect completes
+      setTimeout(() => {
+        // Redirect to GameBuddies with special rejoin parameters
+        window.location.href = redirectUrl;
+      }, 100);
     });
 
-    // Connect to room to receive events
+    // Connect to room ONLY to listen for return events, don't try to join
     socket.on('connect', () => {
       console.log('🔄 [RETURN HANDLER DEBUG] Connected to GameBuddies server');
       console.log('🔄 [RETURN HANDLER DEBUG] Socket ID:', socket.id);
-      console.log('🔄 [RETURN HANDLER DEBUG] Joining room for return handling:', {
-        roomCode,
-        playerName
-      });
+      console.log('🔄 [RETURN HANDLER DEBUG] Joining socket room for return listening only:', roomCode);
       
-      socket.emit('joinRoom', {
-        roomCode: roomCode,
-        playerName: playerName
-      });
+      // Just join the socket room to listen for events - don't call joinRoom
+      // This prevents duplicate player errors
+      socket.emit('joinSocketRoom', { roomCode });
       
-      console.log('📤 [RETURN HANDLER DEBUG] joinRoom event sent');
+      console.log('📤 [RETURN HANDLER DEBUG] joinSocketRoom event sent (listening only)');
     });
 
     socket.on('connect_error', (error) => {
@@ -114,15 +116,6 @@ const GameBuddiesReturnHandler = () => {
         serverUrl,
         roomCode,
         playerName,
-        timestamp: new Date().toISOString()
-      });
-    });
-
-    socket.on('roomJoined', (data) => {
-      console.log('🔄 [RETURN HANDLER DEBUG] Successfully joined room for return handling:', {
-        roomCode: data.roomCode,
-        isHost: data.isHost,
-        playerCount: data.players?.length || 0,
         timestamp: new Date().toISOString()
       });
     });

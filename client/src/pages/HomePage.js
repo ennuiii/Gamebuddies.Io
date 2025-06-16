@@ -29,6 +29,7 @@ const HomePage = () => {
     const autoRejoinCode = searchParams.get('autorejoin');
     const autoRejoinName = searchParams.get('name');
     const autoRejoinHost = searchParams.get('host') === 'true';
+    const fromGameFlag = searchParams.get('fromGame') === 'true';
     
     console.log('🔄 [HOMEPAGE DEBUG] URL parameters detected:', {
       joinCode,
@@ -36,6 +37,7 @@ const HomePage = () => {
       autoRejoinCode,
       autoRejoinName,
       autoRejoinHost,
+      fromGameFlag,
       fullURL: window.location.href,
       searchParams: Object.fromEntries(searchParams.entries())
     });
@@ -62,6 +64,24 @@ const HomePage = () => {
       
       setCurrentRoom({
         roomCode: autoRejoinCode,
+        playerName: autoRejoinName,
+        isHost: autoRejoinHost
+      });
+      setPlayerName(autoRejoinName);
+      setInLobby(true);
+      // Clear the URL parameters
+      navigate('/', { replace: true });
+    } else if (rejoinCode && fromGameFlag) {
+      // Special case: returning from a game - direct rejoin without modal
+      console.log('🔄 [HOMEPAGE DEBUG] Returning from game - direct rejoin:', {
+        rejoinCode,
+        playerName: autoRejoinName,
+        isHost: autoRejoinHost,
+        source: 'Game return'
+      });
+      
+      setCurrentRoom({
+        roomCode: rejoinCode,
         playerName: autoRejoinName,
         isHost: autoRejoinHost
       });

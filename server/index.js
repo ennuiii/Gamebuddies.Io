@@ -776,6 +776,17 @@ io.on('connection', async (socket) => {
     }
   });
 
+  // Handle socket room joining for listening only (used by return handler)
+  socket.on('joinSocketRoom', (data) => {
+    try {
+      console.log(`🔗 [SOCKET ROOM] Joining socket room for listening: ${data.roomCode}`);
+      socket.join(data.roomCode);
+      console.log(`✅ [SOCKET ROOM] Successfully joined socket room ${data.roomCode} for listening`);
+    } catch (error) {
+      console.error('❌ [SOCKET ROOM] Error joining socket room:', error);
+    }
+  });
+
   // Handle room joining
   socket.on('joinRoom', async (data) => {
     try {
@@ -894,12 +905,13 @@ io.on('connection', async (socket) => {
       }
       
       // Check for disconnected participant FIRST to avoid creating unnecessary user
+      // Also check for 'connected' participants if they might be stale connections
       const disconnectedParticipant = room.participants?.find(p => 
         p.user?.username === data.playerName && 
-        p.connection_status === 'disconnected'
+        (p.connection_status === 'disconnected' || p.connection_status === 'connected')
       );
       
-      console.log(`🔍 [REJOINING DEBUG] Checking for disconnected participant:`, {
+      console.log(`🔍 [REJOINING DEBUG] Checking for existing participant (disconnected or potentially stale):`, {
         searchingFor: data.playerName,
         disconnectedParticipant: disconnectedParticipant ? {
           user_id: disconnectedParticipant.user_id,
@@ -914,10 +926,11 @@ io.on('connection', async (socket) => {
       
       // Handle rejoining scenario
       if (disconnectedParticipant) {
-        console.log(`🔄 [REJOINING DEBUG] Rejoining as disconnected participant:`, {
+        console.log(`🔄 [REJOINING DEBUG] Rejoining as existing participant:`, {
           participant_id: disconnectedParticipant.id,
           user_id: disconnectedParticipant.user_id,
-          original_role: disconnectedParticipant.role
+          original_role: disconnectedParticipant.role,
+          current_status: disconnectedParticipant.connection_status
         });
         
         // DON'T create a new user - use the original user data
@@ -942,9 +955,9 @@ io.on('connection', async (socket) => {
           });
         }
         
-        // Update connection status for existing participant
+        // Update connection status for existing participant (always set to connected with new socket)
         await db.updateParticipantConnection(disconnectedParticipant.user_id, socket.id, 'connected');
-        console.log(`✅ [REJOINING DEBUG] Updated existing participant connection status`);
+        console.log(`✅ [REJOINING DEBUG] Updated existing participant connection status to connected`);
         
       } else {
         // Get or create user profile for new participants
@@ -960,30 +973,33 @@ io.on('connection', async (socket) => {
           external_id: user.external_id
         });
         
-        // Check for duplicate connected participant
-        const existingParticipant = room.participants?.find(p => 
+        // Only check for duplicate participants if this is truly a new participant
+        // (not handled by the disconnectedParticipant logic above)
+        const existingConnectedParticipant = room.participants?.find(p => 
           p.user?.username === data.playerName && 
-          p.connection_status === 'connected'
+          p.connection_status === 'connected' &&
+          p.user_id !== disconnectedParticipant?.user_id // Don't flag the same user as duplicate
         );
         
-        console.log(`🔍 [REJOINING DEBUG] Duplicate check:`, {
+        console.log(`🔍 [REJOINING DEBUG] Duplicate check for truly new participants:`, {
           searchingFor: data.playerName,
-          existingParticipant: existingParticipant ? {
-            user_id: existingParticipant.user_id,
-            username: existingParticipant.user?.username,
-            connection_status: existingParticipant.connection_status,
-            role: existingParticipant.role
-          } : null
+          existingConnectedParticipant: existingConnectedParticipant ? {
+            user_id: existingConnectedParticipant.user_id,
+            username: existingConnectedParticipant.user?.username,
+            connection_status: existingConnectedParticipant.connection_status,
+            role: existingConnectedParticipant.role
+          } : null,
+          excludedUserId: disconnectedParticipant?.user_id
         });
         
-        if (existingParticipant) {
+        if (existingConnectedParticipant) {
           console.log(`❌ [REJOINING DEBUG] Duplicate name blocked: ${data.playerName} already in room ${data.roomCode}`);
           socket.emit('error', { 
             message: 'A player with this name is already in the room. Please choose a different name.',
             code: 'DUPLICATE_PLAYER',
             debug: {
-              existing_user_id: existingParticipant.user_id,
-              existing_connection_status: existingParticipant.connection_status
+              existing_user_id: existingConnectedParticipant.user_id,
+              existing_connection_status: existingConnectedParticipant.connection_status
             }
           });
           return;
@@ -1324,16 +1340,24 @@ io.on('connection', async (socket) => {
         return;
       }
 
+      // IMPORTANT: Disconnect all players from the room BEFORE updating room status
+      // This prevents duplicate name errors when players try to rejoin
+      console.log(`🔄 Disconnecting all players from room ${data.roomCode} before return`);
+      const participants = room.participants?.filter(p => 
+        p.connection_status === 'connected'
+      ) || [];
+
+      // Mark all participants as disconnected FIRST
+      for (const p of participants) {
+        await db.updateParticipantConnection(p.user_id, null, 'disconnected');
+        console.log(`🔌 Disconnected player ${p.user?.username} from room ${data.roomCode}`);
+      }
+
       // Update room status back to waiting for players
       await db.updateRoom(room.id, {
         status: 'waiting_for_players',
         game_type: 'lobby'
       });
-
-      // Get all participants in the room
-      const participants = room.participants?.filter(p => 
-        p.connection_status === 'connected'
-      ) || [];
 
       // Send return to lobby event to all participants
       participants.forEach(p => {
@@ -1341,6 +1365,7 @@ io.on('connection', async (socket) => {
           .find(conn => conn.userId === p.user_id);
         
         if (userConnection?.socketId) {
+          console.log(`📤 Sending returnToLobbyInitiated to ${p.user?.username}`);
           io.to(userConnection.socketId).emit('returnToLobbyInitiated', {
             roomCode: room.room_code,
             playerName: p.user?.display_name || p.user?.username,
