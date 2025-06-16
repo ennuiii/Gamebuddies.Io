@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
 import GamePicker from './GamePicker';
+import { useRealtimeSubscription } from '../utils/useRealtimeSubscription';
+import { supabase } from '../utils/supabase';
 import './RoomLobby.css';
 
 // Track active connection to prevent duplicates in StrictMode
@@ -22,6 +24,100 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
   // Use refs for values that shouldn't trigger re-renders
   const roomCodeRef = useRef(roomCode);
   const playerNameRef = useRef(playerName);
+  const roomIdRef = useRef(null);
+
+  // Realtime subscription for room members status updates
+  useRealtimeSubscription({
+    table: 'room_members',
+    filters: roomIdRef.current ? { filter: `room_id=eq.${roomIdRef.current}` } : {},
+    onUpdate: (newRecord, oldRecord) => {
+      console.log('🔔 [REALTIME] Room member updated:', { newRecord, oldRecord });
+      
+      // Update the specific player in the players array
+      setPlayers(prevPlayers => 
+        prevPlayers.map(player => {
+          if (player.id === newRecord.user_id) {
+            return {
+              ...player,
+              isConnected: newRecord.is_connected,
+              inGame: newRecord.in_game,
+              currentLocation: newRecord.current_location,
+              lastPing: newRecord.last_ping
+            };
+          }
+          return player;
+        })
+      );
+    },
+    onInsert: (newRecord) => {
+      console.log('🔔 [REALTIME] New room member:', newRecord);
+      // Handle new player joining - this might need additional user data fetch
+      fetchUpdatedPlayerList();
+    },
+    onDelete: (deletedRecord) => {
+      console.log('🔔 [REALTIME] Room member left:', deletedRecord);
+      // Remove player from list
+      setPlayers(prevPlayers => 
+        prevPlayers.filter(player => player.id !== deletedRecord.user_id)
+      );
+    },
+    dependencies: [roomIdRef.current]
+  });
+
+  // Realtime subscription for room status changes
+  useRealtimeSubscription({
+    table: 'rooms',
+    filters: roomIdRef.current ? { filter: `id=eq.${roomIdRef.current}` } : {},
+    onUpdate: (newRecord, oldRecord) => {
+      console.log('🔔 [REALTIME] Room updated:', { newRecord, oldRecord });
+      
+      // Update room data and status
+      setRoomData(newRecord);
+      setRoomStatus(newRecord.status);
+      
+      // Update selected game if it changed
+      if (newRecord.current_game !== oldRecord.current_game) {
+        setSelectedGame(newRecord.current_game !== 'lobby' ? newRecord.current_game : null);
+      }
+    },
+    dependencies: [roomIdRef.current]
+  });
+
+  // Function to fetch updated player list with user data
+  const fetchUpdatedPlayerList = async () => {
+    if (!roomIdRef.current) return;
+    
+    try {
+      const { data: roomMembers, error } = await supabase
+        .from('room_members')
+        .select(`
+          user_id,
+          role,
+          is_connected,
+          in_game,
+          current_location,
+          last_ping,
+          user:users(username, display_name)
+        `)
+        .eq('room_id', roomIdRef.current);
+
+      if (error) throw error;
+
+      const mappedPlayers = roomMembers?.map(member => ({
+        id: member.user_id,
+        name: member.user?.display_name || member.user?.username,
+        isHost: member.role === 'host',
+        isConnected: member.is_connected,
+        inGame: member.in_game,
+        currentLocation: member.current_location,
+        lastPing: member.last_ping
+      })) || [];
+
+      setPlayers(mappedPlayers);
+    } catch (error) {
+      console.error('❌ Error fetching updated player list:', error);
+    }
+  };
 
   useEffect(() => {
     // Clean up any existing connection first
@@ -168,6 +264,10 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       setRoomData(data.room);
       setRoomStatus(data.room?.status || 'waiting_for_players');
       setSelectedGame(data.room?.game_type !== 'lobby' ? data.room.game_type : null);
+      
+      // Set room ID for Realtime subscription
+      roomIdRef.current = data.room?.id;
+      console.log('🔔 [REALTIME] Room ID set for subscription:', roomIdRef.current);
       
       // Update host status based on server response
       const currentUser = mappedPlayers.find(p => p.name === playerNameRef.current);
