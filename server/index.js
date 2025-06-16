@@ -941,6 +941,17 @@ io.on('connection', async (socket) => {
         };
         userRole = disconnectedParticipant.role;
         
+        // Clean up any existing connections for this user before creating new one
+        const staleConnections = Array.from(activeConnections.entries())
+          .filter(([socketId, conn]) => 
+            conn.userId === disconnectedParticipant.user_id && socketId !== socket.id
+          );
+        
+        staleConnections.forEach(([staleSocketId, staleConn]) => {
+          console.log(`🧹 [CLEANUP] Removing stale connection for user ${disconnectedParticipant.user_id}: ${staleSocketId}`);
+          activeConnections.delete(staleSocketId);
+        });
+        
         // Update connection tracking with the ORIGINAL user ID IMMEDIATELY
         const connection = activeConnections.get(socket.id);
         if (connection) {
@@ -1012,6 +1023,17 @@ io.on('connection', async (socket) => {
         console.log(`✅ [REJOINING DEBUG] Added new participant`);
         
         // Update connection tracking
+        // Clean up any existing connections for this user before creating new one
+        const staleConnections = Array.from(activeConnections.entries())
+          .filter(([socketId, conn]) => 
+            conn.userId === user.id && socketId !== socket.id
+          );
+        
+        staleConnections.forEach(([staleSocketId, staleConn]) => {
+          console.log(`🧹 [CLEANUP] Removing stale connection for user ${user.id}: ${staleSocketId}`);
+          activeConnections.delete(staleSocketId);
+        });
+        
         const connection = activeConnections.get(socket.id);
         if (connection) {
           connection.userId = user.id;
@@ -1253,9 +1275,12 @@ io.on('connection', async (socket) => {
         
         const delay = p.role === 'host' ? 0 : 2000; // 2 second delay for players
         
-        // Find the socket ID from activeConnections
-        const userConnection = Array.from(activeConnections.entries())
-          .find(([socketId, conn]) => conn.userId === p.user_id);
+        // Find the MOST RECENT socket ID for this user from activeConnections
+        const userConnections = Array.from(activeConnections.entries())
+          .filter(([socketId, conn]) => conn.userId === p.user_id);
+        
+        // Sort by connection timestamp (most recent first) or use the last one in the array
+        const userConnection = userConnections.length > 0 ? userConnections[userConnections.length - 1] : null;
         
         const currentSocketId = userConnection ? userConnection[0] : null;
         const connectionData = userConnection ? userConnection[1] : null;
@@ -1266,8 +1291,9 @@ io.on('connection', async (socket) => {
           username: p.user?.username,
           connection_status: p.connection_status,
           hasUserConnection: !!userConnection,
-          activeConnectionsSocketId: currentSocketId,
-          connectionDataSocketId: connectionData?.socketId,
+          totalUserConnections: userConnections.length,
+          allUserSocketIds: userConnections.map(([socketId]) => socketId), 
+          selectedSocketId: currentSocketId,
           gameUrl,
           delay
         });
