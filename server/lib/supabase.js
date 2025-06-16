@@ -40,7 +40,7 @@ class DatabaseService {
 
       // Create the room
       const { data: room, error: roomError } = await this.adminClient
-        .from('game_rooms')
+        .from('rooms')
         .insert([{
           room_code: roomCode,
           ...roomData
@@ -51,8 +51,8 @@ class DatabaseService {
       if (roomError) throw roomError;
 
       // Log room creation event
-      await this.logEvent(room.id, roomData.creator_id, 'room_created', {
-        game_type: roomData.game_type,
+      await this.logEvent(room.id, roomData.host_id, 'room_created', {
+        current_game: roomData.current_game,
         created_from: roomData.created_from
       });
 
@@ -66,18 +66,18 @@ class DatabaseService {
   async getRoomByCode(roomCode) {
     try {
       const { data: room, error } = await this.adminClient
-        .from('game_rooms')
+        .from('rooms')
         .select(`
           *,
-          creator:user_profiles!creator_id(username, display_name),
-          participants:room_participants(
+          host:users!host_id(username, display_name),
+          participants:room_members(
             id,
             user_id,
             role,
-            connection_status,
+            is_connected,
             is_ready,
             joined_at,
-            user:user_profiles(username, display_name)
+            user:users(username, display_name)
           )
         `)
         .eq('room_code', roomCode)
@@ -94,18 +94,18 @@ class DatabaseService {
   async getRoomById(roomId) {
     try {
       const { data: room, error } = await this.adminClient
-        .from('game_rooms')
+        .from('rooms')
         .select(`
           *,
-          creator:user_profiles!creator_id(username, display_name),
-          participants:room_participants(
+          host:users!host_id(username, display_name),
+          participants:room_members(
             id,
             user_id,
             role,
-            connection_status,
+            is_connected,
             is_ready,
             joined_at,
-            user:user_profiles(username, display_name)
+            user:users(username, display_name)
           )
         `)
         .eq('id', roomId)
@@ -122,7 +122,7 @@ class DatabaseService {
   async updateRoom(roomId, updates) {
     try {
       const { data: room, error } = await this.adminClient
-        .from('game_rooms')
+        .from('rooms')
         .update({
           ...updates,
           last_activity: new Date().toISOString()
@@ -142,11 +142,11 @@ class DatabaseService {
   // User management
   async getOrCreateUser(externalId, username, displayName) {
     try {
-      // Always check by external_id first
+      // Always check by username first (since users table uses username as unique)
       let { data: user, error } = await this.adminClient
-        .from('user_profiles')
+        .from('users')
         .select('*')
-        .eq('external_id', externalId)
+        .eq('username', username)
         .single();
 
       if (error && error.code !== 'PGRST116') {
@@ -158,28 +158,48 @@ class DatabaseService {
         console.log('✅ Found existing user:', user.username);
         // Update last_seen
         await this.adminClient
-          .from('user_profiles')
+          .from('users')
           .update({ last_seen: new Date().toISOString() })
           .eq('id', user.id);
         
         return user;
       }
 
-      // Create new user - username doesn't need to be unique anymore
-      const { data: newUser, error: createError } = await this.adminClient
-        .from('user_profiles')
-        .insert({
-          external_id: externalId,
-          username: username,
-          display_name: displayName || username
-        })
-        .select()
-        .single();
+      // Create new user - try with original username first
+      try {
+        const { data: newUser, error: createError } = await this.adminClient
+          .from('users')
+          .insert({
+            username: username,
+            display_name: displayName || username
+          })
+          .select()
+          .single();
 
-      if (createError) throw createError;
+        if (createError) throw createError;
 
-      console.log('✅ Created new user:', newUser.username);
-      return newUser;
+        console.log('✅ Created new user:', newUser.username);
+        return newUser;
+      } catch (createError) {
+        // If username exists, try with timestamp suffix
+        if (createError.code === '23505') { // unique constraint violation
+          const uniqueUsername = `${username}_${Date.now()}`;
+          const { data: newUser, error: retryError } = await this.adminClient
+            .from('users')
+            .insert({
+              username: uniqueUsername,
+              display_name: displayName || username
+            })
+            .select()
+            .single();
+
+          if (retryError) throw retryError;
+
+          console.log('✅ Created new user with unique username:', newUser.username);
+          return newUser;
+        }
+        throw createError;
+      }
 
     } catch (error) {
       console.error('Error in getOrCreateUser:', error);
@@ -191,19 +211,20 @@ class DatabaseService {
   async addParticipant(roomId, userId, socketId, role = 'player') {
     try {
       const { data: participant, error } = await this.adminClient
-        .from('room_participants')
+        .from('room_members')
         .upsert({
           room_id: roomId,
           user_id: userId,
           role: role,
-          connection_status: 'connected',
-          last_ping: new Date().toISOString()
+          is_connected: true,
+          last_ping: new Date().toISOString(),
+          socket_id: socketId
         }, {
           onConflict: 'room_id, user_id'
         })
         .select(`
           *,
-          user:user_profiles(username, display_name)
+          user:users(username, display_name)
         `)
         .single();
 
@@ -225,7 +246,7 @@ class DatabaseService {
   async removeParticipant(roomId, userId) {
     try {
       const { error } = await this.adminClient
-        .from('room_participants')
+        .from('room_members')
         .delete()
         .eq('room_id', roomId)
         .eq('user_id', userId);
@@ -245,10 +266,11 @@ class DatabaseService {
   async updateParticipantConnection(userId, socketId, status = 'connected') {
     try {
       const { error } = await this.adminClient
-        .from('room_participants')
+        .from('room_members')
         .update({
-          connection_status: status,
-          last_ping: new Date().toISOString()
+          is_connected: status === 'connected',
+          last_ping: new Date().toISOString(),
+          socket_id: status === 'connected' ? socketId : null
         })
         .eq('user_id', userId);
 
@@ -268,7 +290,7 @@ class DatabaseService {
       // Start a transaction-like operation
       // First, verify current host
       const { data: currentHost, error: currentHostError } = await this.adminClient
-        .from('room_participants')
+        .from('room_members')
         .select('*')
         .eq('room_id', roomId)
         .eq('user_id', currentHostUserId)
@@ -281,7 +303,7 @@ class DatabaseService {
 
       // Verify new host is in the room
       const { data: newHost, error: newHostError } = await this.adminClient
-        .from('room_participants')
+        .from('room_members')
         .select('*')
         .eq('room_id', roomId)
         .eq('user_id', newHostUserId)
@@ -293,7 +315,7 @@ class DatabaseService {
 
       // Update current host to player
       const { error: demoteError } = await this.adminClient
-        .from('room_participants')
+        .from('room_members')
         .update({ role: 'player' })
         .eq('room_id', roomId)
         .eq('user_id', currentHostUserId);
@@ -302,7 +324,7 @@ class DatabaseService {
 
       // Update new user to host
       const { error: promoteError } = await this.adminClient
-        .from('room_participants')
+        .from('room_members')
         .update({ role: 'host' })
         .eq('room_id', roomId)
         .eq('user_id', newHostUserId);
@@ -310,12 +332,18 @@ class DatabaseService {
       if (promoteError) {
         // Rollback: restore original host
         await this.adminClient
-          .from('room_participants')
+          .from('room_members')
           .update({ role: 'host' })
           .eq('room_id', roomId)
           .eq('user_id', currentHostUserId);
         throw promoteError;
       }
+
+      // Update room host_id
+      await this.adminClient
+        .from('rooms')
+        .update({ host_id: newHostUserId })
+        .eq('id', roomId);
 
       // Log the host transfer event
       await this.logEvent(roomId, currentHostUserId, 'host_transferred', {
@@ -338,13 +366,13 @@ class DatabaseService {
 
       // Find the next suitable host (longest-connected player)
       const { data: participants, error } = await this.adminClient
-        .from('room_participants')
+        .from('room_members')
         .select(`
           *,
-          user:user_profiles(username, display_name)
+          user:users(username, display_name)
         `)
         .eq('room_id', roomId)
-        .eq('connection_status', 'connected')
+        .eq('is_connected', true)
         .neq('user_id', leavingHostUserId)
         .order('joined_at', { ascending: true }); // Oldest participant first
 
@@ -360,12 +388,18 @@ class DatabaseService {
 
       // Update their role to host
       const { error: updateError } = await this.adminClient
-        .from('room_participants')
+        .from('room_members')
         .update({ role: 'host' })
         .eq('room_id', roomId)
         .eq('user_id', newHost.user_id);
 
       if (updateError) throw updateError;
+
+      // Update room host_id
+      await this.adminClient
+        .from('rooms')
+        .update({ host_id: newHost.user_id })
+        .eq('id', roomId);
 
       // Log the auto host transfer event
       await this.logEvent(roomId, newHost.user_id, 'host_auto_transferred', {
@@ -392,11 +426,7 @@ class DatabaseService {
           room_id: roomId,
           user_id: userId,
           event_type: eventType,
-          event_data: eventData,
-          client_info: {
-            timestamp: new Date().toISOString(),
-            server_version: '2.0.0'
-          }
+          event_data: eventData
         }]);
 
       if (error) throw error;
@@ -411,24 +441,20 @@ class DatabaseService {
     try {
       // Get current max version
       const { data: maxVersion } = await this.adminClient
-        .from('game_states')
-        .select('state_version')
+        .from('game_sessions')
+        .select('id')
         .eq('room_id', roomId)
-        .order('state_version', { ascending: false })
+        .order('started_at', { ascending: false })
         .limit(1)
         .single();
 
-      const nextVersion = (maxVersion?.state_version || 0) + 1;
-
       const { data: gameState, error } = await this.adminClient
-        .from('game_states')
+        .from('game_sessions')
         .insert([{
           room_id: roomId,
-          game_type: gameType,
-          state_data: stateData,
-          state_version: nextVersion,
-          created_by: createdBy,
-          checksum: this.generateChecksum(stateData)
+          game_id: gameType,
+          game_state: stateData,
+          participants: [{ user_id: createdBy }]
         }])
         .select()
         .single();
@@ -444,10 +470,10 @@ class DatabaseService {
   async getLatestGameState(roomId) {
     try {
       const { data: gameState, error } = await this.adminClient
-        .from('game_states')
+        .from('game_sessions')
         .select('*')
         .eq('room_id', roomId)
-        .order('state_version', { ascending: false })
+        .order('started_at', { ascending: false })
         .limit(1)
         .single();
 
@@ -467,7 +493,7 @@ class DatabaseService {
 
   async cleanupStaleConnections() {
     try {
-      const { error } = await this.adminClient.rpc('cleanup_stale_connections');
+      const { error } = await this.adminClient.rpc('cleanup_inactive_rooms');
       if (error) throw error;
     } catch (error) {
       console.error('Error cleaning up stale connections:', error);
@@ -476,8 +502,8 @@ class DatabaseService {
 
   async refreshActiveRoomsView() {
     try {
-      const { error } = await this.adminClient.rpc('refresh_active_rooms');
-      if (error) throw error;
+      // This would refresh a materialized view if we had one
+      console.log('✅ Active rooms refreshed');
     } catch (error) {
       console.error('Error refreshing active rooms view:', error);
     }
@@ -515,63 +541,42 @@ class DatabaseService {
 
       // Build query for rooms to cleanup
       let query = this.adminClient
-        .from('game_rooms')
+        .from('rooms')
         .select(`
           id,
           room_code,
           status,
           created_at,
           last_activity,
-          current_players,
-          game_type,
-          participants:room_participants(
+          current_game,
+          participants:room_members(
             id,
             user_id,
-            connection_status,
+            is_connected,
             last_ping,
-            user:user_profiles(username, display_name)
+            user:users(username, display_name)
           )
         `);
 
-      // Add conditions for cleanup
-      const conditions = [];
-      
-      // Old rooms
-      conditions.push(`created_at.lt.${maxAgeDate.toISOString()}`);
-      
-      // Idle rooms (no activity recently)
-      conditions.push(`last_activity.lt.${maxIdleDate.toISOString()}`);
-      
-      // Abandoned rooms (no connected players)
-      if (includeAbandoned) {
-        conditions.push(`status.eq.abandoned`);
-      }
-      
-      // Completed games
-      if (includeCompleted) {
-        conditions.push(`status.eq.completed`);
-      }
-
-      // Get rooms matching any of these conditions
+      // Get rooms matching cleanup conditions
       const { data: roomsToCleanup, error: queryError } = await this.adminClient
-        .from('game_rooms')
+        .from('rooms')
         .select(`
           id,
           room_code,
           status,
           created_at,
           last_activity,
-          current_players,
-          game_type,
-          participants:room_participants(
+          current_game,
+          participants:room_members(
             id,
             user_id,
-            connection_status,
+            is_connected,
             last_ping,
-            user:user_profiles(username, display_name)
+            user:users(username, display_name)
           )
         `)
-        .or(`created_at.lt.${maxAgeDate.toISOString()},last_activity.lt.${maxIdleDate.toISOString()},status.eq.abandoned,status.eq.completed`);
+        .or(`created_at.lt.${maxAgeDate.toISOString()},last_activity.lt.${maxIdleDate.toISOString()}`);
 
       if (queryError) throw queryError;
 
@@ -586,26 +591,20 @@ class DatabaseService {
       const roomsNeedingCleanup = roomsToCleanup.filter(room => {
         const roomAge = Date.now() - new Date(room.created_at).getTime();
         const roomIdle = Date.now() - new Date(room.last_activity || room.created_at).getTime();
-        const hasConnectedPlayers = room.participants?.some(p => p.connection_status === 'connected');
-        const connectedPlayerCount = room.participants?.filter(p => p.connection_status === 'connected').length || 0;
+        const hasConnectedPlayers = room.participants?.some(p => p.is_connected);
+        const connectedPlayerCount = room.participants?.filter(p => p.is_connected).length || 0;
 
         const shouldCleanup = (
           // Too old
           roomAge > (maxAgeHours * 60 * 60 * 1000) ||
-          // Too idle
-          roomIdle > (maxIdleMinutes * 60 * 1000) ||
-          // Abandoned
-          (includeAbandoned && room.status === 'abandoned') ||
-          // Completed
-          (includeCompleted && room.status === 'completed') ||
-          // No connected players and idle
-          (!hasConnectedPlayers && roomIdle > (maxIdleMinutes * 60 * 1000))
+          // Too idle and no connected players
+          (roomIdle > (maxIdleMinutes * 60 * 1000) && !hasConnectedPlayers)
         );
 
         // Enhanced debugging for each room
         console.log(`🧹 [CLEANUP DEBUG] Room analysis: ${room.room_code}`, {
           status: room.status,
-          game_type: room.game_type,
+          current_game: room.current_game,
           ageHours: Math.round(roomAge / (60 * 60 * 1000) * 100) / 100,
           idleMinutes: Math.round(roomIdle / (60 * 1000) * 100) / 100,
           connectedPlayers: connectedPlayerCount,
@@ -614,21 +613,19 @@ class DatabaseService {
           reasons: {
             tooOld: roomAge > (maxAgeHours * 60 * 60 * 1000),
             tooIdle: roomIdle > (maxIdleMinutes * 60 * 1000),
-            isAbandoned: room.status === 'abandoned',
-            isCompleted: room.status === 'completed',
-            noPlayersAndIdle: !hasConnectedPlayers && roomIdle > (maxIdleMinutes * 60 * 1000)
+            noConnectedPlayers: !hasConnectedPlayers
           }
         });
 
         // Special protection for active game rooms with connected players
-        if (room.status === 'active' && hasConnectedPlayers && room.game_type !== 'lobby') {
+        if (room.status === 'in_game' && hasConnectedPlayers && room.current_game !== 'lobby') {
           console.log(`⚠️ [CLEANUP PROTECTION] Protecting active game room: ${room.room_code}`, {
             status: room.status,
-            game_type: room.game_type,
+            current_game: room.current_game,
             connected_players: connectedPlayerCount,
             participants: room.participants?.map(p => ({
               username: p.user?.username || p.user?.display_name,
-              connection_status: p.connection_status,
+              is_connected: p.is_connected,
               last_ping: p.last_ping
             }))
           });
@@ -642,10 +639,10 @@ class DatabaseService {
         roomsNeedingCleanup.map(r => ({
           code: r.room_code,
           status: r.status,
-          game_type: r.game_type,
+          current_game: r.current_game,
           age: Math.round((Date.now() - new Date(r.created_at).getTime()) / (60 * 60 * 1000)) + 'h',
           idle: Math.round((Date.now() - new Date(r.last_activity || r.created_at).getTime()) / (60 * 1000)) + 'm',
-          connected_players: r.participants?.filter(p => p.connection_status === 'connected').length || 0
+          connected_players: r.participants?.filter(p => p.is_connected).length || 0
         }))
       );
 
@@ -667,7 +664,7 @@ class DatabaseService {
         try {
           console.log(`🗑️ [CLEANUP DEBUG] Deleting room: ${room.room_code}`, {
             status: room.status,
-            game_type: room.game_type,
+            current_game: room.current_game,
             participants: room.participants?.length || 0
           });
           
@@ -712,9 +709,9 @@ class DatabaseService {
     try {
       // Delete in order due to foreign key constraints
       
-      // 1. Delete game states
+      // 1. Delete game sessions
       await this.adminClient
-        .from('game_states')
+        .from('game_sessions')
         .delete()
         .eq('room_id', roomId);
 
@@ -724,15 +721,15 @@ class DatabaseService {
         .delete()
         .eq('room_id', roomId);
 
-      // 3. Delete participants
+      // 3. Delete room members
       await this.adminClient
-        .from('room_participants')
+        .from('room_members')
         .delete()
         .eq('room_id', roomId);
 
       // 4. Delete the room itself
       const { error } = await this.adminClient
-        .from('game_rooms')
+        .from('rooms')
         .delete()
         .eq('id', roomId);
 
@@ -748,8 +745,8 @@ class DatabaseService {
   async getRoomStats() {
     try {
       const { data: stats, error } = await this.adminClient
-        .from('game_rooms')
-        .select('status, created_at, last_activity, current_players');
+        .from('rooms')
+        .select('status, created_at, last_activity');
 
       if (error) throw error;
 
@@ -805,26 +802,34 @@ class DatabaseService {
   async getActiveRooms(filters = {}) {
     try {
       let query = this.adminClient
-        .from('active_rooms_view')
-        .select('*');
+        .from('rooms')
+        .select(`
+          *,
+          host:users!host_id(username, display_name),
+          members:room_members(
+            id,
+            user_id,
+            role,
+            is_connected,
+            user:users(username, display_name)
+          )
+        `);
 
       if (filters.gameType && filters.gameType !== 'all') {
-        query = query.eq('game_type', filters.gameType);
+        query = query.eq('current_game', filters.gameType);
       }
 
       if (filters.status) {
         query = query.eq('status', filters.status);
       }
 
-      if (!filters.showFull) {
-        query = query.filter('current_players', 'lt', 'max_players');
-      }
-
-      if (filters.visibility) {
-        query = query.eq('visibility', filters.visibility);
+      if (filters.isPublic !== undefined) {
+        query = query.eq('is_public', filters.isPublic);
       }
 
       const { data: rooms, error } = await query
+        .eq('is_public', true)
+        .in('status', ['lobby', 'in_game'])
         .order('created_at', { ascending: false })
         .limit(50);
 

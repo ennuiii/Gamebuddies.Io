@@ -169,9 +169,9 @@ app.get('/api/game/rooms/:roomCode/validate', validateApiKey, async (req, res) =
       .from('game_rooms')
       .select(`
         *,
-        participants:room_participants(
+        participants:room_members(
           *,
-          user:user_profiles(*)
+          user:users(*)
         )
       `)
       .eq('room_code', roomCode)

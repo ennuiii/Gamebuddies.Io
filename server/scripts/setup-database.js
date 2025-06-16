@@ -15,295 +15,248 @@ const supabase = createClient(
   }
 );
 
+// Use the V2 schema that matches the current database
 const SQL_SCHEMA = `
 -- Enable necessary extensions
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
--- User profiles (for better user management)
-CREATE TABLE IF NOT EXISTS user_profiles (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    external_id VARCHAR(100) UNIQUE NOT NULL,
-    username VARCHAR(50) NOT NULL,
-    display_name VARCHAR(100) NOT NULL,
+-- Users table
+CREATE TABLE IF NOT EXISTS users (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    username VARCHAR(50) NOT NULL UNIQUE,
+    display_name VARCHAR(100),
     avatar_url TEXT,
-    preferences JSONB DEFAULT '{"notifications": true, "sound": true}',
-    stats JSONB DEFAULT '{"games_played": 0, "games_won": 0}',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    last_seen TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    last_seen TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    is_guest BOOLEAN DEFAULT false,
+    metadata JSONB DEFAULT '{}'
 );
 
--- Enhanced rooms table
-CREATE TABLE IF NOT EXISTS game_rooms (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    room_code VARCHAR(6) UNIQUE NOT NULL,
-    creator_id UUID REFERENCES user_profiles(id),
-    game_type VARCHAR(20) NOT NULL,
-    status VARCHAR(20) DEFAULT 'waiting_for_players',
-    visibility VARCHAR(20) DEFAULT 'public' CHECK (visibility IN ('public', 'private', 'friends_only')),
-    password_hash TEXT,
-    max_players INTEGER DEFAULT 10,
-    current_players INTEGER DEFAULT 0,
-    settings JSONB DEFAULT '{}',
+-- Rooms table  
+CREATE TABLE IF NOT EXISTS rooms (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    room_code VARCHAR(6) NOT NULL UNIQUE,
+    host_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    status VARCHAR(20) NOT NULL DEFAULT 'lobby',
+    current_game VARCHAR(50),
+    game_started_at TIMESTAMP WITH TIME ZONE,
+    game_settings JSONB DEFAULT '{}',
+    max_players INTEGER DEFAULT 10 CHECK (max_players >= 2 AND max_players <= 50),
+    is_public BOOLEAN DEFAULT true,
+    allow_spectators BOOLEAN DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    last_activity TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     metadata JSONB DEFAULT '{}',
-    created_from VARCHAR(20) NOT NULL,
-    game_instance_url TEXT,
-    game_instance_id VARCHAR(100),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    started_at TIMESTAMP WITH TIME ZONE,
-    finished_at TIMESTAMP WITH TIME ZONE,
-    expires_at TIMESTAMP WITH TIME ZONE DEFAULT (NOW() + INTERVAL '24 hours'),
-    last_activity TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    
-    CONSTRAINT valid_game_type CHECK (game_type IN ('ddf', 'schooled', 'chess', 'poker', 'trivia', 'custom', 'lobby')),
-    CONSTRAINT valid_status CHECK (status IN ('waiting_for_players', 'launching', 'active', 'paused', 'finished', 'abandoned'))
+    CONSTRAINT valid_status CHECK (status IN ('lobby', 'in_game', 'returning')),
+    CONSTRAINT valid_game CHECK (current_game IN (NULL, 'ddf', 'schooled', 'chess', 'poker', 'trivia', 'custom'))
 );
 
--- Enhanced participants table
-CREATE TABLE IF NOT EXISTS room_participants (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    room_id UUID REFERENCES game_rooms(id) ON DELETE CASCADE,
-    user_id UUID REFERENCES user_profiles(id),
-    role VARCHAR(20) DEFAULT 'player',
-    team_id INTEGER,
-    joined_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    last_ping TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    connection_status VARCHAR(20) DEFAULT 'connected',
-    is_ready BOOLEAN DEFAULT FALSE,
-    game_specific_data JSONB DEFAULT '{}',
-    
-    UNIQUE(room_id, user_id),
-    CONSTRAINT valid_role CHECK (role IN ('host', 'player', 'spectator', 'bot')),
-    CONSTRAINT valid_connection CHECK (connection_status IN ('connected', 'disconnected', 'reconnecting', 'idle'))
+-- Room members table
+CREATE TABLE IF NOT EXISTS room_members (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    room_id UUID NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    role VARCHAR(20) NOT NULL DEFAULT 'player',
+    is_connected BOOLEAN DEFAULT true,
+    last_ping TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    socket_id VARCHAR(100),
+    is_ready BOOLEAN DEFAULT false,
+    in_game BOOLEAN DEFAULT false,
+    game_data JSONB DEFAULT '{}',
+    joined_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    left_at TIMESTAMP WITH TIME ZONE,
+    CONSTRAINT valid_role CHECK (role IN ('host', 'player', 'spectator')),
+    CONSTRAINT unique_room_member UNIQUE (room_id, user_id)
 );
 
--- Game state synchronization
-CREATE TABLE IF NOT EXISTS game_states (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    room_id UUID REFERENCES game_rooms(id) ON DELETE CASCADE,
-    game_type VARCHAR(20) NOT NULL,
-    state_data JSONB NOT NULL,
-    state_version INTEGER DEFAULT 1,
-    checksum VARCHAR(64),
-    created_by UUID REFERENCES user_profiles(id),
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    
-    UNIQUE(room_id, state_version)
+-- Games table
+CREATE TABLE IF NOT EXISTS games (
+    id VARCHAR(50) PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    display_name VARCHAR(100) NOT NULL,
+    description TEXT,
+    thumbnail_url TEXT,
+    base_url TEXT NOT NULL,
+    is_external BOOLEAN DEFAULT false,
+    requires_api_key BOOLEAN DEFAULT false,
+    min_players INTEGER DEFAULT 2,
+    max_players INTEGER DEFAULT 10,
+    supports_spectators BOOLEAN DEFAULT false,
+    settings_schema JSONB DEFAULT '{}',
+    default_settings JSONB DEFAULT '{}',
+    is_active BOOLEAN DEFAULT true,
+    maintenance_mode BOOLEAN DEFAULT false,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- Enhanced activity log
+-- Room events table
 CREATE TABLE IF NOT EXISTS room_events (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    room_id UUID REFERENCES game_rooms(id) ON DELETE CASCADE,
-    user_id UUID REFERENCES user_profiles(id),
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    room_id UUID NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES users(id) ON DELETE SET NULL,
     event_type VARCHAR(50) NOT NULL,
     event_data JSONB DEFAULT '{}',
-    client_info JSONB DEFAULT '{}',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
--- API keys for game services
+-- Game sessions table
+CREATE TABLE IF NOT EXISTS game_sessions (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    room_id UUID NOT NULL REFERENCES rooms(id) ON DELETE CASCADE,
+    game_id VARCHAR(50) NOT NULL REFERENCES games(id),
+    status VARCHAR(20) NOT NULL DEFAULT 'active',
+    participants JSONB NOT NULL DEFAULT '[]',
+    game_state JSONB DEFAULT '{}',
+    game_result JSONB DEFAULT '{}',
+    started_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    ended_at TIMESTAMP WITH TIME ZONE,
+    metadata JSONB DEFAULT '{}',
+    CONSTRAINT valid_session_status CHECK (status IN ('active', 'completed', 'abandoned'))
+);
+
+-- API keys table
 CREATE TABLE IF NOT EXISTS api_keys (
-    id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    service_name VARCHAR(50) UNIQUE NOT NULL,
-    api_key VARCHAR(100) UNIQUE NOT NULL,
-    permissions JSONB DEFAULT '["create_room", "join_room", "sync_state"]',
-    rate_limit INTEGER DEFAULT 100,
-    is_active BOOLEAN DEFAULT TRUE,
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-    last_used TIMESTAMP WITH TIME ZONE
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    key_hash VARCHAR(255) NOT NULL UNIQUE,
+    game_id VARCHAR(50) REFERENCES games(id) ON DELETE CASCADE,
+    name VARCHAR(100) NOT NULL,
+    description TEXT,
+    permissions JSONB DEFAULT '["read", "write"]',
+    rate_limit INTEGER DEFAULT 1000,
+    is_active BOOLEAN DEFAULT true,
+    last_used TIMESTAMP WITH TIME ZONE,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    expires_at TIMESTAMP WITH TIME ZONE,
+    created_by UUID REFERENCES users(id) ON DELETE SET NULL,
+    metadata JSONB DEFAULT '{}'
 );
 
--- Create indexes for performance
-CREATE INDEX IF NOT EXISTS idx_rooms_status_visibility ON game_rooms(status, visibility) WHERE status IN ('waiting_for_players', 'active');
-CREATE INDEX IF NOT EXISTS idx_rooms_creator ON game_rooms(creator_id);
-CREATE INDEX IF NOT EXISTS idx_rooms_expires ON game_rooms(expires_at) WHERE status NOT IN ('finished', 'abandoned');
-CREATE INDEX IF NOT EXISTS idx_participants_room_user ON room_participants(room_id, user_id);
-CREATE INDEX IF NOT EXISTS idx_participants_connection ON room_participants(room_id, connection_status);
-CREATE INDEX IF NOT EXISTS idx_events_room_time ON room_events(room_id, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_states_room_version ON game_states(room_id, state_version DESC);
-CREATE INDEX IF NOT EXISTS idx_profiles_username ON user_profiles(username);
-CREATE INDEX IF NOT EXISTS idx_profiles_external ON user_profiles(external_id);
+-- API requests table
+CREATE TABLE IF NOT EXISTS api_requests (
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+    api_key_id UUID REFERENCES api_keys(id) ON DELETE SET NULL,
+    method VARCHAR(10) NOT NULL,
+    endpoint TEXT NOT NULL,
+    status_code INTEGER,
+    requested_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    response_time_ms INTEGER,
+    ip_address INET,
+    user_agent TEXT,
+    request_data JSONB DEFAULT '{}',
+    response_data JSONB DEFAULT '{}',
+    error_message TEXT
+);
+
+-- Create indexes
+CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+CREATE INDEX IF NOT EXISTS idx_users_last_seen ON users(last_seen);
+CREATE INDEX IF NOT EXISTS idx_rooms_room_code ON rooms(room_code);
+CREATE INDEX IF NOT EXISTS idx_rooms_status ON rooms(status);
+CREATE INDEX IF NOT EXISTS idx_rooms_host_id ON rooms(host_id);
+CREATE INDEX IF NOT EXISTS idx_rooms_last_activity ON rooms(last_activity);
+CREATE INDEX IF NOT EXISTS idx_room_members_room_id ON room_members(room_id);
+CREATE INDEX IF NOT EXISTS idx_room_members_user_id ON room_members(user_id);
+CREATE INDEX IF NOT EXISTS idx_room_members_connected ON room_members(room_id, is_connected);
+CREATE INDEX IF NOT EXISTS idx_room_events_room_id ON room_events(room_id);
+CREATE INDEX IF NOT EXISTS idx_room_events_created_at ON room_events(created_at);
+CREATE INDEX IF NOT EXISTS idx_game_sessions_room_id ON game_sessions(room_id);
+CREATE INDEX IF NOT EXISTS idx_game_sessions_status ON game_sessions(status);
+CREATE INDEX IF NOT EXISTS idx_api_keys_key_hash ON api_keys(key_hash);
+CREATE INDEX IF NOT EXISTS idx_api_keys_game_id ON api_keys(game_id);
+CREATE INDEX IF NOT EXISTS idx_api_requests_api_key_id ON api_requests(api_key_id);
+CREATE INDEX IF NOT EXISTS idx_api_requests_requested_at ON api_requests(requested_at);
+
+-- Insert default games
+INSERT INTO games (id, name, display_name, description, base_url, min_players, max_players) VALUES
+('ddf', 'Der Dümmste Fliegt', 'Der Dümmste Fliegt', 'A fun trivia game where the dumbest flies!', '/ddf', 2, 10),
+('schooled', 'Schooled', 'Schooled', 'Test your knowledge in this educational game!', '/schooled', 2, 8)
+ON CONFLICT (id) DO NOTHING;
 
 -- Helper functions
 CREATE OR REPLACE FUNCTION generate_room_code()
 RETURNS VARCHAR(6) AS $$
 DECLARE
-    chars TEXT := 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-    result VARCHAR(6) := '';
-    i INTEGER;
-    attempts INTEGER := 0;
+    code VARCHAR(6);
+    exists BOOLEAN;
 BEGIN
     LOOP
-        result := '';
-        FOR i IN 1..6 LOOP
-            result := result || substr(chars, floor(random() * length(chars) + 1)::INTEGER, 1);
-        END LOOP;
-        
-        EXIT WHEN NOT EXISTS(SELECT 1 FROM game_rooms WHERE room_code = result);
-        
-        attempts := attempts + 1;
-        IF attempts > 10 THEN
-            RAISE EXCEPTION 'Could not generate unique room code';
+        code := UPPER(SUBSTRING(MD5(RANDOM()::TEXT) FROM 1 FOR 6));
+        EXISTS (SELECT 1 FROM rooms WHERE room_code = code) INTO exists;
+        IF NOT exists THEN
+            RETURN code;
         END IF;
     END LOOP;
-    
-    RETURN result;
 END;
 $$ LANGUAGE plpgsql;
 
--- User management function (allows duplicate usernames, uses external_id as unique identifier)
-CREATE OR REPLACE FUNCTION get_or_create_user(
-  p_external_id VARCHAR(100),
-  p_username VARCHAR(50),
-  p_display_name VARCHAR(100) DEFAULT NULL
-)
-RETURNS user_profiles
-LANGUAGE plpgsql
-AS $$
+-- Function to clean up inactive rooms
+CREATE OR REPLACE FUNCTION cleanup_inactive_rooms()
+RETURNS INTEGER AS $$
 DECLARE
-  v_user user_profiles;
+    deleted_count INTEGER;
 BEGIN
-  -- Try to find by external_id
-  SELECT * INTO v_user
-  FROM user_profiles
-  WHERE external_id = p_external_id;
-  
-  IF FOUND THEN
-    -- Update last_seen
-    UPDATE user_profiles
-    SET last_seen = NOW()
-    WHERE id = v_user.id;
-    
-    RETURN v_user;
-  END IF;
-  
-  -- Create new user
-  INSERT INTO user_profiles (external_id, username, display_name)
-  VALUES (
-    p_external_id,
-    p_username,
-    COALESCE(p_display_name, p_username)
-  )
-  RETURNING * INTO v_user;
-  
-  RETURN v_user;
-END;
-$$;
-
--- Auto-update participant count
-CREATE OR REPLACE FUNCTION update_participant_count()
-RETURNS TRIGGER AS $$
-BEGIN
-    IF TG_OP = 'INSERT' THEN
-        UPDATE game_rooms 
-        SET current_players = (
-            SELECT COUNT(*) FROM room_participants 
-            WHERE room_id = NEW.room_id 
-            AND connection_status != 'disconnected'
+    WITH deleted AS (
+        DELETE FROM rooms
+        WHERE (
+            (status = 'lobby' AND last_activity < NOW() - INTERVAL '1 hour')
+            OR
+            (status = 'in_game' AND last_activity < NOW() - INTERVAL '2 hours')
+            OR
+            (created_at < NOW() - INTERVAL '24 hours')
         )
-        WHERE id = NEW.room_id;
-    ELSIF TG_OP = 'DELETE' THEN
-        UPDATE game_rooms 
-        SET current_players = (
-            SELECT COUNT(*) FROM room_participants 
-            WHERE room_id = OLD.room_id 
-            AND connection_status != 'disconnected'
+        AND NOT EXISTS (
+            SELECT 1 FROM room_members 
+            WHERE room_id = rooms.id 
+            AND is_connected = true
         )
-        WHERE id = OLD.room_id;
-    ELSIF TG_OP = 'UPDATE' THEN
-        IF OLD.connection_status != NEW.connection_status THEN
-            UPDATE game_rooms 
-            SET current_players = (
-                SELECT COUNT(*) FROM room_participants 
-                WHERE room_id = NEW.room_id 
-                AND connection_status != 'disconnected'
-            )
-            WHERE id = NEW.room_id;
-        END IF;
-    END IF;
-    RETURN NULL;
-END;
-$$ LANGUAGE plpgsql;
-
--- Create trigger for participant count updates
-DROP TRIGGER IF EXISTS update_room_participants_count ON room_participants;
-CREATE TRIGGER update_room_participants_count
-AFTER INSERT OR DELETE OR UPDATE ON room_participants
-FOR EACH ROW EXECUTE FUNCTION update_participant_count();
-
--- Cleanup stale connections
-CREATE OR REPLACE FUNCTION cleanup_stale_connections()
-RETURNS void AS $$
-BEGIN
-    -- Mark connections as disconnected if no ping for 5 minutes
-    UPDATE room_participants
-    SET connection_status = 'disconnected'
-    WHERE connection_status = 'connected'
-    AND last_ping < NOW() - INTERVAL '5 minutes';
-    
-    -- Abandon rooms with no activity for 24 hours
-    UPDATE game_rooms
-    SET status = 'abandoned'
-    WHERE status IN ('waiting_for_players', 'active')
-    AND last_activity < NOW() - INTERVAL '24 hours';
-END;
-$$ LANGUAGE plpgsql;
-
--- Create materialized view for active rooms (performance optimization)
-CREATE MATERIALIZED VIEW IF NOT EXISTS active_rooms_view AS
-SELECT 
-  r.*,
-  COUNT(DISTINCT p.user_id) as participant_count,
-  json_agg(
-    json_build_object(
-      'user_id', p.user_id,
-      'username', u.username,
-      'role', p.role
+        RETURNING id
     )
-  ) FILTER (WHERE p.user_id IS NOT NULL) as participants
-FROM game_rooms r
-LEFT JOIN room_participants p ON r.id = p.room_id AND p.connection_status != 'disconnected'
-LEFT JOIN user_profiles u ON p.user_id = u.id
-WHERE r.status IN ('waiting_for_players', 'active')
-GROUP BY r.id;
-
--- Create index for materialized view
-CREATE UNIQUE INDEX IF NOT EXISTS idx_active_rooms_code ON active_rooms_view(room_code);
-
--- Function to refresh materialized view
-CREATE OR REPLACE FUNCTION refresh_active_rooms()
-RETURNS void AS $$
-BEGIN
-  REFRESH MATERIALIZED VIEW CONCURRENTLY active_rooms_view;
+    SELECT COUNT(*) INTO deleted_count FROM deleted;
+    
+    RETURN deleted_count;
 END;
 $$ LANGUAGE plpgsql;
+
+-- Create a system user for automated actions
+INSERT INTO users (id, username, display_name, is_guest)
+VALUES ('00000000-0000-0000-0000-000000000000', 'system', 'System', false)
+ON CONFLICT (id) DO NOTHING;
 `;
 
 async function setupDatabase() {
-  console.log('🚀 Setting up GameBuddies database schema...');
+  console.log('🚀 Setting up GameBuddies V2 database schema...');
   
   try {
-    // Execute the schema
-    const { error } = await supabase.rpc('exec_sql', { 
-      sql: SQL_SCHEMA 
-    });
+    console.log('📋 Executing SQL schema...');
     
-    if (error) {
-      // If rpc doesn't work, try direct execution
-      console.log('Direct SQL execution...');
-      const statements = SQL_SCHEMA.split(';').filter(stmt => stmt.trim());
-      
-      for (const statement of statements) {
-        if (statement.trim()) {
-          console.log('Executing:', statement.substring(0, 50) + '...');
-          const { error: execError } = await supabase
-            .from('_temp_sql')
-            .select('*')
-            .limit(0); // This will fail but test connection
+    // Split schema into individual statements
+    const statements = SQL_SCHEMA
+      .split(';')
+      .map(stmt => stmt.trim())
+      .filter(stmt => stmt.length > 0);
+    
+    console.log(`📊 Found ${statements.length} SQL statements to execute`);
+    
+    // Execute each statement
+    for (let i = 0; i < statements.length; i++) {
+      const statement = statements[i];
+      if (statement.length > 0) {
+        try {
+          console.log(`⚡ Executing statement ${i + 1}/${statements.length}: ${statement.substring(0, 50)}...`);
           
-          if (execError && !execError.message.includes('does not exist')) {
-            throw execError;
+          // Use raw query execution for DDL statements
+          const { error } = await supabase.rpc('exec_sql', { 
+            query: statement + ';'
+          });
+          
+          if (error) {
+            console.warn(`⚠️  Statement ${i + 1} failed, but continuing...`, error.message);
           }
+        } catch (execError) {
+          console.warn(`⚠️  Statement ${i + 1} failed, but continuing...`, execError.message);
         }
       }
     }
@@ -321,45 +274,67 @@ async function setupDatabase() {
     console.log('\n📋 Manual Setup Instructions:');
     console.log('1. Go to your Supabase dashboard');
     console.log('2. Navigate to SQL Editor');
-    console.log('3. Copy and paste the schema from scripts/database-schema.sql');
+    console.log('3. Copy and paste the V2 schema from GAMEBUDDIES_V2_SQL_SCHEMA.sql');
     console.log('4. Run the SQL script manually');
-    
-    // Write schema to file for manual execution
-    fs.writeFileSync(
-      path.join(__dirname, 'database-schema.sql'), 
-      SQL_SCHEMA
-    );
-    console.log('5. Schema saved to scripts/database-schema.sql for manual execution');
   }
 }
 
 async function setupInitialAPIKeys() {
   const { v4: uuidv4 } = require('uuid');
   
+  console.log('🔑 Setting up initial API keys...');
+  
   const apiKeys = [
     {
       service_name: 'ddf',
       api_key: 'gb_ddf_' + uuidv4().replace(/-/g, ''),
+      game_id: 'ddf',
+      name: 'DDF Game API Key',
+      description: 'API key for Der Dümmste Fliegt game integration',
       permissions: ['create_room', 'join_room', 'sync_state'],
-      rate_limit: 100
+      rate_limit: 1000
     },
     {
-      service_name: 'schooled',
+      service_name: 'schooled', 
       api_key: 'gb_schooled_' + uuidv4().replace(/-/g, ''),
+      game_id: 'schooled',
+      name: 'Schooled Game API Key',
+      description: 'API key for Schooled game integration',
       permissions: ['create_room', 'join_room', 'sync_state'],
-      rate_limit: 100
+      rate_limit: 1000
     }
   ];
   
   for (const keyData of apiKeys) {
-    const { error } = await supabase
-      .from('api_keys')
-      .upsert(keyData, { onConflict: 'service_name' });
-    
-    if (error) {
-      console.log(`⚠️  Could not create API key for ${keyData.service_name}:`, error.message);
-    } else {
-      console.log(`✅ API key created for ${keyData.service_name}: ${keyData.api_key}`);
+    try {
+      // Hash the API key
+      const keyHash = require('crypto')
+        .createHash('sha256')
+        .update(keyData.api_key)
+        .digest('hex');
+      
+      const { error } = await supabase
+        .from('api_keys')
+        .upsert({
+          key_hash: keyHash,
+          game_id: keyData.game_id,
+          name: keyData.name,
+          description: keyData.description,
+          permissions: keyData.permissions,
+          rate_limit: keyData.rate_limit,
+          is_active: true
+        }, { 
+          onConflict: 'key_hash'
+        });
+      
+      if (error) {
+        console.log(`⚠️  Could not create API key for ${keyData.service_name}:`, error.message);
+      } else {
+        console.log(`✅ API key created for ${keyData.service_name}: ${keyData.api_key}`);
+        console.log(`   Hash: ${keyHash}`);
+      }
+    } catch (keyError) {
+      console.error(`❌ Error creating API key for ${keyData.service_name}:`, keyError);
     }
   }
 }

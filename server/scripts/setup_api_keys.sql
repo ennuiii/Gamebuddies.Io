@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS api_keys (
     is_active BOOLEAN DEFAULT true,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
     last_used TIMESTAMP WITH TIME ZONE,
-    created_by UUID REFERENCES user_profiles(id)
+    created_by UUID REFERENCES users(id)
 );
 
 -- Create api_requests table for logging API usage
