@@ -27,16 +27,16 @@ const HomePage = () => {
     const joinCode = searchParams.get('join');
     const rejoinCode = searchParams.get('rejoin');
     const autoRejoinCode = searchParams.get('autorejoin');
-    const autoRejoinName = searchParams.get('name');
-    const autoRejoinHost = searchParams.get('host') === 'true';
+    const playerNameFromURL = searchParams.get('name');
+    const hostFromURL = searchParams.get('host') === 'true';
     const fromGameFlag = searchParams.get('fromGame') === 'true';
     
     console.log('🔄 [HOMEPAGE DEBUG] URL parameters detected:', {
       joinCode,
       rejoinCode,
       autoRejoinCode,
-      autoRejoinName,
-      autoRejoinHost,
+      playerNameFromURL,
+      hostFromURL,
       fromGameFlag,
       fullURL: window.location.href,
       searchParams: Object.fromEntries(searchParams.entries())
@@ -53,39 +53,57 @@ const HomePage = () => {
     
     console.log('🔄 [HOMEPAGE DEBUG] GameBuddies session storage:', sessionData);
     
-    if (autoRejoinCode && autoRejoinName) {
-      // Automatic rejoin from GM-initiated return
-      console.log('🔄 [HOMEPAGE DEBUG] Auto-rejoining room:', {
+    if (autoRejoinCode && playerNameFromURL) {
+      // Automatic rejoin from GM-initiated return (original flow)
+      console.log('🔄 [HOMEPAGE DEBUG] Auto-rejoining room (original flow):', {
         code: autoRejoinCode,
-        name: autoRejoinName,
-        isHost: autoRejoinHost,
-        source: 'GM-initiated return'
+        name: playerNameFromURL,
+        isHost: hostFromURL,
+        source: 'GM-initiated return (autorejoin)'
       });
       
       setCurrentRoom({
         roomCode: autoRejoinCode,
-        playerName: autoRejoinName,
-        isHost: autoRejoinHost
+        playerName: playerNameFromURL,
+        isHost: hostFromURL
       });
-      setPlayerName(autoRejoinName);
+      setPlayerName(playerNameFromURL);
       setInLobby(true);
       // Clear the URL parameters
       navigate('/', { replace: true });
-    } else if (rejoinCode && fromGameFlag) {
+    } else if (rejoinCode && fromGameFlag && playerNameFromURL) {
       // Special case: returning from a game - direct rejoin without modal
       console.log('🔄 [HOMEPAGE DEBUG] Returning from game - direct rejoin:', {
         rejoinCode,
-        playerName: autoRejoinName,
-        isHost: autoRejoinHost,
-        source: 'Game return'
+        playerName: playerNameFromURL,
+        isHost: hostFromURL,
+        source: 'Game return with fromGame flag'
       });
       
       setCurrentRoom({
         roomCode: rejoinCode,
-        playerName: autoRejoinName,
-        isHost: autoRejoinHost
+        playerName: playerNameFromURL,
+        isHost: hostFromURL
       });
-      setPlayerName(autoRejoinName);
+      setPlayerName(playerNameFromURL);
+      setInLobby(true);
+      // Clear the URL parameters
+      navigate('/', { replace: true });
+    } else if (rejoinCode && playerNameFromURL && !fromGameFlag) {  
+      // Direct rejoin with name parameter (skip modal)
+      console.log('🔄 [HOMEPAGE DEBUG] Direct rejoin with name parameter:', {
+        rejoinCode,
+        playerName: playerNameFromURL,
+        isHost: hostFromURL,
+        source: 'Direct rejoin with name'
+      });
+      
+      setCurrentRoom({
+        roomCode: rejoinCode,
+        playerName: playerNameFromURL,
+        isHost: hostFromURL
+      });
+      setPlayerName(playerNameFromURL);
       setInLobby(true);
       // Clear the URL parameters
       navigate('/', { replace: true });
