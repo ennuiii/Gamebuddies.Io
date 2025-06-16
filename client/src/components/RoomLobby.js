@@ -3,6 +3,7 @@ import io from 'socket.io-client';
 import GamePicker from './GamePicker';
 import { useRealtimeSubscription } from '../utils/useRealtimeSubscription';
 import { getSupabaseClient } from '../utils/supabase';
+import HeartbeatClient from '../utils/heartbeat';
 import './RoomLobby.css';
 
 // Track active connection to prevent duplicates in StrictMode
@@ -25,6 +26,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
   const roomCodeRef = useRef(roomCode);
   const playerNameRef = useRef(playerName);
   const roomIdRef = useRef(null);
+  const heartbeatClientRef = useRef(null);
 
   // Realtime subscription for room members status updates
   useRealtimeSubscription({
@@ -197,6 +199,10 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       
       setConnectionStatus('connected');
       setSocket(newSocket);
+      
+      // Initialize heartbeat client
+      heartbeatClientRef.current = new HeartbeatClient(newSocket);
+      heartbeatClientRef.current.start();
       
       // Join the room
       console.log('📤 [LOBBY DEBUG] Sending joinRoom event...');
@@ -591,6 +597,12 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
     // Cleanup function
     return () => {
       console.log('🧹 Cleaning up socket connection');
+      
+      // Stop heartbeat
+      if (heartbeatClientRef.current) {
+        heartbeatClientRef.current.stop();
+        heartbeatClientRef.current = null;
+      }
       
       if (newSocket) {
         // Remove event listeners with specific handlers

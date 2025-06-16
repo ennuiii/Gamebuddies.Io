@@ -7,6 +7,7 @@ const { createProxyMiddleware } = require('http-proxy-middleware');
 const http = require('http');
 const socketIo = require('socket.io');
 const { db } = require('./lib/supabase');
+const HeartbeatManager = require('./lib/heartbeat');
 require('dotenv').config();
 
 const app = express();
@@ -679,6 +680,9 @@ app.get('/api/debug/storage', (req, res) => {
 // Track active connections
 const activeConnections = new Map();
 
+// Initialize heartbeat manager
+const heartbeatManager = new HeartbeatManager(db, io);
+
 io.on('connection', async (socket) => {
   console.log(`🔌 User connected: ${socket.id}`);
   
@@ -743,6 +747,9 @@ io.on('connection', async (socket) => {
         connection.userId = user.id;
         connection.roomId = room.id;
       }
+
+      // Register heartbeat
+      heartbeatManager.registerHeartbeat(socket.id, user.id, room.id, room.room_code);
 
       // Send success response
       socket.emit('roomCreated', {
@@ -1058,6 +1065,9 @@ io.on('connection', async (socket) => {
       // Join socket room
       console.log(`🔗 [REJOINING DEBUG] Joining socket room: ${data.roomCode}`);
       socket.join(data.roomCode);
+
+      // Register heartbeat
+      heartbeatManager.registerHeartbeat(socket.id, user.id, room.id, data.roomCode);
 
       // Get updated room data
       console.log(`🔄 [REJOINING DEBUG] Fetching updated room data...`);
@@ -1843,10 +1853,18 @@ io.on('connection', async (socket) => {
     }
   });
 
+  // Handle heartbeat ping
+  socket.on('heartbeat', () => {
+    heartbeatManager.updateHeartbeat(socket.id);
+  });
+
   // Handle disconnection
   socket.on('disconnect', async () => {
     try {
       console.log(`🔌 User disconnected: ${socket.id}`);
+      
+      // Remove from heartbeat tracking
+      const heartbeatData = heartbeatManager.removeHeartbeat(socket.id);
       
       const connection = activeConnections.get(socket.id);
       if (connection?.userId) {
@@ -2038,6 +2056,23 @@ app.get('/api/admin/room-stats', async (req, res) => {
     });
   } catch (error) {
     console.error('❌ Room stats API error:', error);
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
+
+// Heartbeat stats endpoint
+app.get('/api/admin/heartbeat-stats', (req, res) => {
+  try {
+    const stats = heartbeatManager.getStats();
+    res.json({
+      success: true,
+      stats
+    });
+  } catch (error) {
+    console.error('❌ Heartbeat stats error:', error);
     res.status(500).json({
       success: false,
       error: error.message
