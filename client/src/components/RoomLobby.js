@@ -25,6 +25,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
   // Use refs for values that shouldn't trigger re-renders
   const roomCodeRef = useRef(roomCode);
   const playerNameRef = useRef(playerName);
+  const currentUserIdRef = useRef(null);
   const roomIdRef = useRef(null);
   const heartbeatClientRef = useRef(null);
 
@@ -287,11 +288,13 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
         console.log(`🔍 [CLIENT DEBUG] Initial host status: ${playerNameRef.current} is host: ${currentUser.isHost}`);
         console.log(`🔍 [LOBBY DEBUG] Host status update:`, {
           playerName: playerNameRef.current,
+          playerId: currentUser.id,
           wasHost: currentIsHost,
           nowHost: currentUser.isHost,
           changed: currentIsHost !== currentUser.isHost
         });
         setCurrentIsHost(currentUser.isHost);
+        currentUserIdRef.current = currentUser.id; // Store user ID for session storage
       }
       
       setIsLoading(false);
@@ -305,9 +308,15 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       
       // Ensure host status is maintained when players join
       const currentUser = data.players?.find(p => p.name === playerNameRef.current);
-      if (currentUser && currentUser.isHost !== currentIsHost) {
-        console.log(`🔍 [CLIENT DEBUG] Host status sync: ${playerNameRef.current} is host: ${currentUser.isHost}`);
-        setCurrentIsHost(currentUser.isHost);
+      if (currentUser) {
+        if (currentUser.isHost !== currentIsHost) {
+          console.log(`🔍 [CLIENT DEBUG] Host status sync: ${playerNameRef.current} is host: ${currentUser.isHost}`);
+          setCurrentIsHost(currentUser.isHost);
+        }
+        // Update user ID if not already set
+        if (!currentUserIdRef.current) {
+          currentUserIdRef.current = currentUser.id;
+        }
       }
     };
 
@@ -382,6 +391,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       const sessionData = {
         roomCode: roomCodeRef.current,
         playerName: playerNameRef.current,
+        playerId: currentUserIdRef.current,
         isHost: data.isHost.toString(),
         gameType: data.gameType,
         returnUrl: window.location.origin
@@ -391,6 +401,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       
       sessionStorage.setItem('gamebuddies_roomCode', sessionData.roomCode);
       sessionStorage.setItem('gamebuddies_playerName', sessionData.playerName);
+      sessionStorage.setItem('gamebuddies_playerId', sessionData.playerId);
       sessionStorage.setItem('gamebuddies_isHost', sessionData.isHost);
       sessionStorage.setItem('gamebuddies_gameType', sessionData.gameType);
       sessionStorage.setItem('gamebuddies_returnUrl', sessionData.returnUrl);
@@ -399,6 +410,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       const verification = {
         roomCode: sessionStorage.getItem('gamebuddies_roomCode'),
         playerName: sessionStorage.getItem('gamebuddies_playerName'),
+        playerId: sessionStorage.getItem('gamebuddies_playerId'),
         isHost: sessionStorage.getItem('gamebuddies_isHost'),
         gameType: sessionStorage.getItem('gamebuddies_gameType'),
         returnUrl: sessionStorage.getItem('gamebuddies_returnUrl')

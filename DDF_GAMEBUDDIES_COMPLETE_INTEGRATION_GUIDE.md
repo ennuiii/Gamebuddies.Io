@@ -41,6 +41,7 @@ Players arrive with:
 | `room` | 6-character room code | `ABC123` | Always uppercase |
 | `players` | Total players in room | `4` | Number string |
 | `name` | Player's display name | `John%20Doe` | URL encoded |
+| `playerId` | GameBuddies user UUID | `525d340d-ae36-4544-810a-45ca348a96e6` | Use for API calls |
 
 ### Optional Parameters
 
@@ -52,10 +53,10 @@ Players arrive with:
 
 ```bash
 # Gamemaster/Host
-https://ddf.render.com/?room=ABC123&players=4&name=Alice&role=gm
+https://ddf.render.com/?room=ABC123&players=4&name=Alice&playerId=525d340d-ae36-4544-810a-45ca348a96e6&role=gm
 
 # Regular Player
-https://ddf.render.com/?room=ABC123&players=4&name=Bob
+https://ddf.render.com/?room=ABC123&players=4&name=Bob&playerId=5d8ce922-8fce-421d-91ce-29a8613c9432
 ```
 
 ---
@@ -68,6 +69,7 @@ GameBuddies also sets session storage values before redirecting:
 // Available in sessionStorage
 sessionStorage.getItem('gamebuddies_roomCode')    // "ABC123"
 sessionStorage.getItem('gamebuddies_playerName')  // "John Doe"
+sessionStorage.getItem('gamebuddies_playerId')    // "525d340d-ae36-4544-810a-45ca348a96e6"
 sessionStorage.getItem('gamebuddies_isHost')      // "true" or "false"
 sessionStorage.getItem('gamebuddies_gameType')    // "ddf"
 sessionStorage.getItem('gamebuddies_returnUrl')   // "https://gamebuddies.io"
@@ -98,6 +100,7 @@ class GameBuddiesIntegration {
     this.roomCode = urlParams.get('room');
     this.playerName = decodeURIComponent(urlParams.get('name') || '');
     this.playerCount = parseInt(urlParams.get('players') || '0');
+    this.playerId = urlParams.get('playerId'); // GameBuddies user UUID
     
     // Optional parameters
     this.isHost = urlParams.get('role') === 'gm';
@@ -117,7 +120,7 @@ class GameBuddiesIntegration {
     this.returnUrl = sessionStorage.getItem('gamebuddies_returnUrl') || 'https://gamebuddies.io';
     
     // Validate we have required data
-    if (!this.roomCode || !this.playerName) {
+    if (!this.roomCode || !this.playerName || !this.playerId) {
       console.error('Missing GameBuddies integration data');
       this.handleMissingData();
     }
@@ -126,6 +129,7 @@ class GameBuddiesIntegration {
     console.log('GameBuddies Integration:', {
       roomCode: this.roomCode,
       playerName: this.playerName,
+      playerId: this.playerId,
       playerCount: this.playerCount,
       isHost: this.isHost,
       returnUrl: this.returnUrl
@@ -236,6 +240,7 @@ class GameBuddiesIntegration {
     return {
       roomCode: this.roomCode,
       name: this.playerName,
+      playerId: this.playerId,
       isHost: this.isHost,
       playerCount: this.playerCount
     };
@@ -245,7 +250,7 @@ class GameBuddiesIntegration {
    * Check if this is a valid GameBuddies session
    */
   isValidSession() {
-    return !!(this.roomCode && this.playerName);
+    return !!(this.roomCode && this.playerName && this.playerId);
   }
 }
 
@@ -331,6 +336,125 @@ document.getElementById('leave-game-btn')?.addEventListener('click', () => {
 
 ---
 
+## Player Status API Integration
+
+### Important: Use the playerId for API calls!
+
+The `playerId` parameter contains the GameBuddies user UUID that you MUST use when making API calls to update player status. Do NOT generate your own player IDs.
+
+```javascript
+// ✅ CORRECT - Use the playerId from URL parameters
+const urlParams = new URLSearchParams(window.location.search);
+const playerId = urlParams.get('playerId'); // e.g., "525d340d-ae36-4544-810a-45ca348a96e6"
+
+// Update player status using the correct GameBuddies user ID
+await fetch(`https://gamebuddies.io/api/game/rooms/${roomCode}/players/${playerId}/status`, {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'X-API-Key': 'your_api_key'
+  },
+  body: JSON.stringify({
+    status: 'connected',
+    location: 'game',
+    reason: 'Player joined DDF game'
+  })
+});
+
+// ❌ WRONG - Don't generate your own IDs
+const wrongId = `player_${Date.now()}`; // This will fail!
+```
+
+### Example Integration with Status Updates
+
+```javascript
+class DDFGameBuddiesIntegration extends GameBuddiesIntegration {
+  constructor() {
+    super();
+    this.apiKey = 'your_ddf_api_key_here';
+    this.gamebuddiesUrl = 'https://gamebuddies.io';
+  }
+
+  // Call this when player connects to your game
+  async notifyPlayerConnected() {
+    if (!this.playerId) {
+      console.error('No playerId available for API call');
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `${this.gamebuddiesUrl}/api/game/rooms/${this.roomCode}/players/${this.playerId}/status`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': this.apiKey
+          },
+          body: JSON.stringify({
+            status: 'connected',
+            location: 'game',
+            reason: 'joined_game',
+            gameData: {
+              playerName: this.playerName,
+              connectedAt: new Date().toISOString()
+            }
+          })
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      console.log('✅ Player status updated: connected');
+    } catch (error) {
+      console.error('❌ Failed to update player status:', error);
+    }
+  }
+
+  // Call this when player disconnects from your game
+  async notifyPlayerDisconnected(reason = 'left_game') {
+    if (!this.playerId) {
+      console.error('No playerId available for API call');
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `${this.gamebuddiesUrl}/api/game/rooms/${this.roomCode}/players/${this.playerId}/status`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-API-Key': this.apiKey
+          },
+          body: JSON.stringify({
+            status: 'disconnected',
+            location: 'disconnected',
+            reason: reason,
+            gameData: {
+              playerName: this.playerName,
+              disconnectedAt: new Date().toISOString()
+            }
+          })
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      console.log('✅ Player status updated: disconnected');
+    } catch (error) {
+      console.error('❌ Failed to update player status:', error);
+    }
+  }
+}
+```
+
+---
+
 ## API Endpoints
 
 ### Return to Lobby Endpoint
@@ -369,6 +493,7 @@ document.getElementById('leave-game-btn')?.addEventListener('click', () => {
 - [ ] URL parameters are parsed correctly
 - [ ] Player name is decoded properly (handles spaces, special chars)
 - [ ] Room code is captured
+- [ ] Player ID (UUID) is captured
 - [ ] Host role is identified
 - [ ] Session storage values are available
 
@@ -394,6 +519,7 @@ document.getElementById('leave-game-btn')?.addEventListener('click', () => {
 - [ ] Direct navigation (no GameBuddies data) redirects appropriately
 - [ ] Network errors show fallback behavior
 - [ ] Special characters in names work correctly
+- [ ] API calls use correct GameBuddies user ID (not generated IDs)
 
 ---
 
@@ -411,6 +537,18 @@ document.getElementById('leave-game-btn')?.addEventListener('click', () => {
 ### Issue: Host controls showing for all players
 **Solution:** Check for `role=gm` parameter, not just any role value.
 
+### Issue: API calls failing with "Player not found in room"
+**Solution:** Make sure you're using the `playerId` parameter from the URL, not generating your own player IDs. The playerId must be the exact GameBuddies user UUID.
+
+```javascript
+// ❌ WRONG - Don't generate IDs
+const playerId = `player_${socket.id}`;
+
+// ✅ CORRECT - Use the URL parameter
+const urlParams = new URLSearchParams(window.location.search);
+const playerId = urlParams.get('playerId');
+```
+
 ---
 
 ## Quick Reference
@@ -419,6 +557,7 @@ document.getElementById('leave-game-btn')?.addEventListener('click', () => {
 // Get integration data
 const roomCode = gamebuddies.roomCode;        // "ABC123"
 const playerName = gamebuddies.playerName;    // "John Doe"
+const playerId = gamebuddies.playerId;        // "525d340d-ae36-4544-810a-45ca348a96e6"
 const isHost = gamebuddies.isHost;            // true/false
 const playerCount = gamebuddies.playerCount;  // 4
 
