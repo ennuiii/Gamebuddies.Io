@@ -17,6 +17,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
   const [currentIsHost, setCurrentIsHost] = useState(isHost); // State for re-rendering
   const [roomStatus, setRoomStatus] = useState('waiting_for_players');
   const [showStatusMenu, setShowStatusMenu] = useState(false);
+  const [isStartingGame, setIsStartingGame] = useState(false);
   
   // Use refs for values that shouldn't trigger re-renders
   const roomCodeRef = useRef(roomCode);
@@ -35,22 +36,37 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
     
     // Determine server URL based on environment
     const getServerUrl = () => {
+      console.log('🔍 [LOBBY DEBUG] Determining server URL...');
+      console.log('🔍 [LOBBY DEBUG] window.location.hostname:', window.location.hostname);
+      console.log('🔍 [LOBBY DEBUG] window.location.origin:', window.location.origin);
+      console.log('🔍 [LOBBY DEBUG] REACT_APP_SERVER_URL:', process.env.REACT_APP_SERVER_URL);
+      
       if (process.env.REACT_APP_SERVER_URL) {
+        console.log('🔍 [LOBBY DEBUG] Using REACT_APP_SERVER_URL:', process.env.REACT_APP_SERVER_URL);
         return process.env.REACT_APP_SERVER_URL;
+      }
+      
+      // If running on production gamebuddies.io domain
+      if (window.location.hostname === 'gamebuddies.io' || window.location.hostname.includes('gamebuddies')) {
+        console.log('🔍 [LOBBY DEBUG] Detected GameBuddies production domain, using origin:', window.location.origin);
+        return window.location.origin;
       }
       
       // If running on Render.com (check for .onrender.com domain)
       if (window.location.hostname.includes('onrender.com')) {
+        console.log('🔍 [LOBBY DEBUG] Detected Render.com, using origin:', window.location.origin);
         return window.location.origin;
       }
       
-      // If running on any production domain (not localhost)
+      // If running on any other production domain (not localhost)
       if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+        console.log('🔍 [LOBBY DEBUG] Detected other production domain, using origin:', window.location.origin);
         return window.location.origin;
       }
       
-      // For local development, connect to Render.com server
-      return 'https://gamebuddies-io.onrender.com';
+      // For local development, connect to production server
+      console.log('🔍 [LOBBY DEBUG] Local development, using production server');
+      return 'https://gamebuddies.io';
     };
     
     const newSocket = io(getServerUrl(), {
@@ -238,6 +254,9 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       }
       
       console.log('🎮 [LOBBY DEBUG] Redirecting to game:', data.gameUrl);
+      
+      // Reset starting state since game is actually starting
+      setIsStartingGame(false);
       
       // Redirect to game
       window.location.href = data.gameUrl;
@@ -481,6 +500,12 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
   };
 
   const handleStartGame = () => {
+    // Prevent multiple rapid clicks
+    if (isStartingGame) {
+      console.log('🚀 [START GAME DEBUG] Game start already in progress, ignoring click');
+      return;
+    }
+    
     if (socket && currentIsHost) {
       console.log('🚀 [START GAME DEBUG] Starting game:', {
         socketConnected: socket.connected,
@@ -489,6 +514,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
         playerName: playerNameRef.current,
         isHost: currentIsHost,
         connectionStatus,
+        isStartingGame,
         timestamp: new Date().toISOString()
       });
       
@@ -498,13 +524,22 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
         return;
       }
       
+      setIsStartingGame(true);
+      console.log('📤 [START GAME DEBUG] Emitting startGame event');
       socket.emit('startGame', { roomCode: roomCodeRef.current });
+      
+      // Reset after a delay to allow for game start
+      setTimeout(() => {
+        setIsStartingGame(false);
+      }, 5000);
+      
     } else {
       console.error('❌ [START GAME DEBUG] Cannot start game:', {
         hasSocket: !!socket,
         isHost: currentIsHost,
         socketConnected: socket?.connected,
-        connectionStatus
+        connectionStatus,
+        isStartingGame
       });
       
       if (!currentIsHost) {
@@ -791,9 +826,9 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
                   <button 
                     onClick={handleStartGame}
                     className="start-game-button"
-                    disabled={!socket || connectionStatus !== 'connected'}
+                    disabled={!socket || connectionStatus !== 'connected' || isStartingGame}
                   >
-                    Start Game
+                    {isStartingGame ? 'Starting Game...' : 'Start Game'}
                   </button>
                   <button 
                     onClick={() => setSelectedGame(null)}

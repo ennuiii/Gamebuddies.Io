@@ -33,6 +33,7 @@ const GameBuddiesReturnHandler = () => {
     const getServerUrl = () => {
       console.log('🔍 [RETURN HANDLER DEBUG] Determining server URL...');
       console.log('🔍 [RETURN HANDLER DEBUG] window.location.hostname:', window.location.hostname);
+      console.log('🔍 [RETURN HANDLER DEBUG] window.location.origin:', window.location.origin);
       console.log('🔍 [RETURN HANDLER DEBUG] REACT_APP_SERVER_URL:', process.env.REACT_APP_SERVER_URL);
       
       if (process.env.REACT_APP_SERVER_URL) {
@@ -40,18 +41,22 @@ const GameBuddiesReturnHandler = () => {
         return process.env.REACT_APP_SERVER_URL;
       }
       
-      // If running on Render.com
-      if (window.location.hostname.includes('onrender.com')) {
-        const serverUrl = window.location.origin.replace(/\/[^/]*$/, '').replace(/\/games\/[^/]*$/, '');
-        console.log('🔍 [RETURN HANDLER DEBUG] Detected Render.com, using origin:', serverUrl);
-        return serverUrl;
+      // If running on production gamebuddies.io domain
+      if (window.location.hostname === 'gamebuddies.io' || window.location.hostname.includes('gamebuddies')) {
+        console.log('🔍 [RETURN HANDLER DEBUG] Detected GameBuddies production domain, using origin:', window.location.origin);
+        return window.location.origin;
       }
       
-      // If running on any production domain (not localhost)
+      // If running on Render.com
+      if (window.location.hostname.includes('onrender.com')) {
+        console.log('🔍 [RETURN HANDLER DEBUG] Detected Render.com, using origin:', window.location.origin);
+        return window.location.origin;
+      }
+      
+      // If running on any other production domain (not localhost)
       if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-        const serverUrl = window.location.origin.replace(/\/[^/]*$/, '').replace(/\/games\/[^/]*$/, '');
-        console.log('🔍 [RETURN HANDLER DEBUG] Detected production domain, using origin:', serverUrl);
-        return serverUrl;
+        console.log('🔍 [RETURN HANDLER DEBUG] Detected other production domain, using origin:', window.location.origin);
+        return window.location.origin;
       }
       
       // For local development, connect to local GameBuddies server
