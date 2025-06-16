@@ -576,6 +576,25 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
     
     if (!room) {
       console.log(`❌ [API] Room not found: ${roomCode}`);
+      
+      // Debug: Check if room exists but with different status
+      const { data: anyRoom } = await db.adminClient
+        .from('rooms')
+        .select('id, room_code, status, created_at, last_activity')
+        .eq('room_code', roomCode)
+        .single();
+      
+      if (anyRoom) {
+        console.log(`🔍 [API DEBUG] Room ${roomCode} exists but wasn't returned:`, {
+          id: anyRoom.id,
+          status: anyRoom.status,
+          created_at: anyRoom.created_at,
+          last_activity: anyRoom.last_activity
+        });
+      } else {
+        console.log(`🔍 [API DEBUG] Room ${roomCode} does not exist in database at all`);
+      }
+      
       return res.status(404).json({ error: 'Room not found' });
     }
     
