@@ -135,7 +135,7 @@ async function validateApiKey(req, res, next) {
     const { data: key, error } = await db.adminClient
       .from('api_keys')
       .select('*')
-      .eq('api_key', apiKey)
+      .eq('key_hash', apiKey)
       .eq('is_active', true)
       .single();
     
@@ -150,7 +150,7 @@ async function validateApiKey(req, res, next) {
     }
 
     console.log(`✅ [API AUTH] Valid API key:`, {
-      service: key.service_name,
+      service: key.name || key.service_name,
       keyId: key.id,
       endpoint: req.path,
       lastUsed: key.last_used
@@ -166,7 +166,7 @@ async function validateApiKey(req, res, next) {
     await db.adminClient
       .from('api_requests')
       .insert({
-        api_key: apiKey,
+        api_key_id: key.id,
         endpoint: req.path,
         method: req.method,
         ip_address: req.ip,
@@ -542,7 +542,7 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
       location,
       reason,
       gameData: gameData ? 'present' : 'none',
-      apiService: req.apiKey?.service_name,
+      apiService: req.apiKey?.name || req.apiKey?.service_name,
       requestIP: req.ip || req.connection?.remoteAddress,
       userAgent: req.get('User-Agent'),
       timestamp: new Date().toISOString()
@@ -784,7 +784,7 @@ app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async 
     console.log(`🎮 [API] Bulk status update for room ${roomCode}:`, {
       playerCount: players?.length || 0,
       reason,
-      apiService: req.apiKey?.service_name,
+      apiService: req.apiKey?.name || req.apiKey?.service_name,
       requestIP: req.ip || req.connection?.remoteAddress,
       userAgent: req.get('User-Agent'),
       timestamp: new Date().toISOString()
