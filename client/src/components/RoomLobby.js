@@ -193,6 +193,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
         isHost: p.role === 'host',
         isConnected: p.is_connected,
         inGame: p.in_game,
+        currentLocation: p.current_location,
         lastPing: p.last_ping
       })) || []);
       setRoomData(data.room);
@@ -205,11 +206,17 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
 
     const handlePlayerDisconnected = (data) => {
       console.log('🔌 Player disconnected:', data.playerId);
-      setPlayers(prev => prev.map(player => 
-        player.id === data.playerId 
-          ? { ...player, connected: false }
-          : player
-      ));
+      
+      // If we have updated player list, use it; otherwise update connection status
+      if (data.players) {
+        setPlayers(data.players);
+      } else {
+        setPlayers(prev => prev.map(player => 
+          player.id === data.playerId 
+            ? { ...player, isConnected: false }
+            : player
+        ));
+      }
     };
 
     const handleGameSelected = (data) => {
@@ -631,6 +638,21 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
 
   // Helper function to get player status
   const getPlayerStatus = (player) => {
+    // Use currentLocation if available, otherwise fall back to old logic
+    if (player.currentLocation) {
+      switch (player.currentLocation) {
+        case 'game':
+          return { status: 'in_game', label: 'In Game', color: '#ff6b35', icon: '🎮' };
+        case 'lobby':
+          return { status: 'lobby', label: 'In Lobby', color: '#4caf50', icon: '🟢' };
+        case 'disconnected':
+          return { status: 'disconnected', label: 'Offline', color: '#666', icon: '⚫' };
+        default:
+          return { status: 'lobby', label: 'In Lobby', color: '#4caf50', icon: '🟢' };
+      }
+    }
+    
+    // Fallback to old logic for backward compatibility
     if (!player.isConnected) {
       return { status: 'disconnected', label: 'Offline', color: '#666', icon: '⚫' };
     }

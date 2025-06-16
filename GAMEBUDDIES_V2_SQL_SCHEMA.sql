@@ -91,6 +91,7 @@ CREATE TABLE public.room_members (
   socket_id character varying,
   is_ready boolean DEFAULT false,
   in_game boolean DEFAULT false,
+  current_location character varying DEFAULT 'lobby'::character varying CHECK (current_location::text = ANY (ARRAY['lobby'::character varying, 'game'::character varying, 'disconnected'::character varying]::text[])),
   game_data jsonb DEFAULT '{}'::jsonb,
   joined_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP,
   left_at timestamp with time zone,

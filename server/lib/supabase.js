@@ -76,6 +76,9 @@ class DatabaseService {
             role,
             is_connected,
             is_ready,
+            in_game,
+            current_location,
+            last_ping,
             joined_at,
             user:users(username, display_name)
           )
@@ -104,6 +107,9 @@ class DatabaseService {
             role,
             is_connected,
             is_ready,
+            in_game,
+            current_location,
+            last_ping,
             joined_at,
             user:users(username, display_name)
           )

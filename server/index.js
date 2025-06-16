@@ -1013,6 +1013,20 @@ io.on('connection', async (socket) => {
         userRole = isOriginalCreator ? 'host' : 'player';
         console.log(`👥 [REJOINING DEBUG] Adding new participant with role: ${userRole}`);
         await db.addParticipant(room.id, user.id, socket.id, userRole);
+        
+        // If joining an in_game room, mark new player as NOT in_game and in 'lobby' location
+        if (room.status === 'in_game') {
+          await db.adminClient
+            .from('room_members')
+            .update({ 
+              in_game: false,
+              current_location: 'lobby'
+            })
+            .eq('user_id', user.id)
+            .eq('room_id', room.id);
+          console.log(`🎮 [REJOINING DEBUG] Marked new participant as NOT in_game and in 'lobby' location`);
+        }
+        
         console.log(`✅ [REJOINING DEBUG] Added new participant`);
         
         // Update connection tracking
@@ -1056,6 +1070,7 @@ io.on('connection', async (socket) => {
         isHost: p.role === 'host',
         isConnected: p.is_connected,
         inGame: p.in_game,
+        currentLocation: p.current_location,
         lastPing: p.last_ping,
         socketId: null // Socket IDs are tracked in activeConnections, not stored in DB
       })) || [];
@@ -1250,17 +1265,20 @@ io.on('connection', async (socket) => {
         game_started_at: new Date().toISOString()
       });
 
-      // Mark all connected participants as in_game
+      // Mark all connected participants as in_game and in 'game' location
       const connectedParticipants = room.participants?.filter(p => p.is_connected === true) || [];
       for (const participant of connectedParticipants) {
         await db.adminClient
           .from('room_members')
-          .update({ in_game: true })
+          .update({ 
+            in_game: true,
+            current_location: 'game'
+          })
           .eq('user_id', participant.user_id)
           .eq('room_id', room.id);
       }
       
-      console.log(`🎮 [START GAME DEBUG] Marked ${connectedParticipants.length} participants as in_game`);
+      console.log(`🎮 [START GAME DEBUG] Marked ${connectedParticipants.length} participants as in_game and in 'game' location`);
 
       // Get game proxy configuration
       const gameProxy = gameProxies[room.current_game];
@@ -1507,12 +1525,13 @@ io.on('connection', async (socket) => {
         return;
       }
 
-      // Mark this player as not in_game and connected to lobby
+      // Mark this player as not in_game, connected to lobby, and in 'lobby' location
       await db.adminClient
         .from('room_members')
         .update({ 
           in_game: false,
           is_connected: true,
+          current_location: 'lobby',
           last_ping: new Date().toISOString()
         })
         .eq('user_id', connection.userId)
@@ -1841,63 +1860,95 @@ io.on('connection', async (socket) => {
           isDisconnectingHost = disconnectingParticipant?.role === 'host';
         }
 
-        // Update participant connection status
+        // Update participant connection status and location
         await db.updateParticipantConnection(
           connection.userId, 
           socket.id, 
           'disconnected'
         );
+        
+        // Also update location to 'disconnected'
+        if (connection.roomId) {
+          await db.adminClient
+            .from('room_members')
+            .update({ current_location: 'disconnected' })
+            .eq('user_id', connection.userId)
+            .eq('room_id', connection.roomId);
+        }
 
         // Handle host transfer if host disconnected
         let newHost = null;
         if (isDisconnectingHost && room) {
-          // Give host a grace period to reconnect (30 seconds)
-          setTimeout(async () => {
-            try {
-              // Check if original host reconnected
-              const updatedRoom = await db.getRoomById(connection.roomId);
-              const originalHost = updatedRoom?.participants?.find(p => 
-                p.user_id === connection.userId && p.is_connected === true
-              );
+          // Only auto-transfer host if there are other connected players
+          const otherConnectedPlayers = room.participants?.filter(p => 
+            p.user_id !== connection.userId && p.is_connected === true
+          ) || [];
+          
+          if (otherConnectedPlayers.length > 0) {
+            // Give host a grace period to reconnect (30 seconds)
+            setTimeout(async () => {
+              try {
+                // Check if original host reconnected
+                const updatedRoom = await db.getRoomById(connection.roomId);
+                const originalHost = updatedRoom?.participants?.find(p => 
+                  p.user_id === connection.userId && p.is_connected === true
+                );
 
-              if (!originalHost) {
-                // Host didn't reconnect, transfer to someone else
-                newHost = await db.autoTransferHost(connection.roomId, connection.userId);
-                
-                if (newHost && updatedRoom) {
-                  // Get updated player list
-                  const updatedPlayers = updatedRoom.participants
-                    ?.filter(p => p.is_connected === true)
-                    .map(p => ({
+                if (!originalHost) {
+                  // Host didn't reconnect, transfer to someone else
+                  newHost = await db.autoTransferHost(connection.roomId, connection.userId);
+                  
+                  if (newHost && updatedRoom) {
+                    // Get updated player list with ALL participants (not just connected)
+                    const updatedPlayers = updatedRoom.participants?.map(p => ({
                       id: p.user_id,
                       name: p.user?.display_name || p.user?.username,
                       isHost: p.role === 'host' || p.user_id === newHost.user_id,
+                      isConnected: p.is_connected,
+                      inGame: p.in_game,
+                      lastPing: p.last_ping,
                       socketId: null
                     })) || [];
 
-                  // Notify remaining players about host transfer
-                  io.to(updatedRoom.room_code).emit('hostTransferred', {
-                    oldHostId: connection.userId,
-                    newHostId: newHost.user_id,
-                    newHostName: newHost.user?.display_name || newHost.user?.username,
-                    reason: 'original_host_disconnected',
-                    players: updatedPlayers
-                  });
+                    // Notify remaining players about host transfer
+                    io.to(updatedRoom.room_code).emit('hostTransferred', {
+                      oldHostId: connection.userId,
+                      newHostId: newHost.user_id,
+                      newHostName: newHost.user?.display_name || newHost.user?.username,
+                      reason: 'original_host_disconnected',
+                      players: updatedPlayers
+                    });
 
-                  console.log(`👑 Auto-transferred host to ${newHost.user?.display_name} after disconnect timeout`);
+                    console.log(`👑 Auto-transferred host to ${newHost.user?.display_name} after disconnect timeout`);
+                  }
                 }
+              } catch (error) {
+                console.error('❌ Error in delayed host transfer:', error);
               }
-            } catch (error) {
-              console.error('❌ Error in delayed host transfer:', error);
-            }
-          }, 30000); // 30 second grace period
+            }, 30000); // 30 second grace period
+          } else {
+            console.log(`⚠️ Host disconnected but no other connected players - keeping host role`);
+          }
         }
 
-        // If in a room, notify other players about disconnection
+        // If in a room, notify other players about disconnection with updated player list
         if (connection.roomId && room) {
+          // Get updated room data to send complete player list
+          const updatedRoom = await db.getRoomById(connection.roomId);
+          const allPlayers = updatedRoom?.participants?.map(p => ({
+            id: p.user_id,
+            name: p.user?.display_name || p.user?.username,
+            isHost: p.role === 'host',
+            isConnected: p.is_connected,
+            inGame: p.in_game,
+            lastPing: p.last_ping,
+            socketId: null
+          })) || [];
+
           socket.to(room.room_code).emit('playerDisconnected', {
             playerId: connection.userId,
-            wasHost: isDisconnectingHost
+            wasHost: isDisconnectingHost,
+            players: allPlayers
           });
         }
       }
