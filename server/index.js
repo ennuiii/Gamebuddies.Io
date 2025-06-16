@@ -568,11 +568,20 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
     });
     
     // Get room
-    const { data: room } = await db.adminClient
+    const { data: room, error: roomError } = await db.adminClient
       .from('rooms')
       .select('id, room_code, status as room_status')
       .eq('room_code', roomCode)
       .single();
+    
+    console.log(`🔍 [API DEBUG] Room query result:`, {
+      roomCode,
+      hasData: !!room,
+      hasError: !!roomError,
+      error: roomError?.message,
+      errorCode: roomError?.code,
+      errorDetails: roomError?.details
+    });
     
     if (!room) {
       console.log(`❌ [API] Room not found: ${roomCode}`);
