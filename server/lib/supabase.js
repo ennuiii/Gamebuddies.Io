@@ -53,7 +53,7 @@ class DatabaseService {
       // Log room creation event
       await this.logEvent(room.id, roomData.host_id, 'room_created', {
         current_game: roomData.current_game,
-        created_from: roomData.created_from
+        created_from: roomData.metadata?.created_from || 'unknown'
       });
 
       return room;

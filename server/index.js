@@ -707,21 +707,21 @@ io.on('connection', async (socket) => {
       // Create room in database
       console.log(`🏗️ [DEBUG] Creating room in database...`);
       const room = await db.createRoom({
-        creator_id: user.id,
-        game_type: 'lobby', // Will be updated when game is selected
-        status: 'waiting_for_players',
-        visibility: 'public',
+        host_id: user.id,
+        current_game: null, // Will be updated when game is selected
+        status: 'lobby',
+        is_public: true,
         max_players: 10,
-        settings: {},
+        game_settings: {},
         metadata: {
-          created_by_name: data.playerName
-        },
-        created_from: 'web_client'
+          created_by_name: data.playerName,
+          created_from: 'web_client'
+        }
       });
       console.log(`✅ [DEBUG] Room created:`, { 
         id: room.id, 
         room_code: room.room_code, 
-        creator_id: room.creator_id
+        host_id: room.host_id
       });
 
       // Add creator as participant
