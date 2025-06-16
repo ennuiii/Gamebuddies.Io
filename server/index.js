@@ -1146,25 +1146,51 @@ io.on('connection', async (socket) => {
 
   // Handle game start
   socket.on('startGame', async (data) => {
+    console.log(`🚀 [START GAME SERVER] ============ START GAME EVENT RECEIVED ============`);
+    console.log(`🚀 [START GAME SERVER] Socket ID: ${socket.id}`);
+    console.log(`🚀 [START GAME SERVER] Event data:`, data);
+    console.log(`🚀 [START GAME SERVER] Timestamp:`, new Date().toISOString());
+    
     try {
       const connection = activeConnections.get(socket.id);
-      console.log(`🚀 [DEBUG] Start game request from socket: ${socket.id}`);
-      console.log(`🚀 [DEBUG] Connection data:`, { 
-        userId: connection?.userId, 
-        roomId: connection?.roomId 
-      });
+              console.log(`🚀 [START GAME SERVER] Connection lookup:`, {
+          socketId: socket.id,
+          hasConnection: !!connection,
+          userId: connection?.userId,
+          roomId: connection?.roomId,
+          totalActiveConnections: activeConnections.size
+        });
+        
+        console.log(`🚀 [START GAME SERVER] All active connections:`, Array.from(activeConnections.entries()).map(([socketId, conn]) => ({
+          socketId,
+          userId: conn.userId,
+          username: conn.username,
+          roomId: conn.roomId,
+          isCurrentSocket: socketId === socket.id
+        })));
       
       if (!connection?.roomId) {
+        console.error(`❌ [START GAME SERVER] Connection has no roomId - cannot start game`);
         socket.emit('error', { message: 'Not in a room' });
-      return;
-    }
+        return;
+      }
     
+      console.log(`🔍 [START GAME SERVER] Getting room data for code: ${data.roomCode}`);
       // Get room data
       const room = await db.getRoomByCode(data.roomCode);
       if (!room) {
+        console.error(`❌ [START GAME SERVER] Room not found for code: ${data.roomCode}`);
         socket.emit('error', { message: 'Room not found' });
-      return;
-    }
+        return;
+      }
+      
+      console.log(`✅ [START GAME SERVER] Room found:`, {
+        id: room.id,
+        room_code: room.room_code,
+        status: room.status,
+        game_type: room.game_type,
+        participants_count: room.participants?.length || 0
+      });
     
       console.log(`🚀 [DEBUG] Room participants:`, room.participants?.map(p => ({
         user_id: p.user_id,
@@ -1195,9 +1221,12 @@ io.on('connection', async (socket) => {
       })));
       
       if (!userParticipant) {
+        console.error(`❌ [START GAME SERVER] User is not host or not found in room`);
         socket.emit('error', { message: 'Only the host can start the game' });
-      return;
-    }
+        return;
+      }
+      
+      console.log(`✅ [START GAME SERVER] Host validation passed - proceeding with game start`);
     
       // Update room status
       await db.updateRoom(room.id, {
@@ -1225,8 +1254,11 @@ io.on('connection', async (socket) => {
         const delay = p.role === 'host' ? 0 : 2000; // 2 second delay for players
         
         // Find the socket ID from activeConnections
-        const userConnection = Array.from(activeConnections.values())
-          .find(conn => conn.userId === p.user_id);
+        const userConnection = Array.from(activeConnections.entries())
+          .find(([socketId, conn]) => conn.userId === p.user_id);
+        
+        const currentSocketId = userConnection ? userConnection[0] : null;
+        const connectionData = userConnection ? userConnection[1] : null;
         
         console.log(`🚀 [START GAME DEBUG] Sending game event to ${p.user?.username}:`, {
           user_id: p.user_id,
@@ -1234,15 +1266,16 @@ io.on('connection', async (socket) => {
           username: p.user?.username,
           connection_status: p.connection_status,
           hasUserConnection: !!userConnection,
-          socketId: userConnection?.socketId,
+          activeConnectionsSocketId: currentSocketId,
+          connectionDataSocketId: connectionData?.socketId,
           gameUrl,
           delay
         });
         
-        if (userConnection?.socketId) {
+        if (currentSocketId) {
           setTimeout(() => {
-            console.log(`📤 [START GAME DEBUG] Emitting gameStarted to ${p.user?.username} (${userConnection.socketId})`);
-            io.to(userConnection.socketId).emit('gameStarted', {
+            console.log(`📤 [START GAME DEBUG] Emitting gameStarted to ${p.user?.username} (${currentSocketId})`);
+            io.to(currentSocketId).emit('gameStarted', {
               gameUrl,
               gameType: room.game_type,
               isHost: p.role === 'host',
@@ -1251,13 +1284,23 @@ io.on('connection', async (socket) => {
           }, delay);
         } else {
           console.error(`❌ [START GAME DEBUG] No socket connection found for ${p.user?.username} (${p.user_id})`);
+          console.error(`❌ [START GAME DEBUG] ActiveConnections dump:`, Array.from(activeConnections.entries()).map(([socketId, conn]) => ({
+            socketId,
+            userId: conn.userId,
+            username: conn.username,
+            roomId: conn.roomId
+          })));
         }
       });
 
-      console.log(`🚀 Game started: ${room.game_type} for room ${room.room_code}`);
+      console.log(`🚀 [START GAME SERVER] Game start complete: ${room.game_type} for room ${room.room_code}`);
+      console.log(`🚀 [START GAME SERVER] Total participants processed: ${participants.length}`);
+      console.log(`🚀 [START GAME SERVER] ============ END START GAME PROCESSING ============`);
 
     } catch (error) {
-      console.error('❌ Error starting game:', error);
+      console.error('❌ [START GAME SERVER] CRITICAL ERROR starting game:', error);
+      console.error('❌ [START GAME SERVER] Error stack:', error.stack);
+      console.log(`❌ [START GAME SERVER] ============ START GAME FAILED ============`);
       socket.emit('error', { message: 'Failed to start game' });
     }
   });
