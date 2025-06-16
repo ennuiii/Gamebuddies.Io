@@ -116,7 +116,18 @@ app.get('/api/games', (req, res) => {
 async function validateApiKey(req, res, next) {
   const apiKey = req.headers['x-api-key'];
   
+  console.log(`🔐 [API AUTH] API key validation attempt:`, {
+    endpoint: req.path,
+    method: req.method,
+    hasApiKey: !!apiKey,
+    apiKeyPrefix: apiKey ? `${apiKey.substring(0, 8)}...` : 'none',
+    ip: req.ip || req.connection?.remoteAddress,
+    userAgent: req.get('User-Agent'),
+    timestamp: new Date().toISOString()
+  });
+  
   if (!apiKey) {
+    console.log(`❌ [API AUTH] No API key provided for ${req.method} ${req.path}`);
     return res.status(401).json({ error: 'API key required' });
   }
   
@@ -129,8 +140,21 @@ async function validateApiKey(req, res, next) {
       .single();
     
     if (error || !key) {
+      console.log(`❌ [API AUTH] Invalid API key:`, {
+        apiKeyPrefix: `${apiKey.substring(0, 8)}...`,
+        error: error?.message,
+        endpoint: req.path,
+        ip: req.ip || req.connection?.remoteAddress
+      });
       return res.status(401).json({ error: 'Invalid API key' });
     }
+
+    console.log(`✅ [API AUTH] Valid API key:`, {
+      service: key.service_name,
+      keyId: key.id,
+      endpoint: req.path,
+      lastUsed: key.last_used
+    });
     
     // Update last used
     await db.adminClient
@@ -152,7 +176,13 @@ async function validateApiKey(req, res, next) {
     req.apiKey = key;
     next();
   } catch (error) {
-    console.error('API key validation error:', error);
+    console.error('❌ [API AUTH] API key validation error:', {
+      error: error.message,
+      stack: error.stack,
+      endpoint: req.path,
+      method: req.method,
+      ip: req.ip || req.connection?.remoteAddress
+    });
     res.status(500).json({ error: 'Server error' });
   }
 }
@@ -499,54 +529,493 @@ app.get('/api/game/rooms/:roomCode/state', validateApiKey, async (req, res) => {
   }
 });
 
-// Player status update
+// Player status update (enhanced for external games)
 app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, async (req, res) => {
   try {
     const { roomCode, playerId } = req.params;
-    const { status, gameData } = req.body;
+    const { status, gameData, location, reason } = req.body;
+    
+    console.log(`🎮 [API] External game status update:`, {
+      roomCode,
+      playerId,
+      status,
+      location,
+      reason,
+      gameData: gameData ? 'present' : 'none',
+      apiService: req.apiKey?.service_name,
+      requestIP: req.ip || req.connection?.remoteAddress,
+      userAgent: req.get('User-Agent'),
+      timestamp: new Date().toISOString()
+    });
+    
+    // Debug request headers and body
+    console.log(`🔍 [API DEBUG] Request details:`, {
+      headers: {
+        'content-type': req.get('Content-Type'),
+        'x-api-key': req.apiKey?.service_name ? `${req.apiKey.service_name} (valid)` : 'invalid',
+        'user-agent': req.get('User-Agent'),
+        'origin': req.get('Origin'),
+        'referer': req.get('Referer')
+      },
+      body: {
+        status,
+        location,
+        reason,
+        gameDataKeys: gameData ? Object.keys(gameData) : null,
+        gameDataSize: gameData ? JSON.stringify(gameData).length : 0
+      },
+      params: { roomCode, playerId }
+    });
     
     // Get room
     const { data: room } = await db.adminClient
       .from('rooms')
-      .select('id')
+      .select('id, room_code, status as room_status')
       .eq('room_code', roomCode)
       .single();
     
     if (!room) {
+      console.log(`❌ [API] Room not found: ${roomCode}`);
       return res.status(404).json({ error: 'Room not found' });
     }
+    
+    // Get current participant data
+    const { data: participant } = await db.adminClient
+      .from('room_members')
+      .select('user_id, in_game, current_location, is_connected')
+      .eq('room_id', room.id)
+      .eq('user_id', playerId)
+      .single();
+    
+    if (!participant) {
+      console.log(`❌ [API] Player not found in room: ${playerId}`);
+      return res.status(404).json({ error: 'Player not found in room' });
+    }
+    
+    console.log(`🔍 [API] Current participant status:`, {
+      user_id: participant.user_id,
+      in_game: participant.in_game,
+      current_location: participant.current_location,
+      is_connected: participant.is_connected
+    });
+    
+    // Debug room context
+    console.log(`🏠 [API DEBUG] Room context:`, {
+      room_id: room.id,
+      room_code: room.room_code,
+      room_status: room.room_status,
+      total_participants: await db.adminClient
+        .from('room_members')
+        .select('user_id', { count: 'exact' })
+        .eq('room_id', room.id)
+        .then(({ count }) => count),
+      connected_participants: await db.adminClient
+        .from('room_members')
+        .select('user_id', { count: 'exact' })
+        .eq('room_id', room.id)
+        .eq('is_connected', true)
+        .then(({ count }) => count),
+      in_game_participants: await db.adminClient
+        .from('room_members')
+        .select('user_id', { count: 'exact' })
+        .eq('room_id', room.id)
+        .eq('in_game', true)
+        .then(({ count }) => count)
+    });
+    
+    // Determine new status based on input
+    let updateData = {
+      last_ping: new Date().toISOString(),
+      game_data: gameData || null
+    };
+    
+    // Handle different status types
+    switch (status) {
+      case 'connected':
+        updateData.is_connected = true;
+        updateData.current_location = location || 'game';
+        updateData.in_game = true;
+        break;
+        
+      case 'disconnected':
+        // Player disconnected from external game
+        updateData.is_connected = false;
+        updateData.current_location = 'disconnected';
+        updateData.in_game = false;
+        break;
+        
+      case 'returned_to_lobby':
+        // Player returned to GameBuddies lobby
+        updateData.is_connected = true;
+        updateData.current_location = 'lobby';
+        updateData.in_game = false;
+        break;
+        
+      case 'in_game':
+        // Player is actively in the external game
+        updateData.is_connected = true;
+        updateData.current_location = 'game';
+        updateData.in_game = true;
+        break;
+        
+      default:
+        console.log(`⚠️ [API] Unknown status: ${status}, defaulting to connected`);
+        updateData.is_connected = status === 'connected';
+        updateData.current_location = location || (status === 'connected' ? 'game' : 'disconnected');
+    }
+    
+    console.log(`📝 [API] Status change analysis:`, {
+      before: {
+        is_connected: participant.is_connected,
+        current_location: participant.current_location,
+        in_game: participant.in_game
+      },
+      after: {
+        is_connected: updateData.is_connected,
+        current_location: updateData.current_location,
+        in_game: updateData.in_game
+      },
+      changes: {
+        connection_changed: participant.is_connected !== updateData.is_connected,
+        location_changed: participant.current_location !== updateData.current_location,
+        game_status_changed: participant.in_game !== updateData.in_game
+      }
+    });
+    
+    console.log(`📝 [API] Updating participant with:`, updateData);
     
     // Update participant
     const { error: updateError } = await db.adminClient
       .from('room_members')
-      .update({
-        is_connected: status === 'connected',
-        game_data: gameData,
-        last_ping: new Date().toISOString()
-      })
+      .update(updateData)
       .eq('room_id', room.id)
       .eq('user_id', playerId);
     
-    if (updateError) throw updateError;
-    
-    // Log event
-    await db.logEvent(room.id, playerId, 'player_status_update', { status, gameData });
-    
-    // Broadcast if needed
-    if (io) {
-      io.to(roomCode).emit('playerStatusUpdated', {
-        playerId,
-        status,
-        gameData,
-        timestamp: new Date().toISOString()
-      });
+    if (updateError) {
+      console.error(`❌ [API] Database update error:`, updateError);
+      throw updateError;
     }
     
-    res.json({ success: true });
+    // Log event
+    await db.logEvent(room.id, playerId, 'external_game_status_update', { 
+      status, 
+      location: updateData.current_location,
+      reason,
+      gameData,
+      service: req.apiKey?.service_name
+    });
+    
+    // Get updated room data for broadcasting
+    const updatedRoom = await db.getRoomByCode(roomCode);
+    
+    // Broadcast to GameBuddies lobby with complete player data
+    if (io) {
+      const allPlayers = updatedRoom.participants?.map(p => ({
+        id: p.user_id,
+        name: p.user?.display_name || p.user?.username,
+        isHost: p.role === 'host',
+        isConnected: p.is_connected,
+        inGame: p.in_game,
+        currentLocation: p.current_location,
+        lastPing: p.last_ping,
+        socketId: null
+      })) || [];
+      
+      // Debug broadcast details
+      console.log(`📡 [API DEBUG] Broadcasting details:`, {
+        roomCode,
+        socketRoomExists: io.sockets.adapter.rooms.has(roomCode),
+        socketRoomSize: io.sockets.adapter.rooms.get(roomCode)?.size || 0,
+        connectedSockets: Array.from(io.sockets.sockets.keys()).length,
+        playersInUpdate: allPlayers.length,
+        targetPlayerId: playerId,
+        newStatus: updateData.current_location
+      });
+      
+      // Debug player status summary
+      const statusSummary = allPlayers.reduce((acc, p) => {
+        const status = p.currentLocation || 'unknown';
+        acc[status] = (acc[status] || 0) + 1;
+        return acc;
+      }, {});
+      
+      console.log(`👥 [API DEBUG] Player status summary after update:`, statusSummary);
+      
+      console.log(`📡 [API] Broadcasting status update to room ${roomCode}`);
+      io.to(roomCode).emit('playerStatusUpdated', {
+        playerId,
+        status: updateData.current_location,
+        reason,
+        players: allPlayers,
+        room: updatedRoom,
+        source: 'external_game',
+        timestamp: new Date().toISOString()
+      });
+      
+      // Confirm broadcast was sent
+      console.log(`✅ [API DEBUG] Broadcast sent to ${io.sockets.adapter.rooms.get(roomCode)?.size || 0} connected clients`);
+    } else {
+      console.log(`⚠️ [API DEBUG] Socket.io not available - cannot broadcast status update`);
+    }
+    
+    console.log(`✅ [API] Successfully updated player ${playerId} status to ${status} (location: ${updateData.current_location})`);
+    
+    res.json({ 
+      success: true,
+      updated: {
+        status: updateData.current_location,
+        is_connected: updateData.is_connected,
+        in_game: updateData.in_game
+      }
+    });
     
   } catch (error) {
     console.error('❌ [API] Status update error:', error);
     res.status(500).json({ error: 'Failed to update status' });
+  }
+});
+
+// Bulk player status update (for multiple players at once)
+app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async (req, res) => {
+  try {
+    const { roomCode } = req.params;
+    const { players, reason } = req.body;
+    
+    console.log(`🎮 [API] Bulk status update for room ${roomCode}:`, {
+      playerCount: players?.length || 0,
+      reason,
+      apiService: req.apiKey?.service_name,
+      requestIP: req.ip || req.connection?.remoteAddress,
+      userAgent: req.get('User-Agent'),
+      timestamp: new Date().toISOString()
+    });
+    
+    // Debug request details
+    console.log(`🔍 [API DEBUG] Bulk request details:`, {
+      headers: {
+        'content-type': req.get('Content-Type'),
+        'x-api-key': req.apiKey?.service_name ? `${req.apiKey.service_name} (valid)` : 'invalid',
+        'user-agent': req.get('User-Agent'),
+        'origin': req.get('Origin'),
+        'referer': req.get('Referer')
+      },
+      body: {
+        reason,
+        playerCount: players?.length || 0,
+        playerIds: players?.map(p => p.playerId) || [],
+        statusTypes: players?.reduce((acc, p) => {
+          acc[p.status] = (acc[p.status] || 0) + 1;
+          return acc;
+        }, {}) || {},
+        bodySize: JSON.stringify(req.body).length
+      },
+      params: { roomCode }
+    });
+    
+    if (!players || !Array.isArray(players) || players.length === 0) {
+      return res.status(400).json({ error: 'Players array is required' });
+    }
+    
+    // Get room
+    const { data: room } = await db.adminClient
+      .from('rooms')
+      .select('id, room_code, status as room_status')
+      .eq('room_code', roomCode)
+      .single();
+    
+    if (!room) {
+      console.log(`❌ [API] Room not found: ${roomCode}`);
+      return res.status(404).json({ error: 'Room not found' });
+    }
+    
+    const results = [];
+    
+    // Debug room context for bulk update
+    const roomParticipants = await db.adminClient
+      .from('room_members')
+      .select('user_id, is_connected, current_location, in_game')
+      .eq('room_id', room.id);
+    
+    console.log(`🏠 [API DEBUG] Room context before bulk update:`, {
+      room_id: room.id,
+      room_code: room.room_code,
+      room_status: room.room_status,
+      total_participants: roomParticipants.data?.length || 0,
+      current_status_breakdown: roomParticipants.data?.reduce((acc, p) => {
+        const status = p.current_location || 'unknown';
+        acc[status] = (acc[status] || 0) + 1;
+        return acc;
+      }, {}) || {}
+    });
+    
+    // Process each player update
+    for (const playerUpdate of players) {
+      const { playerId, status, gameData, location } = playerUpdate;
+      
+      console.log(`👤 [API DEBUG] Processing player ${playerId}:`, {
+        playerId,
+        requestedStatus: status,
+        requestedLocation: location,
+        hasGameData: !!gameData
+      });
+      
+      try {
+        // Determine update data
+        let updateData = {
+          last_ping: new Date().toISOString(),
+          game_data: gameData || null
+        };
+        
+        switch (status) {
+          case 'connected':
+            updateData.is_connected = true;
+            updateData.current_location = location || 'game';
+            updateData.in_game = true;
+            break;
+            
+          case 'disconnected':
+            updateData.is_connected = false;
+            updateData.current_location = 'disconnected';
+            updateData.in_game = false;
+            break;
+            
+          case 'returned_to_lobby':
+            updateData.is_connected = true;
+            updateData.current_location = 'lobby';
+            updateData.in_game = false;
+            break;
+            
+          case 'in_game':
+            updateData.is_connected = true;
+            updateData.current_location = 'game';
+            updateData.in_game = true;
+            break;
+            
+          default:
+            updateData.is_connected = status === 'connected';
+            updateData.current_location = location || (status === 'connected' ? 'game' : 'disconnected');
+        }
+        
+        // Update participant
+        const { error: updateError } = await db.adminClient
+          .from('room_members')
+          .update(updateData)
+          .eq('room_id', room.id)
+          .eq('user_id', playerId);
+        
+        if (updateError) {
+          console.error(`❌ [API] Failed to update player ${playerId}:`, {
+            playerId,
+            error: updateError.message,
+            code: updateError.code,
+            details: updateError.details,
+            hint: updateError.hint
+          });
+          results.push({ playerId, success: false, error: updateError.message });
+        } else {
+          console.log(`✅ [API DEBUG] Successfully updated player ${playerId}:`, {
+            playerId,
+            newStatus: updateData.current_location,
+            newConnection: updateData.is_connected,
+            newInGame: updateData.in_game
+          });
+          
+          // Log event
+          await db.logEvent(room.id, playerId, 'external_game_bulk_status_update', { 
+            status, 
+            location: updateData.current_location,
+            reason,
+            gameData,
+            service: req.apiKey?.service_name
+          });
+          
+          results.push({ 
+            playerId, 
+            success: true, 
+            updated: {
+              status: updateData.current_location,
+              is_connected: updateData.is_connected,
+              in_game: updateData.in_game
+            }
+          });
+        }
+        
+      } catch (playerError) {
+        console.error(`❌ [API] Error updating player ${playerId}:`, {
+          playerId,
+          error: playerError.message,
+          stack: playerError.stack,
+          requestedStatus: status,
+          requestedLocation: location
+        });
+        results.push({ playerId, success: false, error: playerError.message });
+      }
+    }
+    
+    // Get updated room data and broadcast
+    const updatedRoom = await db.getRoomByCode(roomCode);
+    
+    if (io) {
+      const allPlayers = updatedRoom.participants?.map(p => ({
+        id: p.user_id,
+        name: p.user?.display_name || p.user?.username,
+        isHost: p.role === 'host',
+        isConnected: p.is_connected,
+        inGame: p.in_game,
+        currentLocation: p.current_location,
+        lastPing: p.last_ping,
+        socketId: null
+      })) || [];
+      
+      // Debug bulk broadcast details
+      const finalStatusSummary = allPlayers.reduce((acc, p) => {
+        const status = p.currentLocation || 'unknown';
+        acc[status] = (acc[status] || 0) + 1;
+        return acc;
+      }, {});
+      
+      console.log(`📡 [API DEBUG] Bulk broadcast details:`, {
+        roomCode,
+        socketRoomExists: io.sockets.adapter.rooms.has(roomCode),
+        socketRoomSize: io.sockets.adapter.rooms.get(roomCode)?.size || 0,
+        connectedSockets: Array.from(io.sockets.sockets.keys()).length,
+        playersInUpdate: allPlayers.length,
+        finalStatusSummary,
+        successfulUpdates: results.filter(r => r.success).length,
+        failedUpdates: results.filter(r => !r.success).length
+      });
+      
+      console.log(`📡 [API] Broadcasting bulk status update to room ${roomCode}`);
+      io.to(roomCode).emit('playerStatusUpdated', {
+        reason,
+        players: allPlayers,
+        room: updatedRoom,
+        source: 'external_game_bulk',
+        timestamp: new Date().toISOString()
+      });
+      
+      // Confirm bulk broadcast was sent
+      console.log(`✅ [API DEBUG] Bulk broadcast sent to ${io.sockets.adapter.rooms.get(roomCode)?.size || 0} connected clients`);
+    } else {
+      console.log(`⚠️ [API DEBUG] Socket.io not available - cannot broadcast bulk status update`);
+    }
+    
+    const successCount = results.filter(r => r.success).length;
+    console.log(`✅ [API] Bulk update completed: ${successCount}/${results.length} players updated successfully`);
+    
+    res.json({ 
+      success: true,
+      results,
+      summary: {
+        total: results.length,
+        successful: successCount,
+        failed: results.length - successCount
+      }
+    });
+    
+  } catch (error) {
+    console.error('❌ [API] Bulk status update error:', error);
+    res.status(500).json({ error: 'Failed to update player statuses' });
   }
 });
 
