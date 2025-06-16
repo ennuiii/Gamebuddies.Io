@@ -638,6 +638,13 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
 
   // Helper function to get player status
   const getPlayerStatus = (player) => {
+    console.log(`🔍 [STATUS DEBUG] Getting status for ${player.name}:`, {
+      currentLocation: player.currentLocation,
+      isConnected: player.isConnected,
+      inGame: player.inGame,
+      lastPing: player.lastPing
+    });
+
     // Use currentLocation if available, otherwise fall back to old logic
     if (player.currentLocation) {
       switch (player.currentLocation) {
@@ -648,11 +655,13 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
         case 'disconnected':
           return { status: 'disconnected', label: 'Offline', color: '#666', icon: '⚫' };
         default:
+          console.warn(`🔍 [STATUS DEBUG] Unknown currentLocation: ${player.currentLocation}, falling back to lobby`);
           return { status: 'lobby', label: 'In Lobby', color: '#4caf50', icon: '🟢' };
       }
     }
     
     // Fallback to old logic for backward compatibility
+    console.log(`🔍 [STATUS DEBUG] No currentLocation for ${player.name}, using fallback logic`);
     if (!player.isConnected) {
       return { status: 'disconnected', label: 'Offline', color: '#666', icon: '⚫' };
     }

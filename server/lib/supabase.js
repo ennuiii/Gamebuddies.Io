@@ -223,6 +223,7 @@ class DatabaseService {
           user_id: userId,
           role: role,
           is_connected: true,
+          current_location: 'lobby',
           last_ping: new Date().toISOString(),
           socket_id: socketId
         }, {
@@ -271,13 +272,20 @@ class DatabaseService {
 
   async updateParticipantConnection(userId, socketId, status = 'connected') {
     try {
+      const updateData = {
+        is_connected: status === 'connected',
+        last_ping: new Date().toISOString(),
+        socket_id: status === 'connected' ? socketId : null
+      };
+
+      // If disconnecting, also update location
+      if (status === 'disconnected') {
+        updateData.current_location = 'disconnected';
+      }
+
       const { error } = await this.adminClient
         .from('room_members')
-        .update({
-          is_connected: status === 'connected',
-          last_ping: new Date().toISOString(),
-          socket_id: status === 'connected' ? socketId : null
-        })
+        .update(updateData)
         .eq('user_id', userId);
 
       if (error) throw error;
