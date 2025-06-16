@@ -283,6 +283,11 @@ class DatabaseService {
         updateData.current_location = 'disconnected';
       } else if (status === 'connected') {
         updateData.current_location = 'lobby';
+      } else if (status === 'game') {
+        // Player is in external game - keep them connected but mark location as 'game'
+        updateData.is_connected = true;
+        updateData.current_location = 'game';
+        updateData.socket_id = null; // No socket connection while in external game
       }
 
       const { error } = await this.adminClient

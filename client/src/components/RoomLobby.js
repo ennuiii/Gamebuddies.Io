@@ -145,18 +145,32 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
         participants: data.players?.map(p => ({
           id: p.id,
           name: p.name,
-          isHost: p.isHost
+          isHost: p.isHost,
+          isConnected: p.isConnected,
+          inGame: p.inGame,
+          currentLocation: p.currentLocation
         })) || [],
         timestamp: new Date().toISOString()
       });
       
-      setPlayers(data.players || []);
+      // Map players with full status information
+      const mappedPlayers = data.players?.map(p => ({
+        id: p.id,
+        name: p.name,
+        isHost: p.isHost,
+        isConnected: p.isConnected !== undefined ? p.isConnected : true,
+        inGame: p.inGame || false,
+        currentLocation: p.currentLocation || (p.isConnected ? 'lobby' : 'disconnected'),
+        lastPing: p.lastPing
+      })) || [];
+      
+      setPlayers(mappedPlayers);
       setRoomData(data.room);
       setRoomStatus(data.room?.status || 'waiting_for_players');
       setSelectedGame(data.room?.game_type !== 'lobby' ? data.room.game_type : null);
       
       // Update host status based on server response
-      const currentUser = data.players?.find(p => p.name === playerNameRef.current);
+      const currentUser = mappedPlayers.find(p => p.name === playerNameRef.current);
       if (currentUser) {
         console.log(`🔍 [CLIENT DEBUG] Initial host status: ${playerNameRef.current} is host: ${currentUser.isHost}`);
         console.log(`🔍 [LOBBY DEBUG] Host status update:`, {

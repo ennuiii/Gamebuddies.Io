@@ -1853,28 +1853,34 @@ io.on('connection', async (socket) => {
         // Check if disconnecting user is the host
         let isDisconnectingHost = false;
         let room = null;
+        let disconnectingParticipant = null;
         
         if (connection.roomId) {
           room = await db.getRoomById(connection.roomId);
-          const disconnectingParticipant = room?.participants?.find(p => p.user_id === connection.userId);
+          disconnectingParticipant = room?.participants?.find(p => p.user_id === connection.userId);
           isDisconnectingHost = disconnectingParticipant?.role === 'host';
         }
 
-        // Update participant connection status and location
+        // Determine appropriate status based on room and player status
+        let connectionStatus = 'disconnected';
+        
+        if (room && disconnectingParticipant) {
+          // If room is in_game and player is marked as in_game, they're likely in the external game
+          if (room.status === 'in_game' && disconnectingParticipant.in_game === true) {
+            connectionStatus = 'game';
+            console.log(`🎮 Player ${disconnectingParticipant.user?.username} disconnected but room is in_game - marking as 'game' status`);
+          } else {
+            connectionStatus = 'disconnected';
+            console.log(`🔌 Player ${disconnectingParticipant.user?.username} disconnected - marking as 'disconnected' status`);
+          }
+        }
+
+        // Update participant connection status (this will also set the appropriate location)
         await db.updateParticipantConnection(
           connection.userId, 
           socket.id, 
-          'disconnected'
+          connectionStatus
         );
-        
-        // Also update location to 'disconnected'
-        if (connection.roomId) {
-          await db.adminClient
-            .from('room_members')
-            .update({ current_location: 'disconnected' })
-            .eq('user_id', connection.userId)
-            .eq('room_id', connection.roomId);
-        }
 
         // Handle host transfer if host disconnected
         let newHost = null;
