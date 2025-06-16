@@ -326,8 +326,22 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
     };
 
     const handlePlayerLeft = (data) => {
-      console.log('👋 Player left');
+      console.log('👋 Player left:', data);
+      
+      // Update players list with complete status information
       setPlayers(data.players || []);
+      
+      // Update room data if provided
+      if (data.room) {
+        setRoomData(data.room);
+      }
+      
+      console.log(`👋 [LEAVE DEBUG] Updated player list after leave:`, data.players?.map(p => ({
+        name: p.name,
+        isConnected: p.isConnected,
+        currentLocation: p.currentLocation,
+        inGame: p.inGame
+      })));
     };
 
     const handlePlayerDisconnected = (data) => {
@@ -486,8 +500,13 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
     const handleHostTransferred = (data) => {
       console.log('👑 Host transferred:', data);
       
-      // Update players list with new host status
+      // Update players list with complete status information
       setPlayers(data.players || []);
+      
+      // Update room data if provided
+      if (data.room) {
+        setRoomData(data.room);
+      }
       
       // Update local host status - check if current user is the new host
       const currentUser = data.players?.find(p => p.name === playerNameRef.current);
@@ -496,6 +515,14 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
         console.log(`🔍 [CLIENT DEBUG] Host status update: ${playerNameRef.current} is now host: ${newHostStatus}`);
         setCurrentIsHost(newHostStatus);
       }
+      
+      console.log(`👑 [HOST DEBUG] Updated player list after host transfer:`, data.players?.map(p => ({
+        name: p.name,
+        isHost: p.isHost,
+        isConnected: p.isConnected,
+        currentLocation: p.currentLocation,
+        inGame: p.inGame
+      })));
       
       // Show notification
       const reason = data.reason === 'original_host_left' ? 'left the room' : 
@@ -537,8 +564,20 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
         // This is a notification to other players about someone being kicked
         console.log(`👢 [KICK DEBUG] ${data.targetName} was kicked by ${data.kickedBy}`);
         
-        // Update players list
+        // Update players list with complete status information
         setPlayers(data.players || []);
+        
+        // Update room data if provided
+        if (data.room) {
+          setRoomData(data.room);
+        }
+        
+        console.log(`👢 [KICK DEBUG] Updated player list after kick:`, data.players?.map(p => ({
+          name: p.name,
+          isConnected: p.isConnected,
+          currentLocation: p.currentLocation,
+          inGame: p.inGame
+        })));
         
         // You could add a toast notification here
         alert(`${data.targetName} was removed from the room by ${data.kickedBy}`);

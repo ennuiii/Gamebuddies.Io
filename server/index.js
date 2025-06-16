@@ -1393,19 +1393,23 @@ io.on('connection', async (socket) => {
       // Get updated room data
       const updatedRoom = await db.getRoomByCode(data.roomCode);
       if (updatedRoom) {
-        const remainingPlayers = updatedRoom.participants
-          ?.filter(p => p.is_connected === true)
-          .map(p => ({
-            id: p.user_id,
-            name: p.user?.display_name || p.user?.username,
-            isHost: p.role === 'host',
-            socketId: null // Socket IDs are tracked in activeConnections, not stored in DB
-          })) || [];
+        // Include ALL participants with their complete status (not just connected ones)
+        const allPlayers = updatedRoom.participants?.map(p => ({
+          id: p.user_id,
+          name: p.user?.display_name || p.user?.username,
+          isHost: p.role === 'host',
+          isConnected: p.is_connected,
+          inGame: p.in_game,
+          currentLocation: p.current_location,
+          lastPing: p.last_ping,
+          socketId: null // Socket IDs are tracked in activeConnections, not stored in DB
+        })) || [];
 
         // Notify remaining players
         const eventData = {
           playerId: connection.userId,
-          players: remainingPlayers
+          players: allPlayers,
+          room: updatedRoom
         };
 
         // Add host transfer info if applicable
@@ -1419,8 +1423,9 @@ io.on('connection', async (socket) => {
 
         io.to(data.roomCode).emit('playerLeft', eventData);
 
-        // If no players left, mark room as returning (closest equivalent to abandoned)
-        if (remainingPlayers.length === 0) {
+        // If no connected players left, mark room as returning (closest equivalent to abandoned)
+        const connectedPlayers = allPlayers.filter(p => p.isConnected);
+        if (connectedPlayers.length === 0) {
           await db.updateRoom(connection.roomId, {
             status: 'returning'
           });
@@ -1603,21 +1608,26 @@ io.on('connection', async (socket) => {
 
       // Get updated room data
       const updatedRoom = await db.getRoomByCode(data.roomCode);
-      const updatedPlayers = updatedRoom.participants
-        ?.filter(p => p.is_connected === true)
-        .map(p => ({
-          id: p.user_id,
-          name: p.user?.display_name || p.user?.username,
-          isHost: p.role === 'host',
-          socketId: null
-        })) || [];
+      
+      // Include ALL participants with their complete status (not just connected ones)
+      const allPlayers = updatedRoom.participants?.map(p => ({
+        id: p.user_id,
+        name: p.user?.display_name || p.user?.username,
+        isHost: p.role === 'host',
+        isConnected: p.is_connected,
+        inGame: p.in_game,
+        currentLocation: p.current_location,
+        lastPing: p.last_ping,
+        socketId: null
+      })) || [];
 
       // Notify all players about the host change
       io.to(data.roomCode).emit('hostTransferred', {
         oldHostId: connection.userId,
         newHostId: data.targetUserId,
         newHostName: targetParticipant.user?.display_name || targetParticipant.user?.username,
-        players: updatedPlayers
+        players: allPlayers,
+        room: updatedRoom
       });
 
       console.log(`👑 Host transferred from ${currentParticipant.user?.display_name} to ${targetParticipant.user?.display_name}`);
@@ -1741,34 +1751,44 @@ io.on('connection', async (socket) => {
         }
       }
 
-      // Get updated room data
+      // Get updated room data with complete player information
       const updatedRoom = await db.getRoomByCode(data.roomCode);
-      const remainingPlayers = updatedRoom.participants
-        ?.filter(p => p.is_connected === true)
-        .map(p => ({
-          id: p.user_id,
-          name: p.user?.display_name || p.user?.username,
-          isHost: p.role === 'host',
-          socketId: null
-        })) || [];
+      
+      // Include ALL participants with their complete status (not just connected ones)
+      const allPlayers = updatedRoom.participants?.map(p => ({
+        id: p.user_id,
+        name: p.user?.display_name || p.user?.username,
+        isHost: p.role === 'host',
+        isConnected: p.is_connected,
+        inGame: p.in_game,
+        currentLocation: p.current_location,
+        lastPing: p.last_ping,
+        socketId: null
+      })) || [];
 
-      console.log(`👥 [KICK DEBUG] Remaining players after kick:`, remainingPlayers.map(p => ({
+      console.log(`👥 [KICK DEBUG] All players after kick:`, allPlayers.map(p => ({
         id: p.id,
         name: p.name,
-        isHost: p.isHost
+        isHost: p.isHost,
+        isConnected: p.isConnected,
+        currentLocation: p.currentLocation
       })));
 
-      // Notify remaining players about the kick
+      // Notify remaining players about the kick with complete player data
       io.to(data.roomCode).emit('playerKicked', {
         targetUserId: data.targetUserId,
         targetName: targetParticipant.user?.display_name || targetParticipant.user?.username,
         kickedBy: currentParticipant.user?.display_name || currentParticipant.user?.username,
-        players: remainingPlayers,
+        players: allPlayers, // Send complete player data
+        room: updatedRoom, // Also send updated room data
         isNotification: true // Flag to distinguish from personal kick notification
       });
 
       // Clear connection tracking for kicked player
       if (targetConnection) {
+        // Remove from heartbeat tracking
+        heartbeatManager.removeHeartbeat(targetConnection.socketId);
+        
         targetConnection.roomId = null;
         targetConnection.userId = null;
       }
