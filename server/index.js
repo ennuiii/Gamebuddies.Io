@@ -235,7 +235,7 @@ app.get('/api/game/rooms/:roomCode/validate', validateApiKey, async (req, res) =
         code: room.room_code,
         gameType: room.current_game,
         status: room.status,
-        currentPlayers: room.current_players,
+        currentPlayers: room.participants?.filter(p => p.is_connected === true).length || 0,
         maxPlayers: room.max_players,
         settings: room.settings,
         metadata: room.metadata,
@@ -250,13 +250,13 @@ app.get('/api/game/rooms/:roomCode/validate', validateApiKey, async (req, res) =
         gameData: participant.game_specific_data
       } : null,
       participants: room.participants
-        ?.filter(p => p.connection_status !== 'disconnected')
+        ?.filter(p => p.is_connected === true)
         .map(p => ({
           id: p.user_id,
           name: p.user?.display_name || p.user?.username,
           role: p.role,
           isReady: p.is_ready,
-          status: p.connection_status
+          status: p.is_connected ? 'connected' : 'disconnected'
         })),
       gameState: gameState ? {
         id: gameState.id,
@@ -296,9 +296,10 @@ app.post('/api/game/rooms/:roomCode/join', validateApiKey, async (req, res) => {
       return res.status(404).json({ error: 'Room not found' });
     }
     
-    // Check if room is full
-    if (room.current_players >= room.max_players) {
-      console.log(`❌ [API] Room ${roomCode} is full (${room.current_players}/${room.max_players})`);
+    // Check if room is full - calculate current players from connected members
+    const currentPlayers = room.participants?.filter(p => p.is_connected === true).length || 0;
+    if (currentPlayers >= room.max_players) {
+      console.log(`❌ [API] Room ${roomCode} is full (${currentPlayers}/${room.max_players})`);
       return res.status(400).json({ 
         error: 'Room is full',
         code: 'ROOM_FULL'
@@ -836,7 +837,7 @@ io.on('connection', async (socket) => {
         id: room.id, 
         room_code: room.room_code, 
         status: room.status,
-        current_players: room.current_players,
+        connected_players: room.participants?.filter(p => p.is_connected === true).length || 0,
         max_players: room.max_players,
         created_at: room.created_at,
         last_activity: room.last_activity,
@@ -850,16 +851,17 @@ io.on('connection', async (socket) => {
           user_id: p.user_id,
           username: p.user?.username,
           role: p.role,
-          connection_status: p.connection_status,
+          is_connected: p.is_connected,
           last_ping: p.last_ping,
           joined_at: p.joined_at
         })) || []
       );
 
-      // Check if room is full
-      if (room.current_players >= room.max_players) {
+      // Check if room is full - calculate from connected members
+      const connectedPlayers = room.participants?.filter(p => p.is_connected === true).length || 0;
+      if (connectedPlayers >= room.max_players) {
         console.log(`❌ [REJOINING DEBUG] Room is full:`, {
-          current: room.current_players,
+          connected: connectedPlayers,
           max: room.max_players
         });
         socket.emit('error', { 
@@ -905,20 +907,18 @@ io.on('connection', async (socket) => {
         console.log(`✅ [REJOINING DEBUG] Room status reset to lobby`);
       }
       
-      // Check for disconnected participant FIRST to avoid creating unnecessary user
-      // Also check for 'connected' participants if they might be stale connections
-      const disconnectedParticipant = room.participants?.find(p => 
-        p.user?.username === data.playerName && 
-        (p.connection_status === 'disconnected' || p.connection_status === 'connected')
+      // Check for existing participant (disconnected or connected) to handle rejoining
+      const existingParticipant = room.participants?.find(p => 
+        p.user?.username === data.playerName
       );
       
-      console.log(`🔍 [REJOINING DEBUG] Checking for existing participant (disconnected or potentially stale):`, {
+      console.log(`🔍 [REJOINING DEBUG] Checking for existing participant:`, {
         searchingFor: data.playerName,
-        disconnectedParticipant: disconnectedParticipant ? {
-          user_id: disconnectedParticipant.user_id,
-          username: disconnectedParticipant.user?.username,
-          connection_status: disconnectedParticipant.connection_status,
-          role: disconnectedParticipant.role
+        existingParticipant: existingParticipant ? {
+          user_id: existingParticipant.user_id,
+          username: existingParticipant.user?.username,
+          is_connected: existingParticipant.is_connected,
+          role: existingParticipant.role
         } : null
       });
       
@@ -926,49 +926,49 @@ io.on('connection', async (socket) => {
       let userRole;
       
       // Handle rejoining scenario
-      if (disconnectedParticipant) {
+      if (existingParticipant) {
         console.log(`🔄 [REJOINING DEBUG] Rejoining as existing participant:`, {
-          participant_id: disconnectedParticipant.id,
-          user_id: disconnectedParticipant.user_id,
-          original_role: disconnectedParticipant.role,
-          current_status: disconnectedParticipant.connection_status
+          participant_id: existingParticipant.id,
+          user_id: existingParticipant.user_id,
+          original_role: existingParticipant.role,
+          current_connection: existingParticipant.is_connected
         });
         
         // DON'T create a new user - use the original user data
         user = {
-          id: disconnectedParticipant.user_id,
+          id: existingParticipant.user_id,
           username: data.playerName,
-          external_id: disconnectedParticipant.user?.external_id
+          external_id: existingParticipant.user?.external_id
         };
-        userRole = disconnectedParticipant.role;
+        userRole = existingParticipant.role;
         
         // Clean up any existing connections for this user before creating new one
         const staleConnections = Array.from(activeConnections.entries())
           .filter(([socketId, conn]) => 
-            conn.userId === disconnectedParticipant.user_id && socketId !== socket.id
+            conn.userId === existingParticipant.user_id && socketId !== socket.id
           );
         
         staleConnections.forEach(([staleSocketId, staleConn]) => {
-          console.log(`🧹 [CLEANUP] Removing stale connection for user ${disconnectedParticipant.user_id}: ${staleSocketId}`);
+          console.log(`🧹 [CLEANUP] Removing stale connection for user ${existingParticipant.user_id}: ${staleSocketId}`);
           activeConnections.delete(staleSocketId);
         });
         
         // Update connection tracking with the ORIGINAL user ID IMMEDIATELY
         const connection = activeConnections.get(socket.id);
         if (connection) {
-          connection.userId = disconnectedParticipant.user_id; // Use original user ID
+          connection.userId = existingParticipant.user_id; // Use original user ID
           connection.roomId = room.id;
           console.log(`🔗 [REJOINING DEBUG] Updated connection tracking with original user ID:`, {
             socketId: socket.id,
-            userId: disconnectedParticipant.user_id, // Original user ID
+            userId: existingParticipant.user_id, // Original user ID
             roomId: room.id,
             username: data.playerName,
-            playerRole: disconnectedParticipant.role
+            playerRole: existingParticipant.role
           });
         }
         
-        // Update connection status for existing participant (always set to connected with new socket)
-        await db.updateParticipantConnection(disconnectedParticipant.user_id, socket.id, 'connected');
+        // Update connection status for existing participant (set to connected with new socket)
+        await db.updateParticipantConnection(existingParticipant.user_id, socket.id, 'connected');
         console.log(`✅ [REJOINING DEBUG] Updated existing participant connection status to connected`);
         
       } else {
@@ -985,33 +985,32 @@ io.on('connection', async (socket) => {
           external_id: user.external_id
         });
         
-        // Only check for duplicate participants if this is truly a new participant
-        // (not handled by the disconnectedParticipant logic above)
-        const existingConnectedParticipant = room.participants?.find(p => 
+        // Check for duplicate connected participants (only for truly new participants)
+        const duplicateConnectedParticipant = room.participants?.find(p => 
           p.user?.username === data.playerName && 
-          p.connection_status === 'connected' &&
-          p.user_id !== disconnectedParticipant?.user_id // Don't flag the same user as duplicate
+          p.is_connected === true &&
+          p.user_id !== existingParticipant?.user_id // Don't flag the same user as duplicate
         );
         
-        console.log(`🔍 [REJOINING DEBUG] Duplicate check for truly new participants:`, {
+        console.log(`🔍 [REJOINING DEBUG] Duplicate check for new participants:`, {
           searchingFor: data.playerName,
-          existingConnectedParticipant: existingConnectedParticipant ? {
-            user_id: existingConnectedParticipant.user_id,
-            username: existingConnectedParticipant.user?.username,
-            connection_status: existingConnectedParticipant.connection_status,
-            role: existingConnectedParticipant.role
+          duplicateConnectedParticipant: duplicateConnectedParticipant ? {
+            user_id: duplicateConnectedParticipant.user_id,
+            username: duplicateConnectedParticipant.user?.username,
+            is_connected: duplicateConnectedParticipant.is_connected,
+            role: duplicateConnectedParticipant.role
           } : null,
-          excludedUserId: disconnectedParticipant?.user_id
+          excludedUserId: existingParticipant?.user_id
         });
         
-        if (existingConnectedParticipant) {
+        if (duplicateConnectedParticipant) {
           console.log(`❌ [REJOINING DEBUG] Duplicate name blocked: ${data.playerName} already in room ${data.roomCode}`);
           socket.emit('error', { 
             message: 'A player with this name is already in the room. Please choose a different name.',
             code: 'DUPLICATE_PLAYER',
             debug: {
-              existing_user_id: existingConnectedParticipant.user_id,
-              existing_connection_status: existingConnectedParticipant.connection_status
+              existing_user_id: duplicateConnectedParticipant.user_id,
+              existing_connection_status: duplicateConnectedParticipant.is_connected
             }
           });
           return;
@@ -1059,7 +1058,7 @@ io.on('connection', async (socket) => {
       
       // Prepare player list
       const players = updatedRoom.participants
-        ?.filter(p => p.connection_status === 'connected')
+        ?.filter(p => p.is_connected === true)
         .map(p => ({
           id: p.user_id,
           name: p.user?.display_name || p.user?.username,
@@ -1218,7 +1217,7 @@ io.on('connection', async (socket) => {
       console.log(`🚀 [DEBUG] Room participants:`, room.participants?.map(p => ({
         user_id: p.user_id,
         role: p.role,
-        connection_status: p.connection_status,
+        is_connected: p.is_connected,
         username: p.user?.username
       })));
       
@@ -1232,14 +1231,14 @@ io.on('connection', async (socket) => {
         user_id: userParticipant.user_id,
         role: userParticipant.role,
         username: userParticipant.user?.username,
-        connection_status: userParticipant.connection_status
+        is_connected: userParticipant.is_connected
       } : 'NOT FOUND');
       
       console.log(`🚀 [START GAME DEBUG] All participants:`, room.participants?.map(p => ({
         user_id: p.user_id,
         role: p.role,
         username: p.user?.username,
-        connection_status: p.connection_status,
+        is_connected: p.is_connected,
         isCurrentUser: p.user_id === connection.userId
       })));
       
@@ -1266,7 +1265,7 @@ io.on('connection', async (socket) => {
     
       // Send game URLs to participants with delay for non-hosts
       const participants = room.participants?.filter(p => 
-        p.connection_status === 'connected'
+        p.is_connected === true
       ) || [];
 
       participants.forEach(p => {
@@ -1290,7 +1289,7 @@ io.on('connection', async (socket) => {
           user_id: p.user_id,
           role: p.role,
           username: p.user?.username,
-          connection_status: p.connection_status,
+          is_connected: p.is_connected,
           hasUserConnection: !!userConnection,
           totalUserConnections: userConnections.length,
           allUserSocketIds: userConnections.map(([socketId]) => socketId), 
@@ -1361,7 +1360,7 @@ io.on('connection', async (socket) => {
       const updatedRoom = await db.getRoomByCode(data.roomCode);
       if (updatedRoom) {
         const remainingPlayers = updatedRoom.participants
-          ?.filter(p => p.connection_status === 'connected')
+          ?.filter(p => p.is_connected === true)
           .map(p => ({
             id: p.user_id,
             name: p.user?.display_name || p.user?.username,
@@ -1386,10 +1385,10 @@ io.on('connection', async (socket) => {
 
         io.to(data.roomCode).emit('playerLeft', eventData);
 
-        // If no players left, mark room as abandoned
+        // If no players left, mark room as returning (closest equivalent to abandoned)
         if (remainingPlayers.length === 0) {
           await db.updateRoom(connection.roomId, {
-            status: 'abandoned'
+            status: 'returning'
           });
         }
       }
@@ -1437,7 +1436,7 @@ io.on('connection', async (socket) => {
       // This prevents duplicate name errors when players try to rejoin
       console.log(`🔄 Disconnecting all players from room ${data.roomCode} before return`);
       const participants = room.participants?.filter(p => 
-        p.connection_status === 'connected'
+        p.is_connected === true
       ) || [];
 
       // Mark all participants as disconnected FIRST
@@ -1516,7 +1515,7 @@ io.on('connection', async (socket) => {
       // Get updated room data
       const updatedRoom = await db.getRoomByCode(data.roomCode);
       const updatedPlayers = updatedRoom.participants
-        ?.filter(p => p.connection_status === 'connected')
+        ?.filter(p => p.is_connected === true)
         .map(p => ({
           id: p.user_id,
           name: p.user?.display_name || p.user?.username,
@@ -1574,7 +1573,7 @@ io.on('connection', async (socket) => {
         user_id: p.user_id,
         username: p.user?.username,
         role: p.role,
-        connection_status: p.connection_status
+        is_connected: p.is_connected
       })));
 
       // Check if current user is host
@@ -1656,7 +1655,7 @@ io.on('connection', async (socket) => {
       // Get updated room data
       const updatedRoom = await db.getRoomByCode(data.roomCode);
       const remainingPlayers = updatedRoom.participants
-        ?.filter(p => p.connection_status === 'connected')
+        ?.filter(p => p.is_connected === true)
         .map(p => ({
           id: p.user_id,
           name: p.user?.display_name || p.user?.username,
@@ -1743,11 +1742,6 @@ io.on('connection', async (socket) => {
       if (data.newStatus === 'lobby') {
         updateData.current_game = null;
       }
-      
-      // If finishing the room, set finished_at timestamp
-      if (data.newStatus === 'finished') {
-        updateData.finished_at = new Date().toISOString();
-      }
 
       await db.updateRoom(room.id, updateData);
 
@@ -1803,7 +1797,7 @@ io.on('connection', async (socket) => {
               // Check if original host reconnected
               const updatedRoom = await db.getRoomById(connection.roomId);
               const originalHost = updatedRoom?.participants?.find(p => 
-                p.user_id === connection.userId && p.connection_status === 'connected'
+                p.user_id === connection.userId && p.is_connected === true
               );
 
               if (!originalHost) {
@@ -1813,7 +1807,7 @@ io.on('connection', async (socket) => {
                 if (newHost && updatedRoom) {
                   // Get updated player list
                   const updatedPlayers = updatedRoom.participants
-                    ?.filter(p => p.connection_status === 'connected')
+                    ?.filter(p => p.is_connected === true)
                     .map(p => ({
                       id: p.user_id,
                       name: p.user?.display_name || p.user?.username,
