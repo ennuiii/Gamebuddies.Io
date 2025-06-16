@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { supabase } from './supabase';
+import { getSupabaseClient } from './supabase';
 
 /**
  * Custom hook for Supabase Realtime subscriptions
@@ -23,46 +23,64 @@ export const useRealtimeSubscription = ({
   useEffect(() => {
     console.log(`🔔 [REALTIME] Setting up subscription for table: ${table}`, filters);
 
-    // Create subscription
-    let subscription = supabase
-      .channel(`${table}_changes`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: table,
-          ...filters
-        },
-        (payload) => {
-          console.log(`🔔 [REALTIME] ${table} change:`, payload);
-          
-          switch (payload.eventType) {
-            case 'INSERT':
-              if (onInsert) onInsert(payload.new, payload);
-              break;
-            case 'UPDATE':
-              if (onUpdate) onUpdate(payload.new, payload.old, payload);
-              break;
-            case 'DELETE':
-              if (onDelete) onDelete(payload.old, payload);
-              break;
-            default:
-              console.log(`🔔 [REALTIME] Unknown event type: ${payload.eventType}`);
-          }
+    const setupSubscription = async () => {
+      try {
+        const supabase = await getSupabaseClient();
+        if (!supabase) {
+          console.error(`❌ [REALTIME] Cannot setup subscription - Supabase client not available`);
+          return;
         }
-      )
-      .subscribe((status) => {
-        console.log(`🔔 [REALTIME] Subscription status for ${table}:`, status);
-      });
 
-    subscriptionRef.current = subscription;
+        // Create subscription
+        let subscription = supabase
+          .channel(`${table}_changes`)
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: table,
+              ...filters
+            },
+            (payload) => {
+              console.log(`🔔 [REALTIME] ${table} change:`, payload);
+              
+              switch (payload.eventType) {
+                case 'INSERT':
+                  if (onInsert) onInsert(payload.new, payload);
+                  break;
+                case 'UPDATE':
+                  if (onUpdate) onUpdate(payload.new, payload.old, payload);
+                  break;
+                case 'DELETE':
+                  if (onDelete) onDelete(payload.old, payload);
+                  break;
+                default:
+                  console.log(`🔔 [REALTIME] Unknown event type: ${payload.eventType}`);
+              }
+            }
+          )
+          .subscribe((status) => {
+            console.log(`🔔 [REALTIME] Subscription status for ${table}:`, status);
+          });
+
+        subscriptionRef.current = subscription;
+      } catch (error) {
+        console.error(`❌ [REALTIME] Error setting up subscription for ${table}:`, error);
+      }
+    };
+
+    setupSubscription();
 
     // Cleanup function
     return () => {
       console.log(`🧹 [REALTIME] Cleaning up subscription for ${table}`);
       if (subscriptionRef.current) {
-        supabase.removeChannel(subscriptionRef.current);
+        getSupabaseClient().then(supabase => {
+          if (supabase) {
+            supabase.removeChannel(subscriptionRef.current);
+          }
+        });
         subscriptionRef.current = null;
       }
     };

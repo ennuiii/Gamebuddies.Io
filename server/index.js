@@ -1970,6 +1970,22 @@ io.on('connection', async (socket) => {
 
 // ===== API ENDPOINTS =====
 
+// Supabase config endpoint for frontend
+app.get('/api/supabase-config', (req, res) => {
+  try {
+    res.json({
+      url: process.env.SUPABASE_URL,
+      anonKey: process.env.SUPABASE_ANON_KEY
+    });
+  } catch (error) {
+    console.error('❌ Error providing Supabase config:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to get Supabase configuration'
+    });
+  }
+});
+
 // Room cleanup API endpoint
 app.post('/api/admin/cleanup-rooms', async (req, res) => {
   try {

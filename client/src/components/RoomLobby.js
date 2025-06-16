@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import io from 'socket.io-client';
 import GamePicker from './GamePicker';
 import { useRealtimeSubscription } from '../utils/useRealtimeSubscription';
-import { supabase } from '../utils/supabase';
+import { getSupabaseClient } from '../utils/supabase';
 import './RoomLobby.css';
 
 // Track active connection to prevent duplicates in StrictMode
@@ -88,6 +88,12 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
     if (!roomIdRef.current) return;
     
     try {
+      const supabase = await getSupabaseClient();
+      if (!supabase) {
+        console.error('❌ Cannot fetch player list - Supabase client not available');
+        return;
+      }
+
       const { data: roomMembers, error } = await supabase
         .from('room_members')
         .select(`

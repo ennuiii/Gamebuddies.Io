@@ -19,17 +19,17 @@ This implementation adds Supabase Realtime functionality to GameBuddies for real
 
 ## Setup Requirements
 
-### Environment Variables (Client)
-Add these to your client environment (`.env` file in `/client` directory):
+### Environment Variables (Server Only)
+Since you're using a single Render.com web service, the frontend gets Supabase configuration from the server via `/api/supabase-config` endpoint.
 
+Your server environment variables (already configured):
 ```env
-# Supabase Configuration
-REACT_APP_SUPABASE_URL=your_supabase_project_url
-REACT_APP_SUPABASE_ANON_KEY=your_supabase_anon_key
-
-# Server Configuration (optional)
-REACT_APP_SERVER_URL=http://localhost:3033
+SUPABASE_URL=your_supabase_project_url
+SUPABASE_ANON_KEY=your_supabase_anon_key
+SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
 ```
+
+**No client environment variables needed** - the frontend automatically fetches the configuration from your server.
 
 ### Supabase Realtime Configuration
 1. **Enable Realtime** in your Supabase dashboard for these tables:
