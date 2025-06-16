@@ -1109,7 +1109,7 @@ io.on('connection', async (socket) => {
       
       socket.emit('roomJoined', joinSuccessData);
 
-      console.log(`🎉 [REJOINING SUCCESS] ${data.playerName} ${disconnectedParticipant ? 'rejoined' : 'joined'} room ${data.roomCode}`);
+      console.log(`🎉 [REJOINING SUCCESS] ${data.playerName} ${existingParticipant ? 'rejoined' : 'joined'} room ${data.roomCode}`);
 
     } catch (error) {
       console.error('❌ [REJOINING ERROR] Room join/rejoin failed:', {
