@@ -880,8 +880,8 @@ io.on('connection', async (socket) => {
         roomStatus: room.status
       });
       
-      // V2 Schema: Accept players when room status is 'lobby' or if original creator is rejoining
-      if (room.status !== 'lobby' && !isOriginalCreator) {
+      // V2 Schema: Accept players when room status is 'lobby' or 'in_game', or if original creator is rejoining
+      if (room.status !== 'lobby' && room.status !== 'in_game' && !isOriginalCreator) {
         console.log(`❌ [REJOINING DEBUG] Room not accepting players:`, {
           status: room.status,
           isOriginalCreator
@@ -897,15 +897,8 @@ io.on('connection', async (socket) => {
         return;
       }
       
-      // If original creator is rejoining an in_game room, reset it to lobby
-      if (room.status === 'in_game' && isOriginalCreator) {
-        console.log(`🔄 [REJOINING DEBUG] Original creator rejoining in_game room, resetting to lobby`);
-        await db.updateRoom(room.id, {
-          status: 'lobby',
-          current_game: null
-        });
-        console.log(`✅ [REJOINING DEBUG] Room status reset to lobby`);
-      }
+      // Note: We no longer automatically reset in_game rooms to lobby when original creator rejoins
+      // This allows players and GMs to join ongoing games
       
       // Check for existing participant (disconnected or connected) to handle rejoining
       const existingParticipant = room.participants?.find(p => 
