@@ -570,7 +570,7 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
     // Get room
     const { data: room, error: roomError } = await db.adminClient
       .from('rooms')
-      .select('id, room_code, status as room_status')
+      .select('id, room_code, status')
       .eq('room_code', roomCode)
       .single();
     
@@ -631,7 +631,7 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
     console.log(`🏠 [API DEBUG] Room context:`, {
       room_id: room.id,
       room_code: room.room_code,
-      room_status: room.room_status,
+      room_status: room.status,
       total_participants: await db.adminClient
         .from('room_members')
         .select('user_id', { count: 'exact' })
@@ -847,7 +847,7 @@ app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async 
     // Get room
     const { data: room } = await db.adminClient
       .from('rooms')
-      .select('id, room_code, status as room_status')
+      .select('id, room_code, status')
       .eq('room_code', roomCode)
       .single();
     
@@ -867,7 +867,7 @@ app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async 
     console.log(`🏠 [API DEBUG] Room context before bulk update:`, {
       room_id: room.id,
       room_code: room.room_code,
-      room_status: room.room_status,
+      room_status: room.status,
       total_participants: roomParticipants.data?.length || 0,
       current_status_breakdown: roomParticipants.data?.reduce((acc, p) => {
         const status = p.current_location || 'unknown';
