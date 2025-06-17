@@ -168,7 +168,7 @@ class HeartbeatManager extends EventEmitter {
         isHost: p.role === 'host',
         isConnected: p.is_connected,
         inGame: p.in_game,
-        currentLocation: p.current_location,
+        currentLocation: p.current_location || (p.is_connected ? 'lobby' : 'disconnected'),
         lastPing: p.last_ping
       })) || [];
 
@@ -255,7 +255,7 @@ class HeartbeatManager extends EventEmitter {
                 isHost: p.role === 'host',
                 isConnected: p.is_connected,
                 inGame: p.in_game,
-                currentLocation: p.current_location,
+                currentLocation: p.current_location || (p.is_connected ? 'lobby' : 'disconnected'),
                 lastPing: p.last_ping
               })) || [];
 

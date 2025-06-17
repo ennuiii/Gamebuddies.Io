@@ -744,7 +744,7 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
         isHost: p.role === 'host',
         isConnected: p.is_connected,
         inGame: p.in_game,
-        currentLocation: p.current_location,
+        currentLocation: p.current_location || (p.is_connected ? 'lobby' : 'disconnected'), // Provide default
         lastPing: p.last_ping,
         socketId: null
       })) || [];
@@ -990,7 +990,7 @@ app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async 
         isHost: p.role === 'host',
         isConnected: p.is_connected,
         inGame: p.in_game,
-        currentLocation: p.current_location,
+        currentLocation: p.current_location || (p.is_connected ? 'lobby' : 'disconnected'), // Provide default
         lastPing: p.last_ping,
         socketId: null
       })) || [];
@@ -1258,6 +1258,10 @@ io.on('connection', async (socket) => {
             id: user.id,
             name: data.playerName,
             isHost: true,
+            isConnected: true,
+            inGame: false,
+            currentLocation: 'lobby',
+            lastPing: new Date().toISOString(),
             socketId: socket.id
           }]
         }
@@ -1571,15 +1575,15 @@ io.on('connection', async (socket) => {
       const updatedRoom = await db.getRoomByCode(data.roomCode);
       
       // Prepare player list - include ALL participants with their status
-      const players = updatedRoom.participants?.map(p => ({
-        id: p.user_id,
-        name: p.user?.display_name || p.user?.username,
-        isHost: p.role === 'host',
-        isConnected: p.is_connected,
-        inGame: p.in_game,
-        currentLocation: p.current_location,
-        lastPing: p.last_ping,
-        socketId: null // Socket IDs are tracked in activeConnections, not stored in DB
+              const players = updatedRoom.participants?.map(p => ({
+          id: p.user_id,
+          name: p.user?.display_name || p.user?.username,
+          isHost: p.role === 'host',
+          isConnected: p.is_connected,
+          inGame: p.in_game,
+          currentLocation: p.current_location || (p.is_connected ? 'lobby' : 'disconnected'),
+          lastPing: p.last_ping,
+          socketId: null // Socket IDs are tracked in activeConnections, not stored in DB
       })) || [];
 
       console.log(`👥 [REJOINING DEBUG] Final player list:`, players);
@@ -1898,7 +1902,7 @@ io.on('connection', async (socket) => {
           isHost: p.role === 'host',
           isConnected: p.is_connected,
           inGame: p.in_game,
-          currentLocation: p.current_location,
+          currentLocation: p.current_location || (p.is_connected ? 'lobby' : 'disconnected'),
           lastPing: p.last_ping,
           socketId: null // Socket IDs are tracked in activeConnections, not stored in DB
         })) || [];
@@ -2115,7 +2119,7 @@ io.on('connection', async (socket) => {
         isHost: p.role === 'host',
         isConnected: p.is_connected,
         inGame: p.in_game,
-        currentLocation: p.current_location,
+        currentLocation: p.current_location || (p.is_connected ? 'lobby' : 'disconnected'),
         lastPing: p.last_ping,
         socketId: null
       })) || [];
@@ -2260,7 +2264,7 @@ io.on('connection', async (socket) => {
         isHost: p.role === 'host',
         isConnected: p.is_connected,
         inGame: p.in_game,
-        currentLocation: p.current_location,
+        currentLocation: p.current_location || (p.is_connected ? 'lobby' : 'disconnected'),
         lastPing: p.last_ping,
         socketId: null
       })) || [];
@@ -2453,6 +2457,7 @@ io.on('connection', async (socket) => {
             isHost: p.role === 'host',
             isConnected: p.is_connected,
             inGame: p.in_game,
+            currentLocation: p.current_location || (p.is_connected ? 'lobby' : 'disconnected'),
             lastPing: p.last_ping,
             socketId: null
           })) || [];
