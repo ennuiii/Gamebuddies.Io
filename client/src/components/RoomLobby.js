@@ -86,6 +86,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
   useRealtimeSubscription({
     table: 'room_members',
     filters: roomIdRef.current ? { filter: `room_id=eq.${roomIdRef.current}` } : {},
+    enabled: !!roomIdRef.current, // Only enable when we have a room ID
     onUpdate: (newRecord, oldRecord) => {
       console.log('🔔 [REALTIME] Room member updated:', { newRecord, oldRecord });
       
@@ -124,6 +125,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
   useRealtimeSubscription({
     table: 'rooms',
     filters: roomIdRef.current ? { filter: `id=eq.${roomIdRef.current}` } : {},
+    enabled: !!roomIdRef.current, // Only enable when we have a room ID
     onUpdate: (newRecord, oldRecord) => {
       console.log('🔔 [REALTIME] Room updated:', { newRecord, oldRecord });
       

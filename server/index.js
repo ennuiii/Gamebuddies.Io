@@ -661,35 +661,32 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
     switch (status) {
       case 'connected':
         updateData.is_connected = true;
-        updateData.current_location = location || 'game';
-        updateData.in_game = true;
+        updateData.current_location = location || 'lobby'; // Default to lobby, not game
+        updateData.in_game = false; // Don't assume they're in game just because connected
         break;
         
       case 'disconnected':
-        // Player disconnected from external game
         updateData.is_connected = false;
         updateData.current_location = 'disconnected';
         updateData.in_game = false;
         break;
         
       case 'returned_to_lobby':
-        // Player returned to GameBuddies lobby
         updateData.is_connected = true;
         updateData.current_location = 'lobby';
         updateData.in_game = false;
         break;
         
       case 'in_game':
-        // Player is actively in the external game
         updateData.is_connected = true;
         updateData.current_location = 'game';
         updateData.in_game = true;
         break;
         
       default:
-        console.log(`⚠️ [API] Unknown status: ${status}, defaulting to connected`);
         updateData.is_connected = status === 'connected';
-        updateData.current_location = location || (status === 'connected' ? 'game' : 'disconnected');
+        updateData.current_location = location || (status === 'connected' ? 'lobby' : 'disconnected');
+        updateData.in_game = false; // Don't assume in game for unknown status
     }
     
     console.log(`📝 [API] Status change analysis:`, {
@@ -897,8 +894,8 @@ app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async 
         switch (status) {
           case 'connected':
             updateData.is_connected = true;
-            updateData.current_location = location || 'game';
-            updateData.in_game = true;
+            updateData.current_location = location || 'lobby'; // Default to lobby, not game
+            updateData.in_game = false; // Don't assume they're in game just because connected
             break;
             
           case 'disconnected':
@@ -1472,6 +1469,18 @@ io.on('connection', async (socket) => {
         await db.updateParticipantConnection(existingParticipant.user_id, socket.id, 'connected');
         console.log(`✅ [REJOINING DEBUG] Updated existing participant connection status to connected`);
         
+        // If rejoining the lobby (not in a game), ensure in_game is false
+        if (room.status === 'lobby' || room.status === 'in_game') {
+          await db.adminClient
+            .from('room_members')
+            .update({ 
+              in_game: false,
+              current_location: 'lobby'
+            })
+            .eq('user_id', existingParticipant.user_id)
+            .eq('room_id', room.id);
+          console.log(`🔄 [REJOINING DEBUG] Reset rejoining participant to lobby status (in_game: false)`);
+        }
       } else {
         // Get or create user profile for new participants
         console.log(`👤 [REJOINING DEBUG] Getting/creating user profile for new participant...`);
