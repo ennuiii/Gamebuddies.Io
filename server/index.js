@@ -7,8 +7,9 @@ const { createProxyMiddleware } = require('http-proxy-middleware');
 const http = require('http');
 const socketIo = require('socket.io');
 const { db } = require('./lib/supabase');
-const HeartbeatManager = require('./lib/heartbeat');
 require('dotenv').config();
+const rateLimit = require('express-rate-limit');
+const crypto = require('crypto');
 
 const app = express();
 const server = http.createServer(app);
@@ -1174,9 +1175,6 @@ app.get('/api/debug/storage', (req, res) => {
 // Track active connections
 const activeConnections = new Map();
 
-// Initialize heartbeat manager
-const heartbeatManager = new HeartbeatManager(db, io);
-
 io.on('connection', async (socket) => {
   console.log(`🔌 User connected: ${socket.id}`);
   
@@ -1242,8 +1240,7 @@ io.on('connection', async (socket) => {
         connection.roomId = room.id;
       }
 
-      // Register heartbeat
-      heartbeatManager.registerHeartbeat(socket.id, user.id, room.id, room.room_code);
+
 
       // Send success response
       socket.emit('roomCreated', {
@@ -1576,8 +1573,7 @@ io.on('connection', async (socket) => {
       console.log(`🔗 [REJOINING DEBUG] Joining socket room: ${data.roomCode}`);
       socket.join(data.roomCode);
 
-      // Register heartbeat
-      heartbeatManager.registerHeartbeat(socket.id, user.id, room.id, data.roomCode);
+
 
       // Get updated room data
       console.log(`🔄 [REJOINING DEBUG] Fetching updated room data...`);
@@ -2298,8 +2294,7 @@ io.on('connection', async (socket) => {
 
       // Clear connection tracking for kicked player
       if (targetConnection) {
-        // Remove from heartbeat tracking
-        heartbeatManager.removeHeartbeat(targetConnection.socketId);
+
         
         targetConnection.roomId = null;
         targetConnection.userId = null;
@@ -2385,18 +2380,14 @@ io.on('connection', async (socket) => {
     }
   });
 
-  // Handle heartbeat ping
-  socket.on('heartbeat', () => {
-    heartbeatManager.updateHeartbeat(socket.id);
-  });
+
 
   // Handle disconnection
   socket.on('disconnect', async () => {
     try {
       console.log(`🔌 User disconnected: ${socket.id}`);
       
-      // Remove from heartbeat tracking
-      const heartbeatData = heartbeatManager.removeHeartbeat(socket.id);
+      
       
       const connection = activeConnections.get(socket.id);
       if (connection?.userId) {
@@ -2461,14 +2452,9 @@ io.on('connection', async (socket) => {
                 newHostName: newHost.user?.display_name || newHost.user?.username
               });
               
-              // Refresh the new host's heartbeat and mark grace period
-              const heartbeatRefreshed = await heartbeatManager.refreshHeartbeatForUser(newHost.user_id);
-              heartbeatManager.markRecentHostTransfer(newHost.user_id);
-              
-              console.log(`👑 [DISCONNECT] Post-transfer protection applied:`, {
+              console.log(`👑 [DISCONNECT] Host transfer completed successfully`, {
                 newHostId: newHost.user_id,
-                heartbeatRefreshed,
-                gracePeriodActive: true
+                newHostName: newHost.user?.display_name || newHost.user?.username
               });
             } else {
               console.log(`❌ [DISCONNECT] Host transfer failed - no suitable replacement found`);
@@ -2601,22 +2587,7 @@ app.get('/api/admin/room-stats', async (req, res) => {
   }
 });
 
-// Heartbeat stats endpoint
-app.get('/api/admin/heartbeat-stats', (req, res) => {
-  try {
-    const stats = heartbeatManager.getStats();
-    res.json({
-      success: true,
-      stats
-    });
-  } catch (error) {
-    console.error('❌ Heartbeat stats error:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
+
 
 // Manual cleanup trigger
 app.post('/api/admin/cleanup-now', async (req, res) => {
