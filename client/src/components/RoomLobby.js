@@ -378,7 +378,9 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
 
     const handlePlayerStatusUpdated = (data) => {
       console.log('🔄 Player status updated:', data);
-      setPlayers(data.room?.participants?.map(p => ({
+      
+      // Map the players using the updated room participants
+      const mappedPlayers = data.room?.participants?.map(p => ({
         id: p.user_id,
         name: p.user?.display_name || p.user?.username,
         isHost: p.role === 'host',
@@ -386,8 +388,33 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
         inGame: p.in_game,
         currentLocation: p.current_location,
         lastPing: p.last_ping
-      })) || []);
+      })) || [];
+      
+      setPlayers(mappedPlayers);
       setRoomData(data.room);
+      
+      // Handle host transfer if included in the update
+      if (data.hostTransfer) {
+        console.log('👑 Host transfer detected in status update:', data.hostTransfer);
+        
+        // Update local host status if current user is affected
+        const currentUser = mappedPlayers.find(p => p.name === playerNameRef.current);
+        if (currentUser) {
+          const newHostStatus = currentUser.isHost;
+          console.log(`🔍 [CLIENT DEBUG] Host status update via external game: ${playerNameRef.current} is now host: ${newHostStatus}`);
+          setCurrentIsHost(newHostStatus);
+        }
+        
+        // Show notification about the host transfer
+        const reason = data.hostTransfer.reason === 'external_game_disconnect' ? 'disconnected from game' : 
+                      data.hostTransfer.reason === 'original_host_left' ? 'left the room' : 
+                      'disconnected';
+        
+        console.log(`👑 [HOST TRANSFER] ${data.hostTransfer.newHostName} is now the host (previous host ${reason})`);
+        
+        // You could add a toast notification here
+        // toast.info(`${data.hostTransfer.newHostName} is now the host`);
+      }
       
       // Clear disconnect countdown if player reconnected
       if (data.playerId && data.status === 'connected') {

@@ -710,6 +710,10 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
     
     console.log(`📝 [API] Updating participant with:`, updateData);
     
+    // Check if this player was the host before updating
+    const wasHost = participant.role === 'host';
+    const isDisconnecting = updateData.is_connected === false;
+    
     // Update participant
     const { error: updateError } = await db.adminClient
       .from('room_members')
@@ -720,6 +724,33 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
     if (updateError) {
       console.error(`❌ [API] Database update error:`, updateError);
       throw updateError;
+    }
+    
+    // Handle host transfer if host disconnected via external game
+    let newHost = null;
+    if (wasHost && isDisconnecting) {
+      console.log(`👑 [API] Host ${playerId} disconnected via external game - checking for host transfer`);
+      
+      // Get other connected players who could become host
+      const { data: otherConnectedPlayers } = await db.adminClient
+        .from('room_members')
+        .select('user_id, user:users!inner(username, display_name), role, is_connected')
+        .eq('room_id', room.id)
+        .eq('is_connected', true)
+        .neq('user_id', playerId);
+      
+      if (otherConnectedPlayers && otherConnectedPlayers.length > 0) {
+        // Auto-transfer host to the first connected player
+        newHost = await db.autoTransferHost(room.id, playerId);
+        
+        if (newHost) {
+          console.log(`👑 [API] Host transferred from ${playerId} to ${newHost.user_id} (${newHost.user?.username || newHost.user?.display_name}) via external game disconnect`);
+        } else {
+          console.log(`❌ [API] Failed to transfer host from ${playerId}`);
+        }
+      } else {
+        console.log(`⚠️ [API] Host ${playerId} disconnected but no other connected players - keeping host role`);
+      }
     }
     
     // Log event
@@ -768,7 +799,7 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
       console.log(`👥 [API DEBUG] Player status summary after update:`, statusSummary);
       
       console.log(`📡 [API] Broadcasting status update to room ${roomCode}`);
-      io.to(roomCode).emit('playerStatusUpdated', {
+      const broadcastData = {
         playerId,
         status: updateData.current_location,
         reason,
@@ -776,7 +807,20 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
         room: updatedRoom,
         source: 'external_game',
         timestamp: new Date().toISOString()
-      });
+      };
+      
+      // Include host transfer information if it occurred
+      if (newHost) {
+        broadcastData.hostTransfer = {
+          oldHostId: playerId,
+          newHostId: newHost.user_id,
+          newHostName: newHost.user?.username || newHost.user?.display_name,
+          reason: 'external_game_disconnect'
+        };
+        console.log(`👑 [API] Including host transfer in broadcast:`, broadcastData.hostTransfer);
+      }
+      
+      io.to(roomCode).emit('playerStatusUpdated', broadcastData);
       
       // Confirm broadcast was sent
       console.log(`✅ [API DEBUG] Broadcast sent to ${io.sockets.adapter.rooms.get(roomCode)?.size || 0} connected clients`);
