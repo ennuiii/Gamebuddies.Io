@@ -48,6 +48,14 @@
   z-index: 1;
 }
 
+/* Fallback for browsers that don't support backdrop-filter */
+@supports not (backdrop-filter: blur(20px)) {
+  .lobby-header {
+    background: rgba(15, 15, 35, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
+}
+
 .leave-button {
   padding: 1rem 2rem;
   background: rgba(233, 69, 96, 0.1);
@@ -63,6 +71,13 @@
   letter-spacing: 1px;
   position: relative;
   overflow: hidden;
+}
+
+/* Fallback for leave button */
+@supports not (backdrop-filter: blur(10px)) {
+  .leave-button {
+    background: rgba(233, 69, 96, 0.2);
+  }
 }
 
 .leave-button::before {
@@ -279,6 +294,14 @@
   transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   position: relative;
   overflow: hidden;
+}
+
+/* Fallback for player cards */
+@supports not (backdrop-filter: blur(20px)) {
+  .player-card {
+    background: rgba(15, 15, 35, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+  }
 }
 
 .player-card::before {
@@ -520,6 +543,14 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
   position: relative;
   overflow: hidden;
+}
+
+/* Fallback for selected game card */
+@supports not (backdrop-filter: blur(20px)) {
+  .selected-game-card {
+    background: rgba(15, 15, 35, 0.9);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+  }
 }
 
 .selected-game-card::before {

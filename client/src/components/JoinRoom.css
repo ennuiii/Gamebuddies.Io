@@ -17,6 +17,16 @@
   animation: overlayFadeIn 0.4s ease-out;
 }
 
+/* Fallback for browsers that don't support backdrop-filter */
+@supports not (backdrop-filter: blur(10px)) {
+  .join-room-overlay {
+    background: 
+      radial-gradient(circle at 30% 70%, rgba(0, 217, 255, 0.6) 0%, transparent 70%),
+      radial-gradient(circle at 70% 30%, rgba(120, 119, 198, 0.5) 0%, transparent 70%),
+      rgba(0, 0, 0, 0.92);
+  }
+}
+
 @keyframes overlayFadeIn {
   from { 
     opacity: 0;
@@ -43,6 +53,14 @@
   position: relative;
   overflow: hidden;
   animation: modalSlideUp 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* Fallback for browsers that don't support backdrop-filter */
+@supports not (backdrop-filter: blur(25px)) {
+  .join-room-modal {
+    background: rgba(15, 15, 35, 0.95);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+  }
 }
 
 .join-room-modal::before {
@@ -139,8 +157,17 @@
   color: var(--text-primary);
   font-size: 1rem;
   transition: all 0.3s ease;
+  /* Ensure text is always visible */
   -webkit-text-fill-color: var(--text-primary);
   text-shadow: 0 0 1px rgba(0, 0, 0, 0.5);
+}
+
+/* Fallback for browsers that don't support backdrop-filter */
+@supports not (backdrop-filter: blur(10px)) {
+  .form-group input[type="text"] {
+    background: rgba(15, 15, 35, 0.9);
+    border: 2px solid rgba(255, 255, 255, 0.3);
+  }
 }
 
 .form-group input[type="text"]:focus {
