@@ -320,21 +320,45 @@
   .form-group input[type="text"] {
     padding: 1.2rem 1.5rem;
     font-size: 1rem;
-    background: rgba(255, 255, 255, 0.12);
-    border: 2px solid rgba(255, 255, 255, 0.25);
-    color: #ffffff;
-    -webkit-text-fill-color: #ffffff;
-    text-shadow: 0 0 2px rgba(0, 0, 0, 0.8);
+    background: rgba(15, 15, 35, 0.95);
+    border: 2px solid rgba(0, 217, 255, 0.4);
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    text-shadow: 0 0 3px rgba(0, 0, 0, 0.9);
+    /* Force white text on all mobile browsers */
+    -webkit-appearance: none;
+    appearance: none;
   }
   
   .form-group input[type="text"]:focus {
-    background: rgba(255, 255, 255, 0.18);
+    background: rgba(15, 15, 35, 0.98);
     border-color: var(--secondary-color);
+    box-shadow: 
+      0 0 20px rgba(0, 217, 255, 0.5),
+      0 0 0 1px rgba(0, 217, 255, 0.3);
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
   }
   
   .form-group input[type="text"]::placeholder {
-    color: rgba(255, 255, 255, 0.7);
-    -webkit-text-fill-color: rgba(255, 255, 255, 0.7);
+    color: rgba(255, 255, 255, 0.7) !important;
+    -webkit-text-fill-color: rgba(255, 255, 255, 0.7) !important;
+    opacity: 1;
+  }
+  
+  /* Ensure consistent styling across all mobile browsers */
+  .form-group input[type="text"]::-webkit-input-placeholder {
+    color: rgba(255, 255, 255, 0.7) !important;
+    -webkit-text-fill-color: rgba(255, 255, 255, 0.7) !important;
+  }
+  
+  .form-group input[type="text"]::-moz-placeholder {
+    color: rgba(255, 255, 255, 0.7) !important;
+    opacity: 1;
+  }
+  
+  .form-group input[type="text"]:-ms-input-placeholder {
+    color: rgba(255, 255, 255, 0.7) !important;
   }
 }
 
@@ -352,13 +376,29 @@
   .form-group input[type="text"] {
     padding: 1rem 1.2rem;
     font-size: 1rem;
-    background: rgba(255, 255, 255, 0.15);
-    border: 2px solid rgba(255, 255, 255, 0.3);
+    background: rgba(15, 15, 35, 0.98);
+    border: 2px solid rgba(0, 217, 255, 0.5);
+    color: #ffffff !important;
+    -webkit-text-fill-color: #ffffff !important;
+    text-shadow: 0 0 4px rgba(0, 0, 0, 1);
+    /* Additional mobile-specific properties */
+    -webkit-appearance: none;
+    appearance: none;
+    outline: none;
+  }
+  
+  .form-group input[type="text"]:focus {
+    background: rgba(15, 15, 35, 1);
+    border-color: var(--secondary-color);
+    box-shadow: 
+      0 0 25px rgba(0, 217, 255, 0.6),
+      0 0 0 2px rgba(0, 217, 255, 0.4);
   }
   
   .cancel-button,
   .create-button {
     padding: 1rem 1.5rem;
     font-size: 1rem;
+    min-height: 50px;
   }
 } 

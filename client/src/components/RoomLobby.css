@@ -147,13 +147,13 @@
 .copy-btn,
 .copy-link-btn {
   padding: 0.8rem 1.5rem;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(0, 217, 255, 0.15);
   backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  border: 2px solid rgba(0, 217, 255, 0.4);
   border-radius: 12px;
-  color: var(--text-primary);
+  color: var(--secondary-color);
   font-size: 0.9rem;
-  font-weight: 500;
+  font-weight: 600;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   display: flex;
@@ -161,6 +161,17 @@
   gap: 0.6rem;
   position: relative;
   overflow: hidden;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  box-shadow: 0 4px 15px rgba(0, 217, 255, 0.2);
+}
+
+/* Fallback for browsers that don't support backdrop-filter */
+@supports not (backdrop-filter: blur(10px)) {
+  .copy-btn,
+  .copy-link-btn {
+    background: rgba(0, 217, 255, 0.25);
+    border: 2px solid rgba(0, 217, 255, 0.5);
+  }
 }
 
 .copy-btn::before,
@@ -171,7 +182,7 @@
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  background: linear-gradient(90deg, transparent, rgba(0, 217, 255, 0.3), transparent);
   transition: left 0.6s;
 }
 
@@ -182,12 +193,14 @@
 
 .copy-btn:hover,
 .copy-link-btn:hover {
-  background: rgba(255, 255, 255, 0.15);
-  border-color: rgba(0, 217, 255, 0.4);
+  background: rgba(0, 217, 255, 0.3);
+  border-color: var(--secondary-color);
+  color: white;
   transform: translateY(-3px);
   box-shadow: 
-    0 10px 25px rgba(0, 0, 0, 0.2),
+    0 10px 25px rgba(0, 217, 255, 0.4),
     0 0 0 1px rgba(0, 217, 255, 0.1);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
 }
 
 .lobby-content {
@@ -1056,6 +1069,22 @@
     font-size: 0.85rem;
     min-height: 44px;
     min-width: 120px;
+    background: rgba(0, 217, 255, 0.25);
+    border: 2px solid rgba(0, 217, 255, 0.6);
+    color: white;
+    font-weight: 700;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9);
+    box-shadow: 0 6px 20px rgba(0, 217, 255, 0.3);
+  }
+  
+  .copy-btn:hover,
+  .copy-link-btn:hover {
+    background: rgba(0, 217, 255, 0.4);
+    border-color: var(--secondary-color);
+    color: white;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 217, 255, 0.5);
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9);
   }
   
   .leave-button {
