@@ -2462,7 +2462,7 @@ io.on('connection', async (socket) => {
               });
               
               // Refresh the new host's heartbeat and mark grace period
-              const heartbeatRefreshed = heartbeatManager.refreshHeartbeatForUser(newHost.user_id);
+              const heartbeatRefreshed = await heartbeatManager.refreshHeartbeatForUser(newHost.user_id);
               heartbeatManager.markRecentHostTransfer(newHost.user_id);
               
               console.log(`👑 [DISCONNECT] Post-transfer protection applied:`, {

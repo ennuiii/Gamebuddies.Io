@@ -53,7 +53,7 @@ class HeartbeatManager extends EventEmitter {
   }
 
   // Refresh heartbeat for a specific user (useful during host transfers)
-  refreshHeartbeatForUser(userId) {
+  async refreshHeartbeatForUser(userId) {
     let foundConnections = 0;
     let refreshedConnections = 0;
     
@@ -74,6 +74,20 @@ class HeartbeatManager extends EventEmitter {
           newPing: new Date(heartbeat.lastPing).toISOString(),
           timeDiff: heartbeat.lastPing - oldPing
         });
+        
+        // Also update the database to prevent database cleanup from thinking user is stale
+        try {
+          await this.db.adminClient
+            .from('room_members')
+            .update({ 
+              last_ping: new Date(heartbeat.lastPing).toISOString()
+            })
+            .eq('user_id', userId);
+          
+          console.log(`💓 [HEARTBEAT] Updated database last_ping for user ${userId}`);
+        } catch (error) {
+          console.error(`❌ [HEARTBEAT] Failed to update database last_ping for user ${userId}:`, error);
+        }
       }
     }
     
@@ -238,7 +252,7 @@ class HeartbeatManager extends EventEmitter {
             roomCode: heartbeat.roomCode
           });
           
-          const heartbeatRefreshed = this.refreshHeartbeatForUser(newHost.user_id);
+          const heartbeatRefreshed = await this.refreshHeartbeatForUser(newHost.user_id);
           this.markRecentHostTransfer(newHost.user_id);
           
           console.log(`👑 [HEARTBEAT] Post-transfer protection applied:`, {
@@ -342,7 +356,7 @@ class HeartbeatManager extends EventEmitter {
                 roomCode: player.room?.room_code
               });
               
-              const heartbeatRefreshed = this.refreshHeartbeatForUser(newHost.user_id);
+              const heartbeatRefreshed = await this.refreshHeartbeatForUser(newHost.user_id);
               this.markRecentHostTransfer(newHost.user_id);
               
               console.log(`👑 [HEARTBEAT DB] Post-transfer protection applied:`, {
