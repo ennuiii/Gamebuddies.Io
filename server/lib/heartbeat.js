@@ -54,25 +54,72 @@ class HeartbeatManager extends EventEmitter {
 
   // Refresh heartbeat for a specific user (useful during host transfers)
   refreshHeartbeatForUser(userId) {
+    let foundConnections = 0;
+    let refreshedConnections = 0;
+    
+    console.log(`💓 [HEARTBEAT] Attempting to refresh heartbeat for user ${userId}...`);
+    console.log(`💓 [HEARTBEAT] Currently tracking ${this.heartbeats.size} heartbeats`);
+    
     for (const [socketId, heartbeat] of this.heartbeats.entries()) {
       if (heartbeat.userId === userId) {
+        foundConnections++;
+        const oldPing = heartbeat.lastPing;
         heartbeat.lastPing = Date.now();
-        console.log(`💓 [HEARTBEAT] Refreshed for user ${userId} (socket: ${socketId})`);
-        return true;
+        refreshedConnections++;
+        
+        console.log(`💓 [HEARTBEAT] Refreshed heartbeat for user ${userId}:`, {
+          socketId,
+          roomCode: heartbeat.roomCode,
+          oldPing: new Date(oldPing).toISOString(),
+          newPing: new Date(heartbeat.lastPing).toISOString(),
+          timeDiff: heartbeat.lastPing - oldPing
+        });
       }
     }
-    return false;
+    
+    console.log(`💓 [HEARTBEAT] Refresh summary for user ${userId}:`, {
+      foundConnections,
+      refreshedConnections,
+      success: refreshedConnections > 0
+    });
+    
+    // Also log all current heartbeats for debugging
+    if (foundConnections === 0) {
+      console.log(`❌ [HEARTBEAT] No heartbeats found for user ${userId}. Current heartbeats:`, 
+        Array.from(this.heartbeats.entries()).map(([socketId, hb]) => ({
+          socketId,
+          userId: hb.userId,
+          roomCode: hb.roomCode,
+          lastPing: new Date(hb.lastPing).toISOString(),
+          ageSeconds: Math.round((Date.now() - hb.lastPing) / 1000)
+        }))
+      );
+    }
+    
+    return refreshedConnections > 0;
   }
 
   // Mark a user as recently becoming host (gives them grace period)
   markRecentHostTransfer(userId) {
-    this.recentHostTransfers.set(userId, Date.now());
-    console.log(`👑 [HEARTBEAT] Marked ${userId} as recent host transfer - grace period active`);
+    const now = Date.now();
+    this.recentHostTransfers.set(userId, now);
+    
+    console.log(`👑 [HEARTBEAT] Marked ${userId} as recent host transfer:`, {
+      userId,
+      timestamp: new Date(now).toISOString(),
+      gracePeriodMs: this.hostGracePeriod,
+      gracePeriodSeconds: this.hostGracePeriod / 1000,
+      expiresAt: new Date(now + this.hostGracePeriod).toISOString()
+    });
     
     // Clean up after grace period
     setTimeout(() => {
-      this.recentHostTransfers.delete(userId);
-      console.log(`👑 [HEARTBEAT] Grace period expired for ${userId}`);
+      const wasRemoved = this.recentHostTransfers.delete(userId);
+      console.log(`👑 [HEARTBEAT] Grace period expired for ${userId}:`, {
+        userId,
+        wasInGracePeriod: wasRemoved,
+        expiredAt: new Date().toISOString()
+      });
     }, this.hostGracePeriod);
   }
 
@@ -92,6 +139,8 @@ class HeartbeatManager extends EventEmitter {
     const now = Date.now();
     const staleConnections = [];
 
+    console.log(`💓 [HEARTBEAT] Checking ${this.heartbeats.size} connections for staleness...`);
+
     for (const [socketId, heartbeat] of this.heartbeats.entries()) {
       const timeSinceLastPing = now - heartbeat.lastPing;
       
@@ -102,19 +151,48 @@ class HeartbeatManager extends EventEmitter {
       // Use extended timeout for recent host transfers
       const effectiveTimeout = isInGracePeriod ? this.hostGracePeriod : this.timeoutThreshold;
       
-      if (timeSinceLastPing > effectiveTimeout) {
+      const isStale = timeSinceLastPing > effectiveTimeout;
+      
+      // Enhanced logging for each connection
+      console.log(`💓 [HEARTBEAT] Connection check for ${socketId}:`, {
+        userId: heartbeat.userId,
+        roomCode: heartbeat.roomCode,
+        timeSinceLastPingMs: timeSinceLastPing,
+        timeSinceLastPingSeconds: Math.round(timeSinceLastPing / 1000),
+        isInGracePeriod,
+        gracePeriodRemainingMs: isInGracePeriod ? this.hostGracePeriod - (now - recentHostTransfer) : 0,
+        gracePeriodRemainingSeconds: isInGracePeriod ? Math.round((this.hostGracePeriod - (now - recentHostTransfer)) / 1000) : 0,
+        effectiveTimeoutMs: effectiveTimeout,
+        effectiveTimeoutSeconds: Math.round(effectiveTimeout / 1000),
+        isStale,
+        lastPing: new Date(heartbeat.lastPing).toISOString()
+      });
+      
+      if (isStale) {
         staleConnections.push({ socketId, heartbeat });
       } else if (isInGracePeriod) {
-        console.log(`👑 [HEARTBEAT] Grace period active for ${heartbeat.userId} (${Math.round((this.hostGracePeriod - (now - recentHostTransfer)) / 1000)}s remaining)`);
+        console.log(`👑 [HEARTBEAT] Grace period protection active for ${heartbeat.userId}:`, {
+          remainingTimeMs: this.hostGracePeriod - (now - recentHostTransfer),
+          remainingTimeSeconds: Math.round((this.hostGracePeriod - (now - recentHostTransfer)) / 1000)
+        });
       }
     }
 
     if (staleConnections.length > 0) {
-      console.log(`💓 [HEARTBEAT] Found ${staleConnections.length} stale connections`);
+      console.log(`💓 [HEARTBEAT] Found ${staleConnections.length} stale connections:`, 
+        staleConnections.map(({ socketId, heartbeat }) => ({
+          socketId,
+          userId: heartbeat.userId,
+          roomCode: heartbeat.roomCode,
+          ageSeconds: Math.round((now - heartbeat.lastPing) / 1000)
+        }))
+      );
       
       for (const { socketId, heartbeat } of staleConnections) {
         await this.handleStaleConnection(socketId, heartbeat);
       }
+    } else {
+      console.log(`✅ [HEARTBEAT] No stale connections found`);
     }
   }
 
@@ -153,8 +231,23 @@ class HeartbeatManager extends EventEmitter {
         
         // Refresh the new host's heartbeat and mark grace period
         if (newHost) {
-          this.refreshHeartbeatForUser(newHost.user_id);
+          console.log(`👑 [HEARTBEAT] Host transfer completed:`, {
+            oldHostId: heartbeat.userId,
+            newHostId: newHost.user_id,
+            newHostName: newHost.user?.display_name || newHost.user?.username,
+            roomCode: heartbeat.roomCode
+          });
+          
+          const heartbeatRefreshed = this.refreshHeartbeatForUser(newHost.user_id);
           this.markRecentHostTransfer(newHost.user_id);
+          
+          console.log(`👑 [HEARTBEAT] Post-transfer protection applied:`, {
+            newHostId: newHost.user_id,
+            heartbeatRefreshed,
+            gracePeriodActive: true
+          });
+        } else {
+          console.log(`❌ [HEARTBEAT] Host transfer failed - no suitable replacement found`);
         }
       }
 
@@ -242,32 +335,47 @@ class HeartbeatManager extends EventEmitter {
             
             // Refresh the new host's heartbeat and mark grace period
             if (newHost) {
-              this.refreshHeartbeatForUser(newHost.user_id);
-              this.markRecentHostTransfer(newHost.user_id);
-            }
-            
-            if (newHost && player.room?.room_code) {
-              // Get updated room data
-              const updatedRoom = await this.db.getRoomById(player.room_id);
-              const allPlayers = updatedRoom?.participants?.map(p => ({
-                id: p.user_id,
-                name: p.user?.display_name || p.user?.username,
-                isHost: p.role === 'host',
-                isConnected: p.is_connected,
-                inGame: p.in_game,
-                currentLocation: p.current_location || (p.is_connected ? 'lobby' : 'disconnected'),
-                lastPing: p.last_ping
-              })) || [];
-
-              this.io.to(player.room.room_code).emit('hostTransferred', {
+              console.log(`👑 [HEARTBEAT DB] Host transfer completed:`, {
                 oldHostId: player.user_id,
                 newHostId: newHost.user_id,
                 newHostName: newHost.user?.display_name || newHost.user?.username,
-                reason: 'original_host_disconnected',
-                players: allPlayers,
-                room: updatedRoom
+                roomCode: player.room?.room_code
               });
-              console.log(`👑 [HEARTBEAT] Database cleanup: Instantly transferred host to ${newHost.user?.display_name || newHost.user?.username}`);
+              
+              const heartbeatRefreshed = this.refreshHeartbeatForUser(newHost.user_id);
+              this.markRecentHostTransfer(newHost.user_id);
+              
+              console.log(`👑 [HEARTBEAT DB] Post-transfer protection applied:`, {
+                newHostId: newHost.user_id,
+                heartbeatRefreshed,
+                gracePeriodActive: true
+              });
+              
+              if (newHost && player.room?.room_code) {
+                // Get updated room data
+                const updatedRoom = await this.db.getRoomById(player.room_id);
+                const allPlayers = updatedRoom?.participants?.map(p => ({
+                  id: p.user_id,
+                  name: p.user?.display_name || p.user?.username,
+                  isHost: p.role === 'host',
+                  isConnected: p.is_connected,
+                  inGame: p.in_game,
+                  currentLocation: p.current_location || (p.is_connected ? 'lobby' : 'disconnected'),
+                  lastPing: p.last_ping
+                })) || [];
+
+                this.io.to(player.room.room_code).emit('hostTransferred', {
+                  oldHostId: player.user_id,
+                  newHostId: newHost.user_id,
+                  newHostName: newHost.user?.display_name || newHost.user?.username,
+                  reason: 'original_host_disconnected',
+                  players: allPlayers,
+                  room: updatedRoom
+                });
+                console.log(`👑 [HEARTBEAT] Database cleanup: Instantly transferred host to ${newHost.user?.display_name || newHost.user?.username}`);
+              }
+            } else {
+              console.log(`❌ [HEARTBEAT DB] Host transfer failed - no suitable replacement found`);
             }
           }
           
@@ -297,4 +405,4 @@ class HeartbeatManager extends EventEmitter {
   }
 }
 
-module.exports = HeartbeatManager; 
+module.exports = HeartbeatManager;

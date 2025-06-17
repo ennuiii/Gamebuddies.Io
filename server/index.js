@@ -2442,14 +2442,36 @@ io.on('connection', async (socket) => {
           
           if (otherConnectedPlayers.length > 0) {
             console.log(`👑 [DISCONNECT] Host ${connection.userId} disconnected - transferring host instantly`);
+            console.log(`👑 [DISCONNECT] Other connected players available:`, 
+              otherConnectedPlayers.map(p => ({
+                user_id: p.user_id,
+                username: p.user?.username,
+                is_connected: p.is_connected,
+                joined_at: p.joined_at
+              }))
+            );
+            
             // Transfer host immediately (no grace period)
             newHost = await db.autoTransferHost(connection.roomId, connection.userId);
             
             if (newHost) {
-              console.log(`👑 [DISCONNECT] Instantly transferred host to ${newHost.user?.display_name || newHost.user?.username}`);
+              console.log(`👑 [DISCONNECT] Host transfer completed:`, {
+                oldHostId: connection.userId,
+                newHostId: newHost.user_id,
+                newHostName: newHost.user?.display_name || newHost.user?.username
+              });
+              
               // Refresh the new host's heartbeat and mark grace period
-              heartbeatManager.refreshHeartbeatForUser(newHost.user_id);
+              const heartbeatRefreshed = heartbeatManager.refreshHeartbeatForUser(newHost.user_id);
               heartbeatManager.markRecentHostTransfer(newHost.user_id);
+              
+              console.log(`👑 [DISCONNECT] Post-transfer protection applied:`, {
+                newHostId: newHost.user_id,
+                heartbeatRefreshed,
+                gracePeriodActive: true
+              });
+            } else {
+              console.log(`❌ [DISCONNECT] Host transfer failed - no suitable replacement found`);
             }
           } else {
             console.log(`⚠️ Host disconnected but no other connected players - keeping host role`);
