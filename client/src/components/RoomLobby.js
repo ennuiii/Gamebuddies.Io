@@ -18,7 +18,6 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
   const [connectionStatus, setConnectionStatus] = useState('connecting');
   const [currentIsHost, setCurrentIsHost] = useState(isHost); // State for re-rendering
   const [roomStatus, setRoomStatus] = useState('waiting_for_players');
-  const [showStatusMenu, setShowStatusMenu] = useState(false);
   const [isStartingGame, setIsStartingGame] = useState(false);
   const [disconnectedTimers, setDisconnectedTimers] = useState(new Map()); // Track disconnect timers
   
@@ -337,24 +336,28 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       const currentUser = mappedPlayers.find(p => p.name === playerNameRef.current);
       if (currentUser) {
         console.log(`🔍 [CLIENT DEBUG] Initial host status: ${playerNameRef.current} is host: ${currentUser.isHost}`);
-        console.log(`🔍 [LOBBY DEBUG] Host status update:`, {
-          playerName: playerNameRef.current,
-          playerId: currentUser.id,
-          wasHost: currentIsHost,
-          nowHost: currentUser.isHost,
-          changed: currentIsHost !== currentUser.isHost
-        });
-        setCurrentIsHost(currentUser.isHost);
-        currentUserIdRef.current = currentUser.id; // Store user ID for session storage
-      }
-      
-      setIsLoading(false);
-      setError(null);
+              console.log(`🔍 [LOBBY DEBUG] Host status update:`, {
+        playerName: playerNameRef.current,
+        playerId: currentUser.id,
+        wasHost: currentIsHost,
+        nowHost: currentUser.isHost,
+        changed: currentIsHost !== currentUser.isHost
+      });
+      setCurrentIsHost(currentUser.isHost);
+      currentUserIdRef.current = currentUser.id; // Store user ID for session storage
+    }
+    
+    // Auto-update room status based on host location after initial join
+    updateRoomStatusBasedOnHost(mappedPlayers);
+    
+    setIsLoading(false);
+    setError(null);
     };
 
     const handlePlayerJoined = (data) => {
       console.log('👋 Player joined:', data.player.name);
-      setPlayers(data.players || []);
+      const updatedPlayers = data.players || [];
+      setPlayers(updatedPlayers);
       setRoomData(data.room);
       
       // Clear any disconnect countdown for the joined player
@@ -363,7 +366,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       }
       
       // Ensure host status is maintained when players join
-      const currentUser = data.players?.find(p => p.name === playerNameRef.current);
+      const currentUser = updatedPlayers.find(p => p.name === playerNameRef.current);
       if (currentUser) {
         if (currentUser.isHost !== currentIsHost) {
           console.log(`🔍 [CLIENT DEBUG] Host status sync: ${playerNameRef.current} is host: ${currentUser.isHost}`);
@@ -374,6 +377,9 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
           currentUserIdRef.current = currentUser.id;
         }
       }
+      
+      // Auto-update room status based on host location
+      updateRoomStatusBasedOnHost(updatedPlayers);
     };
 
     const handlePlayerStatusUpdated = (data) => {
@@ -420,6 +426,9 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       if (data.playerId && data.status === 'connected') {
         clearDisconnectCountdown(data.playerId);
       }
+      
+      // Auto-update room status based on host location
+      updateRoomStatusBasedOnHost(mappedPlayers);
     };
 
     const handlePlayerLeft = (data) => {
@@ -606,7 +615,8 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       console.log('👑 Host transferred:', data);
       
       // Update players list with complete status information
-      setPlayers(data.players || []);
+      const updatedPlayers = data.players || [];
+      setPlayers(updatedPlayers);
       
       // Update room data if provided
       if (data.room) {
@@ -614,14 +624,14 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       }
       
       // Update local host status - check if current user is the new host
-      const currentUser = data.players?.find(p => p.name === playerNameRef.current);
+      const currentUser = updatedPlayers.find(p => p.name === playerNameRef.current);
       if (currentUser) {
         const newHostStatus = currentUser.isHost;
         console.log(`🔍 [CLIENT DEBUG] Host status update: ${playerNameRef.current} is now host: ${newHostStatus}`);
         setCurrentIsHost(newHostStatus);
       }
       
-      console.log(`👑 [HOST DEBUG] Updated player list after host transfer:`, data.players?.map(p => ({
+      console.log(`👑 [HOST DEBUG] Updated player list after host transfer:`, updatedPlayers.map(p => ({
         name: p.name,
         isHost: p.isHost,
         isConnected: p.isConnected,
@@ -635,6 +645,9 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       
       // You could add a toast notification here
       console.log(`👑 ${data.newHostName} is now the host (previous host ${reason})`);
+      
+      // Auto-update room status based on new host location
+      updateRoomStatusBasedOnHost(updatedPlayers);
     };
 
     const handleRoomStatusChanged = (data) => {
@@ -648,9 +661,6 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       if (data.newStatus === 'waiting_for_players') {
         setSelectedGame(null);
       }
-      
-      // Hide status menu
-      setShowStatusMenu(false);
       
       // Show notification (you could implement a toast system here)
       console.log(`🔄 Room status changed to '${data.newStatus}' by ${data.changedBy}`);
@@ -781,17 +791,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
     };
   }, []); // Empty dependency array to prevent re-running
 
-  // Close status menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (showStatusMenu && !event.target.closest('.status-controls')) {
-        setShowStatusMenu(false);
-      }
-    };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showStatusMenu]);
 
   const handleGameSelect = (gameType) => {
     if (socket && currentIsHost) {
@@ -895,15 +895,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
     }
   };
 
-  const handleChangeRoomStatus = (newStatus) => {
-    if (socket && currentIsHost) {
-      console.log('🔄 Changing room status to:', newStatus);
-      socket.emit('changeRoomStatus', { 
-        roomCode: roomCodeRef.current,
-        newStatus: newStatus
-      });
-    }
-  };
+
 
   const handleReturnToLobby = () => {
     if (socket) {
@@ -911,6 +903,59 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       socket.emit('playerReturnToLobby', {
         roomCode: roomCodeRef.current,
         playerName: playerNameRef.current
+      });
+      
+      // If current user is host, automatically update room status to lobby
+      if (currentIsHost) {
+        console.log('🔄 Host returning to lobby - auto-updating room status');
+        // The status will be updated when we receive the playerStatusUpdated event
+        // but we can also trigger it immediately for responsiveness
+        setTimeout(() => {
+          // Re-fetch current player status and update room status
+          const currentPlayer = players.find(p => p.name === playerNameRef.current);
+          if (currentPlayer) {
+            const updatedPlayers = players.map(p => 
+              p.name === playerNameRef.current 
+                ? { ...p, inGame: false, currentLocation: 'lobby' }
+                : p
+            );
+            updateRoomStatusBasedOnHost(updatedPlayers);
+          }
+        }, 100);
+      }
+    }
+  };
+
+  // Automatic status management based on host location
+  const updateRoomStatusBasedOnHost = (updatedPlayers) => {
+    if (!currentIsHost || !socket) return;
+    
+    const currentHost = updatedPlayers.find(p => p.isHost);
+    if (!currentHost) return;
+    
+    let targetStatus = 'waiting_for_players';
+    
+    // Determine status based on host location
+    if (currentHost.currentLocation === 'game' || currentHost.inGame) {
+      targetStatus = 'in_game';
+    } else if (currentHost.currentLocation === 'lobby' || (!currentHost.inGame && currentHost.isConnected)) {
+      targetStatus = 'waiting_for_players';
+    }
+    
+    // Only update if status needs to change
+    if (targetStatus !== roomStatus) {
+      console.log('🔄 Auto-updating room status based on host location:', {
+        hostLocation: currentHost.currentLocation,
+        hostInGame: currentHost.inGame,
+        currentStatus: roomStatus,
+        newStatus: targetStatus
+      });
+      
+      // Update room status automatically
+      socket.emit('autoUpdateRoomStatus', {
+        roomCode: roomCodeRef.current,
+        newStatus: targetStatus,
+        reason: 'host_location_change'
       });
     }
   };
@@ -1008,57 +1053,6 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
               <span className={`status-badge status-${roomStatus}`}>
                 {roomStatus.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
               </span>
-              {currentIsHost && (
-                <div className="status-controls">
-                  <button 
-                    className="change-status-btn"
-                    onClick={() => setShowStatusMenu(!showStatusMenu)}
-                    title="Change room status"
-                  >
-                    ⚙️
-                  </button>
-                  {showStatusMenu && (
-                    <div className="status-menu">
-                      <div className="status-menu-header">Change Status</div>
-                      <button 
-                        className="status-option"
-                        onClick={() => handleChangeRoomStatus('waiting_for_players')}
-                        disabled={roomStatus === 'waiting_for_players'}
-                      >
-                        🟢 Waiting for Players
-                      </button>
-                      <button 
-                        className="status-option"
-                        onClick={() => handleChangeRoomStatus('active')}
-                        disabled={roomStatus === 'active'}
-                      >
-                        🔵 Active
-                      </button>
-                      <button 
-                        className="status-option"
-                        onClick={() => handleChangeRoomStatus('paused')}
-                        disabled={roomStatus === 'paused'}
-                      >
-                        🟡 Paused
-                      </button>
-                      <button 
-                        className="status-option"
-                        onClick={() => handleChangeRoomStatus('finished')}
-                        disabled={roomStatus === 'finished'}
-                      >
-                        🔴 Finished
-                      </button>
-                      <button 
-                        className="status-option"
-                        onClick={() => handleChangeRoomStatus('abandoned')}
-                        disabled={roomStatus === 'abandoned'}
-                      >
-                        ⚫ Abandoned
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
           </div>
           <div className="room-actions">

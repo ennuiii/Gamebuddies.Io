@@ -829,6 +829,12 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
       console.log(`⚠️ [API DEBUG] Socket.io not available - cannot broadcast status update`);
     }
     
+    // Auto-update room status if this player is the host
+    if (wasHost || participant.role === 'host') {
+      console.log(`👑 [API] Player ${playerId} is host - checking for auto room status update`);
+      autoUpdateRoomStatusByHost(room.id, playerId, updateData.current_location);
+    }
+    
     console.log(`✅ [API] Successfully updated player ${playerId} status to ${status} (location: ${updateData.current_location})`);
     
     res.json({ 
@@ -1071,6 +1077,14 @@ app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async 
       console.log(`⚠️ [API DEBUG] Socket.io not available - cannot broadcast bulk status update`);
     }
     
+    // Auto-update room status if any host was updated
+    const hostUpdates = allPlayers.filter(p => p.isHost);
+    if (hostUpdates.length > 0) {
+      const host = hostUpdates[0]; // Should only be one host
+      console.log(`👑 [API] Host ${host.id} status updated in bulk - checking for auto room status update`);
+      autoUpdateRoomStatusByHost(room.id, host.id, host.currentLocation);
+    }
+    
     const successCount = results.filter(r => r.success).length;
     console.log(`✅ [API] Bulk update completed: ${successCount}/${results.length} players updated successfully`);
     
@@ -1216,6 +1230,77 @@ app.get('/api/debug/storage', (req, res) => {
 });
 
 // ===== SOCKET.IO EVENT HANDLERS =====
+
+// Helper function to automatically update room status based on host location
+async function autoUpdateRoomStatusByHost(roomId, hostUserId, hostLocation) {
+  try {
+    console.log(`🤖 Checking if room status needs auto-update for host location change:`, {
+      roomId,
+      hostUserId,
+      hostLocation
+    });
+
+    // Get current room
+    const room = await db.getRoomById(roomId);
+    if (!room) {
+      console.log(`❌ Room ${roomId} not found for auto status update`);
+      return;
+    }
+
+    // Determine target status based on host location
+    let targetStatus = room.status; // Default to current status
+    
+    if (hostLocation === 'game' || hostLocation === 'in_game') {
+      targetStatus = 'in_game';
+    } else if (hostLocation === 'lobby' || hostLocation === 'connected') {
+      targetStatus = 'lobby';
+    } else if (hostLocation === 'disconnected') {
+      // Don't change status when host disconnects - they might return
+      console.log(`🔄 Host disconnected but keeping room status as '${room.status}'`);
+      return;
+    }
+
+    // Only update if status needs to change
+    if (room.status === targetStatus) {
+      console.log(`🔄 Room ${room.room_code} already has correct status '${targetStatus}' for host location '${hostLocation}'`);
+      return;
+    }
+
+    console.log(`🤖 Auto-updating room ${room.room_code} status from '${room.status}' to '${targetStatus}' due to host location: ${hostLocation}`);
+
+    // Update room status in database
+    const updateData = { status: targetStatus };
+    
+    // If changing back to lobby, also reset current game
+    if (targetStatus === 'lobby') {
+      updateData.current_game = null;
+    }
+
+    await db.updateRoom(roomId, updateData);
+
+    // Get updated room data
+    const updatedRoom = await db.getRoomById(roomId);
+    
+    // Find host participant for display name
+    const hostParticipant = updatedRoom?.participants?.find(p => p.user_id === hostUserId);
+    
+    // Notify all players about the automatic status change
+    io.to(room.room_code).emit('roomStatusChanged', {
+      oldStatus: room.status,
+      newStatus: targetStatus,
+      room: updatedRoom,
+      changedBy: `${hostParticipant?.user?.display_name || hostParticipant?.user?.username || 'Host'} (auto)`,
+      reason: 'host_location_change',
+      isAutomatic: true,
+      hostLocation: hostLocation
+    });
+
+    console.log(`🤖 Room ${room.room_code} status auto-updated to '${targetStatus}' due to host location change`);
+
+  } catch (error) {
+    console.error('❌ Error auto-updating room status by host location:', error);
+  }
+}
 
 // Track active connections
 const activeConnections = new Map();
@@ -1510,6 +1595,12 @@ io.on('connection', async (socket) => {
         // Update connection status for existing participant (set to connected with new socket)
         await db.updateParticipantConnection(existingParticipant.user_id, socket.id, 'connected');
         console.log(`✅ [REJOINING DEBUG] Updated existing participant connection status to connected`);
+        
+        // Auto-update room status if this reconnecting user is the host
+        if (existingParticipant.role === 'host') {
+          console.log(`👑 [REJOINING DEBUG] Reconnecting host - checking for auto room status update`);
+          autoUpdateRoomStatusByHost(room.id, existingParticipant.user_id, 'lobby');
+        }
         
         // If rejoining the lobby (not in a game), ensure in_game is false
         if (room.status === 'lobby' || room.status === 'in_game') {
@@ -2425,7 +2516,82 @@ io.on('connection', async (socket) => {
     }
   });
 
+  // Handle automatic room status updates based on host location
+  socket.on('autoUpdateRoomStatus', async (data) => {
+    try {
+      console.log(`🤖 Auto-updating room status: ${data.newStatus} for room ${data.roomCode} (reason: ${data.reason})`);
+      
+      const connection = activeConnections.get(socket.id);
+      if (!connection?.roomId || !connection?.userId) {
+        console.log(`❌ Auto status update failed: socket not in room`);
+        return; // Don't emit error, just log
+      }
 
+      // Get room and verify user is host
+      const room = await db.getRoomByCode(data.roomCode);
+      if (!room) {
+        console.log(`❌ Auto status update failed: room ${data.roomCode} not found`);
+        return;
+      }
+
+      // Check if user is host (only host can trigger auto updates)
+      const participant = room.participants?.find(p => p.user_id === connection.userId);
+      if (!participant || participant.role !== 'host') {
+        console.log(`❌ Auto status update failed: user ${connection.userId} is not host`);
+        return;
+      }
+
+      // Map client status to server status values
+      let serverStatus = data.newStatus;
+      if (data.newStatus === 'waiting_for_players') {
+        serverStatus = 'lobby';
+      } else if (data.newStatus === 'in_game') {
+        serverStatus = 'in_game';
+      }
+
+      // Don't update if status is already correct
+      if (room.status === serverStatus) {
+        console.log(`🔄 Auto status update skipped: room ${data.roomCode} already has status '${serverStatus}'`);
+        return;
+      }
+
+      // Validate the new status - V2 Schema
+      const validStatuses = ['lobby', 'in_game', 'returning'];
+      if (!validStatuses.includes(serverStatus)) {
+        console.log(`❌ Auto status update failed: invalid status '${serverStatus}'`);
+        return;
+      }
+
+      // Update room status in database
+      const updateData = { status: serverStatus };
+      
+      // If changing back to lobby, also reset current game
+      if (serverStatus === 'lobby') {
+        updateData.current_game = null;
+      }
+
+      await db.updateRoom(room.id, updateData);
+
+      // Get updated room data
+      const updatedRoom = await db.getRoomByCode(data.roomCode);
+      
+      // Notify all players about the automatic status change
+      io.to(data.roomCode).emit('roomStatusChanged', {
+        oldStatus: room.status,
+        newStatus: serverStatus,
+        room: updatedRoom,
+        changedBy: `${participant.user?.display_name || participant.user?.username} (auto)`,
+        reason: data.reason,
+        isAutomatic: true
+      });
+
+      console.log(`🤖 Room ${room.room_code} status auto-changed from '${room.status}' to '${serverStatus}' by ${participant.user?.display_name} (reason: ${data.reason})`);
+
+    } catch (error) {
+      console.error('❌ Error auto-updating room status:', error);
+      // Don't emit error to client - this is automatic and shouldn't interrupt user flow
+    }
+  });
 
   // Handle disconnection
   socket.on('disconnect', async () => {
@@ -2467,6 +2633,11 @@ io.on('connection', async (socket) => {
           socket.id, 
           connectionStatus
         );
+
+        // Auto-update room status if this user is the host
+        if (isDisconnectingHost && connectionStatus && room) {
+          autoUpdateRoomStatusByHost(room.id, connection.userId, connectionStatus);
+        }
 
         // Handle INSTANT host transfer if host disconnected (no grace period)
         let newHost = null;

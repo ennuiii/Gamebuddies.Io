@@ -751,105 +751,13 @@
   border-color: #9C27B0;
 }
 
-.status-controls {
-  position: relative;
-}
 
-.change-status-btn {
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 8px;
-  padding: 0.4rem 0.6rem;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  font-size: 0.9rem;
-}
-
-.change-status-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
-  transform: scale(1.05);
-}
-
-.status-menu {
-  position: absolute;
-  top: calc(100% + 0.5rem);
-  right: 0;
-  background: var(--card-bg);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 12px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-  padding: 0.5rem;
-  min-width: 200px;
-  z-index: 1000;
-  animation: fadeInUp 0.2s ease;
-}
-
-@keyframes fadeInUp {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.status-menu-header {
-  color: var(--text-primary);
-  font-weight: 600;
-  font-size: 0.9rem;
-  padding: 0.5rem 0.8rem;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  margin-bottom: 0.5rem;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
-
-.status-option {
-  width: 100%;
-  background: transparent;
-  border: none;
-  color: var(--text-primary);
-  padding: 0.6rem 0.8rem;
-  text-align: left;
-  cursor: pointer;
-  border-radius: 8px;
-  transition: all 0.2s ease;
-  font-size: 0.9rem;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.status-option:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.1);
-  transform: translateX(2px);
-}
-
-.status-option:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-  background: rgba(255, 255, 255, 0.05);
-}
-
-.status-option:disabled::before {
-  content: '✓ ';
-  color: var(--secondary-color);
-  font-weight: bold;
-}
 
 /* Mobile responsive updates */
 @media (max-width: 768px) {
   .room-status-display {
     flex-direction: column;
     gap: 0.5rem;
-  }
-  
-  .status-menu {
-    right: -1rem;
-    left: -1rem;
-    min-width: auto;
   }
   
   .lobby-header {
