@@ -1014,8 +1014,23 @@
   }
   
   .room-actions {
-    flex-direction: column;
+    flex-direction: row;
     gap: 0.8rem;
+    justify-content: center;
+  }
+  
+  .copy-btn,
+  .copy-link-btn {
+    padding: 0.8rem 1.2rem;
+    font-size: 0.85rem;
+    min-height: 44px;
+    min-width: 120px;
+  }
+  
+  .leave-button {
+    padding: 0.8rem 1.5rem;
+    font-size: 0.9rem;
+    min-height: 44px;
   }
   
   .players-grid {
@@ -1053,6 +1068,25 @@
     height: 60px;
     font-size: 2.5rem;
   }
+  
+  .start-game-button {
+    padding: 1.2rem 3rem;
+    font-size: 1.1rem;
+    min-height: 54px;
+  }
+  
+  .change-game-btn,
+  .select-game-btn {
+    padding: 0.8rem 1.5rem;
+    font-size: 0.9rem;
+    min-height: 44px;
+  }
+  
+  .return-to-lobby-btn {
+    padding: 0.7rem 1.2rem;
+    font-size: 0.8rem;
+    min-height: 40px;
+  }
 }
 
 @media (max-width: 480px) {
@@ -1067,16 +1101,34 @@
   
   .room-code-display {
     font-size: 2rem;
+    letter-spacing: 0.15em;
+  }
+  
+  .room-actions {
+    flex-direction: column;
+    gap: 0.6rem;
+  }
+  
+  .copy-btn,
+  .copy-link-btn {
+    width: 100%;
+    max-width: 250px;
+    margin: 0 auto;
   }
   
   .leave-button {
     padding: 0.8rem 1.5rem;
     font-size: 0.9rem;
+    width: 100%;
+    max-width: 200px;
+    margin: 0 auto;
   }
   
   .start-game-button {
     padding: 1.2rem 3rem;
     font-size: 1.1rem;
+    width: 100%;
+    max-width: 300px;
   }
   
   .player-card {
@@ -1087,5 +1139,72 @@
     width: 50px;
     height: 50px;
     font-size: 1.5rem;
+  }
+  
+  .player-actions {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  
+  .make-host-btn,
+  .kick-player-btn {
+    padding: 0.6rem 1rem;
+    font-size: 0.7rem;
+    min-height: 36px;
+    width: 100%;
+  }
+  
+  .selected-game-card {
+    padding: 1.5rem;
+    gap: 1.5rem;
+  }
+  
+  .game-details h4 {
+    font-size: 1.5rem;
+  }
+  
+  .game-details p {
+    font-size: 1rem;
+  }
+  
+  .change-game-btn {
+    width: 100%;
+    max-width: 250px;
+    margin: 0 auto;
+  }
+}
+
+/* Landscape phone optimization */
+@media (max-width: 768px) and (orientation: landscape) and (max-height: 500px) {
+  .room-lobby {
+    padding: 0.5rem;
+  }
+  
+  .lobby-header {
+    padding: 1rem;
+    margin-bottom: 1rem;
+  }
+  
+  .room-code-display {
+    font-size: 1.8rem;
+  }
+  
+  .players-grid {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 0.8rem;
+  }
+  
+  .player-card {
+    padding: 1rem;
+  }
+  
+  .selected-game-card {
+    padding: 1rem;
+    gap: 1rem;
+  }
+  
+  .start-game-button {
+    padding: 1rem 2rem;
+    font-size: 1rem;
   }
 } 

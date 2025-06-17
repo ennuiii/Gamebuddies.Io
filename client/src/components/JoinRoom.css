@@ -112,6 +112,8 @@
   font-weight: 700;
   letter-spacing: 0.3em;
   text-transform: uppercase;
+  -webkit-text-fill-color: var(--text-primary);
+  text-shadow: 0 0 2px rgba(0, 0, 0, 0.8);
 }
 
 /* Use existing styles from CreateRoom.css for consistency */
@@ -137,6 +139,8 @@
   color: var(--text-primary);
   font-size: 1rem;
   transition: all 0.3s ease;
+  -webkit-text-fill-color: var(--text-primary);
+  text-shadow: 0 0 1px rgba(0, 0, 0, 0.5);
 }
 
 .form-group input[type="text"]:focus {
@@ -198,16 +202,57 @@
   transform: translateY(-2px);
 }
 
+/* Mobile-specific improvements */
+@media (max-width: 768px) {
+  .join-room-modal {
+    padding: 2rem;
+    margin: 1rem;
+  }
+  
+  .form-group input[type="text"] {
+    padding: 1rem 1.2rem;
+    font-size: 1rem;
+    background: rgba(255, 255, 255, 0.12);
+    border: 2px solid rgba(255, 255, 255, 0.25);
+    color: #ffffff;
+    -webkit-text-fill-color: #ffffff;
+    text-shadow: 0 0 2px rgba(0, 0, 0, 0.8);
+  }
+  
+  .form-group input[type="text"]:focus {
+    background: rgba(255, 255, 255, 0.18);
+    border-color: var(--secondary-color);
+  }
+  
+  .room-code-input {
+    font-size: 1.3rem;
+    letter-spacing: 0.2em;
+  }
+  
+  .cancel-button,
+  .join-button {
+    padding: 1rem 1.5rem;
+    font-size: 1rem;
+  }
+}
+
 @media (max-width: 480px) {
   .join-room-modal {
     padding: 1.5rem;
   }
   
   .join-room-title {
-    font-size: 1.5rem;
+    font-size: 1.8rem;
   }
   
   .room-code-input {
     font-size: 1.2rem;
+  }
+  
+  .form-group input[type="text"] {
+    padding: 1rem;
+    font-size: 0.95rem;
+    background: rgba(255, 255, 255, 0.15);
+    border: 2px solid rgba(255, 255, 255, 0.3);
   }
 } 

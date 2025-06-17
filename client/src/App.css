@@ -23,6 +23,10 @@ body {
   color: var(--text-primary);
   overflow-x: hidden;
   line-height: 1.6;
+  /* Prevent zoom on input focus on iOS */
+  -webkit-text-size-adjust: 100%;
+  /* Better touch scrolling */
+  -webkit-overflow-scrolling: touch;
 }
 
 .App {
@@ -77,6 +81,29 @@ body {
   }
 }
 
+/* Global input improvements for mobile */
+input, textarea, select {
+  /* Prevent zoom on focus on iOS */
+  font-size: 16px;
+  /* Better touch targets */
+  min-height: 44px;
+  /* Ensure text is always visible */
+  -webkit-text-fill-color: var(--text-primary);
+  color: var(--text-primary);
+}
+
+/* Better button touch targets */
+button {
+  min-height: 44px;
+  /* Prevent button text selection */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  /* Better touch feedback */
+  -webkit-tap-highlight-color: rgba(0, 0, 0, 0.1);
+}
+
 /* Scrollbar styling */
 ::-webkit-scrollbar {
   width: 10px;
@@ -112,4 +139,45 @@ body {
   height: 100vh;
   border: none;
   display: block;
+}
+
+/* Mobile-specific utilities */
+@media (max-width: 768px) {
+  .container {
+    padding: 0 15px;
+  }
+  
+  /* Better touch targets for mobile */
+  button {
+    min-height: 48px;
+    padding: 0.8rem 1.5rem;
+  }
+  
+  /* Prevent horizontal scroll on mobile */
+  body {
+    overflow-x: hidden;
+  }
+  
+  /* Better text rendering on mobile */
+  * {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    padding: 0 12px;
+  }
+  
+  /* Smaller touch targets for very small screens */
+  button {
+    min-height: 44px;
+    padding: 0.7rem 1.2rem;
+  }
+  
+  /* Prevent zoom on double tap */
+  * {
+    touch-action: manipulation;
+  }
 } 
