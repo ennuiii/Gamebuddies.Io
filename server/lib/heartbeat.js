@@ -7,10 +7,10 @@ class HeartbeatManager extends EventEmitter {
     this.io = io;
     this.heartbeats = new Map(); // socketId -> { userId, roomId, lastPing, roomCode }
     this.recentHostTransfers = new Map(); // userId -> timestamp of when they became host
-    this.heartbeatInterval = 30000; // 30 seconds
-    this.timeoutThreshold = 10000; // 10 seconds (changed from 60 seconds)
+    this.heartbeatInterval = 5000; // 5 seconds (changed from 30 seconds to match client)
+    this.timeoutThreshold = 10000; // 10 seconds (unchanged - gives 2x heartbeat interval tolerance)
     this.hostGracePeriod = 20000; // 20 seconds grace period for new hosts
-    this.cleanupInterval = 5000; // Check every 5 seconds (changed from 15 seconds)
+    this.cleanupInterval = 5000; // Check every 5 seconds (unchanged)
     
     this.startHeartbeatSystem();
   }
@@ -26,7 +26,7 @@ class HeartbeatManager extends EventEmitter {
     // Database-based cleanup (for connections that weren't properly cleaned up)
     setInterval(() => {
       this.cleanupStaleDatabase();
-    }, 30000); // Every 30 seconds (changed from 60 seconds)
+    }, 15000); // Every 15 seconds (changed from 30 seconds)
   }
 
   // Register a player's heartbeat
@@ -205,8 +205,8 @@ class HeartbeatManager extends EventEmitter {
     try {
       console.log('💓 [HEARTBEAT] Running database cleanup...');
       
-      // Find players marked as connected but with old last_ping (30 seconds ago)
-      const staleThreshold = new Date(Date.now() - 30000); // 30 seconds ago
+      // Find players marked as connected but with old last_ping (15 seconds ago)
+      const staleThreshold = new Date(Date.now() - 15000); // 15 seconds ago (changed from 30 seconds)
       
       const { data: stalePlayers, error } = await this.db.adminClient
         .from('room_members')

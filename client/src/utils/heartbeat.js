@@ -1,5 +1,5 @@
 class HeartbeatClient {
-  constructor(socket, interval = 30000) { // 30 seconds
+  constructor(socket, interval = 5000) { // 5 seconds
     this.socket = socket;
     this.interval = interval;
     this.heartbeatTimer = null;
