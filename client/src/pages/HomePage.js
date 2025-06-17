@@ -272,102 +272,7 @@ const HomePage = () => {
               <span className="button-icon">🎯</span>
             </motion.button>
           </motion.div>
-
-          <motion.div
-            className="hero-stats"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8, delay: 0.9 }}
-          >
-            <div className="stat-item">
-              <div className="stat-number">10K+</div>
-              <div className="stat-label">Active Players</div>
-            </div>
-            <div className="stat-divider"></div>
-            <div className="stat-item">
-              <div className="stat-number">50+</div>
-              <div className="stat-label">Games Available</div>
-            </div>
-            <div className="stat-divider"></div>
-            <div className="stat-item">
-              <div className="stat-number">24/7</div>
-              <div className="stat-label">Online Gaming</div>
-            </div>
-          </motion.div>
         </motion.div>
-      </section>
-
-      {/* Features Section */}
-      <section className="features-section">
-        <div className="container">
-          <motion.div 
-            className="section-header"
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-            viewport={{ once: true }}
-          >
-            <h2 className="section-title">Why Choose GameBuddies?</h2>
-            <p className="section-subtitle">Experience the future of multiplayer gaming</p>
-          </motion.div>
-
-          <div className="features-grid">
-            {[
-              {
-                icon: "🎮",
-                title: "Instant Gaming",
-                description: "Jump into games instantly with our seamless platform. No downloads, no hassle.",
-                color: "var(--primary-color)"
-              },
-              {
-                icon: "👥",
-                title: "Real-time Multiplayer",
-                description: "Connect with friends and players worldwide in real-time gaming sessions.",
-                color: "var(--secondary-color)"
-              },
-              {
-                icon: "🔒",
-                title: "Secure & Private",
-                description: "Your gaming sessions are protected with enterprise-grade security.",
-                color: "var(--accent-color)"
-              },
-              {
-                icon: "⚡",
-                title: "Lightning Fast",
-                description: "Optimized for speed and performance across all devices and platforms.",
-                color: "#00ff88"
-              },
-              {
-                icon: "🏆",
-                title: "Competitive Play",
-                description: "Climb leaderboards and compete in tournaments with skill-based matchmaking.",
-                color: "#ffd93d"
-              },
-              {
-                icon: "🌍",
-                title: "Global Community",
-                description: "Join millions of players from around the world in our vibrant gaming community.",
-                color: "#ff6b6b"
-              }
-            ].map((feature, index) => (
-              <motion.div
-                key={index}
-                className="feature-card"
-                initial={{ opacity: 0, y: 50 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: index * 0.1 }}
-                viewport={{ once: true }}
-                whileHover={{ y: -10, scale: 1.02 }}
-              >
-                <div className="feature-icon" style={{ '--icon-color': feature.color }}>
-                  {feature.icon}
-                </div>
-                <h3 className="feature-title">{feature.title}</h3>
-                <p className="feature-description">{feature.description}</p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
       </section>
 
       {/* Games Section */}
@@ -460,7 +365,7 @@ const HomePage = () => {
       {showCreateRoom && (
         <CreateRoom
           onRoomCreated={handleRoomCreated}
-          onClose={handleCloseModals}
+          onCancel={handleCloseModals}
         />
       )}
 
