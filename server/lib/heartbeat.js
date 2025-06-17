@@ -6,8 +6,10 @@ class HeartbeatManager extends EventEmitter {
     this.db = db;
     this.io = io;
     this.heartbeats = new Map(); // socketId -> { userId, roomId, lastPing, roomCode }
+    this.recentHostTransfers = new Map(); // userId -> timestamp of when they became host
     this.heartbeatInterval = 30000; // 30 seconds
     this.timeoutThreshold = 10000; // 10 seconds (changed from 60 seconds)
+    this.hostGracePeriod = 20000; // 20 seconds grace period for new hosts
     this.cleanupInterval = 5000; // Check every 5 seconds (changed from 15 seconds)
     
     this.startHeartbeatSystem();
@@ -50,6 +52,30 @@ class HeartbeatManager extends EventEmitter {
     return false;
   }
 
+  // Refresh heartbeat for a specific user (useful during host transfers)
+  refreshHeartbeatForUser(userId) {
+    for (const [socketId, heartbeat] of this.heartbeats.entries()) {
+      if (heartbeat.userId === userId) {
+        heartbeat.lastPing = Date.now();
+        console.log(`💓 [HEARTBEAT] Refreshed for user ${userId} (socket: ${socketId})`);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  // Mark a user as recently becoming host (gives them grace period)
+  markRecentHostTransfer(userId) {
+    this.recentHostTransfers.set(userId, Date.now());
+    console.log(`👑 [HEARTBEAT] Marked ${userId} as recent host transfer - grace period active`);
+    
+    // Clean up after grace period
+    setTimeout(() => {
+      this.recentHostTransfers.delete(userId);
+      console.log(`👑 [HEARTBEAT] Grace period expired for ${userId}`);
+    }, this.hostGracePeriod);
+  }
+
   // Remove heartbeat when socket disconnects
   removeHeartbeat(socketId) {
     const heartbeat = this.heartbeats.get(socketId);
@@ -69,8 +95,17 @@ class HeartbeatManager extends EventEmitter {
     for (const [socketId, heartbeat] of this.heartbeats.entries()) {
       const timeSinceLastPing = now - heartbeat.lastPing;
       
-      if (timeSinceLastPing > this.timeoutThreshold) {
+      // Check if this user recently became host and is in grace period
+      const recentHostTransfer = this.recentHostTransfers.get(heartbeat.userId);
+      const isInGracePeriod = recentHostTransfer && (now - recentHostTransfer) < this.hostGracePeriod;
+      
+      // Use extended timeout for recent host transfers
+      const effectiveTimeout = isInGracePeriod ? this.hostGracePeriod : this.timeoutThreshold;
+      
+      if (timeSinceLastPing > effectiveTimeout) {
         staleConnections.push({ socketId, heartbeat });
+      } else if (isInGracePeriod) {
+        console.log(`👑 [HEARTBEAT] Grace period active for ${heartbeat.userId} (${Math.round((this.hostGracePeriod - (now - recentHostTransfer)) / 1000)}s remaining)`);
       }
     }
 
@@ -115,6 +150,12 @@ class HeartbeatManager extends EventEmitter {
       if (isHost) {
         console.log(`👑 [HEARTBEAT] Host ${heartbeat.userId} disconnected - transferring host instantly`);
         newHost = await this.db.autoTransferHost(heartbeat.roomId, heartbeat.userId);
+        
+        // Refresh the new host's heartbeat and mark grace period
+        if (newHost) {
+          this.refreshHeartbeatForUser(newHost.user_id);
+          this.markRecentHostTransfer(newHost.user_id);
+        }
       }
 
       // Get updated room data
@@ -198,6 +239,12 @@ class HeartbeatManager extends EventEmitter {
           if (isHost) {
             console.log(`👑 [HEARTBEAT] Host ${player.user_id} found stale in database - transferring host instantly`);
             newHost = await this.db.autoTransferHost(player.room_id, player.user_id);
+            
+            // Refresh the new host's heartbeat and mark grace period
+            if (newHost) {
+              this.refreshHeartbeatForUser(newHost.user_id);
+              this.markRecentHostTransfer(newHost.user_id);
+            }
             
             if (newHost && player.room?.room_code) {
               // Get updated room data
