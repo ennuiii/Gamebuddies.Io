@@ -110,9 +110,7 @@ const JoinRoom = ({ initialRoomCode = '', onRoomJoined, onCancel }) => {
           playerCount: data.players?.length || 0,
           room_id: data.room?.id
         });
-        console.log('🚪 [JOIN DEBUG] Join successful, cleaning up socket');
-        
-        socket.disconnect();
+        console.log('🚪 [JOIN DEBUG] Join successful, transitioning to lobby');
         
         if (onRoomJoined) {
           onRoomJoined({
@@ -123,6 +121,13 @@ const JoinRoom = ({ initialRoomCode = '', onRoomJoined, onCancel }) => {
             room: data.room
           });
         }
+        
+        // Delay socket disconnect to allow RoomLobby to establish its own connection
+        console.log('🚪 [JOIN DEBUG] Delaying socket cleanup to allow lobby connection');
+        setTimeout(() => {
+          console.log('🚪 [JOIN DEBUG] Cleaning up join socket after transition');
+          socket.disconnect();
+        }, 1000); // 1 second delay
       });
 
       socket.on('error', (error) => {
