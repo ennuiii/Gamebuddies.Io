@@ -608,10 +608,10 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
       return res.status(404).json({ error: 'Room not found' });
     }
     
-    // Get current participant data
+    // Get current participant data (including role for host transfer logic)
     const { data: participant } = await db.adminClient
       .from('room_members')
-      .select('user_id, in_game, current_location, is_connected')
+      .select('user_id, role, in_game, current_location, is_connected')
       .eq('room_id', room.id)
       .eq('user_id', playerId)
       .single();
@@ -623,6 +623,7 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
     
     console.log(`🔍 [API] Current participant status:`, {
       user_id: participant.user_id,
+      role: participant.role,
       in_game: participant.in_game,
       current_location: participant.current_location,
       is_connected: participant.is_connected
