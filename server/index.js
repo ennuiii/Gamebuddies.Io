@@ -1881,9 +1881,10 @@ io.on('connection', async (socket) => {
       // Leave socket room
       socket.leave(data.roomCode);
 
-      // Handle host transfer if the host is leaving
+      // Handle INSTANT host transfer if the host is leaving
       let newHost = null;
       if (isLeavingHost && room) {
+        console.log(`👑 [LEAVE] Host ${connection.userId} leaving - transferring host instantly`);
         newHost = await db.autoTransferHost(connection.roomId, connection.userId);
       }
 
@@ -1902,23 +1903,27 @@ io.on('connection', async (socket) => {
           socketId: null // Socket IDs are tracked in activeConnections, not stored in DB
         })) || [];
 
-        // Notify remaining players
-        const eventData = {
-          playerId: connection.userId,
-          players: allPlayers,
-          room: updatedRoom
-        };
-
-        // Add host transfer info if applicable
+        // Send appropriate events based on whether host was transferred
         if (newHost) {
-          eventData.hostTransferred = {
+          // Send host transfer event first
+          io.to(data.roomCode).emit('hostTransferred', {
+            oldHostId: connection.userId,
             newHostId: newHost.user_id,
             newHostName: newHost.user?.display_name || newHost.user?.username,
-            reason: 'original_host_left'
-          };
+            reason: 'original_host_left',
+            players: allPlayers,
+            room: updatedRoom
+          });
+          console.log(`👑 [LEAVE] Instantly transferred host to ${newHost.user?.display_name || newHost.user?.username}`);
         }
 
-        io.to(data.roomCode).emit('playerLeft', eventData);
+        // Then send player left event
+        io.to(data.roomCode).emit('playerLeft', {
+          playerId: connection.userId,
+          players: allPlayers,
+          room: updatedRoom,
+          wasHost: isLeavingHost
+        });
 
         // If no connected players left, mark room as returning (closest equivalent to abandoned)
         const connectedPlayers = allPlayers.filter(p => p.isConnected);
@@ -1934,9 +1939,6 @@ io.on('connection', async (socket) => {
       connection.userId = null;
 
       console.log(`👋 Player left room ${data.roomCode}${isLeavingHost ? ' (was host)' : ''}`);
-      if (newHost) {
-        console.log(`👑 Auto-transferred host to ${newHost.user?.display_name || newHost.user?.username}`);
-      }
 
     } catch (error) {
       console.error('❌ Error leaving room:', error);
@@ -2417,7 +2419,7 @@ io.on('connection', async (socket) => {
           connectionStatus
         );
 
-        // Handle host transfer if host disconnected
+        // Handle INSTANT host transfer if host disconnected (no grace period)
         let newHost = null;
         if (isDisconnectingHost && room) {
           // Only auto-transfer host if there are other connected players
@@ -2426,47 +2428,13 @@ io.on('connection', async (socket) => {
           ) || [];
           
           if (otherConnectedPlayers.length > 0) {
-            // Give host a grace period to reconnect (30 seconds)
-            setTimeout(async () => {
-              try {
-                // Check if original host reconnected
-                const updatedRoom = await db.getRoomById(connection.roomId);
-                const originalHost = updatedRoom?.participants?.find(p => 
-                  p.user_id === connection.userId && p.is_connected === true
-                );
-
-                if (!originalHost) {
-                  // Host didn't reconnect, transfer to someone else
-                  newHost = await db.autoTransferHost(connection.roomId, connection.userId);
-                  
-                  if (newHost && updatedRoom) {
-                    // Get updated player list with ALL participants (not just connected)
-                    const updatedPlayers = updatedRoom.participants?.map(p => ({
-                      id: p.user_id,
-                      name: p.user?.display_name || p.user?.username,
-                      isHost: p.role === 'host' || p.user_id === newHost.user_id,
-                      isConnected: p.is_connected,
-                      inGame: p.in_game,
-                      lastPing: p.last_ping,
-                      socketId: null
-                    })) || [];
-
-                    // Notify remaining players about host transfer
-                    io.to(updatedRoom.room_code).emit('hostTransferred', {
-                      oldHostId: connection.userId,
-                      newHostId: newHost.user_id,
-                      newHostName: newHost.user?.display_name || newHost.user?.username,
-                      reason: 'original_host_disconnected',
-                      players: updatedPlayers
-                    });
-
-                    console.log(`👑 Auto-transferred host to ${newHost.user?.display_name} after disconnect timeout`);
-                  }
-                }
-              } catch (error) {
-                console.error('❌ Error in delayed host transfer:', error);
-              }
-            }, 30000); // 30 second grace period
+            console.log(`👑 [DISCONNECT] Host ${connection.userId} disconnected - transferring host instantly`);
+            // Transfer host immediately (no grace period)
+            newHost = await db.autoTransferHost(connection.roomId, connection.userId);
+            
+            if (newHost) {
+              console.log(`👑 [DISCONNECT] Instantly transferred host to ${newHost.user?.display_name || newHost.user?.username}`);
+            }
           } else {
             console.log(`⚠️ Host disconnected but no other connected players - keeping host role`);
           }
@@ -2486,10 +2454,24 @@ io.on('connection', async (socket) => {
             socketId: null
           })) || [];
 
+          // Send host transfer event first if host was transferred
+          if (newHost) {
+            io.to(room.room_code).emit('hostTransferred', {
+              oldHostId: connection.userId,
+              newHostId: newHost.user_id,
+              newHostName: newHost.user?.display_name || newHost.user?.username,
+              reason: 'original_host_disconnected',
+              players: allPlayers,
+              room: updatedRoom
+            });
+          }
+
+          // Then send player disconnected event
           socket.to(room.room_code).emit('playerDisconnected', {
             playerId: connection.userId,
             wasHost: isDisconnectingHost,
-            players: allPlayers
+            players: allPlayers,
+            room: updatedRoom
           });
         }
       }

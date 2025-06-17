@@ -21,6 +21,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
   const [roomStatus, setRoomStatus] = useState('waiting_for_players');
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const [isStartingGame, setIsStartingGame] = useState(false);
+  const [disconnectedTimers, setDisconnectedTimers] = useState(new Map()); // Track disconnect timers
   
   // Use refs for values that shouldn't trigger re-renders
   const roomCodeRef = useRef(roomCode);
@@ -28,6 +29,58 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
   const currentUserIdRef = useRef(null);
   const roomIdRef = useRef(null);
   const heartbeatClientRef = useRef(null);
+  const timerIntervalsRef = useRef(new Map()); // Track timer intervals
+
+  // Function to start disconnect countdown for a player
+  const startDisconnectCountdown = (playerId) => {
+    const startTime = Date.now();
+    const countdownDuration = 10000; // 10 seconds
+    
+    // Clear any existing timer for this player
+    if (timerIntervalsRef.current.has(playerId)) {
+      clearInterval(timerIntervalsRef.current.get(playerId));
+    }
+    
+    // Set initial countdown
+    setDisconnectedTimers(prev => new Map(prev.set(playerId, 10)));
+    
+    // Start countdown interval
+    const intervalId = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const remaining = Math.max(0, Math.ceil((countdownDuration - elapsed) / 1000));
+      
+      setDisconnectedTimers(prev => {
+        const newMap = new Map(prev);
+        if (remaining > 0) {
+          newMap.set(playerId, remaining);
+        } else {
+          newMap.delete(playerId);
+        }
+        return newMap;
+      });
+      
+      // Clear interval when countdown reaches 0
+      if (remaining <= 0) {
+        clearInterval(intervalId);
+        timerIntervalsRef.current.delete(playerId);
+      }
+    }, 1000);
+    
+    timerIntervalsRef.current.set(playerId, intervalId);
+  };
+
+  // Function to clear disconnect countdown for a player
+  const clearDisconnectCountdown = (playerId) => {
+    if (timerIntervalsRef.current.has(playerId)) {
+      clearInterval(timerIntervalsRef.current.get(playerId));
+      timerIntervalsRef.current.delete(playerId);
+    }
+    setDisconnectedTimers(prev => {
+      const newMap = new Map(prev);
+      newMap.delete(playerId);
+      return newMap;
+    });
+  };
 
   // Realtime subscription for room members status updates
   useRealtimeSubscription({
@@ -306,6 +359,11 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       setPlayers(data.players || []);
       setRoomData(data.room);
       
+      // Clear any disconnect countdown for the joined player
+      if (data.player?.id) {
+        clearDisconnectCountdown(data.player.id);
+      }
+      
       // Ensure host status is maintained when players join
       const currentUser = data.players?.find(p => p.name === playerNameRef.current);
       if (currentUser) {
@@ -332,6 +390,11 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
         lastPing: p.last_ping
       })) || []);
       setRoomData(data.room);
+      
+      // Clear disconnect countdown if player reconnected
+      if (data.playerId && data.status === 'connected') {
+        clearDisconnectCountdown(data.playerId);
+      }
     };
 
     const handlePlayerLeft = (data) => {
@@ -365,6 +428,11 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
             ? { ...player, isConnected: false }
             : player
         ));
+      }
+      
+      // Start countdown timer for the disconnected player
+      if (data.playerId) {
+        startDisconnectCountdown(data.playerId);
       }
     };
 
@@ -654,6 +722,13 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
         heartbeatClientRef.current.stop();
         heartbeatClientRef.current = null;
       }
+      
+      // Clear all disconnect timers
+      timerIntervalsRef.current.forEach(intervalId => {
+        clearInterval(intervalId);
+      });
+      timerIntervalsRef.current.clear();
+      setDisconnectedTimers(new Map());
       
       if (newSocket) {
         // Remove event listeners with specific handlers
@@ -1027,53 +1102,75 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
             )}
           </div>
           <div className="players-grid">
-            {players.map((player) => {
-              const playerStatus = getPlayerStatus(player);
-              return (
-                <div 
-                  key={player.id} 
-                  className={`player-card ${player.isHost ? 'host' : ''} ${playerStatus.status}`}
-                >
-                  <div className="player-card-content">
-                    <div className="player-avatar">
-                      {player.name.charAt(0).toUpperCase()}
-                    </div>
-                    <div className="player-info">
-                      <span className="player-name">{player.name}</span>
-                      <div className="player-badges">
-                        {player.isHost && <span className="host-badge">Host</span>}
-                        <span 
-                          className="status-badge"
-                          style={{ backgroundColor: playerStatus.color }}
-                          title={`${player.name} is ${playerStatus.label.toLowerCase()}`}
-                        >
-                          {playerStatus.icon} {playerStatus.label}
-                        </span>
+            {players
+              .filter(player => {
+                // Show connected players
+                if (player.isConnected) return true;
+                
+                // Show disconnected players only if they still have a countdown timer
+                if (!player.isConnected && disconnectedTimers.has(player.id)) {
+                  return true;
+                }
+                
+                // Hide disconnected players after countdown expires
+                return false;
+              })
+              .map((player) => {
+                const playerStatus = getPlayerStatus(player);
+                const countdownTime = disconnectedTimers.get(player.id);
+                const isDisconnectedWithTimer = !player.isConnected && countdownTime > 0;
+                
+                return (
+                  <div 
+                    key={player.id} 
+                    className={`player-card ${player.isHost ? 'host' : ''} ${playerStatus.status} ${isDisconnectedWithTimer ? 'disconnecting' : ''}`}
+                  >
+                    <div className="player-card-content">
+                      <div className="player-avatar">
+                        {player.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="player-info">
+                        <span className="player-name">{player.name}</span>
+                        <div className="player-badges">
+                          {player.isHost && <span className="host-badge">Host</span>}
+                          <span 
+                            className="status-badge"
+                            style={{ backgroundColor: playerStatus.color }}
+                            title={`${player.name} is ${playerStatus.label.toLowerCase()}`}
+                          >
+                            {playerStatus.icon} {playerStatus.label}
+                          </span>
+                          {/* Show countdown timer for disconnected players */}
+                          {isDisconnectedWithTimer && (
+                            <span className="countdown-badge" title="Time until removed from room">
+                              ⏱️ {countdownTime}s
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
+                    {/* Show host controls if current user is host and this is not the host */}
+                    {currentIsHost && !player.isHost && !isDisconnectedWithTimer && (
+                      <div className="player-actions">
+                        <button 
+                          className="make-host-btn"
+                          onClick={() => handleTransferHost(player.id)}
+                          title={`Make ${player.name} the host`}
+                        >
+                          👑 Make Host
+                        </button>
+                        <button 
+                          className="kick-player-btn"
+                          onClick={() => handleKickPlayer(player.id, player.name)}
+                          title={`Kick ${player.name} from the room`}
+                        >
+                          👢 Kick
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  {/* Show host controls if current user is host and this is not the host */}
-                  {currentIsHost && !player.isHost && (
-                    <div className="player-actions">
-                      <button 
-                        className="make-host-btn"
-                        onClick={() => handleTransferHost(player.id)}
-                        title={`Make ${player.name} the host`}
-                      >
-                        👑 Make Host
-                      </button>
-                      <button 
-                        className="kick-player-btn"
-                        onClick={() => handleKickPlayer(player.id, player.name)}
-                        title={`Kick ${player.name} from the room`}
-                      >
-                        👢 Kick
-                      </button>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                );
+              })}
           </div>
         </div>
 

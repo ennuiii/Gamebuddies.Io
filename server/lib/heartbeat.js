@@ -7,8 +7,8 @@ class HeartbeatManager extends EventEmitter {
     this.io = io;
     this.heartbeats = new Map(); // socketId -> { userId, roomId, lastPing, roomCode }
     this.heartbeatInterval = 30000; // 30 seconds
-    this.timeoutThreshold = 60000; // 60 seconds (2 missed heartbeats)
-    this.cleanupInterval = 15000; // Check every 15 seconds
+    this.timeoutThreshold = 10000; // 10 seconds (changed from 60 seconds)
+    this.cleanupInterval = 5000; // Check every 5 seconds (changed from 15 seconds)
     
     this.startHeartbeatSystem();
   }
@@ -24,7 +24,7 @@ class HeartbeatManager extends EventEmitter {
     // Database-based cleanup (for connections that weren't properly cleaned up)
     setInterval(() => {
       this.cleanupStaleDatabase();
-    }, 60000); // Every minute
+    }, 30000); // Every 30 seconds (changed from 60 seconds)
   }
 
   // Register a player's heartbeat
@@ -104,29 +104,18 @@ class HeartbeatManager extends EventEmitter {
         return;
       }
 
-      // Determine appropriate status based on room and player state
-      let newStatus = 'disconnected';
-      let newLocation = 'disconnected';
+      // Check if this is the host
+      const isHost = participant.role === 'host';
 
-      // If room is in_game and player was in_game, they might be in external game
-      if (room.status === 'in_game' && participant.in_game === true) {
-        // Check if they've been inactive for a longer period (indicating true disconnect)
-        const lastPingTime = new Date(participant.last_ping).getTime();
-        const timeSinceLastDbPing = Date.now() - lastPingTime;
-        
-        if (timeSinceLastDbPing > 120000) { // 2 minutes of no database activity
-          newStatus = 'disconnected';
-          newLocation = 'disconnected';
-          console.log(`💓 [HEARTBEAT] Player ${heartbeat.userId} truly disconnected (no DB activity for 2+ minutes)`);
-        } else {
-          newStatus = 'game';
-          newLocation = 'game';
-          console.log(`💓 [HEARTBEAT] Player ${heartbeat.userId} likely in external game`);
-        }
+      // Mark player as disconnected (but keep in database)
+      await this.db.updateParticipantConnection(heartbeat.userId, null, 'disconnected');
+
+      // Handle instant host transfer if host disconnected
+      let newHost = null;
+      if (isHost) {
+        console.log(`👑 [HEARTBEAT] Host ${heartbeat.userId} disconnected - transferring host instantly`);
+        newHost = await this.db.autoTransferHost(heartbeat.roomId, heartbeat.userId);
       }
-
-      // Update database
-      await this.db.updateParticipantConnection(heartbeat.userId, null, newStatus);
 
       // Get updated room data
       const updatedRoom = await this.db.getRoomById(heartbeat.roomId);
@@ -142,15 +131,28 @@ class HeartbeatManager extends EventEmitter {
         lastPing: p.last_ping
       })) || [];
 
-      this.io.to(heartbeat.roomCode).emit('playerStatusUpdated', {
-        playerId: heartbeat.userId,
-        status: newLocation,
-        reason: 'heartbeat_timeout',
-        room: updatedRoom,
-        players: allPlayers
-      });
+      // Emit different events based on whether host was transferred
+      if (newHost) {
+        this.io.to(heartbeat.roomCode).emit('hostTransferred', {
+          oldHostId: heartbeat.userId,
+          newHostId: newHost.user_id,
+          newHostName: newHost.user?.display_name || newHost.user?.username,
+          reason: 'original_host_disconnected',
+          players: allPlayers,
+          room: updatedRoom
+        });
+        console.log(`👑 [HEARTBEAT] Instantly transferred host to ${newHost.user?.display_name || newHost.user?.username}`);
+      } else {
+        this.io.to(heartbeat.roomCode).emit('playerDisconnected', {
+          playerId: heartbeat.userId,
+          wasHost: isHost,
+          reason: 'heartbeat_timeout',
+          players: allPlayers,
+          room: updatedRoom
+        });
+      }
 
-      console.log(`💓 [HEARTBEAT] Updated player ${heartbeat.userId} status to ${newStatus}/${newLocation}`);
+      console.log(`💓 [HEARTBEAT] Player ${heartbeat.userId} marked as disconnected after 10s timeout`);
 
     } catch (error) {
       console.error(`💓 [HEARTBEAT] Error handling stale connection:`, error);
@@ -162,14 +164,15 @@ class HeartbeatManager extends EventEmitter {
     try {
       console.log('💓 [HEARTBEAT] Running database cleanup...');
       
-      // Find players marked as connected but with old last_ping
-      const staleThreshold = new Date(Date.now() - 180000); // 3 minutes ago
+      // Find players marked as connected but with old last_ping (30 seconds ago)
+      const staleThreshold = new Date(Date.now() - 30000); // 30 seconds ago
       
       const { data: stalePlayers, error } = await this.db.adminClient
         .from('room_members')
         .select(`
           user_id,
           room_id,
+          role,
           last_ping,
           is_connected,
           in_game,
@@ -185,27 +188,43 @@ class HeartbeatManager extends EventEmitter {
         console.log(`💓 [HEARTBEAT] Found ${stalePlayers.length} stale database entries`);
         
         for (const player of stalePlayers) {
-          // Determine if they should be marked as disconnected or in game
-          let newStatus = 'disconnected';
-          let newLocation = 'disconnected';
+          const isHost = player.role === 'host';
           
-          // If room is in_game and player was in_game, they might be in external game
-          if (player.room?.status === 'in_game' && player.in_game === true) {
-            const timeSinceLastPing = Date.now() - new Date(player.last_ping).getTime();
+          // Mark as disconnected (but keep in database)
+          await this.db.updateParticipantConnection(player.user_id, null, 'disconnected');
+          
+          // Handle instant host transfer if host disconnected
+          let newHost = null;
+          if (isHost) {
+            console.log(`👑 [HEARTBEAT] Host ${player.user_id} found stale in database - transferring host instantly`);
+            newHost = await this.db.autoTransferHost(player.room_id, player.user_id);
             
-            if (timeSinceLastPing > 300000) { // 5 minutes - definitely disconnected
-              newStatus = 'disconnected';
-              newLocation = 'disconnected';
-            } else {
-              newStatus = 'game';
-              newLocation = 'game';
+            if (newHost && player.room?.room_code) {
+              // Get updated room data
+              const updatedRoom = await this.db.getRoomById(player.room_id);
+              const allPlayers = updatedRoom?.participants?.map(p => ({
+                id: p.user_id,
+                name: p.user?.display_name || p.user?.username,
+                isHost: p.role === 'host',
+                isConnected: p.is_connected,
+                inGame: p.in_game,
+                currentLocation: p.current_location,
+                lastPing: p.last_ping
+              })) || [];
+
+              this.io.to(player.room.room_code).emit('hostTransferred', {
+                oldHostId: player.user_id,
+                newHostId: newHost.user_id,
+                newHostName: newHost.user?.display_name || newHost.user?.username,
+                reason: 'original_host_disconnected',
+                players: allPlayers,
+                room: updatedRoom
+              });
+              console.log(`👑 [HEARTBEAT] Database cleanup: Instantly transferred host to ${newHost.user?.display_name || newHost.user?.username}`);
             }
           }
-
-          // Update the player's status
-          await this.db.updateParticipantConnection(player.user_id, null, newStatus);
           
-          console.log(`💓 [HEARTBEAT] Database cleanup: Updated player ${player.user_id} to ${newStatus}/${newLocation}`);
+          console.log(`💓 [HEARTBEAT] Database cleanup: Updated player ${player.user_id} to disconnected${isHost ? ' (was host)' : ''} - kept in database`);
         }
       }
 
