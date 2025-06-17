@@ -198,59 +198,196 @@ const HomePage = () => {
 
   return (
     <div className="homepage">
+      {/* Animated Background */}
+      <div className="background-animation">
+        <div className="floating-elements">
+          {[...Array(15)].map((_, i) => (
+            <div key={i} className={`floating-element element-${i + 1}`}></div>
+          ))}
+        </div>
+      </div>
+
       {/* Hero Section */}
       <section className="hero">
-        <div className="hero-background">
-          <div className="hero-shapes">
-            <div className="shape shape-1"></div>
-            <div className="shape shape-2"></div>
-            <div className="shape shape-3"></div>
-          </div>
-        </div>
-        
         <motion.div 
           className="hero-content"
-          initial={{ opacity: 0, y: 30 }}
+          initial={{ opacity: 0, y: 50 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8 }}
+          transition={{ duration: 1, ease: "easeOut" }}
         >
-          <h1 className="hero-title">
-            <span className="brand-text">GameBuddies</span><span className="brand-dot">.io</span>
-          </h1>
-          <p className="hero-subtitle">
-            Play amazing online games with friends
-          </p>
-          <div className="hero-buttons">
+          <motion.div
+            className="hero-badge"
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.6, delay: 0.2 }}
+          >
+            <span className="badge-text">🎮 Now Live</span>
+          </motion.div>
+          
+          <motion.h1 
+            className="hero-title"
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.3 }}
+          >
+            <span className="brand-text">GameBuddies</span>
+            <span className="brand-dot">.io</span>
+          </motion.h1>
+          
+          <motion.p 
+            className="hero-subtitle"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.5 }}
+          >
+            The ultimate multiplayer gaming platform
+            <br />
+            <span className="subtitle-highlight">Connect, Play, and Dominate Together</span>
+          </motion.p>
+          
+          <motion.div 
+            className="hero-buttons"
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.7 }}
+          >
             <motion.button
-              className="cta-button"
+              className="cta-button primary"
               onClick={handleCreateRoomClick}
-              whileHover={{ scale: 1.05 }}
+              whileHover={{ scale: 1.05, y: -3 }}
               whileTap={{ scale: 0.95 }}
+              transition={{ type: "spring", stiffness: 300 }}
             >
-              Create Room
+              <span className="button-text">Create Room</span>
+              <span className="button-icon">🚀</span>
             </motion.button>
             <motion.button
               className="cta-button secondary"
               onClick={handleJoinRoomClick}
-              whileHover={{ scale: 1.05 }}
+              whileHover={{ scale: 1.05, y: -3 }}
               whileTap={{ scale: 0.95 }}
+              transition={{ type: "spring", stiffness: 300 }}
             >
-              Join Room
+              <span className="button-text">Join Room</span>
+              <span className="button-icon">🎯</span>
             </motion.button>
-          </div>
+          </motion.div>
+
+          <motion.div
+            className="hero-stats"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.9 }}
+          >
+            <div className="stat-item">
+              <div className="stat-number">10K+</div>
+              <div className="stat-label">Active Players</div>
+            </div>
+            <div className="stat-divider"></div>
+            <div className="stat-item">
+              <div className="stat-number">50+</div>
+              <div className="stat-label">Games Available</div>
+            </div>
+            <div className="stat-divider"></div>
+            <div className="stat-item">
+              <div className="stat-number">24/7</div>
+              <div className="stat-label">Online Gaming</div>
+            </div>
+          </motion.div>
         </motion.div>
+      </section>
+
+      {/* Features Section */}
+      <section className="features-section">
+        <div className="container">
+          <motion.div 
+            className="section-header"
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+            viewport={{ once: true }}
+          >
+            <h2 className="section-title">Why Choose GameBuddies?</h2>
+            <p className="section-subtitle">Experience the future of multiplayer gaming</p>
+          </motion.div>
+
+          <div className="features-grid">
+            {[
+              {
+                icon: "🎮",
+                title: "Instant Gaming",
+                description: "Jump into games instantly with our seamless platform. No downloads, no hassle.",
+                color: "var(--primary-color)"
+              },
+              {
+                icon: "👥",
+                title: "Real-time Multiplayer",
+                description: "Connect with friends and players worldwide in real-time gaming sessions.",
+                color: "var(--secondary-color)"
+              },
+              {
+                icon: "🔒",
+                title: "Secure & Private",
+                description: "Your gaming sessions are protected with enterprise-grade security.",
+                color: "var(--accent-color)"
+              },
+              {
+                icon: "⚡",
+                title: "Lightning Fast",
+                description: "Optimized for speed and performance across all devices and platforms.",
+                color: "#00ff88"
+              },
+              {
+                icon: "🏆",
+                title: "Competitive Play",
+                description: "Climb leaderboards and compete in tournaments with skill-based matchmaking.",
+                color: "#ffd93d"
+              },
+              {
+                icon: "🌍",
+                title: "Global Community",
+                description: "Join millions of players from around the world in our vibrant gaming community.",
+                color: "#ff6b6b"
+              }
+            ].map((feature, index) => (
+              <motion.div
+                key={index}
+                className="feature-card"
+                initial={{ opacity: 0, y: 50 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: index * 0.1 }}
+                viewport={{ once: true }}
+                whileHover={{ y: -10, scale: 1.02 }}
+              >
+                <div className="feature-icon" style={{ '--icon-color': feature.color }}>
+                  {feature.icon}
+                </div>
+                <h3 className="feature-title">{feature.title}</h3>
+                <p className="feature-description">{feature.description}</p>
+              </motion.div>
+            ))}
+          </div>
+        </div>
       </section>
 
       {/* Games Section */}
       <section className="games-section" id="games-section">
         <div className="container">
-          <h2 className="section-title">Quick Play</h2>
-          <p className="section-subtitle">Jump into a game directly</p>
+          <motion.div 
+            className="section-header"
+            initial={{ opacity: 0, y: 30 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8 }}
+            viewport={{ once: true }}
+          >
+            <h2 className="section-title">Quick Play Games</h2>
+            <p className="section-subtitle">Jump into these popular games instantly</p>
+          </motion.div>
           
           {loading ? (
             <div className="loading-container">
               <div className="loading-spinner"></div>
-              <p>Loading games...</p>
+              <p className="loading-text">Loading awesome games...</p>
             </div>
           ) : (
             <div className="games-grid">
@@ -259,7 +396,7 @@ const HomePage = () => {
                   key={game.id}
                   initial={{ opacity: 0, y: 50 }}
                   whileInView={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.5, delay: index * 0.1 }}
+                  transition={{ duration: 0.6, delay: index * 0.1 }}
                   viewport={{ once: true }}
                 >
                   <GameCard game={game} />
@@ -270,10 +407,52 @@ const HomePage = () => {
         </div>
       </section>
 
+      {/* Call to Action Section */}
+      <section className="cta-section">
+        <div className="container">
+          <motion.div 
+            className="cta-content"
+            initial={{ opacity: 0, scale: 0.9 }}
+            whileInView={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.8 }}
+            viewport={{ once: true }}
+          >
+            <h2 className="cta-title">Ready to Start Gaming?</h2>
+            <p className="cta-subtitle">Join thousands of players already having fun on GameBuddies.io</p>
+            <motion.button
+              className="cta-button large"
+              onClick={handleCreateRoomClick}
+              whileHover={{ scale: 1.05, y: -3 }}
+              whileTap={{ scale: 0.95 }}
+            >
+              <span className="button-text">Start Playing Now</span>
+              <span className="button-icon">🎮</span>
+            </motion.button>
+          </motion.div>
+        </div>
+      </section>
+
       {/* Footer */}
       <footer className="footer">
         <div className="container">
-          <p>&copy; 2025 GameBuddies.io - All rights reserved</p>
+          <div className="footer-content">
+            <div className="footer-brand">
+              <h3 className="footer-title">
+                <span className="brand-text">GameBuddies</span>
+                <span className="brand-dot">.io</span>
+              </h3>
+              <p className="footer-tagline">The future of multiplayer gaming</p>
+            </div>
+            <div className="footer-stats">
+              <div className="footer-stat">
+                <span className="stat-icon">🎮</span>
+                <span className="stat-text">Connecting gamers worldwide</span>
+              </div>
+            </div>
+          </div>
+          <div className="footer-bottom">
+            <p>&copy; 2025 GameBuddies.io - All rights reserved</p>
+          </div>
         </div>
       </footer>
 
