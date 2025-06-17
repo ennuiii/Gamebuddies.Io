@@ -4,34 +4,99 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.8);
+  background: 
+    radial-gradient(circle at 30% 70%, rgba(0, 217, 255, 0.4) 0%, transparent 70%),
+    radial-gradient(circle at 70% 30%, rgba(120, 119, 198, 0.3) 0%, transparent 70%),
+    rgba(0, 0, 0, 0.85);
+  backdrop-filter: blur(10px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 2000;
   padding: 20px;
+  animation: overlayFadeIn 0.4s ease-out;
+}
+
+@keyframes overlayFadeIn {
+  from { 
+    opacity: 0;
+    backdrop-filter: blur(0px);
+  }
+  to { 
+    opacity: 1;
+    backdrop-filter: blur(10px);
+  }
 }
 
 .join-room-modal {
-  background: var(--card-bg);
-  border-radius: 20px;
-  padding: 2rem;
-  max-width: 450px;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(25px);
+  border-radius: 25px;
+  padding: 3rem;
+  max-width: 500px;
   width: 100%;
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 
+    0 25px 60px rgba(0, 0, 0, 0.8),
+    0 0 0 1px rgba(255, 255, 255, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  position: relative;
+  overflow: hidden;
+  animation: modalSlideUp 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.join-room-modal::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(0, 217, 255, 0.1), transparent);
+  animation: modalShine 3s linear infinite;
+}
+
+@keyframes modalSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(50px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes modalShine {
+  0% { left: -100%; }
+  100% { left: 100%; }
 }
 
 .join-room-title {
   font-family: 'Orbitron', sans-serif;
-  font-size: 2rem;
-  font-weight: 700;
+  font-size: 2.5rem;
+  font-weight: 900;
   text-align: center;
-  margin-bottom: 2rem;
-  background: linear-gradient(135deg, var(--text-primary) 0%, var(--secondary-color) 100%);
+  margin-bottom: 2.5rem;
+  background: linear-gradient(135deg, #00d9ff 0%, #00ff88 50%, #ff6b6b 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  text-shadow: 0 0 30px rgba(0, 217, 255, 0.5);
+  animation: titleGlow 2s ease-in-out infinite;
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes titleGlow {
+  0%, 100% { 
+    filter: brightness(1);
+    transform: scale(1);
+  }
+  50% { 
+    filter: brightness(1.1);
+    transform: scale(1.01);
+  }
 }
 
 .join-room-form {
