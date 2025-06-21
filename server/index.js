@@ -7,8 +7,9 @@ const { createProxyMiddleware } = require('http-proxy-middleware');
 const http = require('http');
 const socketIo = require('socket.io');
 const { db } = require('./lib/supabase');
-const HeartbeatManager = require('./lib/heartbeat');
 require('dotenv').config();
+const rateLimit = require('express-rate-limit');
+const crypto = require('crypto');
 
 const app = express();
 const server = http.createServer(app);
@@ -607,10 +608,10 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
       return res.status(404).json({ error: 'Room not found' });
     }
     
-    // Get current participant data
+    // Get current participant data (including role for host transfer logic)
     const { data: participant } = await db.adminClient
       .from('room_members')
-      .select('user_id, in_game, current_location, is_connected')
+      .select('user_id, role, in_game, current_location, is_connected')
       .eq('room_id', room.id)
       .eq('user_id', playerId)
       .single();
@@ -622,6 +623,7 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
     
     console.log(`🔍 [API] Current participant status:`, {
       user_id: participant.user_id,
+      role: participant.role,
       in_game: participant.in_game,
       current_location: participant.current_location,
       is_connected: participant.is_connected
@@ -661,35 +663,32 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
     switch (status) {
       case 'connected':
         updateData.is_connected = true;
-        updateData.current_location = location || 'game';
-        updateData.in_game = true;
+        updateData.current_location = location || 'lobby'; // Default to lobby, not game
+        updateData.in_game = false; // Don't assume they're in game just because connected
         break;
         
       case 'disconnected':
-        // Player disconnected from external game
         updateData.is_connected = false;
         updateData.current_location = 'disconnected';
         updateData.in_game = false;
         break;
         
       case 'returned_to_lobby':
-        // Player returned to GameBuddies lobby
         updateData.is_connected = true;
         updateData.current_location = 'lobby';
         updateData.in_game = false;
         break;
         
       case 'in_game':
-        // Player is actively in the external game
         updateData.is_connected = true;
         updateData.current_location = 'game';
         updateData.in_game = true;
         break;
         
       default:
-        console.log(`⚠️ [API] Unknown status: ${status}, defaulting to connected`);
         updateData.is_connected = status === 'connected';
-        updateData.current_location = location || (status === 'connected' ? 'game' : 'disconnected');
+        updateData.current_location = location || (status === 'connected' ? 'lobby' : 'disconnected');
+        updateData.in_game = false; // Don't assume in game for unknown status
     }
     
     console.log(`📝 [API] Status change analysis:`, {
@@ -712,6 +711,10 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
     
     console.log(`📝 [API] Updating participant with:`, updateData);
     
+    // Check if this player was the host before updating
+    const wasHost = participant.role === 'host';
+    const isDisconnecting = updateData.is_connected === false;
+    
     // Update participant
     const { error: updateError } = await db.adminClient
       .from('room_members')
@@ -722,6 +725,33 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
     if (updateError) {
       console.error(`❌ [API] Database update error:`, updateError);
       throw updateError;
+    }
+    
+    // Handle host transfer if host disconnected via external game
+    let newHost = null;
+    if (wasHost && isDisconnecting) {
+      console.log(`👑 [API] Host ${playerId} disconnected via external game - checking for host transfer`);
+      
+      // Get other connected players who could become host
+      const { data: otherConnectedPlayers } = await db.adminClient
+        .from('room_members')
+        .select('user_id, user:users!inner(username, display_name), role, is_connected')
+        .eq('room_id', room.id)
+        .eq('is_connected', true)
+        .neq('user_id', playerId);
+      
+      if (otherConnectedPlayers && otherConnectedPlayers.length > 0) {
+        // Auto-transfer host to the first connected player
+        newHost = await db.autoTransferHost(room.id, playerId);
+        
+        if (newHost) {
+          console.log(`👑 [API] Host transferred from ${playerId} to ${newHost.user_id} (${newHost.user?.username || newHost.user?.display_name}) via external game disconnect`);
+        } else {
+          console.log(`❌ [API] Failed to transfer host from ${playerId}`);
+        }
+      } else {
+        console.log(`⚠️ [API] Host ${playerId} disconnected but no other connected players - keeping host role`);
+      }
     }
     
     // Log event
@@ -744,7 +774,7 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
         isHost: p.role === 'host',
         isConnected: p.is_connected,
         inGame: p.in_game,
-        currentLocation: p.current_location,
+        currentLocation: p.current_location || (p.is_connected ? 'lobby' : 'disconnected'), // Provide default
         lastPing: p.last_ping,
         socketId: null
       })) || [];
@@ -770,7 +800,7 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
       console.log(`👥 [API DEBUG] Player status summary after update:`, statusSummary);
       
       console.log(`📡 [API] Broadcasting status update to room ${roomCode}`);
-      io.to(roomCode).emit('playerStatusUpdated', {
+      const broadcastData = {
         playerId,
         status: updateData.current_location,
         reason,
@@ -778,12 +808,31 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
         room: updatedRoom,
         source: 'external_game',
         timestamp: new Date().toISOString()
-      });
+      };
+      
+      // Include host transfer information if it occurred
+      if (newHost) {
+        broadcastData.hostTransfer = {
+          oldHostId: playerId,
+          newHostId: newHost.user_id,
+          newHostName: newHost.user?.username || newHost.user?.display_name,
+          reason: 'external_game_disconnect'
+        };
+        console.log(`👑 [API] Including host transfer in broadcast:`, broadcastData.hostTransfer);
+      }
+      
+      io.to(roomCode).emit('playerStatusUpdated', broadcastData);
       
       // Confirm broadcast was sent
       console.log(`✅ [API DEBUG] Broadcast sent to ${io.sockets.adapter.rooms.get(roomCode)?.size || 0} connected clients`);
     } else {
       console.log(`⚠️ [API DEBUG] Socket.io not available - cannot broadcast status update`);
+    }
+    
+    // Auto-update room status if this player is the host
+    if (wasHost || participant.role === 'host') {
+      console.log(`👑 [API] Player ${playerId} is host - checking for auto room status update`);
+      autoUpdateRoomStatusByHost(room.id, playerId, updateData.current_location);
     }
     
     console.log(`✅ [API] Successfully updated player ${playerId} status to ${status} (location: ${updateData.current_location})`);
@@ -897,8 +946,8 @@ app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async 
         switch (status) {
           case 'connected':
             updateData.is_connected = true;
-            updateData.current_location = location || 'game';
-            updateData.in_game = true;
+            updateData.current_location = location || 'lobby'; // Default to lobby, not game
+            updateData.in_game = false; // Don't assume they're in game just because connected
             break;
             
           case 'disconnected':
@@ -990,7 +1039,7 @@ app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async 
         isHost: p.role === 'host',
         isConnected: p.is_connected,
         inGame: p.in_game,
-        currentLocation: p.current_location,
+        currentLocation: p.current_location || (p.is_connected ? 'lobby' : 'disconnected'), // Provide default
         lastPing: p.last_ping,
         socketId: null
       })) || [];
@@ -1026,6 +1075,14 @@ app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async 
       console.log(`✅ [API DEBUG] Bulk broadcast sent to ${io.sockets.adapter.rooms.get(roomCode)?.size || 0} connected clients`);
     } else {
       console.log(`⚠️ [API DEBUG] Socket.io not available - cannot broadcast bulk status update`);
+    }
+    
+    // Auto-update room status if any host was updated
+    const hostUpdates = allPlayers.filter(p => p.isHost);
+    if (hostUpdates.length > 0) {
+      const host = hostUpdates[0]; // Should only be one host
+      console.log(`👑 [API] Host ${host.id} status updated in bulk - checking for auto room status update`);
+      autoUpdateRoomStatusByHost(room.id, host.id, host.currentLocation);
     }
     
     const successCount = results.filter(r => r.success).length;
@@ -1174,11 +1231,79 @@ app.get('/api/debug/storage', (req, res) => {
 
 // ===== SOCKET.IO EVENT HANDLERS =====
 
+// Helper function to automatically update room status based on host location
+async function autoUpdateRoomStatusByHost(roomId, hostUserId, hostLocation) {
+  try {
+    console.log(`🤖 Checking if room status needs auto-update for host location change:`, {
+      roomId,
+      hostUserId,
+      hostLocation
+    });
+
+    // Get current room
+    const room = await db.getRoomById(roomId);
+    if (!room) {
+      console.log(`❌ Room ${roomId} not found for auto status update`);
+      return;
+    }
+
+    // Determine target status based on host location
+    let targetStatus = room.status; // Default to current status
+    
+    if (hostLocation === 'game' || hostLocation === 'in_game') {
+      targetStatus = 'in_game';
+    } else if (hostLocation === 'lobby' || hostLocation === 'connected') {
+      targetStatus = 'lobby';
+    } else if (hostLocation === 'disconnected') {
+      // Don't change status when host disconnects - they might return
+      console.log(`🔄 Host disconnected but keeping room status as '${room.status}'`);
+      return;
+    }
+
+    // Only update if status needs to change
+    if (room.status === targetStatus) {
+      console.log(`🔄 Room ${room.room_code} already has correct status '${targetStatus}' for host location '${hostLocation}'`);
+      return;
+    }
+
+    console.log(`🤖 Auto-updating room ${room.room_code} status from '${room.status}' to '${targetStatus}' due to host location: ${hostLocation}`);
+
+    // Update room status in database
+    const updateData = { status: targetStatus };
+    
+    // If changing back to lobby, also reset current game
+    if (targetStatus === 'lobby') {
+      updateData.current_game = null;
+    }
+
+    await db.updateRoom(roomId, updateData);
+
+    // Get updated room data
+    const updatedRoom = await db.getRoomById(roomId);
+    
+    // Find host participant for display name
+    const hostParticipant = updatedRoom?.participants?.find(p => p.user_id === hostUserId);
+    
+    // Notify all players about the automatic status change
+    io.to(room.room_code).emit('roomStatusChanged', {
+      oldStatus: room.status,
+      newStatus: targetStatus,
+      room: updatedRoom,
+      changedBy: `${hostParticipant?.user?.display_name || hostParticipant?.user?.username || 'Host'} (auto)`,
+      reason: 'host_location_change',
+      isAutomatic: true,
+      hostLocation: hostLocation
+    });
+
+    console.log(`🤖 Room ${room.room_code} status auto-updated to '${targetStatus}' due to host location change`);
+
+  } catch (error) {
+    console.error('❌ Error auto-updating room status by host location:', error);
+  }
+}
+
 // Track active connections
 const activeConnections = new Map();
-
-// Initialize heartbeat manager
-const heartbeatManager = new HeartbeatManager(db, io);
 
 io.on('connection', async (socket) => {
   console.log(`🔌 User connected: ${socket.id}`);
@@ -1245,8 +1370,7 @@ io.on('connection', async (socket) => {
         connection.roomId = room.id;
       }
 
-      // Register heartbeat
-      heartbeatManager.registerHeartbeat(socket.id, user.id, room.id, room.room_code);
+
 
       // Send success response
       socket.emit('roomCreated', {
@@ -1258,6 +1382,10 @@ io.on('connection', async (socket) => {
             id: user.id,
             name: data.playerName,
             isHost: true,
+            isConnected: true,
+            inGame: false,
+            currentLocation: 'lobby',
+            lastPing: new Date().toISOString(),
             socketId: socket.id
           }]
         }
@@ -1468,6 +1596,24 @@ io.on('connection', async (socket) => {
         await db.updateParticipantConnection(existingParticipant.user_id, socket.id, 'connected');
         console.log(`✅ [REJOINING DEBUG] Updated existing participant connection status to connected`);
         
+        // Auto-update room status if this reconnecting user is the host
+        if (existingParticipant.role === 'host') {
+          console.log(`👑 [REJOINING DEBUG] Reconnecting host - checking for auto room status update`);
+          autoUpdateRoomStatusByHost(room.id, existingParticipant.user_id, 'lobby');
+        }
+        
+        // If rejoining the lobby (not in a game), ensure in_game is false
+        if (room.status === 'lobby' || room.status === 'in_game') {
+          await db.adminClient
+            .from('room_members')
+            .update({ 
+              in_game: false,
+              current_location: 'lobby'
+            })
+            .eq('user_id', existingParticipant.user_id)
+            .eq('room_id', room.id);
+          console.log(`🔄 [REJOINING DEBUG] Reset rejoining participant to lobby status (in_game: false)`);
+        }
       } else {
         // Get or create user profile for new participants
         console.log(`👤 [REJOINING DEBUG] Getting/creating user profile for new participant...`);
@@ -1563,23 +1709,22 @@ io.on('connection', async (socket) => {
       console.log(`🔗 [REJOINING DEBUG] Joining socket room: ${data.roomCode}`);
       socket.join(data.roomCode);
 
-      // Register heartbeat
-      heartbeatManager.registerHeartbeat(socket.id, user.id, room.id, data.roomCode);
+
 
       // Get updated room data
       console.log(`🔄 [REJOINING DEBUG] Fetching updated room data...`);
       const updatedRoom = await db.getRoomByCode(data.roomCode);
       
       // Prepare player list - include ALL participants with their status
-      const players = updatedRoom.participants?.map(p => ({
-        id: p.user_id,
-        name: p.user?.display_name || p.user?.username,
-        isHost: p.role === 'host',
-        isConnected: p.is_connected,
-        inGame: p.in_game,
-        currentLocation: p.current_location,
-        lastPing: p.last_ping,
-        socketId: null // Socket IDs are tracked in activeConnections, not stored in DB
+              const players = updatedRoom.participants?.map(p => ({
+          id: p.user_id,
+          name: p.user?.display_name || p.user?.username,
+          isHost: p.role === 'host',
+          isConnected: p.is_connected,
+          inGame: p.in_game,
+          currentLocation: p.current_location || (p.is_connected ? 'lobby' : 'disconnected'),
+          lastPing: p.last_ping,
+          socketId: null // Socket IDs are tracked in activeConnections, not stored in DB
       })) || [];
 
       console.log(`👥 [REJOINING DEBUG] Final player list:`, players);
@@ -1881,9 +2026,10 @@ io.on('connection', async (socket) => {
       // Leave socket room
       socket.leave(data.roomCode);
 
-      // Handle host transfer if the host is leaving
+      // Handle INSTANT host transfer if the host is leaving
       let newHost = null;
       if (isLeavingHost && room) {
+        console.log(`👑 [LEAVE] Host ${connection.userId} leaving - transferring host instantly`);
         newHost = await db.autoTransferHost(connection.roomId, connection.userId);
       }
 
@@ -1897,28 +2043,32 @@ io.on('connection', async (socket) => {
           isHost: p.role === 'host',
           isConnected: p.is_connected,
           inGame: p.in_game,
-          currentLocation: p.current_location,
+          currentLocation: p.current_location || (p.is_connected ? 'lobby' : 'disconnected'),
           lastPing: p.last_ping,
           socketId: null // Socket IDs are tracked in activeConnections, not stored in DB
         })) || [];
 
-        // Notify remaining players
-        const eventData = {
-          playerId: connection.userId,
-          players: allPlayers,
-          room: updatedRoom
-        };
-
-        // Add host transfer info if applicable
+        // Send appropriate events based on whether host was transferred
         if (newHost) {
-          eventData.hostTransferred = {
+          // Send host transfer event first
+          io.to(data.roomCode).emit('hostTransferred', {
+            oldHostId: connection.userId,
             newHostId: newHost.user_id,
             newHostName: newHost.user?.display_name || newHost.user?.username,
-            reason: 'original_host_left'
-          };
+            reason: 'original_host_left',
+            players: allPlayers,
+            room: updatedRoom
+          });
+          console.log(`👑 [LEAVE] Instantly transferred host to ${newHost.user?.display_name || newHost.user?.username}`);
         }
 
-        io.to(data.roomCode).emit('playerLeft', eventData);
+        // Then send player left event
+        io.to(data.roomCode).emit('playerLeft', {
+          playerId: connection.userId,
+          players: allPlayers,
+          room: updatedRoom,
+          wasHost: isLeavingHost
+        });
 
         // If no connected players left, mark room as returning (closest equivalent to abandoned)
         const connectedPlayers = allPlayers.filter(p => p.isConnected);
@@ -1934,9 +2084,6 @@ io.on('connection', async (socket) => {
       connection.userId = null;
 
       console.log(`👋 Player left room ${data.roomCode}${isLeavingHost ? ' (was host)' : ''}`);
-      if (newHost) {
-        console.log(`👑 Auto-transferred host to ${newHost.user?.display_name || newHost.user?.username}`);
-      }
 
     } catch (error) {
       console.error('❌ Error leaving room:', error);
@@ -2113,7 +2260,7 @@ io.on('connection', async (socket) => {
         isHost: p.role === 'host',
         isConnected: p.is_connected,
         inGame: p.in_game,
-        currentLocation: p.current_location,
+        currentLocation: p.current_location || (p.is_connected ? 'lobby' : 'disconnected'),
         lastPing: p.last_ping,
         socketId: null
       })) || [];
@@ -2258,7 +2405,7 @@ io.on('connection', async (socket) => {
         isHost: p.role === 'host',
         isConnected: p.is_connected,
         inGame: p.in_game,
-        currentLocation: p.current_location,
+        currentLocation: p.current_location || (p.is_connected ? 'lobby' : 'disconnected'),
         lastPing: p.last_ping,
         socketId: null
       })) || [];
@@ -2283,8 +2430,7 @@ io.on('connection', async (socket) => {
 
       // Clear connection tracking for kicked player
       if (targetConnection) {
-        // Remove from heartbeat tracking
-        heartbeatManager.removeHeartbeat(targetConnection.socketId);
+
         
         targetConnection.roomId = null;
         targetConnection.userId = null;
@@ -2370,9 +2516,81 @@ io.on('connection', async (socket) => {
     }
   });
 
-  // Handle heartbeat ping
-  socket.on('heartbeat', () => {
-    heartbeatManager.updateHeartbeat(socket.id);
+  // Handle automatic room status updates based on host location
+  socket.on('autoUpdateRoomStatus', async (data) => {
+    try {
+      console.log(`🤖 Auto-updating room status: ${data.newStatus} for room ${data.roomCode} (reason: ${data.reason})`);
+      
+      const connection = activeConnections.get(socket.id);
+      if (!connection?.roomId || !connection?.userId) {
+        console.log(`❌ Auto status update failed: socket not in room`);
+        return; // Don't emit error, just log
+      }
+
+      // Get room and verify user is host
+      const room = await db.getRoomByCode(data.roomCode);
+      if (!room) {
+        console.log(`❌ Auto status update failed: room ${data.roomCode} not found`);
+        return;
+      }
+
+      // Check if user is host (only host can trigger auto updates)
+      const participant = room.participants?.find(p => p.user_id === connection.userId);
+      if (!participant || participant.role !== 'host') {
+        console.log(`❌ Auto status update failed: user ${connection.userId} is not host`);
+        return;
+      }
+
+      // Map client status to server status values
+      let serverStatus = data.newStatus;
+      if (data.newStatus === 'waiting_for_players') {
+        serverStatus = 'lobby';
+      } else if (data.newStatus === 'in_game') {
+        serverStatus = 'in_game';
+      }
+
+      // Don't update if status is already correct
+      if (room.status === serverStatus) {
+        console.log(`🔄 Auto status update skipped: room ${data.roomCode} already has status '${serverStatus}'`);
+        return;
+      }
+
+      // Validate the new status - V2 Schema
+      const validStatuses = ['lobby', 'in_game', 'returning'];
+      if (!validStatuses.includes(serverStatus)) {
+        console.log(`❌ Auto status update failed: invalid status '${serverStatus}'`);
+        return;
+      }
+
+      // Update room status in database
+      const updateData = { status: serverStatus };
+      
+      // If changing back to lobby, also reset current game
+      if (serverStatus === 'lobby') {
+        updateData.current_game = null;
+      }
+
+      await db.updateRoom(room.id, updateData);
+
+      // Get updated room data
+      const updatedRoom = await db.getRoomByCode(data.roomCode);
+      
+      // Notify all players about the automatic status change
+      io.to(data.roomCode).emit('roomStatusChanged', {
+        oldStatus: room.status,
+        newStatus: serverStatus,
+        room: updatedRoom,
+        changedBy: `${participant.user?.display_name || participant.user?.username} (auto)`,
+        reason: data.reason,
+        isAutomatic: true
+      });
+
+      console.log(`🤖 Room ${room.room_code} status auto-changed from '${room.status}' to '${serverStatus}' by ${participant.user?.display_name} (reason: ${data.reason})`);
+
+    } catch (error) {
+      console.error('❌ Error auto-updating room status:', error);
+      // Don't emit error to client - this is automatic and shouldn't interrupt user flow
+    }
   });
 
   // Handle disconnection
@@ -2380,8 +2598,7 @@ io.on('connection', async (socket) => {
     try {
       console.log(`🔌 User disconnected: ${socket.id}`);
       
-      // Remove from heartbeat tracking
-      const heartbeatData = heartbeatManager.removeHeartbeat(socket.id);
+      
       
       const connection = activeConnections.get(socket.id);
       if (connection?.userId) {
@@ -2417,7 +2634,12 @@ io.on('connection', async (socket) => {
           connectionStatus
         );
 
-        // Handle host transfer if host disconnected
+        // Auto-update room status if this user is the host
+        if (isDisconnectingHost && connectionStatus && room) {
+          autoUpdateRoomStatusByHost(room.id, connection.userId, connectionStatus);
+        }
+
+        // Handle INSTANT host transfer if host disconnected (no grace period)
         let newHost = null;
         if (isDisconnectingHost && room) {
           // Only auto-transfer host if there are other connected players
@@ -2426,47 +2648,33 @@ io.on('connection', async (socket) => {
           ) || [];
           
           if (otherConnectedPlayers.length > 0) {
-            // Give host a grace period to reconnect (30 seconds)
-            setTimeout(async () => {
-              try {
-                // Check if original host reconnected
-                const updatedRoom = await db.getRoomById(connection.roomId);
-                const originalHost = updatedRoom?.participants?.find(p => 
-                  p.user_id === connection.userId && p.is_connected === true
-                );
-
-                if (!originalHost) {
-                  // Host didn't reconnect, transfer to someone else
-                  newHost = await db.autoTransferHost(connection.roomId, connection.userId);
-                  
-                  if (newHost && updatedRoom) {
-                    // Get updated player list with ALL participants (not just connected)
-                    const updatedPlayers = updatedRoom.participants?.map(p => ({
-                      id: p.user_id,
-                      name: p.user?.display_name || p.user?.username,
-                      isHost: p.role === 'host' || p.user_id === newHost.user_id,
-                      isConnected: p.is_connected,
-                      inGame: p.in_game,
-                      lastPing: p.last_ping,
-                      socketId: null
-                    })) || [];
-
-                    // Notify remaining players about host transfer
-                    io.to(updatedRoom.room_code).emit('hostTransferred', {
-                      oldHostId: connection.userId,
-                      newHostId: newHost.user_id,
-                      newHostName: newHost.user?.display_name || newHost.user?.username,
-                      reason: 'original_host_disconnected',
-                      players: updatedPlayers
-                    });
-
-                    console.log(`👑 Auto-transferred host to ${newHost.user?.display_name} after disconnect timeout`);
-                  }
-                }
-              } catch (error) {
-                console.error('❌ Error in delayed host transfer:', error);
-              }
-            }, 30000); // 30 second grace period
+            console.log(`👑 [DISCONNECT] Host ${connection.userId} disconnected - transferring host instantly`);
+            console.log(`👑 [DISCONNECT] Other connected players available:`, 
+              otherConnectedPlayers.map(p => ({
+                user_id: p.user_id,
+                username: p.user?.username,
+                is_connected: p.is_connected,
+                joined_at: p.joined_at
+              }))
+            );
+            
+            // Transfer host immediately (no grace period)
+            newHost = await db.autoTransferHost(connection.roomId, connection.userId);
+            
+            if (newHost) {
+              console.log(`👑 [DISCONNECT] Host transfer completed:`, {
+                oldHostId: connection.userId,
+                newHostId: newHost.user_id,
+                newHostName: newHost.user?.display_name || newHost.user?.username
+              });
+              
+              console.log(`👑 [DISCONNECT] Host transfer completed successfully`, {
+                newHostId: newHost.user_id,
+                newHostName: newHost.user?.display_name || newHost.user?.username
+              });
+            } else {
+              console.log(`❌ [DISCONNECT] Host transfer failed - no suitable replacement found`);
+            }
           } else {
             console.log(`⚠️ Host disconnected but no other connected players - keeping host role`);
           }
@@ -2482,14 +2690,29 @@ io.on('connection', async (socket) => {
             isHost: p.role === 'host',
             isConnected: p.is_connected,
             inGame: p.in_game,
+            currentLocation: p.current_location || (p.is_connected ? 'lobby' : 'disconnected'),
             lastPing: p.last_ping,
             socketId: null
           })) || [];
 
+          // Send host transfer event first if host was transferred
+          if (newHost) {
+            io.to(room.room_code).emit('hostTransferred', {
+              oldHostId: connection.userId,
+              newHostId: newHost.user_id,
+              newHostName: newHost.user?.display_name || newHost.user?.username,
+              reason: 'original_host_disconnected',
+              players: allPlayers,
+              room: updatedRoom
+            });
+          }
+
+          // Then send player disconnected event
           socket.to(room.room_code).emit('playerDisconnected', {
             playerId: connection.userId,
             wasHost: isDisconnectingHost,
-            players: allPlayers
+            players: allPlayers,
+            room: updatedRoom
           });
         }
       }
@@ -2580,22 +2803,7 @@ app.get('/api/admin/room-stats', async (req, res) => {
   }
 });
 
-// Heartbeat stats endpoint
-app.get('/api/admin/heartbeat-stats', (req, res) => {
-  try {
-    const stats = heartbeatManager.getStats();
-    res.json({
-      success: true,
-      stats
-    });
-  } catch (error) {
-    console.error('❌ Heartbeat stats error:', error);
-    res.status(500).json({
-      success: false,
-      error: error.message
-    });
-  }
-});
+
 
 // Manual cleanup trigger
 app.post('/api/admin/cleanup-now', async (req, res) => {

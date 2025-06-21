@@ -86,8 +86,6 @@ const CreateRoom = ({ onRoomCreated, onCancel }) => {
           room_id: data.room?.id
         });
         
-        socket.disconnect();
-        
         if (onRoomCreated) {
           onRoomCreated({
             roomCode: data.roomCode,
@@ -96,6 +94,13 @@ const CreateRoom = ({ onRoomCreated, onCancel }) => {
             room: data.room
           });
         }
+        
+        // Delay socket disconnect to allow RoomLobby to establish its own connection
+        console.log('🏠 [CREATE DEBUG] Delaying socket cleanup to allow lobby connection');
+        setTimeout(() => {
+          console.log('🏠 [CREATE DEBUG] Cleaning up creation socket after transition');
+          socket.disconnect();
+        }, 1000); // 1 second delay
       });
 
       socket.on('error', (error) => {

@@ -385,6 +385,20 @@ class DatabaseService {
     try {
       console.log(`🔄 Auto-transferring host in room ${roomId} after host ${leavingHostUserId} left`);
 
+      // First, demote the old host to player role (essential to prevent multiple hosts)
+      const { error: demoteError } = await this.adminClient
+        .from('room_members')
+        .update({ role: 'player' })
+        .eq('room_id', roomId)
+        .eq('user_id', leavingHostUserId);
+
+      if (demoteError) {
+        console.error('❌ Failed to demote old host:', demoteError);
+        // Continue anyway - the old host might already be removed
+      } else {
+        console.log(`✅ Demoted old host ${leavingHostUserId} to player role`);
+      }
+
       // Find the next suitable host (longest-connected player)
       const { data: participants, error } = await this.adminClient
         .from('room_members')

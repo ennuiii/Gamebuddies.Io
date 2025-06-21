@@ -3,7 +3,6 @@ import io from 'socket.io-client';
 import GamePicker from './GamePicker';
 import { useRealtimeSubscription } from '../utils/useRealtimeSubscription';
 import { getSupabaseClient } from '../utils/supabase';
-import HeartbeatClient from '../utils/heartbeat';
 import './RoomLobby.css';
 
 // Track active connection to prevent duplicates in StrictMode
@@ -19,20 +18,72 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
   const [connectionStatus, setConnectionStatus] = useState('connecting');
   const [currentIsHost, setCurrentIsHost] = useState(isHost); // State for re-rendering
   const [roomStatus, setRoomStatus] = useState('waiting_for_players');
-  const [showStatusMenu, setShowStatusMenu] = useState(false);
   const [isStartingGame, setIsStartingGame] = useState(false);
+  const [disconnectedTimers, setDisconnectedTimers] = useState(new Map()); // Track disconnect timers
   
   // Use refs for values that shouldn't trigger re-renders
   const roomCodeRef = useRef(roomCode);
   const playerNameRef = useRef(playerName);
   const currentUserIdRef = useRef(null);
   const roomIdRef = useRef(null);
-  const heartbeatClientRef = useRef(null);
+  const timerIntervalsRef = useRef(new Map()); // Track timer intervals
+
+  // Function to start disconnect countdown for a player
+  const startDisconnectCountdown = (playerId) => {
+    const startTime = Date.now();
+    const countdownDuration = 10000; // 10 seconds
+    
+    // Clear any existing timer for this player
+    if (timerIntervalsRef.current.has(playerId)) {
+      clearInterval(timerIntervalsRef.current.get(playerId));
+    }
+    
+    // Set initial countdown
+    setDisconnectedTimers(prev => new Map(prev.set(playerId, 10)));
+    
+    // Start countdown interval
+    const intervalId = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const remaining = Math.max(0, Math.ceil((countdownDuration - elapsed) / 1000));
+      
+      setDisconnectedTimers(prev => {
+        const newMap = new Map(prev);
+        if (remaining > 0) {
+          newMap.set(playerId, remaining);
+        } else {
+          newMap.delete(playerId);
+        }
+        return newMap;
+      });
+      
+      // Clear interval when countdown reaches 0
+      if (remaining <= 0) {
+        clearInterval(intervalId);
+        timerIntervalsRef.current.delete(playerId);
+      }
+    }, 1000);
+    
+    timerIntervalsRef.current.set(playerId, intervalId);
+  };
+
+  // Function to clear disconnect countdown for a player
+  const clearDisconnectCountdown = (playerId) => {
+    if (timerIntervalsRef.current.has(playerId)) {
+      clearInterval(timerIntervalsRef.current.get(playerId));
+      timerIntervalsRef.current.delete(playerId);
+    }
+    setDisconnectedTimers(prev => {
+      const newMap = new Map(prev);
+      newMap.delete(playerId);
+      return newMap;
+    });
+  };
 
   // Realtime subscription for room members status updates
   useRealtimeSubscription({
     table: 'room_members',
     filters: roomIdRef.current ? { filter: `room_id=eq.${roomIdRef.current}` } : {},
+    enabled: !!roomIdRef.current, // Only enable when we have a room ID
     onUpdate: (newRecord, oldRecord) => {
       console.log('🔔 [REALTIME] Room member updated:', { newRecord, oldRecord });
       
@@ -71,6 +122,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
   useRealtimeSubscription({
     table: 'rooms',
     filters: roomIdRef.current ? { filter: `id=eq.${roomIdRef.current}` } : {},
+    enabled: !!roomIdRef.current, // Only enable when we have a room ID
     onUpdate: (newRecord, oldRecord) => {
       console.log('🔔 [REALTIME] Room updated:', { newRecord, oldRecord });
       
@@ -201,9 +253,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       setConnectionStatus('connected');
       setSocket(newSocket);
       
-      // Initialize heartbeat client
-      heartbeatClientRef.current = new HeartbeatClient(newSocket);
-      heartbeatClientRef.current.start();
+      
       
       // Join the room
       console.log('📤 [LOBBY DEBUG] Sending joinRoom event...');
@@ -286,28 +336,37 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       const currentUser = mappedPlayers.find(p => p.name === playerNameRef.current);
       if (currentUser) {
         console.log(`🔍 [CLIENT DEBUG] Initial host status: ${playerNameRef.current} is host: ${currentUser.isHost}`);
-        console.log(`🔍 [LOBBY DEBUG] Host status update:`, {
-          playerName: playerNameRef.current,
-          playerId: currentUser.id,
-          wasHost: currentIsHost,
-          nowHost: currentUser.isHost,
-          changed: currentIsHost !== currentUser.isHost
-        });
-        setCurrentIsHost(currentUser.isHost);
-        currentUserIdRef.current = currentUser.id; // Store user ID for session storage
-      }
-      
-      setIsLoading(false);
-      setError(null);
+              console.log(`🔍 [LOBBY DEBUG] Host status update:`, {
+        playerName: playerNameRef.current,
+        playerId: currentUser.id,
+        wasHost: currentIsHost,
+        nowHost: currentUser.isHost,
+        changed: currentIsHost !== currentUser.isHost
+      });
+      setCurrentIsHost(currentUser.isHost);
+      currentUserIdRef.current = currentUser.id; // Store user ID for session storage
+    }
+    
+    // Auto-update room status based on host location after initial join
+    updateRoomStatusBasedOnHost(mappedPlayers);
+    
+    setIsLoading(false);
+    setError(null);
     };
 
     const handlePlayerJoined = (data) => {
       console.log('👋 Player joined:', data.player.name);
-      setPlayers(data.players || []);
+      const updatedPlayers = data.players || [];
+      setPlayers(updatedPlayers);
       setRoomData(data.room);
       
+      // Clear any disconnect countdown for the joined player
+      if (data.player?.id) {
+        clearDisconnectCountdown(data.player.id);
+      }
+      
       // Ensure host status is maintained when players join
-      const currentUser = data.players?.find(p => p.name === playerNameRef.current);
+      const currentUser = updatedPlayers.find(p => p.name === playerNameRef.current);
       if (currentUser) {
         if (currentUser.isHost !== currentIsHost) {
           console.log(`🔍 [CLIENT DEBUG] Host status sync: ${playerNameRef.current} is host: ${currentUser.isHost}`);
@@ -318,11 +377,16 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
           currentUserIdRef.current = currentUser.id;
         }
       }
+      
+      // Auto-update room status based on host location
+      updateRoomStatusBasedOnHost(updatedPlayers);
     };
 
     const handlePlayerStatusUpdated = (data) => {
       console.log('🔄 Player status updated:', data);
-      setPlayers(data.room?.participants?.map(p => ({
+      
+      // Map the players using the updated room participants
+      const mappedPlayers = data.room?.participants?.map(p => ({
         id: p.user_id,
         name: p.user?.display_name || p.user?.username,
         isHost: p.role === 'host',
@@ -330,8 +394,41 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
         inGame: p.in_game,
         currentLocation: p.current_location,
         lastPing: p.last_ping
-      })) || []);
+      })) || [];
+      
+      setPlayers(mappedPlayers);
       setRoomData(data.room);
+      
+      // Handle host transfer if included in the update
+      if (data.hostTransfer) {
+        console.log('👑 Host transfer detected in status update:', data.hostTransfer);
+        
+        // Update local host status if current user is affected
+        const currentUser = mappedPlayers.find(p => p.name === playerNameRef.current);
+        if (currentUser) {
+          const newHostStatus = currentUser.isHost;
+          console.log(`🔍 [CLIENT DEBUG] Host status update via external game: ${playerNameRef.current} is now host: ${newHostStatus}`);
+          setCurrentIsHost(newHostStatus);
+        }
+        
+        // Show notification about the host transfer
+        const reason = data.hostTransfer.reason === 'external_game_disconnect' ? 'disconnected from game' : 
+                      data.hostTransfer.reason === 'original_host_left' ? 'left the room' : 
+                      'disconnected';
+        
+        console.log(`👑 [HOST TRANSFER] ${data.hostTransfer.newHostName} is now the host (previous host ${reason})`);
+        
+        // You could add a toast notification here
+        // toast.info(`${data.hostTransfer.newHostName} is now the host`);
+      }
+      
+      // Clear disconnect countdown if player reconnected
+      if (data.playerId && data.status === 'connected') {
+        clearDisconnectCountdown(data.playerId);
+      }
+      
+      // Auto-update room status based on host location
+      updateRoomStatusBasedOnHost(mappedPlayers);
     };
 
     const handlePlayerLeft = (data) => {
@@ -365,6 +462,11 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
             ? { ...player, isConnected: false }
             : player
         ));
+      }
+      
+      // Start countdown timer for the disconnected player
+      if (data.playerId) {
+        startDisconnectCountdown(data.playerId);
       }
     };
 
@@ -513,7 +615,8 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       console.log('👑 Host transferred:', data);
       
       // Update players list with complete status information
-      setPlayers(data.players || []);
+      const updatedPlayers = data.players || [];
+      setPlayers(updatedPlayers);
       
       // Update room data if provided
       if (data.room) {
@@ -521,14 +624,14 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       }
       
       // Update local host status - check if current user is the new host
-      const currentUser = data.players?.find(p => p.name === playerNameRef.current);
+      const currentUser = updatedPlayers.find(p => p.name === playerNameRef.current);
       if (currentUser) {
         const newHostStatus = currentUser.isHost;
         console.log(`🔍 [CLIENT DEBUG] Host status update: ${playerNameRef.current} is now host: ${newHostStatus}`);
         setCurrentIsHost(newHostStatus);
       }
       
-      console.log(`👑 [HOST DEBUG] Updated player list after host transfer:`, data.players?.map(p => ({
+      console.log(`👑 [HOST DEBUG] Updated player list after host transfer:`, updatedPlayers.map(p => ({
         name: p.name,
         isHost: p.isHost,
         isConnected: p.isConnected,
@@ -542,6 +645,9 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       
       // You could add a toast notification here
       console.log(`👑 ${data.newHostName} is now the host (previous host ${reason})`);
+      
+      // Auto-update room status based on new host location
+      updateRoomStatusBasedOnHost(updatedPlayers);
     };
 
     const handleRoomStatusChanged = (data) => {
@@ -555,9 +661,6 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       if (data.newStatus === 'waiting_for_players') {
         setSelectedGame(null);
       }
-      
-      // Hide status menu
-      setShowStatusMenu(false);
       
       // Show notification (you could implement a toast system here)
       console.log(`🔄 Room status changed to '${data.newStatus}' by ${data.changedBy}`);
@@ -649,11 +752,14 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
     return () => {
       console.log('🧹 Cleaning up socket connection');
       
-      // Stop heartbeat
-      if (heartbeatClientRef.current) {
-        heartbeatClientRef.current.stop();
-        heartbeatClientRef.current = null;
-      }
+
+      
+      // Clear all disconnect timers
+      timerIntervalsRef.current.forEach(intervalId => {
+        clearInterval(intervalId);
+      });
+      timerIntervalsRef.current.clear();
+      setDisconnectedTimers(new Map());
       
       if (newSocket) {
         // Remove event listeners with specific handlers
@@ -685,17 +791,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
     };
   }, []); // Empty dependency array to prevent re-running
 
-  // Close status menu when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (showStatusMenu && !event.target.closest('.status-controls')) {
-        setShowStatusMenu(false);
-      }
-    };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, [showStatusMenu]);
 
   const handleGameSelect = (gameType) => {
     if (socket && currentIsHost) {
@@ -799,15 +895,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
     }
   };
 
-  const handleChangeRoomStatus = (newStatus) => {
-    if (socket && currentIsHost) {
-      console.log('🔄 Changing room status to:', newStatus);
-      socket.emit('changeRoomStatus', { 
-        roomCode: roomCodeRef.current,
-        newStatus: newStatus
-      });
-    }
-  };
+
 
   const handleReturnToLobby = () => {
     if (socket) {
@@ -815,6 +903,59 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       socket.emit('playerReturnToLobby', {
         roomCode: roomCodeRef.current,
         playerName: playerNameRef.current
+      });
+      
+      // If current user is host, automatically update room status to lobby
+      if (currentIsHost) {
+        console.log('🔄 Host returning to lobby - auto-updating room status');
+        // The status will be updated when we receive the playerStatusUpdated event
+        // but we can also trigger it immediately for responsiveness
+        setTimeout(() => {
+          // Re-fetch current player status and update room status
+          const currentPlayer = players.find(p => p.name === playerNameRef.current);
+          if (currentPlayer) {
+            const updatedPlayers = players.map(p => 
+              p.name === playerNameRef.current 
+                ? { ...p, inGame: false, currentLocation: 'lobby' }
+                : p
+            );
+            updateRoomStatusBasedOnHost(updatedPlayers);
+          }
+        }, 100);
+      }
+    }
+  };
+
+  // Automatic status management based on host location
+  const updateRoomStatusBasedOnHost = (updatedPlayers) => {
+    if (!currentIsHost || !socket) return;
+    
+    const currentHost = updatedPlayers.find(p => p.isHost);
+    if (!currentHost) return;
+    
+    let targetStatus = 'waiting_for_players';
+    
+    // Determine status based on host location
+    if (currentHost.currentLocation === 'game' || currentHost.inGame) {
+      targetStatus = 'in_game';
+    } else if (currentHost.currentLocation === 'lobby' || (!currentHost.inGame && currentHost.isConnected)) {
+      targetStatus = 'waiting_for_players';
+    }
+    
+    // Only update if status needs to change
+    if (targetStatus !== roomStatus) {
+      console.log('🔄 Auto-updating room status based on host location:', {
+        hostLocation: currentHost.currentLocation,
+        hostInGame: currentHost.inGame,
+        currentStatus: roomStatus,
+        newStatus: targetStatus
+      });
+      
+      // Update room status automatically
+      socket.emit('autoUpdateRoomStatus', {
+        roomCode: roomCodeRef.current,
+        newStatus: targetStatus,
+        reason: 'host_location_change'
       });
     }
   };
@@ -912,57 +1053,6 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
               <span className={`status-badge status-${roomStatus}`}>
                 {roomStatus.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
               </span>
-              {currentIsHost && (
-                <div className="status-controls">
-                  <button 
-                    className="change-status-btn"
-                    onClick={() => setShowStatusMenu(!showStatusMenu)}
-                    title="Change room status"
-                  >
-                    ⚙️
-                  </button>
-                  {showStatusMenu && (
-                    <div className="status-menu">
-                      <div className="status-menu-header">Change Status</div>
-                      <button 
-                        className="status-option"
-                        onClick={() => handleChangeRoomStatus('waiting_for_players')}
-                        disabled={roomStatus === 'waiting_for_players'}
-                      >
-                        🟢 Waiting for Players
-                      </button>
-                      <button 
-                        className="status-option"
-                        onClick={() => handleChangeRoomStatus('active')}
-                        disabled={roomStatus === 'active'}
-                      >
-                        🔵 Active
-                      </button>
-                      <button 
-                        className="status-option"
-                        onClick={() => handleChangeRoomStatus('paused')}
-                        disabled={roomStatus === 'paused'}
-                      >
-                        🟡 Paused
-                      </button>
-                      <button 
-                        className="status-option"
-                        onClick={() => handleChangeRoomStatus('finished')}
-                        disabled={roomStatus === 'finished'}
-                      >
-                        🔴 Finished
-                      </button>
-                      <button 
-                        className="status-option"
-                        onClick={() => handleChangeRoomStatus('abandoned')}
-                        disabled={roomStatus === 'abandoned'}
-                      >
-                        ⚫ Abandoned
-                      </button>
-                    </div>
-                  )}
-                </div>
-              )}
             </div>
           </div>
           <div className="room-actions">
@@ -1027,53 +1117,75 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
             )}
           </div>
           <div className="players-grid">
-            {players.map((player) => {
-              const playerStatus = getPlayerStatus(player);
-              return (
-                <div 
-                  key={player.id} 
-                  className={`player-card ${player.isHost ? 'host' : ''} ${playerStatus.status}`}
-                >
-                  <div className="player-card-content">
-                    <div className="player-avatar">
-                      {player.name.charAt(0).toUpperCase()}
-                    </div>
-                    <div className="player-info">
-                      <span className="player-name">{player.name}</span>
-                      <div className="player-badges">
-                        {player.isHost && <span className="host-badge">Host</span>}
-                        <span 
-                          className="status-badge"
-                          style={{ backgroundColor: playerStatus.color }}
-                          title={`${player.name} is ${playerStatus.label.toLowerCase()}`}
-                        >
-                          {playerStatus.icon} {playerStatus.label}
-                        </span>
+            {players
+              .filter(player => {
+                // Show connected players
+                if (player.isConnected) return true;
+                
+                // Show disconnected players only if they still have a countdown timer
+                if (!player.isConnected && disconnectedTimers.has(player.id)) {
+                  return true;
+                }
+                
+                // Hide disconnected players after countdown expires
+                return false;
+              })
+              .map((player) => {
+                const playerStatus = getPlayerStatus(player);
+                const countdownTime = disconnectedTimers.get(player.id);
+                const isDisconnectedWithTimer = !player.isConnected && countdownTime > 0;
+                
+                return (
+                  <div 
+                    key={player.id} 
+                    className={`player-card ${player.isHost ? 'host' : ''} ${playerStatus.status} ${isDisconnectedWithTimer ? 'disconnecting' : ''}`}
+                  >
+                    <div className="player-card-content">
+                      <div className="player-avatar">
+                        {player.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="player-info">
+                        <span className="player-name">{player.name}</span>
+                        <div className="player-badges">
+                          {player.isHost && <span className="host-badge">Host</span>}
+                          <span 
+                            className="status-badge"
+                            style={{ backgroundColor: playerStatus.color }}
+                            title={`${player.name} is ${playerStatus.label.toLowerCase()}`}
+                          >
+                            {playerStatus.icon} {playerStatus.label}
+                          </span>
+                          {/* Show countdown timer for disconnected players */}
+                          {isDisconnectedWithTimer && (
+                            <span className="countdown-badge" title="Time until removed from room">
+                              ⏱️ {countdownTime}s
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </div>
+                    {/* Show host controls if current user is host and this is not the host */}
+                    {currentIsHost && !player.isHost && !isDisconnectedWithTimer && (
+                      <div className="player-actions">
+                        <button 
+                          className="make-host-btn"
+                          onClick={() => handleTransferHost(player.id)}
+                          title={`Make ${player.name} the host`}
+                        >
+                          👑 Make Host
+                        </button>
+                        <button 
+                          className="kick-player-btn"
+                          onClick={() => handleKickPlayer(player.id, player.name)}
+                          title={`Kick ${player.name} from the room`}
+                        >
+                          👢 Kick
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  {/* Show host controls if current user is host and this is not the host */}
-                  {currentIsHost && !player.isHost && (
-                    <div className="player-actions">
-                      <button 
-                        className="make-host-btn"
-                        onClick={() => handleTransferHost(player.id)}
-                        title={`Make ${player.name} the host`}
-                      >
-                        👑 Make Host
-                      </button>
-                      <button 
-                        className="kick-player-btn"
-                        onClick={() => handleKickPlayer(player.id, player.name)}
-                        title={`Kick ${player.name} from the room`}
-                      >
-                        👢 Kick
-                      </button>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                );
+              })}
           </div>
         </div>
 
