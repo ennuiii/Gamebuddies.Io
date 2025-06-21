@@ -28,21 +28,14 @@ function AppContent() {
   const handleNavigateHome = useCallback(() => {
     if (isInLobby && lobbyLeaveFn) {
       lobbyLeaveFn();
-      // Multiple attempts to ensure scroll to top works
+      // Scroll to top after leaving lobby
       setTimeout(() => {
         window.scrollTo({ top: 0, behavior: 'smooth' });
-      }, 50);
-      setTimeout(() => {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      }, 200);
+      }, 100);
     } else {
       navigate('/', { replace: true });
-      // Immediate scroll to top
+      // Scroll to top
       window.scrollTo({ top: 0, behavior: 'smooth' });
-      // Backup scroll to top
-      setTimeout(() => {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-      }, 50);
     }
   }, [isInLobby, lobbyLeaveFn, navigate]);
 

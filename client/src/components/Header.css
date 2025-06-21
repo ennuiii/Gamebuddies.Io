@@ -81,7 +81,7 @@
   transition: all 0.3s ease;
   position: relative;
   padding: 0.5rem 0;
-  background: transparent !important;
+  background: none;
   border: none;
   font-size: inherit;
   font-family: inherit;
@@ -111,8 +111,8 @@
 }
 
 .settings-button {
-  background: transparent;
-  border: none;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   border-radius: 50%;
   width: 44px;
   height: 44px;
@@ -125,9 +125,11 @@
 }
 
 .settings-button:hover {
-  background: transparent;
+  background: rgba(255, 255, 255, 0.2);
+  border-color: var(--secondary-color);
   color: var(--secondary-color);
   transform: scale(1.1) rotate(45deg);
+  box-shadow: 0 5px 15px rgba(0, 217, 255, 0.3);
 }
 
 .settings-button:active {
