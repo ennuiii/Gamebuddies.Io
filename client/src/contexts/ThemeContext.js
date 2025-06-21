@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import '../components/HextechEffects.css';
 
 const themes = {
   default: {
@@ -20,15 +21,15 @@ const themes = {
     name: 'League of Legends',
     colors: {
       '--primary-bg': '#010a13',
-      '--secondary-bg': '#0a1428',
+      '--secondary-bg': '#0f2027',
       '--card-bg': '#1e2328',
-      '--primary-color': '#c89b3c',
-      '--secondary-color': '#cdbe91',
-      '--accent-color': '#f0e6d2',
+      '--primary-color': '#c8aa6e',
+      '--secondary-color': '#0596aa',
+      '--accent-color': '#cdbe91',
       '--text-primary': '#f0e6d2',
-      '--text-secondary': '#cdbe91',
-      '--neon-glow': '0 0 20px rgba(200, 155, 60, 0.8)',
-      '--card-shadow': '0 10px 30px rgba(0, 0, 0, 0.8)'
+      '--text-secondary': '#a09b8c',
+      '--neon-glow': '0 0 20px rgba(5, 150, 170, 0.8)',
+      '--card-shadow': '0 15px 40px rgba(0, 0, 0, 0.9)'
     }
   }
 };
@@ -54,14 +55,20 @@ export const ThemeProvider = ({ children }) => {
     }
   }, []);
 
-  // Apply theme to CSS variables
+  // Apply theme to CSS variables and body classes
   useEffect(() => {
     const root = document.documentElement;
+    const body = document.body;
     const theme = themes[currentTheme];
     
+    // Apply CSS variables
     Object.entries(theme.colors).forEach(([property, value]) => {
       root.style.setProperty(property, value);
     });
+
+    // Apply theme-specific classes to body
+    body.classList.remove('theme-default', 'theme-lol');
+    body.classList.add(`theme-${currentTheme}`);
   }, [currentTheme]);
 
   const changeTheme = (themeKey) => {

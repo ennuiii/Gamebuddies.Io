@@ -1,5 +1,5 @@
-import React from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import React, { useState, useCallback } from 'react';
+import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 import { ThemeProvider } from './contexts/ThemeContext';
 import Header from './components/Header';
 import HomePage from './pages/HomePage';
@@ -7,10 +7,15 @@ import GameBuddiesReturnHandler from './components/GameBuddiesReturnHandler';
 import DebugPanel from './components/DebugPanel';
 import './App.css';
 
-function App() {
+function AppContent() {
+  const [isInLobby, setIsInLobby] = useState(false);
+  const [lobbyLeaveFn, setLobbyLeaveFn] = useState(null);
+  const navigate = useNavigate();
+
   console.log('🏠 [APP DEBUG] App component rendering:', {
     timestamp: new Date().toISOString(),
     location: window.location.href,
+    isInLobby,
     sessionStorage: {
       roomCode: sessionStorage.getItem('gamebuddies_roomCode'),
       playerName: sessionStorage.getItem('gamebuddies_playerName'),
@@ -20,18 +25,71 @@ function App() {
     }
   });
 
+  const handleNavigateHome = useCallback(() => {
+    if (isInLobby && lobbyLeaveFn) {
+      lobbyLeaveFn();
+    } else {
+      navigate('/', { replace: true });
+    }
+  }, [isInLobby, lobbyLeaveFn, navigate]);
+
+  const handleNavigateGames = useCallback(() => {
+    if (isInLobby && lobbyLeaveFn) {
+      lobbyLeaveFn();
+      // After leaving lobby, scroll to games section
+      setTimeout(() => {
+        const gamesSection = document.getElementById('games-section');
+        if (gamesSection) {
+          gamesSection.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 100);
+    } else {
+      // Already on homepage, just scroll to games
+      const gamesSection = document.getElementById('games-section');
+      if (gamesSection) {
+        gamesSection.scrollIntoView({ behavior: 'smooth' });
+      }
+    }
+  }, [isInLobby, lobbyLeaveFn]);
+
+  return (
+    <div className="App">
+      <Header 
+        onNavigateHome={handleNavigateHome}
+        onNavigateGames={handleNavigateGames}
+        isInLobby={isInLobby}
+      />
+      <GameBuddiesReturnHandler />
+      <DebugPanel />
+      <Routes>
+        <Route 
+          path="/" 
+          element={
+            <HomePage 
+              setIsInLobby={setIsInLobby}
+              setLobbyLeaveFn={setLobbyLeaveFn}
+            />
+          } 
+        />
+        <Route 
+          path="/*" 
+          element={
+            <HomePage 
+              setIsInLobby={setIsInLobby}
+              setLobbyLeaveFn={setLobbyLeaveFn}
+            />
+          } 
+        />
+      </Routes>
+    </div>
+  );
+}
+
+function App() {
   return (
     <ThemeProvider>
       <Router>
-        <div className="App">
-          <Header />
-          <GameBuddiesReturnHandler />
-          <DebugPanel />
-          <Routes>
-            <Route path="/" element={<HomePage />} />
-            <Route path="/*" element={<HomePage />} />
-          </Routes>
-        </div>
+        <AppContent />
       </Router>
     </ThemeProvider>
   );

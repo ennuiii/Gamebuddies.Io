@@ -8,7 +8,7 @@ import JoinRoom from '../components/JoinRoom';
 import RoomLobby from '../components/RoomLobby';
 import './HomePage.css';
 
-const HomePage = () => {
+const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [games, setGames] = useState([]);
@@ -69,6 +69,8 @@ const HomePage = () => {
       });
       setPlayerName(playerNameFromURL);
       setInLobby(true);
+      setIsInLobby(true);
+      setLobbyLeaveFn(() => handleLeaveLobby);
       // Clear the URL parameters
       navigate('/', { replace: true });
     } else if (rejoinCode && fromGameFlag && playerNameFromURL) {
@@ -87,6 +89,8 @@ const HomePage = () => {
       });
       setPlayerName(playerNameFromURL);
       setInLobby(true);
+      setIsInLobby(true);
+      setLobbyLeaveFn(() => handleLeaveLobby);
       // Clear the URL parameters
       navigate('/', { replace: true });
     } else if (rejoinCode && playerNameFromURL && !fromGameFlag) {  
@@ -105,6 +109,8 @@ const HomePage = () => {
       });
       setPlayerName(playerNameFromURL);
       setInLobby(true);
+      setIsInLobby(true);
+      setLobbyLeaveFn(() => handleLeaveLobby);
       // Clear the URL parameters
       navigate('/', { replace: true });
     } else if (joinCode || rejoinCode) {
@@ -162,6 +168,8 @@ const HomePage = () => {
     setPlayerName(room.playerName);
     setShowCreateRoom(false);
     setInLobby(true);
+    setIsInLobby(true);
+    setLobbyLeaveFn(() => handleLeaveLobby);
   };
 
   const handleJoinRoom = (room) => {
@@ -170,12 +178,16 @@ const HomePage = () => {
     setPlayerName(room.playerName);
     setShowJoinRoom(false);
     setInLobby(true);
+    setIsInLobby(true);
+    setLobbyLeaveFn(() => handleLeaveLobby);
   };
 
   const handleLeaveLobby = () => {
     setInLobby(false);
     setCurrentRoom(null);
     setPlayerName('');
+    setIsInLobby(false);
+    setLobbyLeaveFn(null);
   };
 
   const handleCloseModals = () => {

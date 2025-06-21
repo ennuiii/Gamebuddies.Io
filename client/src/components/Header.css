@@ -73,16 +73,23 @@
   gap: 2rem;
 }
 
-.nav-link {
+.nav-link,
+.nav-button {
   color: var(--text-secondary);
   text-decoration: none;
   font-weight: 500;
   transition: all 0.3s ease;
   position: relative;
   padding: 0.5rem 0;
+  background: none;
+  border: none;
+  font-size: inherit;
+  font-family: inherit;
+  cursor: pointer;
 }
 
-.nav-link::after {
+.nav-link::after,
+.nav-button::after {
   content: '';
   position: absolute;
   bottom: 0;
@@ -93,11 +100,13 @@
   transition: width 0.3s ease;
 }
 
-.nav-link:hover {
+.nav-link:hover,
+.nav-button:hover {
   color: var(--text-primary);
 }
 
-.nav-link:hover::after {
+.nav-link:hover::after,
+.nav-button:hover::after {
   width: 100%;
 }
 

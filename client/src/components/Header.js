@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import Settings from './Settings';
 import './Header.css';
 
-const Header = () => {
+const Header = ({ onNavigateHome, onNavigateGames, isInLobby }) => {
   const [showSettings, setShowSettings] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const handleSettingsClick = () => {
     setShowSettings(true);
@@ -13,6 +15,36 @@ const Header = () => {
 
   const handleCloseSettings = () => {
     setShowSettings(false);
+  };
+
+  const handleHomeClick = (e) => {
+    if (isInLobby && onNavigateHome) {
+      e.preventDefault();
+      onNavigateHome();
+    }
+    // If not in lobby, let the Link component handle navigation normally
+  };
+
+  const handleGamesClick = (e) => {
+    e.preventDefault();
+    if (isInLobby && onNavigateGames) {
+      onNavigateGames();
+    } else {
+      // If on homepage, scroll to games section
+      const gamesSection = document.getElementById('games-section');
+      if (gamesSection) {
+        gamesSection.scrollIntoView({ behavior: 'smooth' });
+      } else {
+        // If not on homepage, navigate to homepage first, then scroll
+        navigate('/', { replace: true });
+        setTimeout(() => {
+          const gamesSection = document.getElementById('games-section');
+          if (gamesSection) {
+            gamesSection.scrollIntoView({ behavior: 'smooth' });
+          }
+        }, 100);
+      }
+    }
   };
 
   return (
@@ -25,7 +57,7 @@ const Header = () => {
       >
         <div className="container">
           <div className="header-content">
-            <Link to="/" className="logo">
+            <Link to="/" className="logo" onClick={handleHomeClick}>
               <span className="logo-text">Game</span>
               <span className="logo-text accent">Buddies</span>
               <span className="logo-dot">.io</span>
@@ -33,8 +65,12 @@ const Header = () => {
             
             <div className="header-right">
               <nav className="nav">
-                <Link to="/" className="nav-link">Home</Link>
-                <a href="#games-section" className="nav-link">Games</a>
+                <Link to="/" className="nav-link" onClick={handleHomeClick}>
+                  Home
+                </Link>
+                <button className="nav-link nav-button" onClick={handleGamesClick}>
+                  Games
+                </button>
               </nav>
               <button 
                 className="settings-button" 
