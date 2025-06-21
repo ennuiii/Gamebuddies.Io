@@ -1,5 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { ThemeProvider } from './contexts/ThemeContext';
+import Header from './components/Header';
 import HomePage from './pages/HomePage';
 import GameBuddiesReturnHandler from './components/GameBuddiesReturnHandler';
 import DebugPanel from './components/DebugPanel';
@@ -19,16 +21,19 @@ function App() {
   });
 
   return (
-    <Router>
-      <div className="App">
-        <GameBuddiesReturnHandler />
-        <DebugPanel />
-        <Routes>
-          <Route path="/" element={<HomePage />} />
-          <Route path="/*" element={<HomePage />} />
-        </Routes>
-      </div>
-    </Router>
+    <ThemeProvider>
+      <Router>
+        <div className="App">
+          <Header />
+          <GameBuddiesReturnHandler />
+          <DebugPanel />
+          <Routes>
+            <Route path="/" element={<HomePage />} />
+            <Route path="/*" element={<HomePage />} />
+          </Routes>
+        </div>
+      </Router>
+    </ThemeProvider>
   );
 }
 

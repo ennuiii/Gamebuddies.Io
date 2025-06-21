@@ -29,6 +29,7 @@ body {
   min-height: 100vh;
   background: linear-gradient(135deg, var(--primary-bg) 0%, var(--secondary-bg) 100%);
   position: relative;
+  padding-top: 80px; /* Account for fixed header */
 }
 
 /* Animated background effect */

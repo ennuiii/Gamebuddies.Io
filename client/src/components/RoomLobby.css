@@ -1,5 +1,5 @@
 .room-lobby {
-  min-height: 100vh;
+  min-height: calc(100vh - 80px); /* Subtract header height */
   background: linear-gradient(135deg, var(--primary-bg) 0%, var(--secondary-bg) 100%);
   color: var(--text-primary);
   padding: 20px;
