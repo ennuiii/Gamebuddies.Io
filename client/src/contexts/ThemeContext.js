@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import '../components/HextechEffects.css';
+import '../components/ThemeEffects.css';
 
 const themes = {
   default: {
@@ -17,19 +17,19 @@ const themes = {
       '--card-shadow': '0 10px 30px rgba(0, 0, 0, 0.5)'
     }
   },
-  lol: {
-    name: 'League of Legends',
+  minimal: {
+    name: 'Minimal Clean',
     colors: {
-      '--primary-bg': '#010a13',
-      '--secondary-bg': '#0f2027',
-      '--card-bg': '#1e2328',
-      '--primary-color': '#c8aa6e',
-      '--secondary-color': '#0596aa',
-      '--accent-color': '#cdbe91',
-      '--text-primary': '#f0e6d2',
-      '--text-secondary': '#a09b8c',
-      '--neon-glow': '0 0 20px rgba(5, 150, 170, 0.8)',
-      '--card-shadow': '0 15px 40px rgba(0, 0, 0, 0.9)'
+      '--primary-bg': '#fafafa',
+      '--secondary-bg': '#ffffff',
+      '--card-bg': '#ffffff',
+      '--primary-color': '#2563eb',
+      '--secondary-color': '#64748b',
+      '--accent-color': '#0ea5e9',
+      '--text-primary': '#1e293b',
+      '--text-secondary': '#64748b',
+      '--neon-glow': '0 0 0 rgba(0, 0, 0, 0)',
+      '--card-shadow': '0 1px 3px rgba(0, 0, 0, 0.1)'
     }
   }
 };
@@ -67,7 +67,7 @@ export const ThemeProvider = ({ children }) => {
     });
 
     // Apply theme-specific classes to body
-    body.classList.remove('theme-default', 'theme-lol');
+    body.classList.remove('theme-default', 'theme-minimal');
     body.classList.add(`theme-${currentTheme}`);
   }, [currentTheme]);
 

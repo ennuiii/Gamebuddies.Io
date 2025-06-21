@@ -1,0 +1,92 @@
+/* Minimal Clean theme effects */
+/* These effects are applied via JavaScript when the minimal theme is active */
+
+.theme-minimal {
+  /* Clean, minimal background */
+  background: #fafafa;
+}
+
+/* Clean header styling for minimal theme */
+.theme-minimal .header {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+/* Clean card styling for minimal theme */
+.theme-minimal .card-bg,
+.theme-minimal .game-card,
+.theme-minimal .player-card,
+.theme-minimal .settings-modal,
+.theme-minimal .lobby-header,
+.theme-minimal .selected-game-card {
+  background: white;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.theme-minimal .game-card:hover,
+.theme-minimal .player-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+}
+
+/* Clean button styling for minimal theme */
+.theme-minimal .cta-button,
+.theme-minimal button {
+  background: var(--primary-color);
+  border: 1px solid var(--primary-color);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+}
+
+.theme-minimal .cta-button.secondary {
+  background: transparent;
+  color: var(--primary-color);
+  border: 1px solid var(--primary-color);
+}
+
+.theme-minimal .cta-button:hover,
+.theme-minimal button:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  transform: translateY(-1px);
+}
+
+.theme-minimal .cta-button.secondary:hover {
+  background: var(--primary-color);
+  color: white;
+}
+
+/* Clean text styling for minimal theme */
+.theme-minimal .hero-title,
+.theme-minimal .section-title,
+.theme-minimal .settings-title {
+  color: var(--text-primary);
+  text-shadow: none;
+}
+
+.theme-minimal .brand-dot {
+  color: var(--primary-color);
+  text-shadow: none;
+  animation: none;
+}
+
+/* Clean scrollbar for minimal theme */
+.theme-minimal ::-webkit-scrollbar {
+  width: 8px;
+}
+
+.theme-minimal ::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+.theme-minimal ::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.theme-minimal ::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+} 

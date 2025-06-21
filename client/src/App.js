@@ -28,8 +28,14 @@ function AppContent() {
   const handleNavigateHome = useCallback(() => {
     if (isInLobby && lobbyLeaveFn) {
       lobbyLeaveFn();
+      // Scroll to top after leaving lobby
+      setTimeout(() => {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }, 100);
     } else {
       navigate('/', { replace: true });
+      // Scroll to top
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   }, [isInLobby, lobbyLeaveFn, navigate]);
 
