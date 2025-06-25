@@ -59,7 +59,7 @@ const gameProxies = {
   },
   susd: {
     path: '/susd',
-    target: process.env.SUSD_URL || 'https://susd-game.onrender.com',
+    target: process.env.SUSD_URL || 'https://susd.onrender.com',
     pathRewrite: { '^/susd': '' }
   }
 };
