@@ -50,7 +50,7 @@ CREATE TABLE IF NOT EXISTS rooms (
     last_activity TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     metadata JSONB DEFAULT '{}',
     CONSTRAINT valid_status CHECK (status IN ('lobby', 'in_game', 'returning')),
-    CONSTRAINT valid_game CHECK (current_game IN (NULL, 'ddf', 'schooled', 'chess', 'poker', 'trivia', 'custom'))
+    CONSTRAINT valid_game CHECK (current_game IN (NULL, 'ddf', 'schooled', 'susd', 'chess', 'poker', 'trivia', 'custom'))
 );
 
 -- Room members table

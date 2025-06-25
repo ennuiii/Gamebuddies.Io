@@ -16,6 +16,11 @@ const RoomReady = ({ room, gameType, onClose }) => {
       name: 'Der dümmste fliegt',
       icon: '🎮',
       path: '/ddf'
+    },
+    'susd': {
+      name: 'SUS\'D',
+      icon: '🔍',
+      path: '/susd'
     }
   }[gameType];
 

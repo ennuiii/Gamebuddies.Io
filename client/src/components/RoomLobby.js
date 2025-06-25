@@ -1200,12 +1200,12 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
           ) : (
             <div className="selected-game-card">
               <div className="game-icon">
-                {selectedGame === 'ddf' ? '🎮' : '🎓'}
+                {selectedGame === 'ddf' ? '🎮' : selectedGame === 'schooled' ? '🎓' : selectedGame === 'susd' ? '🔍' : '🎮'}
               </div>
               <div className="game-details">
-                <h4>{selectedGame === 'ddf' ? 'Der dümmste fliegt' : 'School Quiz'}</h4>
-                <p>{selectedGame === 'ddf' ? 'Quiz game where the worst player gets eliminated' : 'Educational quiz game for students'}</p>
-                <span className="max-players">Max {selectedGame === 'ddf' ? '8' : '10'} players</span>
+                <h4>{selectedGame === 'ddf' ? 'Der dümmste fliegt' : selectedGame === 'schooled' ? 'School Quiz' : selectedGame === 'susd' ? 'SUS\'D' : selectedGame}</h4>
+                <p>{selectedGame === 'ddf' ? 'Quiz game where the worst player gets eliminated' : selectedGame === 'schooled' ? 'Educational quiz game for students' : selectedGame === 'susd' ? 'Imposter game - find who\'s acting suspicious!' : 'Unknown game'}</p>
+                <span className="max-players">Max {selectedGame === 'ddf' ? '8' : selectedGame === 'schooled' ? '10' : selectedGame === 'susd' ? '10' : '8'} players</span>
               </div>
               {currentIsHost && (
                 <div>

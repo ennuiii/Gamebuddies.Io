@@ -8,10 +8,6 @@ const Settings = ({ isOpen, onClose }) => {
 
   if (!isOpen) return null;
 
-  const handleThemeChange = (themeKey) => {
-    changeTheme(themeKey);
-  };
-
   const handleOverlayClick = (e) => {
     if (e.target === e.currentTarget) {
       onClose();
@@ -46,39 +42,24 @@ const Settings = ({ isOpen, onClose }) => {
           <div className="settings-content">
             <div className="setting-section">
               <h3 className="section-title">Appearance</h3>
-              <div className="theme-selector">
+              <div className="theme-info">
                 <label className="setting-label">Theme</label>
-                <div className="theme-options">
-                  {Object.entries(themes).map(([key, theme]) => (
-                    <button
-                      key={key}
-                      className={`theme-option ${currentTheme === key ? 'active' : ''}`}
-                      onClick={() => handleThemeChange(key)}
-                    >
-                      <div className="theme-preview">
-                        <div 
-                          className="theme-color theme-primary" 
-                          style={{ backgroundColor: theme.colors['--primary-color'] }}
-                        />
-                        <div 
-                          className="theme-color theme-secondary" 
-                          style={{ backgroundColor: theme.colors['--secondary-color'] }}
-                        />
-                        <div 
-                          className="theme-color theme-accent" 
-                          style={{ backgroundColor: theme.colors['--accent-color'] }}
-                        />
-                      </div>
-                      <span className="theme-name">{theme.name}</span>
-                      {currentTheme === key && (
-                        <div className="active-indicator">
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M20 6L9 17l-5-5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                          </svg>
-                        </div>
-                      )}
-                    </button>
-                  ))}
+                <div className="current-theme">
+                  <div className="theme-preview">
+                    <div 
+                      className="theme-color theme-primary" 
+                      style={{ backgroundColor: themes.default.colors['--primary-color'] }}
+                    />
+                    <div 
+                      className="theme-color theme-secondary" 
+                      style={{ backgroundColor: themes.default.colors['--secondary-color'] }}
+                    />
+                    <div 
+                      className="theme-color theme-accent" 
+                      style={{ backgroundColor: themes.default.colors['--accent-color'] }}
+                    />
+                  </div>
+                  <span className="theme-name">{themes.default.name}</span>
                 </div>
               </div>
             </div>

@@ -56,6 +56,11 @@ const gameProxies = {
     path: '/schooled', 
     target: process.env.SCHOOLED_URL || 'https://schooled-game.onrender.com',
     pathRewrite: { '^/schooled': '' }
+  },
+  susd: {
+    path: '/susd',
+    target: process.env.SUSD_URL || 'https://susd-game.onrender.com',
+    pathRewrite: { '^/susd': '' }
   }
 };
 
@@ -105,6 +110,15 @@ app.get('/api/games', (req, res) => {
       screenshot: '/screenshots/schooled.png',
       available: true,
       maxPlayers: 6
+    },
+    {
+      id: 'susd',
+      name: 'SUS\'D',
+      description: 'An imposter game where one player is the imposter and others must guess who it is!',
+      path: '/susd',
+      screenshot: '/screenshots/sus.png',
+      available: true,
+      maxPlayers: 10
     }
   ];
   

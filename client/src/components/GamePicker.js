@@ -15,6 +15,12 @@ const GamePicker = ({ onGameSelect, isHost, disabled }) => {
       icon: '🎓', 
       description: 'Educational quiz game for students',
       maxPlayers: 10
+    },
+    'susd': {
+      name: 'SUS\'D',
+      icon: '🔍',
+      description: 'Imposter game - find who\'s acting suspicious!',
+      maxPlayers: 10
     }
   };
 
