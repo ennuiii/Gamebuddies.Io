@@ -54,7 +54,7 @@ const gameProxies = {
   },
   schooled: {
     path: '/schooled', 
-    target: process.env.SCHOOLED_URL || 'https://schooled-game.onrender.com',
+    target: process.env.SCHOOLED_URL || 'https://schoolquizgame.onrender.com',
     pathRewrite: { '^/schooled': '' }
   },
   susd: {
