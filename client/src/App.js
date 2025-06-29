@@ -1,6 +1,9 @@
 import React, { useState, useCallback } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 import { ThemeProvider } from './contexts/ThemeContext';
+import { SocketProvider } from './contexts/SocketContext';
+import { NotificationProvider } from './contexts/NotificationContext'; // Import NotificationProvider
+import Notification from './components/Notification'; // Import Notification component
 import Header from './components/Header';
 import HomePage from './pages/HomePage';
 import GameBuddiesReturnHandler from './components/GameBuddiesReturnHandler';
@@ -65,6 +68,7 @@ function AppContent() {
         onNavigateGames={handleNavigateGames}
         isInLobby={isInLobby}
       />
+      <Notification /> {/* Display Notification component here */}
       <GameBuddiesReturnHandler />
       <DebugPanel />
       <Routes>
@@ -94,9 +98,13 @@ function AppContent() {
 function App() {
   return (
     <ThemeProvider>
-      <Router>
-        <AppContent />
-      </Router>
+      <SocketProvider>
+        <NotificationProvider> {/* Wrap with NotificationProvider */}
+          <Router>
+            <AppContent />
+          </Router>
+        </NotificationProvider>
+      </SocketProvider>
     </ThemeProvider>
   );
 }
