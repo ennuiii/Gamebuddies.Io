@@ -1,21 +1,20 @@
 import React, { useState, useEffect, useRef } from 'react';
-import io from 'socket.io-client';
+import { useSocket } from '../contexts/SocketContext';
+import { useNotification } from '../contexts/NotificationContext'; // Import useNotification hook
 import GamePicker from './GamePicker';
 import { useRealtimeSubscription } from '../utils/useRealtimeSubscription';
 import { getSupabaseClient } from '../utils/supabase';
 import './RoomLobby.css';
 
-// Track active connection to prevent duplicates in StrictMode
-let activeConnection = null;
-
 const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
-  const [socket, setSocket] = useState(null);
+  const { socket, socketId, isConnected: socketIsConnected } = useSocket();
+  const { addNotification } = useNotification(); // Get addNotification function
   const [players, setPlayers] = useState([]);
   const [selectedGame, setSelectedGame] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [error, setError] = useState(null); // This local error state might still be useful for critical, view-blocking errors
   const [roomData, setRoomData] = useState(null);
-  const [connectionStatus, setConnectionStatus] = useState('connecting');
+  // const [connectionStatus, setConnectionStatus] = useState('connecting'); // Replaced by socketIsConnected
   const [currentIsHost, setCurrentIsHost] = useState(isHost); // State for re-rendering
   const [roomStatus, setRoomStatus] = useState('waiting_for_players');
   const [isStartingGame, setIsStartingGame] = useState(false);
@@ -27,6 +26,9 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
   const currentUserIdRef = useRef(null);
   const roomIdRef = useRef(null);
   const timerIntervalsRef = useRef(new Map()); // Track timer intervals
+
+  // TODO: Review if connectionStatus local state is still needed or if socketIsConnected from context is enough.
+  // For now, let's try to use socketIsConnected directly.
 
   // Function to start disconnect countdown for a player
   const startDisconnectCountdown = (playerId) => {
@@ -181,108 +183,78 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
   };
 
   useEffect(() => {
-    // Clean up any existing connection first
-    if (activeConnection) {
-      console.log('🧹 Cleaning up existing connection before creating new one');
-      activeConnection.disconnect();
-      activeConnection = null;
+    // This effect now depends on the socket instance from context
+    if (!socket) {
+      console.log('🟡 [RoomLobby] Socket not yet available from context.');
+      // If not connected yet, and not loading, set loading to true
+      if (!socketIsConnected && !isLoading) setIsLoading(true);
+      return;
+    }
+    
+    // If socket is available but not connected, reflect this.
+    if (!socketIsConnected) {
+      console.log('🟡 [RoomLobby] Socket available, but not connected. Current status:', socketIsConnected);
+      setIsLoading(true); // Show loading until socket connects
+      // The SocketProvider handles connection attempts.
+      // We just wait here.
+      return;
     }
 
-    console.log('🔌 Connecting to server...');
-    setConnectionStatus('connecting');
-    
-    // Determine server URL based on environment
-    const getServerUrl = () => {
-      console.log('🔍 [LOBBY DEBUG] Determining server URL...');
-      console.log('🔍 [LOBBY DEBUG] window.location.hostname:', window.location.hostname);
-      console.log('🔍 [LOBBY DEBUG] window.location.origin:', window.location.origin);
-      console.log('🔍 [LOBBY DEBUG] REACT_APP_SERVER_URL:', process.env.REACT_APP_SERVER_URL);
-      
-      if (process.env.REACT_APP_SERVER_URL) {
-        console.log('🔍 [LOBBY DEBUG] Using REACT_APP_SERVER_URL:', process.env.REACT_APP_SERVER_URL);
-        return process.env.REACT_APP_SERVER_URL;
-      }
-      
-      // If running on production gamebuddies.io domain
-      if (window.location.hostname === 'gamebuddies.io' || window.location.hostname.includes('gamebuddies')) {
-        console.log('🔍 [LOBBY DEBUG] Detected GameBuddies production domain, using origin:', window.location.origin);
-        return window.location.origin;
-      }
-      
-      // If running on Render.com (check for .onrender.com domain)
-      if (window.location.hostname.includes('onrender.com')) {
-        console.log('🔍 [LOBBY DEBUG] Detected Render.com, using origin:', window.location.origin);
-        return window.location.origin;
-      }
-      
-      // If running on any other production domain (not localhost)
-      if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-        console.log('🔍 [LOBBY DEBUG] Detected other production domain, using origin:', window.location.origin);
-        return window.location.origin;
-      }
-      
-      // For local development, connect to production server
-      console.log('🔍 [LOBBY DEBUG] Local development, using production server');
-      return 'https://gamebuddies.io';
-    };
-    
-    const newSocket = io(getServerUrl(), {
-      transports: ['websocket', 'polling'],
-      timeout: 20000,
-      forceNew: true
-    });
-
-    activeConnection = newSocket;
+    // Socket is available and connected
+    console.log('🔌 [RoomLobby] Socket connected, setting up event listeners. Socket ID:', socket.id);
+    setIsLoading(true); // Start loading until roomJoined is received
 
     // Named event handlers for proper cleanup
     const handleConnect = () => {
-      console.log('✅ [CLIENT] Connected to server in lobby');
-      console.log('🔍 [CLIENT DEBUG] Socket ID:', newSocket.id);
+      // This is mostly handled by SocketProvider, but we can log here if specific lobby actions are needed on raw connect
+      console.log('✅ [CLIENT] Connected to server in lobby (via RoomLobby listener for existing socket)');
+      console.log('🔍 [CLIENT DEBUG] Socket ID:', socket.id);
       console.log('🔍 [CLIENT DEBUG] Room code:', roomCodeRef.current);
       console.log('🔍 [CLIENT DEBUG] Player name:', playerNameRef.current);
-      console.log('🔍 [CLIENT DEBUG] Is host:', currentIsHost);
-      console.log('🔍 [LOBBY DEBUG] Connection details:', {
-        socketId: newSocket.id,
-        roomCode: roomCodeRef.current,
-        playerName: playerNameRef.current,
-        isHost: currentIsHost,
-        connectionStatus: 'connected',
-        timestamp: new Date().toISOString()
-      });
       
-      setConnectionStatus('connected');
-      setSocket(newSocket);
-      
-      
-      
-      // Join the room
+      // Join the room - this is the primary action once the socket is confirmed connected
       console.log('📤 [LOBBY DEBUG] Sending joinRoom event...');
-      newSocket.emit('joinRoom', {
+      socket.emit('joinRoom', {
         roomCode: roomCodeRef.current,
         playerName: playerNameRef.current
       });
       console.log('📤 [CLIENT] joinRoom event sent from lobby');
     };
 
-    const handleDisconnect = () => {
-      console.log('❌ [LOBBY DEBUG] Disconnected from server:', {
+    // If the socket from context is already connected when this component mounts, call handleConnect.
+    // Otherwise, the 'connect' event on the socket itself (handled by SocketProvider or a direct listener here)
+    // will trigger the join.
+    if (socketIsConnected) {
+       handleConnect(); // Immediately try to join if socket is already connected.
+    } else {
+      // If socket is not connected, we rely on SocketProvider's 'connect' event
+      // or add a one-time listener here if needed (though SocketProvider should cover it)
+      socket.once('connect', handleConnect);
+    }
+
+
+    const handleDisconnect = (reason) => {
+      console.log('❌ [LOBBY DEBUG] Disconnected from server (handled in RoomLobby):', {
+        reason,
         roomCode: roomCodeRef.current,
         playerName: playerNameRef.current,
         timestamp: new Date().toISOString()
       });
-      setConnectionStatus('disconnected');
-      setError('Connection lost. Please refresh the page.');
+      // SocketProvider handles setIsConnected(false).
+      // setError('Connection lost. Please refresh the page.'); // Critical error, might still use setError
+      addNotification('Connection to server lost. Attempting to reconnect...', 'error');
+      setIsLoading(true); // Show loading as we are disconnected
     };
 
     const handleConnectError = (error) => {
-      console.error('❌ [LOBBY DEBUG] Connection error:', {
+      console.error('❌ [LOBBY DEBUG] Connection error (handled in RoomLobby):', {
         error: error.message,
         roomCode: roomCodeRef.current,
         playerName: playerNameRef.current,
         timestamp: new Date().toISOString()
       });
-      setConnectionStatus('error');
-      setError('Failed to connect to server. Please try again.');
+      // setError('Failed to connect to server. Please try again.'); // Critical error
+      addNotification('Failed to connect to server. Please check your internet connection.', 'error');
       setIsLoading(false);
     };
 
@@ -350,7 +322,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
     // Auto-update room status based on host location after initial join
     updateRoomStatusBasedOnHost(mappedPlayers);
     
-    setIsLoading(false);
+    setIsLoading(false); // Successfully joined, stop loading
     setError(null);
     };
 
@@ -419,7 +391,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
         console.log(`👑 [HOST TRANSFER] ${data.hostTransfer.newHostName} is now the host (previous host ${reason})`);
         
         // You could add a toast notification here
-        // toast.info(`${data.hostTransfer.newHostName} is now the host`);
+        addNotification(`${data.hostTransfer.newHostName} is now the host (previous host ${reason})`, 'info');
       }
       
       // Clear disconnect countdown if player reconnected
@@ -483,7 +455,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
         roomCode: data.roomCode,
         currentPlayerName: playerNameRef.current,
         currentIsHost: currentIsHost,
-        socketId: newSocket?.id,
+        socketId: socket?.id,
         timestamp: new Date().toISOString()
       });
       
@@ -544,9 +516,9 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
         roomCode: roomCodeRef.current,
         playerName: playerNameRef.current,
         timestamp: new Date().toISOString(),
-        connectionStatus,
+        // connectionStatus, // This local state is removed
         isLoading,
-        currentError: error
+        currentError: error // Renamed from 'error' to avoid conflict
       });
       
       // Enhanced error handling based on error code
@@ -602,7 +574,8 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
         setIsLoading(false);
       } else {
         // For non-critical errors, show popup and stay in lobby
-        alert(`⚠️ ${userFriendlyMessage}`);
+        // alert(`⚠️ ${userFriendlyMessage}`);
+        addNotification(userFriendlyMessage, 'warning');
         
         // If we were loading, stop the loading state
         if (isLoading) {
@@ -640,11 +613,10 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       })));
       
       // Show notification
-      const reason = data.reason === 'original_host_left' ? 'left the room' : 
+      const reasonText = data.reason === 'original_host_left' ? 'left the room' :
                     data.reason === 'original_host_disconnected' ? 'disconnected' : 'transferred host';
       
-      // You could add a toast notification here
-      console.log(`👑 ${data.newHostName} is now the host (previous host ${reason})`);
+      addNotification(`${data.newHostName} is now the host (previous host ${reasonText}).`, 'info');
       
       // Auto-update room status based on new host location
       updateRoomStatusBasedOnHost(updatedPlayers);
@@ -663,7 +635,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       }
       
       // Show notification (you could implement a toast system here)
-      console.log(`🔄 Room status changed to '${data.newStatus}' by ${data.changedBy}`);
+      addNotification(`Room status changed to '${data.newStatus}' by ${data.changedBy}.`, 'info');
     };
 
     const handlePlayerKicked = (data) => {
@@ -694,8 +666,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
           inGame: p.inGame
         })));
         
-        // You could add a toast notification here
-        alert(`${data.targetName} was removed from the room by ${data.kickedBy}`);
+        addNotification(`${data.targetName} was removed from the room by ${data.kickedBy}.`, 'warning');
       } else {
         // This player was kicked personally
         console.log('👢 [KICK DEBUG] You have been kicked from the room:', {
@@ -704,14 +675,13 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
           roomCode: data.roomCode
         });
         
+        addNotification(`You have been kicked: ${data.reason} (by ${data.kickedBy})`, 'error');
+
         // Clear socket and leave room
         if (socket) {
-          socket.disconnect();
+          socket.disconnect(); // This should trigger SocketProvider's cleanup for this instance
         }
-        
-        // Show message and redirect to homepage
-        alert(`${data.reason}\n\nKicked by: ${data.kickedBy}`);
-        
+
         // Redirect to homepage
         if (onLeave) {
           onLeave();
@@ -727,32 +697,30 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
         timestamp: new Date().toISOString()
       });
 
-      // Show error popup without redirecting
-      alert(`⚠️ Failed to kick player: ${data.reason || data.error || 'Unknown error'}`);
+      addNotification(`Failed to kick player: ${data.reason || data.error || 'Unknown error'}`, 'error');
     };
 
-    // Add event listeners BEFORE connecting
-    newSocket.on('connect', handleConnect);
-    newSocket.on('disconnect', handleDisconnect);
-    newSocket.on('connect_error', handleConnectError);
-    newSocket.on('roomJoined', handleRoomJoined);
-    newSocket.on('playerJoined', handlePlayerJoined);
-    newSocket.on('playerLeft', handlePlayerLeft);
-    newSocket.on('playerDisconnected', handlePlayerDisconnected);
-    newSocket.on('playerStatusUpdated', handlePlayerStatusUpdated);
-    newSocket.on('gameSelected', handleGameSelected);
-    newSocket.on('gameStarted', handleGameStarted);
-    newSocket.on('hostTransferred', handleHostTransferred);
-    newSocket.on('roomStatusChanged', handleRoomStatusChanged);
-    newSocket.on('playerKicked', handlePlayerKicked);
-    newSocket.on('kickFailed', handleKickFailed);
-    newSocket.on('error', handleError);
+    // Add event listeners
+    // socket.on('connect', handleConnect); // This is implicitly handled by SocketProvider or initial join
+    // socket.on('disconnect', handleDisconnect); // SocketProvider handles global disconnect
+    // socket.on('connect_error', handleConnectError); // SocketProvider handles global connect_error
+
+    socket.on('roomJoined', handleRoomJoined);
+    socket.on('playerJoined', handlePlayerJoined);
+    socket.on('playerLeft', handlePlayerLeft);
+    socket.on('playerDisconnected', handlePlayerDisconnected);
+    socket.on('playerStatusUpdated', handlePlayerStatusUpdated);
+    socket.on('gameSelected', handleGameSelected);
+    socket.on('gameStarted', handleGameStarted);
+    socket.on('hostTransferred', handleHostTransferred);
+    socket.on('roomStatusChanged', handleRoomStatusChanged);
+    socket.on('playerKicked', handlePlayerKicked);
+    socket.on('kickFailed', handleKickFailed);
+    socket.on('error', handleError);
 
     // Cleanup function
     return () => {
-      console.log('🧹 Cleaning up socket connection');
-      
-
+      console.log('🧹 [RoomLobby] Cleaning up socket event listeners for RoomLobby instance.');
       
       // Clear all disconnect timers
       timerIntervalsRef.current.forEach(intervalId => {
@@ -761,40 +729,41 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       timerIntervalsRef.current.clear();
       setDisconnectedTimers(new Map());
       
-      if (newSocket) {
-        // Remove event listeners with specific handlers
-        newSocket.off('connect', handleConnect);
-        newSocket.off('disconnect', handleDisconnect);
-        newSocket.off('connect_error', handleConnectError);
-        newSocket.off('roomJoined', handleRoomJoined);
-        newSocket.off('playerJoined', handlePlayerJoined);
-        newSocket.off('playerLeft', handlePlayerLeft);
-        newSocket.off('playerDisconnected', handlePlayerDisconnected);
-        newSocket.off('playerStatusUpdated', handlePlayerStatusUpdated);
-        newSocket.off('gameSelected', handleGameSelected);
-        newSocket.off('gameStarted', handleGameStarted);
-        newSocket.off('hostTransferred', handleHostTransferred);
-        newSocket.off('roomStatusChanged', handleRoomStatusChanged);
-        newSocket.off('playerKicked', handlePlayerKicked);
-        newSocket.off('kickFailed', handleKickFailed);
-        newSocket.off('error', handleError);
+      if (socket) {
+        // Remove event listeners
+        // socket.off('connect', handleConnect);
+        // socket.off('disconnect', handleDisconnect);
+        // socket.off('connect_error', handleConnectError);
+        socket.off('roomJoined', handleRoomJoined);
+        socket.off('playerJoined', handlePlayerJoined);
+        socket.off('playerLeft', handlePlayerLeft);
+        socket.off('playerDisconnected', handlePlayerDisconnected);
+        socket.off('playerStatusUpdated', handlePlayerStatusUpdated);
+        socket.off('gameSelected', handleGameSelected);
+        socket.off('gameStarted', handleGameStarted);
+        socket.off('hostTransferred', handleHostTransferred);
+        socket.off('roomStatusChanged', handleRoomStatusChanged);
+        socket.off('playerKicked', handlePlayerKicked);
+        socket.off('kickFailed', handleKickFailed);
+        socket.off('error', handleError);
         
-        // Copy ref value to avoid stale closure
-        const currentRoomCode = roomCodeRef.current;
-        if (currentRoomCode) {
-          newSocket.emit('leaveRoom', { roomCode: currentRoomCode });
+        // Emit leaveRoom only if the socket is still connected
+        // The main disconnect is handled by SocketProvider when App unmounts
+        if (socket.connected) {
+          const currentRoomCode = roomCodeRef.current;
+          if (currentRoomCode) {
+            console.log('📤 [RoomLobby] Emitting leaveRoom on unmount/cleanup for room:', currentRoomCode);
+            socket.emit('leaveRoom', { roomCode: currentRoomCode });
+          }
         }
-        newSocket.disconnect();
       }
-      
-      activeConnection = null;
     };
-  }, []); // Empty dependency array to prevent re-running
+  }, [socket, socketIsConnected]); // Effect dependencies: socket instance and its connection status
 
 
 
   const handleGameSelect = (gameType) => {
-    if (socket && currentIsHost) {
+    if (socket && socketIsConnected && currentIsHost) {
       console.log('🎮 Selecting game:', gameType);
       socket.emit('selectGame', { gameType });
     }
@@ -807,25 +776,27 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       return;
     }
     
-    if (socket && currentIsHost) {
+    if (socket && socketIsConnected && currentIsHost) {
       console.log('🚀 [START GAME DEBUG] Starting game:', {
-        socketConnected: socket.connected,
-        socketId: socket.id,
+        socketConnected: socket.connected, // socketIsConnected from context
+        socketId: socket.id, // socketId from context
         roomCode: roomCodeRef.current,
         playerName: playerNameRef.current,
         isHost: currentIsHost,
-        connectionStatus,
+        // connectionStatus, // Removed
         isStartingGame,
         timestamp: new Date().toISOString()
       });
       
-      if (!socket.connected) {
-        console.error('❌ [START GAME DEBUG] Socket not connected, cannot start game');
-        alert('Connection lost. Please refresh the page and try again.');
-        return;
-      }
+      // Redundant check, socketIsConnected should cover this
+      // if (!socket.connected) {
+      //   console.error('❌ [START GAME DEBUG] Socket not connected, cannot start game');
+      //   addNotification('Connection lost. Please refresh the page and try again.', 'error');
+      //   return;
+      // }
       
       setIsStartingGame(true);
+      addNotification('Starting game...', 'info');
       console.log('📤 [START GAME DEBUG] Emitting startGame event');
       socket.emit('startGame', { roomCode: roomCodeRef.current });
       
@@ -838,21 +809,21 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       console.error('❌ [START GAME DEBUG] Cannot start game:', {
         hasSocket: !!socket,
         isHost: currentIsHost,
-        socketConnected: socket?.connected,
-        connectionStatus,
+        socketConnected: socketIsConnected,
+        // connectionStatus, // Removed
         isStartingGame
       });
       
       if (!currentIsHost) {
-        alert('Only the host can start the game.');
-      } else if (!socket) {
-        alert('Connection lost. Please refresh the page and try again.');
+        addNotification('Only the host can start the game.', 'warning');
+      } else if (!socket || !socketIsConnected) {
+        addNotification('Connection lost. Please refresh the page and try again.', 'error');
       }
     }
   };
 
   const handleLeaveRoom = () => {
-    if (socket) {
+    if (socket && socketIsConnected) {
       socket.emit('leaveRoom', { roomCode: roomCodeRef.current });
     }
     if (onLeave) {
@@ -861,7 +832,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
   };
 
   const handleTransferHost = (targetPlayerId) => {
-    if (socket && currentIsHost) {
+    if (socket && socketIsConnected && currentIsHost) {
       console.log('👑 Transferring host to player:', targetPlayerId);
       socket.emit('transferHost', { 
         roomCode: roomCodeRef.current,
@@ -871,7 +842,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
   };
 
   const handleKickPlayer = (targetPlayerId, targetPlayerName) => {
-    if (socket && currentIsHost) {
+    if (socket && socketIsConnected && currentIsHost) {
       // Confirm kick action
       const confirmed = window.confirm(
         `Are you sure you want to kick ${targetPlayerName} from the room?`
@@ -898,7 +869,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
 
 
   const handleReturnToLobby = () => {
-    if (socket) {
+    if (socket && socketIsConnected) {
       console.log('🔄 Player returning to lobby');
       socket.emit('playerReturnToLobby', {
         roomCode: roomCodeRef.current,
@@ -928,7 +899,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
 
   // Automatic status management based on host location
   const updateRoomStatusBasedOnHost = (updatedPlayers) => {
-    if (!currentIsHost || !socket) return;
+    if (!currentIsHost || !socket || !socketIsConnected) return;
     
     const currentHost = updatedPlayers.find(p => p.isHost);
     if (!currentHost) return;
@@ -996,18 +967,18 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
   };
 
   // Loading state
-  if (isLoading) {
+  if (isLoading || !socketIsConnected) { // Also show loading if socket is not connected yet
     return (
       <div className="room-lobby">
         <div className="lobby-header">
           <h2>Room {roomCode}</h2>
           <div className="connection-status">
-            Status: {connectionStatus}
+            Status: {socketIsConnected ? 'Connected' : 'Connecting...'} {/* Use socketIsConnected */}
           </div>
         </div>
         <div className="loading-container">
           <div className="loading-spinner"></div>
-          <p>Connecting to room...</p>
+          <p>{socketIsConnected ? 'Joining room...' : 'Connecting to server...'}</p>
         </div>
       </div>
     );
@@ -1025,9 +996,10 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
             <h3>Connection Error</h3>
             <p>{error}</p>
             <div className="error-actions">
-              <button onClick={() => window.location.reload()} className="retry-button">
+              {/* Removed retry button as connection is managed by SocketProvider now */}
+              {/* <button onClick={() => window.location.reload()} className="retry-button">
                 Retry Connection
-              </button>
+              </button> */}
               <button onClick={handleLeaveRoom} className="leave-button">
                 Leave Room
               </button>
@@ -1195,7 +1167,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
             <GamePicker 
               onGameSelect={handleGameSelect}
               isHost={currentIsHost}
-              disabled={!socket || connectionStatus !== 'connected'}
+              disabled={!socket || !socketIsConnected} // Use socketIsConnected
             />
           ) : (
             <div className="selected-game-card">
@@ -1212,14 +1184,19 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
                   <button 
                     onClick={handleStartGame}
                     className="start-game-button"
-                    disabled={!socket || connectionStatus !== 'connected' || isStartingGame}
+                    disabled={!socket || !socketIsConnected || isStartingGame} // Use socketIsConnected
                   >
                     {isStartingGame ? 'Starting Game...' : 'Start Game'}
                   </button>
                   <button 
-                    onClick={() => setSelectedGame(null)}
+                    onClick={() => {
+                      setSelectedGame(null);
+                      if (socket && socketIsConnected) { // Also emit game deselection if needed
+                        socket.emit('selectGame', { gameType: null }); // Assuming server handles null as deselection
+                      }
+                    }}
                     className="change-game-btn"
-                    disabled={!socket || connectionStatus !== 'connected'}
+                    disabled={!socket || !socketIsConnected} // Use socketIsConnected
                     style={{ marginTop: '1rem' }}
                   >
                     Change Game

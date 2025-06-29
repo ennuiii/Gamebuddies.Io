@@ -675,34 +675,39 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
     
     // Handle different status types
     switch (status) {
-      case 'connected':
+      case 'connected': // Player connected to the external game instance
         updateData.is_connected = true;
-        updateData.current_location = location || 'lobby'; // Default to lobby, not game
-        updateData.in_game = false; // Don't assume they're in game just because connected
+        updateData.current_location = location || 'game'; // Default to 'game' as per documentation
+        updateData.in_game = true; // Assume connected to game means in_game true
+        if (location === 'lobby') { // Explicitly in lobby via external game
+          updateData.current_location = 'lobby';
+          updateData.in_game = false;
+        }
         break;
         
-      case 'disconnected':
+      case 'disconnected': // Player disconnected from the external game
         updateData.is_connected = false;
         updateData.current_location = 'disconnected';
         updateData.in_game = false;
         break;
         
-      case 'returned_to_lobby':
+      case 'returned_to_lobby': // Player explicitly returned to GameBuddies lobby by external game action
         updateData.is_connected = true;
         updateData.current_location = 'lobby';
         updateData.in_game = false;
         break;
         
-      case 'in_game':
+      case 'in_game': // Player is actively in the external game
         updateData.is_connected = true;
         updateData.current_location = 'game';
         updateData.in_game = true;
         break;
         
-      default:
-        updateData.is_connected = status === 'connected';
-        updateData.current_location = location || (status === 'connected' ? 'lobby' : 'disconnected');
-        updateData.in_game = false; // Don't assume in game for unknown status
+      default: // Fallback for unknown status, treat as potentially disconnected or lobby
+        updateData.is_connected = false; // Default to not connected for unknown status
+        updateData.current_location = location || 'disconnected';
+        updateData.in_game = false;
+        console.warn(`⚠️ [API] Unknown status type received: '${status}'. Defaulting to disconnected.`);
     }
     
     console.log(`📝 [API] Status change analysis:`, {
@@ -958,33 +963,39 @@ app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async 
         };
         
         switch (status) {
-          case 'connected':
+      case 'connected': // Player connected to the external game instance
             updateData.is_connected = true;
-            updateData.current_location = location || 'lobby'; // Default to lobby, not game
-            updateData.in_game = false; // Don't assume they're in game just because connected
+        updateData.current_location = location || 'game'; // Default to 'game' as per documentation
+        updateData.in_game = true; // Assume connected to game means in_game true
+        if (location === 'lobby') { // Explicitly in lobby via external game
+          updateData.current_location = 'lobby';
+          updateData.in_game = false;
+        }
             break;
             
-          case 'disconnected':
+          case 'disconnected': // Player disconnected from the external game
             updateData.is_connected = false;
             updateData.current_location = 'disconnected';
             updateData.in_game = false;
             break;
             
-          case 'returned_to_lobby':
+          case 'returned_to_lobby': // Player explicitly returned to GameBuddies lobby by external game action
             updateData.is_connected = true;
             updateData.current_location = 'lobby';
             updateData.in_game = false;
             break;
             
-          case 'in_game':
+          case 'in_game': // Player is actively in the external game
             updateData.is_connected = true;
             updateData.current_location = 'game';
             updateData.in_game = true;
             break;
             
-          default:
-            updateData.is_connected = status === 'connected';
-            updateData.current_location = location || (status === 'connected' ? 'game' : 'disconnected');
+          default: // Fallback for unknown status, treat as potentially disconnected or lobby
+            updateData.is_connected = false; // Default to not connected for unknown status
+            updateData.current_location = location || 'disconnected';
+            updateData.in_game = false;
+            console.warn(`⚠️ [API] Unknown status type received: '${status}'. Defaulting to disconnected.`);
         }
         
         // Update participant
