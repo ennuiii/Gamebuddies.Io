@@ -858,6 +858,20 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
       autoUpdateRoomStatusByHost(room.id, playerId, updateData.current_location);
     }
     
+    // Also check if this update should trigger a smart room status update
+    // Get all players for analysis
+    const allPlayersForAnalysis = updatedRoom.participants?.map(p => ({
+      id: p.user_id,
+      isHost: p.role === 'host',
+      isConnected: p.is_connected,
+      inGame: p.in_game,
+      currentLocation: p.current_location
+    })) || [];
+    
+    if (allPlayersForAnalysis.length > 1) {
+      await autoUpdateRoomStatusBasedOnPlayerStates(updatedRoom, allPlayersForAnalysis, reason || 'player_status_change');
+    }
+    
     console.log(`✅ [API] Successfully updated player ${playerId} status to ${status} (location: ${updateData.current_location})`);
     
     res.json({ 
@@ -1106,7 +1120,10 @@ app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async 
       console.log(`⚠️ [API DEBUG] Socket.io not available - cannot broadcast bulk status update`);
     }
     
-    // Auto-update room status if any host was updated
+    // Auto-update room status based on player status changes
+    await autoUpdateRoomStatusBasedOnPlayerStates(room, allPlayers, reason);
+    
+    // Also check host-specific updates (legacy behavior)
     const hostUpdates = allPlayers.filter(p => p.isHost);
     if (hostUpdates.length > 0) {
       const host = hostUpdates[0]; // Should only be one host
@@ -1328,6 +1345,101 @@ async function autoUpdateRoomStatusByHost(roomId, hostUserId, hostLocation) {
 
   } catch (error) {
     console.error('❌ Error auto-updating room status by host location:', error);
+  }
+}
+
+/**
+ * Intelligently update room status based on overall player states
+ * This provides more robust room status management than just checking the host
+ */
+async function autoUpdateRoomStatusBasedOnPlayerStates(room, allPlayers, reason) {
+  try {
+    console.log(`🧠 [Smart Room Update] Analyzing player states for room ${room.room_code}:`, {
+      currentRoomStatus: room.status,
+      totalPlayers: allPlayers.length,
+      reason
+    });
+
+    // Analyze player states
+    const playerStats = allPlayers.reduce((stats, player) => {
+      const location = player.currentLocation || 'unknown';
+      stats[location] = (stats[location] || 0) + 1;
+      if (player.inGame) stats.inGameCount++;
+      if (player.isConnected) stats.connectedCount++;
+      return stats;
+    }, { inGameCount: 0, connectedCount: 0 });
+
+    console.log(`📊 [Smart Room Update] Player statistics:`, playerStats);
+
+    let targetStatus = room.status; // Default to current status
+    let shouldUpdate = false;
+    let updateReason = '';
+
+    // Determine target status based on player distribution
+    if (reason === 'game_started' && room.status === 'lobby') {
+      // Game explicitly started - if majority of players are in game, switch to in_game
+      if (playerStats.inGameCount >= Math.ceil(allPlayers.length * 0.5)) {
+        targetStatus = 'in_game';
+        shouldUpdate = true;
+        updateReason = 'Game started - majority of players in game';
+      }
+    } else if (reason === 'game_ended' && room.status === 'in_game') {
+      // Game explicitly ended - if majority returned to lobby, switch to lobby
+      const lobbyCount = playerStats.lobby || 0;
+      if (lobbyCount >= Math.ceil(allPlayers.length * 0.5)) {
+        targetStatus = 'lobby';
+        shouldUpdate = true;
+        updateReason = 'Game ended - majority of players returned to lobby';
+      }
+    } else if (room.status === 'lobby' && playerStats.game >= 2) {
+      // Multiple players moved to game from lobby
+      targetStatus = 'in_game';
+      shouldUpdate = true;
+      updateReason = 'Multiple players moved to active game';
+    } else if (room.status === 'in_game' && (playerStats.lobby >= Math.ceil(allPlayers.length - 1))) {
+      // Almost all players returned to lobby from game
+      targetStatus = 'lobby';
+      shouldUpdate = true;
+      updateReason = 'Most players returned to lobby';
+    }
+
+    if (shouldUpdate && targetStatus !== room.status) {
+      console.log(`🔄 [Smart Room Update] Updating room ${room.room_code} status: ${room.status} → ${targetStatus}`);
+      console.log(`📝 [Smart Room Update] Reason: ${updateReason}`);
+
+      const updateData = { status: targetStatus };
+      
+      // If changing back to lobby, reset current game
+      if (targetStatus === 'lobby') {
+        updateData.current_game = null;
+      }
+
+      await db.updateRoom(room.id, updateData);
+
+      // Get updated room data
+      const updatedRoom = await db.getRoomById(room.id);
+      
+      // Notify all players about the automatic status change
+      if (io) {
+        io.to(room.room_code).emit('roomStatusChanged', {
+          oldStatus: room.status,
+          newStatus: targetStatus,
+          room: updatedRoom,
+          changedBy: 'System (Smart Update)',
+          reason: 'player_state_analysis',
+          isAutomatic: true,
+          playerStats,
+          updateReason
+        });
+      }
+
+      console.log(`✅ [Smart Room Update] Room ${room.room_code} status updated to '${targetStatus}'`);
+    } else {
+      console.log(`⏸️ [Smart Room Update] No room status change needed for ${room.room_code}`);
+    }
+
+  } catch (error) {
+    console.error('❌ Error in smart room status update:', error);
   }
 }
 
