@@ -66,21 +66,25 @@ const gameProxies = {
 
 // Handle SPA routes for DDF before proxy (for tab restoration)
 // These routes need to be handled before the proxy middleware
+// CRITICAL: Preserve query parameters for GameBuddies integration
 app.get('/ddf/game', (req, res, next) => {
-  console.log('[SPA Route] Handling /ddf/game - redirecting to /ddf/');
-  req.url = '/ddf/'; // Rewrite URL to root DDF path
+  const queryString = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
+  console.log('[SPA Route] Handling /ddf/game - redirecting to /ddf/ with params:', queryString);
+  req.url = '/ddf/' + queryString; // Preserve query parameters
   next(); // Continue to proxy
 });
 
 app.get('/ddf/lobby', (req, res, next) => {
-  console.log('[SPA Route] Handling /ddf/lobby - redirecting to /ddf/');
-  req.url = '/ddf/'; // Rewrite URL to root DDF path
+  const queryString = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
+  console.log('[SPA Route] Handling /ddf/lobby - redirecting to /ddf/ with params:', queryString);
+  req.url = '/ddf/' + queryString; // Preserve query parameters
   next(); // Continue to proxy
 });
 
 app.get('/ddf/admin', (req, res, next) => {
-  console.log('[SPA Route] Handling /ddf/admin - redirecting to /ddf/');
-  req.url = '/ddf/'; // Rewrite URL to root DDF path
+  const queryString = req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '';
+  console.log('[SPA Route] Handling /ddf/admin - redirecting to /ddf/ with params:', queryString);
+  req.url = '/ddf/' + queryString; // Preserve query parameters
   next(); // Continue to proxy
 });
 
