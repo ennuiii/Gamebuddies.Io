@@ -64,6 +64,26 @@ const gameProxies = {
   }
 };
 
+// Handle SPA routes for DDF before proxy (for tab restoration)
+// These routes need to be handled before the proxy middleware
+app.get('/ddf/game', (req, res, next) => {
+  console.log('[SPA Route] Handling /ddf/game - redirecting to /ddf/');
+  req.url = '/ddf/'; // Rewrite URL to root DDF path
+  next(); // Continue to proxy
+});
+
+app.get('/ddf/lobby', (req, res, next) => {
+  console.log('[SPA Route] Handling /ddf/lobby - redirecting to /ddf/');
+  req.url = '/ddf/'; // Rewrite URL to root DDF path
+  next(); // Continue to proxy
+});
+
+app.get('/ddf/admin', (req, res, next) => {
+  console.log('[SPA Route] Handling /ddf/admin - redirecting to /ddf/');
+  req.url = '/ddf/'; // Rewrite URL to root DDF path
+  next(); // Continue to proxy
+});
+
 // Setup game proxies
 Object.values(gameProxies).forEach(proxy => {
   app.use(proxy.path, createProxyMiddleware({
