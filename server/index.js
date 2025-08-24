@@ -1976,28 +1976,28 @@ io.on('connection', async (socket) => {
         
         // Update connection tracking
         // Clean up any existing connections for this user before creating new one
-        const staleConnections = Array.from(activeConnections.entries())
-          .filter(([socketId, conn]) => 
-            conn.userId === user.id && socketId !== socket.id
-          );
+        const userConnections = connectionManager.getUserConnections(user.id)
+          .filter(conn => conn.socketId !== socket.id);
         
-        staleConnections.forEach(([staleSocketId, staleConn]) => {
-          console.log(`🧹 [CLEANUP] Removing stale connection for user ${user.id}: ${staleSocketId}`);
-          activeConnections.delete(staleSocketId);
+        userConnections.forEach(staleConn => {
+          console.log(`🧹 [CLEANUP] Removing stale connection for user ${user.id}: ${staleConn.socketId}`);
+          connectionManager.removeConnection(staleConn.socketId);
         });
         
-        const connection = connectionManager.getConnection(socket.id);
-        if (connection) {
-          connection.userId = user.id;
-          connection.roomId = room.id;
-          console.log(`🔗 [REJOINING DEBUG] Updated connection tracking:`, {
-            socketId: socket.id,
-            userId: user.id,
-            roomId: room.id,
-            username: user.username,
-            playerRole: userRole
-          });
-        }
+        // Update connection tracking
+        connectionManager.updateConnection(socket.id, {
+          userId: user.id,
+          username: playerName,
+          roomId: room.id,
+          roomCode: roomCode
+        });
+        console.log(`🔗 [REJOINING DEBUG] Updated connection tracking:`, {
+          socketId: socket.id,
+          userId: user.id,
+          roomId: room.id,
+          username: user.username,
+          playerRole: userRole
+        });
       }
 
       // Join socket room
@@ -2258,14 +2258,13 @@ io.on('connection', async (socket) => {
         
         const delay = p.role === 'host' ? 0 : 2000; // 2 second delay for players
         
-        // Find the MOST RECENT socket ID for this user from activeConnections
-        const userConnections = Array.from(activeConnections.entries())
-          .filter(([socketId, conn]) => conn.userId === p.user_id);
+        // Find the MOST RECENT socket ID for this user from connectionManager
+        const userConnections = connectionManager.getUserConnections(p.user_id);
         
-        // Sort by connection timestamp (most recent first) or use the last one in the array
-        const userConnection = userConnections.length > 0 ? userConnections[userConnections.length - 1] : null;
+        // Get the most recent connection (they're already sorted by activity)
+        const userConnection = userConnections.length > 0 ? userConnections[0] : null;
         
-        const currentSocketId = userConnection ? userConnection[0] : null;
+        const currentSocketId = userConnection ? userConnection.socketId : null;
         const connectionData = userConnection ? userConnection[1] : null;
         
         console.log(`🚀 [START GAME DEBUG] Sending game event to ${p.user?.username}:`, {
@@ -2293,7 +2292,8 @@ io.on('connection', async (socket) => {
           }, delay);
         } else {
           console.error(`❌ [START GAME DEBUG] No socket connection found for ${p.user?.username} (${p.user_id})`);
-          console.error(`❌ [START GAME DEBUG] ActiveConnections dump:`, Array.from(activeConnections.entries()).map(([socketId, conn]) => ({
+          const allConnections = Array.from(connectionManager.activeConnections.entries());
+          console.error(`❌ [START GAME DEBUG] ActiveConnections dump:`, allConnections.map(([socketId, conn]) => ({
             socketId,
             userId: conn.userId,
             username: conn.username,
@@ -2449,8 +2449,8 @@ io.on('connection', async (socket) => {
 
       // Send return to lobby event to all participants
       participants.forEach(p => {
-        const userConnection = Array.from(activeConnections.values())
-          .find(conn => conn.userId === p.user_id);
+        const userConnections = connectionManager.getUserConnections(p.user_id);
+        const userConnection = userConnections[0];
         
         if (userConnection?.socketId) {
           console.log(`📤 Sending returnToLobbyInitiated to ${p.user?.username}`);
@@ -2673,8 +2673,8 @@ io.on('connection', async (socket) => {
       }
 
       // Find the target player's socket connection
-      const targetConnection = Array.from(activeConnections.values())
-        .find(conn => conn.userId === data.targetUserId);
+      const targetConnections = connectionManager.getUserConnections(data.targetUserId);
+      const targetConnection = targetConnections[0];
 
       console.log(`👢 [KICK DEBUG] Kicking player:`, {
         targetUserId: data.targetUserId,
@@ -3024,7 +3024,7 @@ io.on('connection', async (socket) => {
       }
 
       // Remove from active connections
-      activeConnections.delete(socket.id);
+      // Connection already removed by connectionManager.removeConnection(socket.id) above
 
     } catch (error) {
       console.error('❌ Error handling disconnect:', error);
