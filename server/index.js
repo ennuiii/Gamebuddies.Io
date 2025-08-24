@@ -10,6 +10,8 @@ const { db } = require('./lib/supabase');
 require('dotenv').config();
 const rateLimit = require('express-rate-limit');
 const crypto = require('crypto');
+const ConnectionManager = require('./lib/connectionManager');
+const { validators, sanitize, rateLimits } = require('./lib/validation');
 
 const app = express();
 const server = http.createServer(app);
@@ -68,22 +70,63 @@ const gameProxies = {
 // The DDF service has its own SPA catch-all handler to serve index.html
 // This allows proper React Router functionality with preserved paths
 
-// Setup game proxies
-Object.values(gameProxies).forEach(proxy => {
-  app.use(proxy.path, createProxyMiddleware({
+// Store proxy instances for WebSocket upgrade handling
+const proxyInstances = {};
+
+// Setup game proxies with WebSocket support
+Object.entries(gameProxies).forEach(([key, proxy]) => {
+  const proxyMiddleware = createProxyMiddleware({
     target: proxy.target,
     changeOrigin: true,
     pathRewrite: proxy.pathRewrite,
     timeout: 30000,
     proxyTimeout: 30000,
+    ws: true, // Enable WebSocket proxying
+    logLevel: 'error', // Reduce log verbosity
     onError: (err, req, res) => {
       console.error(`Proxy error for ${proxy.path}:`, err.message);
-      res.status(502).json({ 
-        error: 'Game service temporarily unavailable',
-        message: 'Please try again in a few moments'
+      // Only send response if not already sent and not a WebSocket upgrade
+      if (!res.headersSent && !req.headers.upgrade) {
+        res.status(502).json({ 
+          error: 'Game service temporarily unavailable',
+          message: 'Please try again in a few moments'
+        });
+      }
+    },
+    onProxyReqWs: (proxyReq, req, socket, options, head) => {
+      // Handle WebSocket upgrade requests
+      socket.on('error', (err) => {
+        console.error('WebSocket socket error:', err.message);
+      });
+      
+      // Properly handle socket closure
+      socket.on('close', () => {
+        console.log('WebSocket connection closed');
       });
     }
-  }));
+  });
+  
+  proxyInstances[proxy.path] = proxyMiddleware;
+  app.use(proxy.path, proxyMiddleware);
+});
+
+// Handle WebSocket upgrade requests for proxied game services
+server.on('upgrade', (request, socket, head) => {
+  const pathname = request.url;
+  
+  // Check if this is a request for one of our proxied game services
+  for (const [key, proxy] of Object.entries(gameProxies)) {
+    if (pathname.startsWith(proxy.path)) {
+      const proxyMiddleware = proxyInstances[proxy.path];
+      if (proxyMiddleware && proxyMiddleware.upgrade) {
+        // Let the proxy handle the WebSocket upgrade
+        proxyMiddleware.upgrade(request, socket, head);
+        return;
+      }
+    }
+  }
+  
+  // If not a proxy path, Socket.IO will handle its own upgrades
 });
 
 // Serve static files from React build
@@ -93,6 +136,59 @@ app.use(express.static(path.join(__dirname, '../client/build')));
 app.use('/screenshots', express.static(path.join(__dirname, 'screenshots')));
 
 // ===== NEW API ENDPOINTS =====
+
+// Health check endpoint
+app.get('/health', async (req, res) => {
+  try {
+    const stats = connectionManager.getStats();
+    const roomStats = await db.getRoomStats();
+    
+    const health = {
+      status: 'healthy',
+      uptime: process.uptime(),
+      memory: process.memoryUsage(),
+      connections: stats,
+      rooms: roomStats,
+      database: 'connected', // We'll test this
+      timestamp: new Date().toISOString()
+    };
+    
+    // Test database connection
+    try {
+      await db.adminClient.from('users').select('id').limit(1);
+    } catch (dbError) {
+      health.database = 'error';
+      health.status = 'degraded';
+      health.errors = [dbError.message];
+    }
+    
+    const statusCode = health.status === 'healthy' ? 200 : 503;
+    res.status(statusCode).json(health);
+  } catch (error) {
+    res.status(503).json({
+      status: 'error',
+      message: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
+});
+
+// Connection stats endpoint
+app.get('/api/stats', (req, res) => {
+  try {
+    const stats = connectionManager.getStats();
+    res.json({
+      success: true,
+      data: stats,
+      timestamp: new Date().toISOString()
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      error: error.message
+    });
+  }
+});
 
 // Games endpoint - returns available games
 app.get('/api/games', (req, res) => {
@@ -1443,32 +1539,57 @@ async function autoUpdateRoomStatusBasedOnPlayerStates(room, allPlayers, reason)
   }
 }
 
-// Track active connections
-const activeConnections = new Map();
+// Initialize connection manager
+const connectionManager = new ConnectionManager();
+
+// Clean up stale connections periodically
+setInterval(() => {
+  const cleaned = connectionManager.cleanupStaleConnections();
+  if (cleaned.length > 0) {
+    console.log(`🧹 Cleaned up ${cleaned.length} stale connections`);
+  }
+}, 60000); // Every minute
 
 io.on('connection', async (socket) => {
   console.log(`🔌 User connected: ${socket.id}`);
   
   // Store connection info
-  activeConnections.set(socket.id, {
-    socketId: socket.id,
-    connectedAt: new Date(),
-    userId: null,
-    roomId: null
-  });
+  connectionManager.addConnection(socket.id);
 
   // Handle room creation
   socket.on('createRoom', async (data) => {
     try {
-      console.log(`🏠 [SUPABASE] Creating room for ${data.playerName}`);
+      // Validate input
+      const validation = validators.createRoom(data);
+      if (!validation.isValid) {
+        socket.emit('error', { 
+          message: validation.message,
+          code: 'INVALID_INPUT' 
+        });
+        return;
+      }
+      
+      // Check rate limiting
+      if (connectionManager.isRateLimited(socket.id, 'createRoom', rateLimits.createRoom.max)) {
+        socket.emit('error', { 
+          message: 'Too many room creation attempts. Please wait a moment.',
+          code: 'RATE_LIMITED' 
+        });
+        return;
+      }
+      
+      // Sanitize input
+      const playerName = sanitize.playerName(data.playerName);
+      
+      console.log(`🏠 [SUPABASE] Creating room for ${playerName}`);
       console.log(`🔍 [DEBUG] Socket ID: ${socket.id}`);
       
       // Get or create user profile
       console.log(`👤 [DEBUG] Creating/getting user profile...`);
       const user = await db.getOrCreateUser(
-        `${socket.id}_${data.playerName}`, // Unique per connection to prevent conflicts
-        data.playerName,
-        data.playerName
+        `${socket.id}_${playerName}`, // Unique per connection to prevent conflicts
+        playerName,
+        playerName
       );
       console.log(`✅ [DEBUG] User created/found:`, { id: user.id, username: user.username });
 
@@ -1482,7 +1603,7 @@ io.on('connection', async (socket) => {
         max_players: 10,
         game_settings: {},
         metadata: {
-          created_by_name: data.playerName,
+          created_by_name: playerName,
           created_from: 'web_client'
         }
       });
@@ -1505,11 +1626,12 @@ io.on('connection', async (socket) => {
       socket.join(room.room_code);
       
       // Update connection tracking
-      const connection = activeConnections.get(socket.id);
-      if (connection) {
-        connection.userId = user.id;
-        connection.roomId = room.id;
-      }
+      connectionManager.updateConnection(socket.id, {
+        userId: user.id,
+        username: playerName,
+        roomId: room.id,
+        roomCode: room.room_code
+      });
 
 
 
@@ -1521,7 +1643,7 @@ io.on('connection', async (socket) => {
           ...room,
           players: [{
             id: user.id,
-            name: data.playerName,
+            name: playerName,
             isHost: true,
             isConnected: true,
             inGame: false,
@@ -1532,7 +1654,7 @@ io.on('connection', async (socket) => {
         }
       });
 
-      console.log(`🎉 [SUCCESS] Room ${room.room_code} created by ${data.playerName} using SUPABASE storage`);
+      console.log(`🎉 [SUCCESS] Room ${room.room_code} created by ${playerName} using SUPABASE storage`);
 
     } catch (error) {
       console.error('❌ [ERROR] Room creation failed:', error);
@@ -1564,19 +1686,52 @@ io.on('connection', async (socket) => {
   // Handle room joining
   socket.on('joinRoom', async (data) => {
     try {
-      const debugData = {
-        socketId: socket.id,
-        playerName: data.playerName,
-        roomCode: data.roomCode,
-        timestamp: new Date().toISOString(),
-        connectionCount: activeConnections.size
-      };
+      // Validate input
+      const validation = validators.joinRoom(data);
+      if (!validation.isValid) {
+        socket.emit('error', { 
+          message: validation.message,
+          code: 'INVALID_INPUT' 
+        });
+        return;
+      }
       
-      console.log(`🚪 [REJOINING DEBUG] Join request received:`, debugData);
+      // Check rate limiting
+      if (connectionManager.isRateLimited(socket.id, 'joinRoom', rateLimits.joinRoom.max)) {
+        socket.emit('error', { 
+          message: 'Too many join attempts. Please wait a moment.',
+          code: 'RATE_LIMITED' 
+        });
+        return;
+      }
       
-      // Check if this is a potential rejoin scenario
-      const existingConnection = activeConnections.get(socket.id);
-      const isReconnection = existingConnection?.userId !== null;
+      // Sanitize input
+      const playerName = sanitize.playerName(data.playerName);
+      const roomCode = sanitize.roomCode(data.roomCode);
+      
+      // Acquire connection lock to prevent race conditions
+      if (!connectionManager.acquireLock(playerName, roomCode, socket.id)) {
+        socket.emit('error', { 
+          message: 'Another connection attempt is in progress. Please wait.',
+          code: 'CONNECTION_IN_PROGRESS' 
+        });
+        return;
+      }
+      
+      try {
+        const debugData = {
+          socketId: socket.id,
+          playerName: playerName,
+          roomCode: roomCode,
+          timestamp: new Date().toISOString(),
+          connectionCount: connectionManager.getStats().totalConnections
+        };
+        
+        console.log(`🚪 [REJOINING DEBUG] Join request received:`, debugData);
+        
+        // Check if this is a potential rejoin scenario
+        const existingConnection = connectionManager.getConnection(socket.id);
+        const isReconnection = existingConnection?.userId !== null;
       
       console.log(`🔍 [REJOINING DEBUG] Connection analysis:`, {
         hasExistingConnection: !!existingConnection,
@@ -1709,29 +1864,28 @@ io.on('connection', async (socket) => {
         userRole = existingParticipant.role;
         
         // Clean up any existing connections for this user before creating new one
-        const staleConnections = Array.from(activeConnections.entries())
-          .filter(([socketId, conn]) => 
-            conn.userId === existingParticipant.user_id && socketId !== socket.id
-          );
+        const userConnections = connectionManager.getUserConnections(existingParticipant.user_id)
+          .filter(conn => conn.socketId !== socket.id);
         
-        staleConnections.forEach(([staleSocketId, staleConn]) => {
-          console.log(`🧹 [CLEANUP] Removing stale connection for user ${existingParticipant.user_id}: ${staleSocketId}`);
-          activeConnections.delete(staleSocketId);
+        userConnections.forEach(staleConn => {
+          console.log(`🧹 [CLEANUP] Removing stale connection for user ${existingParticipant.user_id}: ${staleConn.socketId}`);
+          connectionManager.removeConnection(staleConn.socketId);
         });
         
         // Update connection tracking with the ORIGINAL user ID IMMEDIATELY
-        const connection = activeConnections.get(socket.id);
-        if (connection) {
-          connection.userId = existingParticipant.user_id; // Use original user ID
-          connection.roomId = room.id;
+        connectionManager.updateConnection(socket.id, {
+          userId: existingParticipant.user_id,
+          username: playerName,
+          roomId: room.id,
+          roomCode: roomCode
+        });
           console.log(`🔗 [REJOINING DEBUG] Updated connection tracking with original user ID:`, {
             socketId: socket.id,
             userId: existingParticipant.user_id, // Original user ID
             roomId: room.id,
-            username: data.playerName,
+            username: playerName,
             playerRole: existingParticipant.role
           });
-        }
         
         // Update connection status for existing participant (set to connected with new socket)
         await db.updateParticipantConnection(existingParticipant.user_id, socket.id, 'connected');
@@ -1832,7 +1986,7 @@ io.on('connection', async (socket) => {
           activeConnections.delete(staleSocketId);
         });
         
-        const connection = activeConnections.get(socket.id);
+        const connection = connectionManager.getConnection(socket.id);
         if (connection) {
           connection.userId = user.id;
           connection.roomId = room.id;
@@ -1913,22 +2067,33 @@ io.on('connection', async (socket) => {
 
       console.log(`🎉 [REJOINING SUCCESS] ${data.playerName} ${existingParticipant ? 'rejoined' : 'joined'} room ${data.roomCode}`);
 
-    } catch (error) {
-      console.error('❌ [REJOINING ERROR] Room join/rejoin failed:', {
-        error: error.message,
-        stack: error.stack,
-        socketId: socket.id,
-        playerName: data?.playerName,
-        roomCode: data?.roomCode,
-        timestamp: new Date().toISOString()
-      });
-      socket.emit('error', { 
-        message: 'Failed to join room. Please try again.',
-        code: 'JOIN_FAILED',
-        debug: {
-          error_message: error.message,
+      } catch (error) {
+        console.error('❌ [REJOINING ERROR] Room join/rejoin failed:', {
+          error: error.message,
+          stack: error.stack,
+          socketId: socket.id,
+          playerName: playerName,
+          roomCode: roomCode,
           timestamp: new Date().toISOString()
-        }
+        });
+        socket.emit('error', { 
+          message: 'Failed to join room. Please try again.',
+          code: 'JOIN_FAILED',
+          debug: {
+            error_message: error.message,
+            timestamp: new Date().toISOString()
+          }
+        });
+      } finally {
+        // Always release the lock
+        connectionManager.releaseLock(playerName, roomCode);
+      }
+    } catch (error) {
+      // Outer catch for validation errors
+      console.error('❌ [JOIN ROOM ERROR] Validation or setup error:', error);
+      socket.emit('error', { 
+        message: 'Invalid request data',
+        code: 'VALIDATION_ERROR'
       });
     }
   });
@@ -1936,7 +2101,7 @@ io.on('connection', async (socket) => {
   // Handle game selection
   socket.on('selectGame', async (data) => {
     try {
-      const connection = activeConnections.get(socket.id);
+      const connection = connectionManager.getConnection(socket.id);
       console.log(`🎮 [DEBUG] Game selection from socket: ${socket.id}`);
       console.log(`🎮 [DEBUG] Connection data:`, { 
         userId: connection?.userId, 
@@ -1976,16 +2141,17 @@ io.on('connection', async (socket) => {
     console.log(`🚀 [START GAME SERVER] Timestamp:`, new Date().toISOString());
     
     try {
-      const connection = activeConnections.get(socket.id);
+      const connection = connectionManager.getConnection(socket.id);
               console.log(`🚀 [START GAME SERVER] Connection lookup:`, {
           socketId: socket.id,
           hasConnection: !!connection,
           userId: connection?.userId,
           roomId: connection?.roomId,
-          totalActiveConnections: activeConnections.size
+          totalActiveConnections: connectionManager.getStats().totalConnections
         });
         
-        console.log(`🚀 [START GAME SERVER] All active connections:`, Array.from(activeConnections.entries()).map(([socketId, conn]) => ({
+        const allConnections = Array.from(connectionManager.activeConnections.entries());
+        console.log(`🚀 [START GAME SERVER] All active connections:`, allConnections.map(([socketId, conn]) => ({
           socketId,
           userId: conn.userId,
           username: conn.username,
@@ -2151,7 +2317,7 @@ io.on('connection', async (socket) => {
   // Handle leaving room
   socket.on('leaveRoom', async (data) => {
     try {
-      const connection = activeConnections.get(socket.id);
+      const connection = connectionManager.getConnection(socket.id);
       if (!connection?.roomId || !connection?.userId) {
         return;
       }
@@ -2236,7 +2402,7 @@ io.on('connection', async (socket) => {
     try {
       console.log(`🔄 GM initiating return to lobby for room ${data.roomCode}`);
       
-      const connection = activeConnections.get(socket.id);
+      const connection = connectionManager.getConnection(socket.id);
       if (!connection?.roomId || !connection?.userId) {
         socket.emit('error', { message: 'Not in a room' });
         return;
@@ -2312,7 +2478,7 @@ io.on('connection', async (socket) => {
     try {
       console.log(`🔄 Player returning to lobby: ${data.playerName} in room ${data.roomCode}`);
       
-      const connection = activeConnections.get(socket.id);
+      const connection = connectionManager.getConnection(socket.id);
       if (!connection?.roomId || !connection?.userId) {
         socket.emit('error', { message: 'Not in a room' });
         return;
@@ -2361,7 +2527,7 @@ io.on('connection', async (socket) => {
     try {
       console.log(`👑 Host transfer requested: ${data.targetUserId} in room ${data.roomCode}`);
       
-      const connection = activeConnections.get(socket.id);
+      const connection = connectionManager.getConnection(socket.id);
       if (!connection?.roomId || !connection?.userId) {
         socket.emit('error', { message: 'Not in a room' });
         return;
@@ -2433,7 +2599,7 @@ io.on('connection', async (socket) => {
         timestamp: new Date().toISOString()
       });
       
-      const connection = activeConnections.get(socket.id);
+      const connection = connectionManager.getConnection(socket.id);
       if (!connection?.roomId || !connection?.userId) {
         console.log(`❌ [KICK DEBUG] Kicker not in a room:`, {
           socketId: socket.id,
@@ -2601,7 +2767,7 @@ io.on('connection', async (socket) => {
     try {
       console.log(`🔄 Room status change requested: ${data.newStatus} for room ${data.roomCode}`);
       
-      const connection = activeConnections.get(socket.id);
+      const connection = connectionManager.getConnection(socket.id);
       if (!connection?.roomId || !connection?.userId) {
         socket.emit('error', { message: 'Not in a room' });
         return;
@@ -2662,7 +2828,7 @@ io.on('connection', async (socket) => {
     try {
       console.log(`🤖 Auto-updating room status: ${data.newStatus} for room ${data.roomCode} (reason: ${data.reason})`);
       
-      const connection = activeConnections.get(socket.id);
+      const connection = connectionManager.getConnection(socket.id);
       if (!connection?.roomId || !connection?.userId) {
         console.log(`❌ Auto status update failed: socket not in room`);
         return; // Don't emit error, just log
@@ -2739,9 +2905,8 @@ io.on('connection', async (socket) => {
     try {
       console.log(`🔌 User disconnected: ${socket.id}`);
       
-      
-      
-      const connection = activeConnections.get(socket.id);
+      // Get and remove connection from manager
+      const connection = connectionManager.removeConnection(socket.id);
       if (connection?.userId) {
         // Check if disconnecting user is the host
         let isDisconnectingHost = false;
@@ -3047,13 +3212,38 @@ process.on('SIGTERM', async () => {
   });
 });
 
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('💥 Unhandled error:', {
+    error: err.message,
+    stack: err.stack,
+    url: req.url,
+    method: req.method,
+    timestamp: new Date().toISOString()
+  });
+  
+  if (req.path.startsWith('/api/')) {
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      code: 'INTERNAL_ERROR'
+    });
+  } else {
+    res.status(500).send('Internal server error');
+  }
+});
+
+// 404 handler for API routes
+app.use('/api/*', (req, res) => {
+  res.status(404).json({
+    success: false,
+    error: 'API endpoint not found',
+    code: 'NOT_FOUND'
+  });
+});
+
 // Catch-all handler: send back React's index.html file for non-API routes
 app.get('*', (req, res) => {
-  // Don't serve index.html for API routes or socket.io
-  if (req.path.startsWith('/api/') || req.path.startsWith('/socket.io/')) {
-    return res.status(404).json({ error: 'Not found' });
-  }
-  
   res.sendFile(path.join(__dirname, '../client/build/index.html'));
 });
 
