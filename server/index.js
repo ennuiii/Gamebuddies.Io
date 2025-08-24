@@ -2265,7 +2265,6 @@ io.on('connection', async (socket) => {
         const userConnection = userConnections.length > 0 ? userConnections[0] : null;
         
         const currentSocketId = userConnection ? userConnection.socketId : null;
-        const connectionData = userConnection ? userConnection[1] : null;
         
         console.log(`🚀 [START GAME DEBUG] Sending game event to ${p.user?.username}:`, {
           user_id: p.user_id,
@@ -2274,7 +2273,7 @@ io.on('connection', async (socket) => {
           is_connected: p.is_connected,
           hasUserConnection: !!userConnection,
           totalUserConnections: userConnections.length,
-          allUserSocketIds: userConnections.map(([socketId]) => socketId), 
+          allUserSocketIds: userConnections.map(conn => conn.socketId), 
           selectedSocketId: currentSocketId,
           gameUrl,
           delay
