@@ -10,6 +10,13 @@ const GameBuddiesReturnHandler = () => {
     const gameType = sessionStorage.getItem('gamebuddies_gameType');
     const returnUrl = sessionStorage.getItem('gamebuddies_returnUrl');
     
+    // Prevent multiple simultaneous connection attempts
+    const isConnecting = sessionStorage.getItem('gamebuddies_connecting');
+    if (isConnecting === 'true') {
+      console.log('🔄 [RETURN HANDLER DEBUG] Already connecting, skipping...');
+      return;
+    }
+    
     console.log('🔄 [RETURN HANDLER DEBUG] Initializing with session data:', {
       roomCode,
       playerName,
@@ -28,6 +35,9 @@ const GameBuddiesReturnHandler = () => {
     }
 
     console.log('🔄 [RETURN HANDLER DEBUG] GameBuddies return handler initialized');
+    
+    // Mark as connecting to prevent duplicate handlers
+    sessionStorage.setItem('gamebuddies_connecting', 'true');
 
     // Determine server URL
     const getServerUrl = () => {
@@ -95,11 +105,14 @@ const GameBuddiesReturnHandler = () => {
       // Disconnect from current socket before redirecting to prevent conflicts
       socket.disconnect();
       
-      // Small delay to ensure disconnect completes
+      // Longer delay to ensure complete disconnection and prevent connection conflicts
       setTimeout(() => {
+        // Clear any existing GameBuddies connections before redirect
+        sessionStorage.removeItem('gamebuddies_connecting');
+        
         // Redirect to GameBuddies with special rejoin parameters
         window.location.href = redirectUrl;
-      }, 100);
+      }, 500);
     });
 
     // Connect to room ONLY to listen for return events, don't try to join
@@ -142,7 +155,10 @@ const GameBuddiesReturnHandler = () => {
     // Cleanup
     return () => {
       console.log('🔄 [RETURN HANDLER DEBUG] Cleaning up return handler');
-      socket.disconnect();
+      sessionStorage.removeItem('gamebuddies_connecting');
+      if (socket) {
+        socket.disconnect();
+      }
     };
   }, []);
 

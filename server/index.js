@@ -84,7 +84,12 @@ Object.entries(gameProxies).forEach(([key, proxy]) => {
     ws: true, // Enable WebSocket proxying
     logLevel: 'error', // Reduce log verbosity
     onError: (err, req, res) => {
-      console.error(`Proxy error for ${proxy.path}:`, err.message);
+      // Suppress common WebSocket navigation errors
+      if (err.code !== 'ERR_STREAM_WRITE_AFTER_END' && 
+          err.code !== 'ECONNRESET' && 
+          !err.message.includes('write after end')) {
+        console.error(`Proxy error for ${proxy.path}:`, err.message);
+      }
       // Only send response if not already sent and not a WebSocket upgrade
       if (!res.headersSent && !req.headers.upgrade) {
         res.status(502).json({ 
@@ -96,8 +101,11 @@ Object.entries(gameProxies).forEach(([key, proxy]) => {
     onProxyReqWs: (proxyReq, req, socket, options, head) => {
       // Handle WebSocket upgrade requests
       socket.on('error', (err) => {
-        // Only log if not a write-after-end error (common during navigation)
-        if (err.code !== 'ERR_STREAM_WRITE_AFTER_END') {
+        // Suppress common navigation-related errors completely
+        if (err.code !== 'ERR_STREAM_WRITE_AFTER_END' && 
+            err.code !== 'ECONNRESET' && 
+            !err.message.includes('write after end') &&
+            !err.message.includes('connection was terminated')) {
           console.error('WebSocket socket error:', err.message);
         }
       });
@@ -109,7 +117,18 @@ Object.entries(gameProxies).forEach(([key, proxy]) => {
       
       // Ensure socket is properly destroyed on end
       socket.on('end', () => {
-        socket.destroy();
+        if (!socket.destroyed) {
+          socket.destroy();
+        }
+      });
+      
+      // Handle proxy response errors
+      proxyReq.on('error', (err) => {
+        if (err.code !== 'ERR_STREAM_WRITE_AFTER_END' && 
+            err.code !== 'ECONNRESET' && 
+            !err.message.includes('write after end')) {
+          console.error('WebSocket proxy request error:', err.message);
+        }
       });
     }
   });
