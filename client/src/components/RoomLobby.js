@@ -504,8 +504,17 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       // Reset starting state since game is actually starting
       setIsStartingGame(false);
       
-      // Redirect to game
-      window.location.href = data.gameUrl;
+      // Properly disconnect socket before navigation to prevent WebSocket errors
+      if (socket) {
+        console.log('🔌 [LOBBY DEBUG] Disconnecting socket before game redirect...');
+        socket.disconnect();
+      }
+      
+      // Small delay to ensure disconnect completes before navigation
+      setTimeout(() => {
+        // Redirect to game
+        window.location.href = data.gameUrl;
+      }, 100);
     };
 
     const handleError = (error) => {
@@ -760,7 +769,21 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
     };
   }, [socket, socketIsConnected]); // Effect dependencies: socket instance and its connection status
 
+  // Add beforeunload handler to cleanup WebSocket on navigation
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      if (socket && socket.connected) {
+        console.log('🔌 [LOBBY DEBUG] Cleaning up socket before page unload...');
+        socket.disconnect();
+      }
+    };
 
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [socket]);
 
   const handleGameSelect = (gameType) => {
     if (socket && socketIsConnected && currentIsHost) {

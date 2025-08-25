@@ -96,12 +96,20 @@ Object.entries(gameProxies).forEach(([key, proxy]) => {
     onProxyReqWs: (proxyReq, req, socket, options, head) => {
       // Handle WebSocket upgrade requests
       socket.on('error', (err) => {
-        console.error('WebSocket socket error:', err.message);
+        // Only log if not a write-after-end error (common during navigation)
+        if (err.code !== 'ERR_STREAM_WRITE_AFTER_END') {
+          console.error('WebSocket socket error:', err.message);
+        }
       });
       
       // Properly handle socket closure
       socket.on('close', () => {
-        console.log('WebSocket connection closed');
+        // Silent close - expected during navigation
+      });
+      
+      // Ensure socket is properly destroyed on end
+      socket.on('end', () => {
+        socket.destroy();
       });
     }
   });
@@ -1492,11 +1500,23 @@ async function autoUpdateRoomStatusBasedOnPlayerStates(room, allPlayers, reason)
       targetStatus = 'in_game';
       shouldUpdate = true;
       updateReason = 'Multiple players moved to active game';
-    } else if (room.status === 'in_game' && (playerStats.lobby >= Math.ceil(allPlayers.length - 1))) {
-      // Almost all players returned to lobby from game
+    } else if (room.status === 'in_game' && (playerStats.lobby >= Math.ceil(allPlayers.length * 0.5))) {
+      // Majority of players returned to lobby from game
       targetStatus = 'lobby';
       shouldUpdate = true;
-      updateReason = 'Most players returned to lobby';
+      updateReason = 'Majority of players returned to lobby';
+    } else if (reason === 'player_rejoined' && room.status === 'in_game') {
+      // Player rejoined - check if we should transition to lobby
+      const lobbyCount = playerStats.lobby || 0;
+      const gameCount = playerStats.game || 0;
+      const disconnectedCount = playerStats.disconnected || 0;
+      
+      // If no players are actively in game anymore, switch to lobby
+      if (gameCount === 0 && lobbyCount > 0) {
+        targetStatus = 'lobby';
+        shouldUpdate = true;
+        updateReason = 'All active players are in lobby after rejoin';
+      }
     }
 
     if (shouldUpdate && targetStatus !== room.status) {
@@ -2066,6 +2086,13 @@ io.on('connection', async (socket) => {
       socket.emit('roomJoined', joinSuccessData);
 
       console.log(`🎉 [REJOINING SUCCESS] ${data.playerName} ${existingParticipant ? 'rejoined' : 'joined'} room ${data.roomCode}`);
+      
+      // Auto-update room status based on player states after rejoin
+      // This ensures room properly transitions back to lobby when players return from games
+      if (updatedRoom.status === 'in_game') {
+        console.log(`🔄 [REJOINING] Checking if room should return to lobby after player rejoin`);
+        await autoUpdateRoomStatusBasedOnPlayerStates(updatedRoom, players, 'player_rejoined');
+      }
 
       } catch (error) {
         console.error('❌ [REJOINING ERROR] Room join/rejoin failed:', {
