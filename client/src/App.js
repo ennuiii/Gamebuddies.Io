@@ -6,7 +6,7 @@ import { NotificationProvider } from './contexts/NotificationContext'; // Import
 import Notification from './components/Notification'; // Import Notification component
 import Header from './components/Header';
 import HomePage from './pages/HomePage';
-import GameBuddiesReturnHandler from './components/GameBuddiesReturnHandler';
+// GameBuddiesReturnHandler removed - using simpler URL-based return flow
 import DebugPanel from './components/DebugPanel';
 import './App.css';
 
@@ -69,7 +69,6 @@ function AppContent() {
         isInLobby={isInLobby}
       />
       <Notification /> {/* Display Notification component here */}
-      <GameBuddiesReturnHandler />
       <DebugPanel />
       <Routes>
         <Route 

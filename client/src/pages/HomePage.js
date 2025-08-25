@@ -26,7 +26,6 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
     // Check if there's a join parameter in the URL
     const joinCode = searchParams.get('join');
     const rejoinCode = searchParams.get('rejoin');
-    const autoRejoinCode = searchParams.get('autorejoin');
     const playerNameFromURL = searchParams.get('name');
     const hostFromURL = searchParams.get('host') === 'true';
     const fromGameFlag = searchParams.get('fromGame') === 'true';
@@ -34,73 +33,29 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
     console.log('🔄 [HOMEPAGE DEBUG] URL parameters detected:', {
       joinCode,
       rejoinCode,
-      autoRejoinCode,
       playerNameFromURL,
       hostFromURL,
       fromGameFlag,
       fullURL: window.location.href,
       searchParams: Object.fromEntries(searchParams.entries())
     });
-
-    // Check for GameBuddies session data
-    const sessionData = {
-      roomCode: sessionStorage.getItem('gamebuddies_roomCode'),
-      playerName: sessionStorage.getItem('gamebuddies_playerName'),
-      isHost: sessionStorage.getItem('gamebuddies_isHost'),
-      gameType: sessionStorage.getItem('gamebuddies_gameType'),
-      returnUrl: sessionStorage.getItem('gamebuddies_returnUrl')
-    };
     
-    console.log('🔄 [HOMEPAGE DEBUG] GameBuddies session storage:', sessionData);
-    
-    if (autoRejoinCode && playerNameFromURL) {
-      // Automatic rejoin from GM-initiated return (original flow)
-      console.log('🔄 [HOMEPAGE DEBUG] Auto-rejoining room (original flow):', {
-        code: autoRejoinCode,
-        name: playerNameFromURL,
-        isHost: hostFromURL,
-        source: 'GM-initiated return (autorejoin)'
-      });
-      
-      setCurrentRoom({
-        roomCode: autoRejoinCode,
-        playerName: playerNameFromURL,
-        isHost: hostFromURL
-      });
-      setPlayerName(playerNameFromURL);
-      setInLobby(true);
-      setIsInLobby(true);
-      setLobbyLeaveFn(() => handleLeaveLobby);
-      // Clear the URL parameters
-      navigate('/', { replace: true });
-    } else if (rejoinCode && fromGameFlag && playerNameFromURL) {
-      // Special case: returning from a game - direct rejoin without modal
-      console.log('🔄 [HOMEPAGE DEBUG] Returning from game - direct rejoin:', {
+    // Simplified rejoin logic - handle any rejoin URL parameter
+    if (rejoinCode && playerNameFromURL) {
+      console.log('🔄 [HOMEPAGE DEBUG] Rejoining room from URL params:', {
         rejoinCode,
         playerName: playerNameFromURL,
         isHost: hostFromURL,
-        source: 'Game return with fromGame flag'
+        fromGame: fromGameFlag
       });
       
-      setCurrentRoom({
-        roomCode: rejoinCode,
-        playerName: playerNameFromURL,
-        isHost: hostFromURL
-      });
-      setPlayerName(playerNameFromURL);
-      setInLobby(true);
-      setIsInLobby(true);
-      setLobbyLeaveFn(() => handleLeaveLobby);
-      // Clear the URL parameters
-      navigate('/', { replace: true });
-    } else if (rejoinCode && playerNameFromURL && !fromGameFlag) {  
-      // Direct rejoin with name parameter (skip modal)
-      console.log('🔄 [HOMEPAGE DEBUG] Direct rejoin with name parameter:', {
-        rejoinCode,
-        playerName: playerNameFromURL,
-        isHost: hostFromURL,
-        source: 'Direct rejoin with name'
-      });
+      // Always clear session storage to prevent loops
+      sessionStorage.removeItem('gamebuddies_roomCode');
+      sessionStorage.removeItem('gamebuddies_playerName');
+      sessionStorage.removeItem('gamebuddies_isHost');
+      sessionStorage.removeItem('gamebuddies_gameType');
+      sessionStorage.removeItem('gamebuddies_returnUrl');
+      sessionStorage.removeItem('gamebuddies_connecting');
       
       setCurrentRoom({
         roomCode: rejoinCode,
@@ -114,7 +69,7 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
       // Clear the URL parameters
       navigate('/', { replace: true });
     } else if (joinCode || rejoinCode) {
-      // Manual join/rejoin
+      // Manual join/rejoin without name - show modal
       console.log('🔄 [HOMEPAGE DEBUG] Manual join/rejoin:', {
         joinCode,
         rejoinCode,
@@ -125,20 +80,6 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
       setShowJoinRoom(true);
       // Clear the URL parameter after using it
       navigate('/', { replace: true });
-    } else if (sessionData.roomCode && sessionData.playerName) {
-      // Check if we have session data but no URL parameters (potential return from game)
-      console.log('🔄 [HOMEPAGE DEBUG] Found GameBuddies session data without URL params:', {
-        roomCode: sessionData.roomCode,
-        playerName: sessionData.playerName,
-        isHost: sessionData.isHost === 'true',
-        gameType: sessionData.gameType,
-        returnUrl: sessionData.returnUrl,
-        scenario: 'potential return from game'
-      });
-      
-      // Don't automatically rejoin - let the GameBuddiesReturnHandler handle it
-      // This prevents conflicts between different return mechanisms
-      console.log('🔄 [HOMEPAGE DEBUG] Letting GameBuddiesReturnHandler manage the return flow');
     } else {
       console.log('🔄 [HOMEPAGE DEBUG] No rejoin scenario detected - normal homepage load');
     }
