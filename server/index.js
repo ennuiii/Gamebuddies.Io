@@ -73,7 +73,22 @@ const gameProxies = {
 // Store proxy instances for WebSocket upgrade handling
 const proxyInstances = {};
 
-// Setup game proxies with WebSocket support
+// Global WebSocket error suppression function
+const isNavigationError = (err) => {
+  const suppressedCodes = ['ERR_STREAM_WRITE_AFTER_END', 'ECONNRESET', 'EPIPE', 'ENOTFOUND'];
+  const suppressedMessages = [
+    'write after end',
+    'connection was terminated',
+    'socket hang up',
+    'read ECONNRESET',
+    'write EPIPE'
+  ];
+  
+  return suppressedCodes.includes(err.code) || 
+         suppressedMessages.some(msg => err.message?.includes(msg));
+};
+
+// Setup game proxies with WebSocket support and proper connection tracking
 Object.entries(gameProxies).forEach(([key, proxy]) => {
   const proxyMiddleware = createProxyMiddleware({
     target: proxy.target,
@@ -82,12 +97,10 @@ Object.entries(gameProxies).forEach(([key, proxy]) => {
     timeout: 30000,
     proxyTimeout: 30000,
     ws: true, // Enable WebSocket proxying
-    logLevel: 'error', // Reduce log verbosity
+    logLevel: 'error', // Show actual errors, not noise
     onError: (err, req, res) => {
-      // Suppress common WebSocket navigation errors
-      if (err.code !== 'ERR_STREAM_WRITE_AFTER_END' && 
-          err.code !== 'ECONNRESET' && 
-          !err.message.includes('write after end')) {
+      // Log real errors but handle expected navigation errors gracefully  
+      if (!isNavigationError(err)) {
         console.error(`Proxy error for ${proxy.path}:`, err.message);
       }
       // Only send response if not already sent and not a WebSocket upgrade
@@ -99,36 +112,62 @@ Object.entries(gameProxies).forEach(([key, proxy]) => {
       }
     },
     onProxyReqWs: (proxyReq, req, socket, options, head) => {
-      // Handle WebSocket upgrade requests
+      // Track socket state to prevent writes to closed connections
+      let socketClosed = false;
+      
+      // Handle socket state changes
       socket.on('error', (err) => {
-        // Suppress common navigation-related errors completely
-        if (err.code !== 'ERR_STREAM_WRITE_AFTER_END' && 
-            err.code !== 'ECONNRESET' && 
-            !err.message.includes('write after end') &&
-            !err.message.includes('connection was terminated')) {
+        socketClosed = true;
+        if (!isNavigationError(err)) {
           console.error('WebSocket socket error:', err.message);
         }
       });
       
-      // Properly handle socket closure
       socket.on('close', () => {
-        // Silent close - expected during navigation
+        socketClosed = true;
+        console.log(`🔌 [PROXY DEBUG] Socket closed for ${proxy.path}`);
       });
       
-      // Ensure socket is properly destroyed on end
       socket.on('end', () => {
+        socketClosed = true;
+        console.log(`🔌 [PROXY DEBUG] Socket ended for ${proxy.path}`);
         if (!socket.destroyed) {
           socket.destroy();
         }
       });
       
-      // Handle proxy response errors
+      // Override socket write methods to check state first
+      const originalWrite = socket.write;
+      socket.write = function(data, encoding, callback) {
+        if (socketClosed || socket.destroyed || !socket.writable) {
+          console.log(`🔌 [PROXY DEBUG] Prevented write to closed socket for ${proxy.path}`);
+          // Call callback to prevent hanging
+          if (typeof callback === 'function') {
+            callback();
+          } else if (typeof encoding === 'function') {
+            encoding();
+          }
+          return false;
+        }
+        return originalWrite.call(this, data, encoding, callback);
+      };
+      
+      // Handle proxy request errors  
       proxyReq.on('error', (err) => {
-        if (err.code !== 'ERR_STREAM_WRITE_AFTER_END' && 
-            err.code !== 'ECONNRESET' && 
-            !err.message.includes('write after end')) {
+        socketClosed = true;
+        if (!isNavigationError(err)) {
           console.error('WebSocket proxy request error:', err.message);
         }
+      });
+      
+      proxyReq.on('close', () => {
+        socketClosed = true;
+        console.log(`🔌 [PROXY DEBUG] Proxy request closed for ${proxy.path}`);
+      });
+      
+      proxyReq.on('abort', () => {
+        socketClosed = true;
+        console.log(`🔌 [PROXY DEBUG] Proxy request aborted for ${proxy.path}`);
       });
     }
   });
@@ -141,14 +180,29 @@ Object.entries(gameProxies).forEach(([key, proxy]) => {
 server.on('upgrade', (request, socket, head) => {
   const pathname = request.url;
   
+  // Add comprehensive error handling to the socket
+  socket.on('error', (err) => {
+    if (!isNavigationError(err)) {
+      console.error('Server upgrade socket error:', err.message);
+    }
+  });
+  
   // Check if this is a request for one of our proxied game services
   for (const [key, proxy] of Object.entries(gameProxies)) {
     if (pathname.startsWith(proxy.path)) {
       const proxyMiddleware = proxyInstances[proxy.path];
       if (proxyMiddleware && proxyMiddleware.upgrade) {
-        // Let the proxy handle the WebSocket upgrade
-        proxyMiddleware.upgrade(request, socket, head);
-        return;
+        try {
+          // Let the proxy handle the WebSocket upgrade
+          proxyMiddleware.upgrade(request, socket, head);
+          return;
+        } catch (err) {
+          if (!isNavigationError(err)) {
+            console.error(`WebSocket upgrade error for ${proxy.path}:`, err.message);
+          }
+          socket.destroy();
+          return;
+        }
       }
     }
   }
@@ -3292,14 +3346,39 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../client/build/index.html'));
 });
 
+// Global error handlers to suppress navigation-related WebSocket errors
+process.on('uncaughtException', (err) => {
+  if (!isNavigationError(err)) {
+    console.error('Uncaught Exception:', err);
+    // Don't exit on navigation errors - they're expected during game-to-lobby navigation
+    if (!isNavigationError(err)) {
+      process.exit(1);
+    }
+  }
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  if (reason && !isNavigationError(reason)) {
+    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  }
+});
+
+// Server-level error handling
+server.on('error', (err) => {
+  if (!isNavigationError(err)) {
+    console.error('Server error:', err);
+  }
+});
+
 // Start server
 const PORT = process.env.PORT || 3033;
 server.listen(PORT, () => {
   console.log(`🚀 GameBuddies Server v2.1.0 running on port ${PORT}`);
   console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
   console.log(`🗄️ Storage: SUPABASE (Persistent)`);
-  console.log(`🎮 Game proxies configured: ${Object.keys(gameProxies).join(', ')}`);
+  console.log(`🎮 Game proxies configured: ${Object.keys(gameProxies).join(',')}`);
   console.log(`✅ Supabase configured - using persistent database storage`);
+  console.log(`🔇 WebSocket navigation errors suppressed for clean logs`);
 });
 
 module.exports = { app, server, io }; 

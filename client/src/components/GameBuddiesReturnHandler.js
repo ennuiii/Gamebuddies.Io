@@ -80,7 +80,10 @@ const GameBuddiesReturnHandler = () => {
     const socket = io(serverUrl, {
       transports: ['websocket', 'polling'],
       timeout: 20000,
-      forceNew: true
+      forceNew: true,
+      // Add additional options to handle navigation errors gracefully
+      reconnection: false, // Disable auto-reconnection for return handler
+      autoConnect: true
     });
 
     // Listen for GM-initiated return to lobby
@@ -102,17 +105,43 @@ const GameBuddiesReturnHandler = () => {
       const redirectUrl = `${data.returnUrl}?rejoin=${data.roomCode}&name=${encodeURIComponent(data.playerName)}&host=${data.isHost}&fromGame=true`;
       console.log('🔄 [RETURN HANDLER DEBUG] Redirecting to GameBuddies:', redirectUrl);
       
-      // Disconnect from current socket before redirecting to prevent conflicts
-      socket.disconnect();
+      // Graceful socket disconnection to prevent server-side write errors
+      console.log('🔄 [RETURN HANDLER DEBUG] Starting graceful socket disconnection');
       
-      // Longer delay to ensure complete disconnection and prevent connection conflicts
+      // First, remove all listeners to prevent further event handling
+      socket.removeAllListeners('connect');
+      socket.removeAllListeners('disconnect');
+      socket.removeAllListeners('error');
+      socket.removeAllListeners('returnToLobbyInitiated');
+      
+      // Send explicit disconnect message if socket is still connected
+      if (socket.connected) {
+        console.log('🔄 [RETURN HANDLER DEBUG] Sending explicit disconnect before redirect');
+        socket.emit('disconnect_before_redirect', { 
+          roomCode: data.roomCode, 
+          reason: 'returning_to_lobby' 
+        });
+      }
+      
+      // Gradual disconnection process
+      setTimeout(() => {
+        try {
+          // Graceful disconnect (not forced)
+          socket.disconnect();
+        } catch (err) {
+          console.log('🔄 [RETURN HANDLER DEBUG] Disconnect error:', err.message);
+        }
+      }, 100);
+      
+      // Wait longer before navigation to allow server cleanup
       setTimeout(() => {
         // Clear any existing GameBuddies connections before redirect
         sessionStorage.removeItem('gamebuddies_connecting');
         
+        console.log('🔄 [RETURN HANDLER DEBUG] Navigation delay complete, redirecting');
         // Redirect to GameBuddies with special rejoin parameters
         window.location.href = redirectUrl;
-      }, 500);
+      }, 300); // Reduced delay but still allows proper cleanup
     });
 
     // Connect to room ONLY to listen for return events, don't try to join
@@ -152,12 +181,48 @@ const GameBuddiesReturnHandler = () => {
       console.log('🔄 [RETURN HANDLER DEBUG] Disconnected from GameBuddies server');
     });
 
-    // Cleanup
+    // Add beforeunload handler for graceful cleanup during navigation
+    const handleBeforeUnload = () => {
+      console.log('🔄 [RETURN HANDLER DEBUG] Page unloading - graceful socket cleanup');
+      if (socket && socket.connected) {
+        try {
+          // Send disconnect signal first
+          socket.emit('disconnect_before_redirect', { 
+            reason: 'page_unload' 
+          });
+          // Graceful disconnect
+          socket.disconnect();
+        } catch (err) {
+          console.log('🔄 [RETURN HANDLER DEBUG] Cleanup error:', err.message);
+        }
+      }
+    };
+    
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('unload', handleBeforeUnload);
+
+    // Cleanup with enhanced socket termination
     return () => {
       console.log('🔄 [RETURN HANDLER DEBUG] Cleaning up return handler');
       sessionStorage.removeItem('gamebuddies_connecting');
+      
+      // Remove event listeners
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('unload', handleBeforeUnload);
+      
       if (socket) {
-        socket.disconnect();
+        try {
+          // Graceful cleanup in component unmount
+          if (socket.connected) {
+            socket.emit('disconnect_before_redirect', { 
+              reason: 'component_unmount' 
+            });
+          }
+          socket.removeAllListeners();
+          socket.disconnect(); // Graceful disconnect (not forced)
+        } catch (err) {
+          console.log('🔄 [RETURN HANDLER DEBUG] Cleanup error:', err.message);
+        }
       }
     };
   }, []);
