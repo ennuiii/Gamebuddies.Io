@@ -34,6 +34,23 @@ const GameBuddiesReturnHandler = () => {
       return; // Not from GameBuddies
     }
 
+    // Check if we're already successfully in the lobby (prevent infinite loop)
+    const currentURL = window.location.href;
+    const hasRejoinParam = currentURL.includes('rejoin=') || currentURL.includes('autorejoin=');
+    const hasFromGameParam = currentURL.includes('fromGame=true');
+    
+    if (!hasRejoinParam && !hasFromGameParam && currentURL.includes('gamebuddies.io') && !currentURL.includes('ddf')) {
+      console.log('🔄 [RETURN HANDLER DEBUG] Already in GameBuddies lobby - clearing session data to prevent loop');
+      // Clear session data since we're already successfully in the lobby
+      sessionStorage.removeItem('gamebuddies_roomCode');
+      sessionStorage.removeItem('gamebuddies_playerName');
+      sessionStorage.removeItem('gamebuddies_isHost');
+      sessionStorage.removeItem('gamebuddies_gameType');
+      sessionStorage.removeItem('gamebuddies_returnUrl');
+      sessionStorage.removeItem('gamebuddies_connecting');
+      return;
+    }
+
     console.log('🔄 [RETURN HANDLER DEBUG] GameBuddies return handler initialized');
     
     // Mark as connecting to prevent duplicate handlers
@@ -94,6 +111,9 @@ const GameBuddiesReturnHandler = () => {
         timestamp: new Date().toISOString()
       });
       
+      // Clear timeout since we received the return signal
+      clearTimeout(timeoutId);
+      
       // Store the updated session data
       console.log('🔄 [RETURN HANDLER DEBUG] Updating session storage with return data');
       sessionStorage.setItem('gamebuddies_roomCode', data.roomCode);
@@ -135,7 +155,13 @@ const GameBuddiesReturnHandler = () => {
       
       // Wait longer before navigation to allow server cleanup
       setTimeout(() => {
-        // Clear any existing GameBuddies connections before redirect
+        // Clear GameBuddies session data to prevent return handler loops after successful redirect
+        console.log('🔄 [RETURN HANDLER DEBUG] Clearing session data before redirect to prevent loops');
+        sessionStorage.removeItem('gamebuddies_roomCode');
+        sessionStorage.removeItem('gamebuddies_playerName');
+        sessionStorage.removeItem('gamebuddies_isHost');
+        sessionStorage.removeItem('gamebuddies_gameType');
+        sessionStorage.removeItem('gamebuddies_returnUrl');
         sessionStorage.removeItem('gamebuddies_connecting');
         
         console.log('🔄 [RETURN HANDLER DEBUG] Navigation delay complete, redirecting');
@@ -181,6 +207,23 @@ const GameBuddiesReturnHandler = () => {
       console.log('🔄 [RETURN HANDLER DEBUG] Disconnected from GameBuddies server');
     });
 
+    // Add timeout to prevent infinite waiting
+    const timeoutId = setTimeout(() => {
+      console.log('🔄 [RETURN HANDLER DEBUG] Timeout reached - clearing session data and disconnecting');
+      // Clear session data to prevent loops
+      sessionStorage.removeItem('gamebuddies_roomCode');
+      sessionStorage.removeItem('gamebuddies_playerName');
+      sessionStorage.removeItem('gamebuddies_isHost');
+      sessionStorage.removeItem('gamebuddies_gameType');
+      sessionStorage.removeItem('gamebuddies_returnUrl');
+      sessionStorage.removeItem('gamebuddies_connecting');
+      
+      // Disconnect socket
+      if (socket && socket.connected) {
+        socket.disconnect();
+      }
+    }, 30000); // 30 second timeout
+
     // Add beforeunload handler for graceful cleanup during navigation
     const handleBeforeUnload = () => {
       console.log('🔄 [RETURN HANDLER DEBUG] Page unloading - graceful socket cleanup');
@@ -204,6 +247,10 @@ const GameBuddiesReturnHandler = () => {
     // Cleanup with enhanced socket termination
     return () => {
       console.log('🔄 [RETURN HANDLER DEBUG] Cleaning up return handler');
+      
+      // Clear timeout on cleanup
+      clearTimeout(timeoutId);
+      
       sessionStorage.removeItem('gamebuddies_connecting');
       
       // Remove event listeners
