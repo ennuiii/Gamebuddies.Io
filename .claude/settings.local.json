@@ -11,9 +11,26 @@
       "Bash(git push:*)",
       "Bash(git pull:*)",
       "Bash(git stash:*)",
-      "Bash(git rebase:*)"
+      "Bash(git rebase:*)",
+      "Read(/C:\\GameBuddiesClaude\\DDF\\DDF/**)",
+      "Read(/C:\\GameBuddiesClaude\\DDF\\DDF\\client\\src\\components/**)",
+      "Read(/C:\\GameBuddiesClaude\\DDF\\DDF\\client\\src\\services/**)",
+      "Read(/C:\\GameBuddiesClaude\\DDF\\DDF\\client\\src\\services/**)",
+      "Read(/C:\\GameBuddiesClaude\\DDF\\DDF\\client\\src\\services/**)",
+      "Read(/C:\\GameBuddiesClaude\\DDF\\DDF\\client\\src\\services/**)",
+      "Read(/C:\\GameBuddiesClaude\\DDF\\DDF\\client\\src\\components/**)",
+      "Read(/C:\\GameBuddiesClaude\\DDF\\DDF\\client\\src/**)",
+      "Read(/C:\\GameBuddiesClaude\\DDF\\DDF\\client\\src/**)",
+      "Read(/C:\\GameBuddiesClaude\\DDF\\DDF\\client\\src/**)",
+      "Read(/C:\\GameBuddiesClaude\\DDF\\DDF\\client\\src\\components/**)",
+      "Read(/C:\\GameBuddiesClaude\\DDF\\DDF\\client\\src\\components/**)",
+      "Read(/C:\\GameBuddiesClaude\\DDF\\DDF\\client\\src\\components/**)",
+      "Read(/C:\\GameBuddiesClaude\\DDF\\DDF\\client\\src\\components/**)"
     ],
     "deny": [],
-    "ask": []
+    "ask": [],
+    "additionalDirectories": [
+      "C:\\GameBuddiesClaude\\DDF\\DDF"
+    ]
   }
 }

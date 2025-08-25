@@ -25,63 +25,13 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
     
     // Check if there's a join parameter in the URL
     const joinCode = searchParams.get('join');
-    const rejoinCode = searchParams.get('rejoin');
-    const playerNameFromURL = searchParams.get('name');
-    const hostFromURL = searchParams.get('host') === 'true';
-    const fromGameFlag = searchParams.get('fromGame') === 'true';
     
-    console.log('🔄 [HOMEPAGE DEBUG] URL parameters detected:', {
-      joinCode,
-      rejoinCode,
-      playerNameFromURL,
-      hostFromURL,
-      fromGameFlag,
-      fullURL: window.location.href,
-      searchParams: Object.fromEntries(searchParams.entries())
-    });
-    
-    // Simplified rejoin logic - handle any rejoin URL parameter
-    if (rejoinCode && playerNameFromURL) {
-      console.log('🔄 [HOMEPAGE DEBUG] Rejoining room from URL params:', {
-        rejoinCode,
-        playerName: playerNameFromURL,
-        isHost: hostFromURL,
-        fromGame: fromGameFlag
-      });
-      
-      // Always clear session storage to prevent loops
-      sessionStorage.removeItem('gamebuddies_roomCode');
-      sessionStorage.removeItem('gamebuddies_playerName');
-      sessionStorage.removeItem('gamebuddies_isHost');
-      sessionStorage.removeItem('gamebuddies_gameType');
-      sessionStorage.removeItem('gamebuddies_returnUrl');
-      sessionStorage.removeItem('gamebuddies_connecting');
-      
-      setCurrentRoom({
-        roomCode: rejoinCode,
-        playerName: playerNameFromURL,
-        isHost: hostFromURL
-      });
-      setPlayerName(playerNameFromURL);
-      setInLobby(true);
-      setIsInLobby(true);
-      setLobbyLeaveFn(() => handleLeaveLobby);
-      // Clear the URL parameters
-      navigate('/', { replace: true });
-    } else if (joinCode || rejoinCode) {
-      // Manual join/rejoin without name - show modal
-      console.log('🔄 [HOMEPAGE DEBUG] Manual join/rejoin:', {
-        joinCode,
-        rejoinCode,
-        source: 'URL parameter'
-      });
-      
-      setJoinRoomCode(joinCode || rejoinCode);
+    if (joinCode) {
+      console.log('📍 [HOMEPAGE DEBUG] Join code detected:', joinCode);
+      setJoinRoomCode(joinCode);
       setShowJoinRoom(true);
       // Clear the URL parameter after using it
       navigate('/', { replace: true });
-    } else {
-      console.log('🔄 [HOMEPAGE DEBUG] No rejoin scenario detected - normal homepage load');
     }
   }, [searchParams, navigate]);
 

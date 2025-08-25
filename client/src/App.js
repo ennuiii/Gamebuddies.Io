@@ -18,14 +18,7 @@ function AppContent() {
   console.log('🏠 [APP DEBUG] App component rendering:', {
     timestamp: new Date().toISOString(),
     location: window.location.href,
-    isInLobby,
-    sessionStorage: {
-      roomCode: sessionStorage.getItem('gamebuddies_roomCode'),
-      playerName: sessionStorage.getItem('gamebuddies_playerName'),
-      isHost: sessionStorage.getItem('gamebuddies_isHost'),
-      gameType: sessionStorage.getItem('gamebuddies_gameType'),
-      returnUrl: sessionStorage.getItem('gamebuddies_returnUrl')
-    }
+    isInLobby
   });
 
   const handleNavigateHome = useCallback(() => {

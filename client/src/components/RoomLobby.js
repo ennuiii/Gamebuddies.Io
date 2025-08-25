@@ -459,45 +459,8 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
         timestamp: new Date().toISOString()
       });
       
-      // Store GameBuddies integration data
-      console.log('💾 [LOBBY DEBUG] Setting up GameBuddies session storage...');
-      
-      const sessionData = {
-        roomCode: roomCodeRef.current,
-        playerName: playerNameRef.current,
-        playerId: currentUserIdRef.current,
-        isHost: data.isHost.toString(),
-        gameType: data.gameType,
-        returnUrl: window.location.origin
-      };
-      
-      console.log('💾 [LOBBY DEBUG] Session data to store:', sessionData);
-      
-      sessionStorage.setItem('gamebuddies_roomCode', sessionData.roomCode);
-      sessionStorage.setItem('gamebuddies_playerName', sessionData.playerName);
-      sessionStorage.setItem('gamebuddies_playerId', sessionData.playerId);
-      sessionStorage.setItem('gamebuddies_isHost', sessionData.isHost);
-      sessionStorage.setItem('gamebuddies_gameType', sessionData.gameType);
-      sessionStorage.setItem('gamebuddies_returnUrl', sessionData.returnUrl);
-      
-      // Verify session storage was set correctly
-      const verification = {
-        roomCode: sessionStorage.getItem('gamebuddies_roomCode'),
-        playerName: sessionStorage.getItem('gamebuddies_playerName'),
-        playerId: sessionStorage.getItem('gamebuddies_playerId'),
-        isHost: sessionStorage.getItem('gamebuddies_isHost'),
-        gameType: sessionStorage.getItem('gamebuddies_gameType'),
-        returnUrl: sessionStorage.getItem('gamebuddies_returnUrl')
-      };
-      
-      console.log('🔍 [LOBBY DEBUG] Session storage verification:', verification);
-      
-      const allSet = Object.values(verification).every(value => value !== null);
-      console.log('✅ [LOBBY DEBUG] All session data set correctly:', allSet);
-      
-      if (!allSet) {
-        console.error('❌ [LOBBY DEBUG] Some session data failed to set!');
-      }
+      // Game integration data is passed via URL parameters only
+      console.log('🎮 [LOBBY DEBUG] Starting game with URL parameters');
       
       console.log('🎮 [LOBBY DEBUG] Redirecting to game:', data.gameUrl);
       

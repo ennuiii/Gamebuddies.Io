@@ -1,125 +1,93 @@
 # GameBuddies Integration Guide for Games
 
-## How to Implement Return to GameBuddies Lobby
+## One-Way Integration: From GameBuddies to Games
 
-### Simple URL-Based Return
-
-When players in your game want to return to the GameBuddies lobby, simply redirect them using URL parameters:
-
-```javascript
-// Example: Return to GameBuddies button handler
-function returnToGameBuddiesLobby() {
-  // Get the stored session data
-  const roomCode = sessionStorage.getItem('gamebuddies_roomCode');
-  const playerName = sessionStorage.getItem('gamebuddies_playerName');
-  const returnUrl = sessionStorage.getItem('gamebuddies_returnUrl') || 'https://gamebuddies.io';
-  
-  if (roomCode && playerName) {
-    // Redirect back to GameBuddies with rejoin parameters
-    window.location.href = `${returnUrl}?rejoin=${roomCode}&name=${encodeURIComponent(playerName)}&fromGame=true`;
-  } else {
-    // No session data - just go to GameBuddies homepage
-    window.location.href = returnUrl;
-  }
-}
-```
+GameBuddies provides a simple one-way integration where players start in GameBuddies rooms and launch games together. Once a game starts, it operates independently.
 
 ### What GameBuddies Provides
 
-When GameBuddies launches your game, it stores the following in sessionStorage:
+When GameBuddies launches your game, it passes player data via URL parameters:
 
-- `gamebuddies_roomCode` - The room code to rejoin
-- `gamebuddies_playerName` - The player's name
-- `gamebuddies_playerId` - The player's unique ID
-- `gamebuddies_isHost` - Whether the player is the host ("true" or "false")
-- `gamebuddies_gameType` - The game type (e.g., "ddf", "schooled", etc.)
-- `gamebuddies_returnUrl` - The URL to return to (usually https://gamebuddies.io)
+**Required Parameters:**
+- `room` - The room code
+- `name` - The player's name  
+- `playerId` - The player's unique ID
+- `players` - Total number of players
 
-### Complete Example Implementation
+**Optional Parameters:**
+- `role` - Player role (e.g., "gm", "player")
 
-```javascript
-// In your game's React component or vanilla JS
-
-// Add a return button to your UI
-const ReturnToLobbyButton = () => {
-  const handleReturn = () => {
-    const roomCode = sessionStorage.getItem('gamebuddies_roomCode');
-    const playerName = sessionStorage.getItem('gamebuddies_playerName');
-    const returnUrl = sessionStorage.getItem('gamebuddies_returnUrl') || 'https://gamebuddies.io';
-    
-    if (roomCode && playerName) {
-      // Clear any game-specific data if needed
-      // sessionStorage.removeItem('your_game_data');
-      
-      // Return to GameBuddies
-      window.location.href = `${returnUrl}?rejoin=${roomCode}&name=${encodeURIComponent(playerName)}&fromGame=true`;
-    }
-  };
-  
-  return (
-    <button onClick={handleReturn}>
-      Return to GameBuddies Lobby
-    </button>
-  );
-};
+### Example Game Launch URL:
+```
+https://yourgame.com/?room=ABC123&name=PlayerName&playerId=uuid&players=4&role=gm
 ```
 
-### For Game Masters (GMs) - Return All Players
-
-If you want the GM to be able to return all players to the lobby:
+### How to Handle GameBuddies Integration
 
 ```javascript
-// GM-only function to return everyone
-function returnAllToLobby() {
-  const isHost = sessionStorage.getItem('gamebuddies_isHost') === 'true';
-  
-  if (!isHost) {
-    alert('Only the host can return everyone to the lobby');
-    return;
-  }
-  
-  // 1. Send a message to all other players via your game's communication system
-  // Example using Socket.IO:
-  socket.emit('returnToLobby', { 
-    roomCode: sessionStorage.getItem('gamebuddies_roomCode') 
+// Parse URL parameters when your game loads
+const urlParams = new URLSearchParams(window.location.search);
+const roomCode = urlParams.get('room');
+const playerName = urlParams.get('name');
+const playerId = urlParams.get('playerId');
+const playerCount = parseInt(urlParams.get('players'));
+const role = urlParams.get('role') || 'player';
+
+// Check if this is a GameBuddies session
+const isFromGameBuddies = roomCode && playerName;
+
+if (isFromGameBuddies) {
+  console.log('Game launched from GameBuddies:', {
+    roomCode,
+    playerName,
+    playerId,
+    playerCount,
+    role
   });
   
-  // 2. Then redirect the GM
-  const roomCode = sessionStorage.getItem('gamebuddies_roomCode');
-  const playerName = sessionStorage.getItem('gamebuddies_playerName');
-  const returnUrl = sessionStorage.getItem('gamebuddies_returnUrl');
-  
-  window.location.href = `${returnUrl}?rejoin=${roomCode}&name=${encodeURIComponent(playerName)}&fromGame=true`;
+  // Set up your game with this data
+  setupGameWithBuddiesData({
+    roomCode,
+    playerName,
+    playerId,
+    playerCount,
+    role
+  });
+} else {
+  // Handle non-GameBuddies users (direct game access)
+  setupGameForDirectAccess();
 }
-
-// Other players receive the message and redirect
-socket.on('returnToLobby', () => {
-  const roomCode = sessionStorage.getItem('gamebuddies_roomCode');
-  const playerName = sessionStorage.getItem('gamebuddies_playerName');
-  const returnUrl = sessionStorage.getItem('gamebuddies_returnUrl');
-  
-  window.location.href = `${returnUrl}?rejoin=${roomCode}&name=${encodeURIComponent(playerName)}&fromGame=true`;
-});
 ```
 
-### Important Notes
+### Game Independence
 
-1. **Always use URL parameters** - Don't rely on WebSocket events or complex handlers
-2. **Include `fromGame=true`** - This helps GameBuddies know players are returning from a game
-3. **Encode player names** - Use `encodeURIComponent()` for names with special characters
-4. **Clear game data** - Remove any game-specific sessionStorage before returning
-5. **Handle missing data gracefully** - If session data is missing, just redirect to the homepage
+After launch, your game operates completely independently:
+- No return-to-lobby functionality needed
+- No session storage dependencies
+- No communication with GameBuddies platform
+- Players stay in your game until they close it
+
+### Benefits of This Approach
+
+1. **Simplicity** - No complex return logic needed
+2. **Independence** - Games don't depend on GameBuddies after launch
+3. **Reliability** - No connection issues between platforms
+4. **Flexibility** - Games can implement their own end-game flows
+
+### Integration Checklist
+
+- [ ] Parse URL parameters on game load
+- [ ] Handle GameBuddies vs direct access scenarios
+- [ ] Use player data to set up game state
+- [ ] Test game launch from GameBuddies
+- [ ] Verify game works independently after launch
 
 ### Testing Your Integration
 
-1. Join a GameBuddies room
-2. Start your game from the lobby
-3. Check that sessionStorage contains the GameBuddies data
-4. Click your return button
-5. Verify you're back in the same GameBuddies room
+1. Create a GameBuddies room
+2. Add players to the room
+3. Select and start your game
+4. Verify your game receives correct parameters
+5. Test game functionality with GameBuddies data
 
-### Troubleshooting
-
-- **Players not rejoining room**: Make sure you're including both `rejoin` and `name` parameters
-- **Session data missing**: GameBuddies sets this when launching your game - check you're not clearing sessionStorage
-- **Wrong return URL**: Default to `https://gamebuddies.io` if `gamebuddies_returnUrl` is not set
+That's it! No return logic, no session storage, no complex integration - just clean parameter passing.
