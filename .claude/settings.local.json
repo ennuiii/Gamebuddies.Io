@@ -25,7 +25,8 @@
       "Read(/C:\\GameBuddiesClaude\\DDF\\DDF\\client\\src\\components/**)",
       "Read(/C:\\GameBuddiesClaude\\DDF\\DDF\\client\\src\\components/**)",
       "Read(/C:\\GameBuddiesClaude\\DDF\\DDF\\client\\src\\components/**)",
-      "Read(/C:\\GameBuddiesClaude\\DDF\\DDF\\client\\src\\components/**)"
+      "Read(/C:\\GameBuddiesClaude\\DDF\\DDF\\client\\src\\components/**)",
+      "Read(//c/ddf2/DDF/**)"
     ],
     "deny": [],
     "ask": [],

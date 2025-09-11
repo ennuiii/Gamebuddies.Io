@@ -163,6 +163,48 @@ module.exports = (io, db, connectionManager, lobbyManager, statusSyncManager) =>
     }
   });
 
+  // Legacy room validation endpoint for backward compatibility
+  router.get('/api/rooms/:roomCode/validate', validateApiKey, rateLimits.apiCalls, async (req, res) => {
+    try {
+      const { roomCode } = req.params;
+      const { playerName, playerId } = req.query;
+
+      console.log(`🔍 [DDF Legacy] Legacy room validation for ${roomCode}`);
+
+      // Use existing validation logic
+      const validationResult = await validateRoom(roomCode, playerId, playerName, req, db);
+      
+      if (!validationResult.valid) {
+        return res.status(validationResult.status || 400).json({
+          isValid: false,
+          error: validationResult.error,
+          code: validationResult.code
+        });
+      }
+
+      // Legacy response format (what DDF expects)
+      res.json({
+        isValid: true,
+        roomInfo: {
+          roomCode: validationResult.room.code,
+          status: validationResult.room.status,
+          currentPlayers: validationResult.room.currentPlayers,
+          maxPlayers: validationResult.room.maxPlayers
+        },
+        playerAssignments: [], // Legacy field (not used)
+        maxPlayers: validationResult.room.maxPlayers,
+        settings: {} // Legacy field (not used)
+      });
+
+    } catch (error) {
+      console.error('❌ [DDF Legacy] Legacy validation error:', error);
+      res.status(500).json({
+        isValid: false,
+        error: 'Room validation failed'
+      });
+    }
+  });
+
   // Enhanced room validation endpoint with session token generation
   router.get('/api/v2/rooms/:roomCode/validate-with-session', validateApiKey, rateLimits.apiCalls, async (req, res) => {
     try {

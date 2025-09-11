@@ -4,6 +4,7 @@ const cors = require('cors');
 const compression = require('compression');
 const helmet = require('helmet');
 const { createProxyMiddleware } = require('http-proxy-middleware');
+const ConditionalProxyManager = require('./middlewares/conditionalProxy');
 const http = require('http');
 const socketIo = require('socket.io');
 const { db } = require('./lib/supabase');
@@ -51,8 +52,11 @@ const io = socketIo(server, {
 const gameProxies = {
   ddf: {
     path: '/ddf',
-    target: process.env.DDF_URL || 'https://ddf-game.onrender.com',
-    pathRewrite: { '^/ddf': '' }
+    target: process.env.DDF_URL || 'https://ddf-game.onrender.com', 
+    pathRewrite: { '^/ddf': '' },
+    // Add health check and error handling
+    healthCheck: true,
+    fallbackEnabled: true
   },
   schooled: {
     path: '/schooled', 
@@ -88,29 +92,22 @@ const isNavigationError = (err) => {
          suppressedMessages.some(msg => err.message?.includes(msg));
 };
 
-// Setup game proxies with WebSocket support and proper connection tracking
+// Initialize conditional proxy manager
+const proxyManager = new ConditionalProxyManager();
+
+// Setup game proxies with conditional health checking
 Object.entries(gameProxies).forEach(([key, proxy]) => {
-  const proxyMiddleware = createProxyMiddleware({
-    target: proxy.target,
-    changeOrigin: true,
-    pathRewrite: proxy.pathRewrite,
-    timeout: 30000,
-    proxyTimeout: 30000,
-    ws: true, // Enable WebSocket proxying
-    logLevel: 'error', // Show actual errors, not noise
-    onError: (err, req, res) => {
-      // Log real errors but handle expected navigation errors gracefully  
-      if (!isNavigationError(err)) {
-        console.error(`Proxy error for ${proxy.path}:`, err.message);
-      }
-      // Only send response if not already sent and not a WebSocket upgrade
-      if (!res.headersSent && !req.headers.upgrade) {
-        res.status(502).json({ 
-          error: 'Game service temporarily unavailable',
-          message: 'Please try again in a few moments'
-        });
-      }
-    },
+  console.log(`🔗 [PROXY] Setting up ${key.toUpperCase()} proxy: ${proxy.path} -> ${proxy.target}`);
+  
+  // Create conditional proxy middleware
+  const proxyMiddleware = proxyManager.createConditionalProxy(key, proxy);
+  
+  // Create fallback handler for unhealthy services
+  const fallbackHandler = proxyManager.createFallbackHandler(key, proxy);
+  
+  // Mount the proxy with fallback handling
+  app.use(proxy.path, fallbackHandler);
+});
     onProxyReqWs: (proxyReq, req, socket, options, head) => {
       // Track socket state to prevent writes to closed connections
       let socketClosed = false;
