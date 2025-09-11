@@ -49,14 +49,14 @@ const io = socketIo(server, {
 
 // Game proxy configuration
 const gameProxies = {
-  ddf: {
-    path: '/ddf',
-    target: process.env.DDF_URL || 'https://ddf-game.onrender.com', 
-    pathRewrite: { '^/ddf': '' },
-    // Add health check and error handling
-    healthCheck: true,
-    fallbackEnabled: true
-  },
+  // ddf: {
+  //   path: '/ddf',
+  //   target: process.env.DDF_URL || 'https://ddf-game.onrender.com', 
+  //   pathRewrite: { '^/ddf': '' },
+  //   // Add health check and error handling
+  //   healthCheck: true,
+  //   fallbackEnabled: true
+  // },
   schooled: {
     path: '/schooled', 
     target: process.env.SCHOOLED_URL || 'https://schoolquizgame.onrender.com',
@@ -225,15 +225,15 @@ app.get('/api/stats', (req, res) => {
 // Games endpoint - returns available games
 app.get('/api/games', (req, res) => {
   const games = [
-    {
-      id: 'ddf',
-      name: 'Der dümmste fliegt',
-      description: 'A fun quiz game where the worst player gets eliminated each round!',
-      path: '/ddf',
-      screenshot: '/screenshots/DDF.png',
-      available: true,
-      maxPlayers: 8
-    },
+    // {
+    //   id: 'ddf',
+    //   name: 'Der dümmste fliegt',
+    //   description: 'A fun quiz game where the worst player gets eliminated each round!',
+    //   path: '/ddf',
+    //   screenshot: '/screenshots/DDF.png',
+    //   available: true,
+    //   maxPlayers: 8
+    // },
     {
       id: 'schooled',
       name: 'School Quiz Game',
