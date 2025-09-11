@@ -51,7 +51,7 @@ const io = socketIo(server, {
 const gameProxies = {
   ddf: {
     path: '/ddf',
-    target: process.env.DDF_URL || 'https://ddf-game.onrender.com', 
+    target: process.env.DDF_URL || 'https://ddf-server.onrender.com', 
     pathRewrite: { '^/ddf': '' },
     // Add health check and error handling
     healthCheck: true,
@@ -103,7 +103,7 @@ Object.entries(gameProxies).forEach(([key, proxy]) => {
     pathRewrite: proxy.pathRewrite,
     timeout: 15000,
     proxyTimeout: 15000,
-    ws: true, // Enable WebSocket proxying
+    ws: proxy.ws !== false, // Use individual proxy ws setting, default to true
     logLevel: 'error',
     
     // Enhanced error handling to prevent connection loops
@@ -143,6 +143,13 @@ server.on('upgrade', (request, socket, head) => {
   // Check if this is a request for one of our proxied game services
   for (const [key, proxy] of Object.entries(gameProxies)) {
     if (pathname.startsWith(proxy.path)) {
+      // Skip WebSocket upgrades for proxies that have ws disabled
+      if (proxy.ws === false) {
+        console.log(`🚫 [PROXY] Skipping WebSocket upgrade for ${proxy.path} (ws disabled)`);
+        socket.destroy();
+        return;
+      }
+      
       const proxyMiddleware = proxyInstances[proxy.path];
       if (proxyMiddleware && proxyMiddleware.upgrade) {
         try {
