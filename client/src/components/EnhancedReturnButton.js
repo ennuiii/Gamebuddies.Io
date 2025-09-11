@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { useSocket } from '../contexts/EnhancedSocketContext';
+import { useSocket } from '../contexts/LazySocketContext';
 import { useLobbyState } from '../hooks/useLobbyState';
 import './EnhancedReturnButton.css';
 

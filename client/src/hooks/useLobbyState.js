@@ -1,8 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useSocket } from '../contexts/EnhancedSocketContext';
+import { useSocket } from '../contexts/LazySocketContext';
 
 export const useLobbyState = (roomCode) => {
-  const { socket, roomState, playerStatus, syncStatus, isConnected } = useSocket();
+  const { socket, isConnected } = useSocket();
+  // Provide fallback values for enhanced features not yet implemented in LazySocketContext
+  const roomState = null;
+  const playerStatus = null;
+  const syncStatus = 'disconnected';
   const [localState, setLocalState] = useState({
     players: [],
     roomStatus: 'lobby',

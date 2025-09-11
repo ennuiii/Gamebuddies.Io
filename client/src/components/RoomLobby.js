@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useSocket } from '../contexts/SocketContext';
+import { useSocket } from '../contexts/LazySocketContext';
 import { useNotification } from '../contexts/NotificationContext'; // Import useNotification hook
 import GamePicker from './GamePicker';
 import { useRealtimeSubscription } from '../utils/useRealtimeSubscription';
@@ -7,7 +7,7 @@ import { getSupabaseClient } from '../utils/supabase';
 import './RoomLobby.css';
 
 const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
-  const { socket, socketId, isConnected: socketIsConnected } = useSocket();
+  const { socket, socketId, isConnected: socketIsConnected, connectSocket } = useSocket();
   const { addNotification } = useNotification(); // Get addNotification function
   const [players, setPlayers] = useState([]);
   const [selectedGame, setSelectedGame] = useState(null);
@@ -183,11 +183,17 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
   };
 
   useEffect(() => {
-    // This effect now depends on the socket instance from context
+    // Ensure socket connection when RoomLobby mounts
     if (!socket) {
-      console.log('🟡 [RoomLobby] Socket not yet available from context.');
-      // If not connected yet, and not loading, set loading to true
-      if (!socketIsConnected && !isLoading) setIsLoading(true);
+      console.log('🟡 [RoomLobby] Socket not available, connecting...');
+      const activeSocket = connectSocket();
+      if (!activeSocket) {
+        setError('Failed to establish connection to server');
+        setIsLoading(false);
+        return;
+      }
+      // Wait for the socket to be available through context
+      setIsLoading(true);
       return;
     }
     
