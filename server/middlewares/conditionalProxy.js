@@ -10,7 +10,8 @@ class ConditionalProxyManager {
   // Check if a proxy target is reachable
   async checkProxyHealth(target, serviceName) {
     try {
-      const fetch = require('node-fetch');
+      // Use dynamic import for fetch in newer Node.js versions
+      const fetch = (await import('node-fetch')).default;
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 5000);
 

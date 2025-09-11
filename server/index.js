@@ -4,7 +4,6 @@ const cors = require('cors');
 const compression = require('compression');
 const helmet = require('helmet');
 const { createProxyMiddleware } = require('http-proxy-middleware');
-const ConditionalProxyManager = require('./middlewares/conditionalProxy');
 const http = require('http');
 const socketIo = require('socket.io');
 const { db } = require('./lib/supabase');
@@ -92,83 +91,41 @@ const isNavigationError = (err) => {
          suppressedMessages.some(msg => err.message?.includes(msg));
 };
 
-// Initialize conditional proxy manager
-const proxyManager = new ConditionalProxyManager();
+// Store proxy instances for WebSocket upgrade handling
+const proxyInstances = {};
 
-// Setup game proxies with conditional health checking
+// Setup game proxies with enhanced error handling
 Object.entries(gameProxies).forEach(([key, proxy]) => {
   console.log(`🔗 [PROXY] Setting up ${key.toUpperCase()} proxy: ${proxy.path} -> ${proxy.target}`);
   
-  // Create conditional proxy middleware
-  const proxyMiddleware = proxyManager.createConditionalProxy(key, proxy);
-  
-  // Create fallback handler for unhealthy services
-  const fallbackHandler = proxyManager.createFallbackHandler(key, proxy);
-  
-  // Mount the proxy with fallback handling
-  app.use(proxy.path, fallbackHandler);
-});
-    onProxyReqWs: (proxyReq, req, socket, options, head) => {
-      // Track socket state to prevent writes to closed connections
-      let socketClosed = false;
+  const proxyMiddleware = createProxyMiddleware({
+    target: proxy.target,
+    changeOrigin: true,
+    pathRewrite: proxy.pathRewrite,
+    timeout: 15000,
+    proxyTimeout: 15000,
+    ws: true, // Enable WebSocket proxying
+    logLevel: 'error',
+    
+    // Enhanced error handling to prevent connection loops
+    onError: (err, req, res) => {
+      // Only log real errors, not connection resets from unreachable services
+      if (!isNavigationError(err) && err.code !== 'ECONNRESET') {
+        console.error(`❌ [PROXY] ${key.toUpperCase()} error: ${err.message}`);
+      }
       
-      // Handle socket state changes
-      socket.on('error', (err) => {
-        socketClosed = true;
-        if (!isNavigationError(err)) {
-          console.error('WebSocket socket error:', err.message);
-        }
-      });
-      
-      socket.on('close', () => {
-        socketClosed = true;
-        console.log(`🔌 [PROXY DEBUG] Socket closed for ${proxy.path}`);
-      });
-      
-      socket.on('end', () => {
-        socketClosed = true;
-        console.log(`🔌 [PROXY DEBUG] Socket ended for ${proxy.path}`);
-        if (!socket.destroyed) {
-          socket.destroy();
-        }
-      });
-      
-      // Override socket write methods to check state first
-      const originalWrite = socket.write;
-      socket.write = function(data, encoding, callback) {
-        if (socketClosed || socket.destroyed || !socket.writable) {
-          console.log(`🔌 [PROXY DEBUG] Prevented write to closed socket for ${proxy.path}`);
-          // Call callback to prevent hanging
-          if (typeof callback === 'function') {
-            callback();
-          } else if (typeof encoding === 'function') {
-            encoding();
-          }
-          return false;
-        }
-        return originalWrite.call(this, data, encoding, callback);
-      };
-      
-      // Handle proxy request errors  
-      proxyReq.on('error', (err) => {
-        socketClosed = true;
-        if (!isNavigationError(err)) {
-          console.error('WebSocket proxy request error:', err.message);
-        }
-      });
-      
-      proxyReq.on('close', () => {
-        socketClosed = true;
-        console.log(`🔌 [PROXY DEBUG] Proxy request closed for ${proxy.path}`);
-      });
-      
-      proxyReq.on('abort', () => {
-        socketClosed = true;
-        console.log(`🔌 [PROXY DEBUG] Proxy request aborted for ${proxy.path}`);
-      });
+      // Only send response if not already sent and not a WebSocket upgrade
+      if (!res.headersSent && !req.headers.upgrade) {
+        res.status(503).json({
+          error: `${key.toUpperCase()} game service is temporarily unavailable`,
+          message: 'The game server may be starting up or temporarily down. Please try again in a few moments.',
+          service: key,
+          target: proxy.target
+        });
+      }
     }
   });
-  
+
   proxyInstances[proxy.path] = proxyMiddleware;
   app.use(proxy.path, proxyMiddleware);
 });
