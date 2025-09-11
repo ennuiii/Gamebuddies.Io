@@ -1,7 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 import { ThemeProvider } from './contexts/ThemeContext';
-import { SocketProvider } from './contexts/SocketContext';
+import { LazySocketProvider } from './contexts/LazySocketContext';
 import { NotificationProvider } from './contexts/NotificationContext'; // Import NotificationProvider
 import Notification from './components/Notification'; // Import Notification component
 import Header from './components/Header';
@@ -90,13 +90,13 @@ function AppContent() {
 function App() {
   return (
     <ThemeProvider>
-      <SocketProvider>
+      <LazySocketProvider>
         <NotificationProvider> {/* Wrap with NotificationProvider */}
           <Router>
             <AppContent />
           </Router>
         </NotificationProvider>
-      </SocketProvider>
+      </LazySocketProvider>
     </ThemeProvider>
   );
 }

@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import io from 'socket.io-client';
+import { useSocket } from '../contexts/LazySocketContext';
 import './CreateRoom.css';
 
 const CreateRoom = ({ onRoomCreated, onCancel }) => {
   const [playerName, setPlayerName] = useState('');
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState('');
+  const { socket, isConnected, isConnecting, connectSocket } = useSocket();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -31,60 +32,59 @@ const CreateRoom = ({ onRoomCreated, onCancel }) => {
     try {
       console.log('🏠 Creating room for:', playerName.trim());
       
-      // Determine server URL based on environment
-      const getServerUrl = () => {
-        console.log('🔍 [DEBUG] Determining server URL...');
-        console.log('🔍 [DEBUG] window.location.hostname:', window.location.hostname);
-        console.log('🔍 [DEBUG] window.location.origin:', window.location.origin);
-        console.log('🔍 [DEBUG] REACT_APP_SERVER_URL:', process.env.REACT_APP_SERVER_URL);
-        
-        if (process.env.REACT_APP_SERVER_URL) {
-          console.log('🔍 [DEBUG] Using REACT_APP_SERVER_URL:', process.env.REACT_APP_SERVER_URL);
-          return process.env.REACT_APP_SERVER_URL;
-        }
-        
-        // If running on Render.com (check for .onrender.com domain)
-        if (window.location.hostname.includes('onrender.com')) {
-          console.log('🔍 [DEBUG] Detected Render.com, using origin:', window.location.origin);
-          return window.location.origin;
-        }
-        
-        // If running on any production domain (not localhost)
-        if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-          console.log('🔍 [DEBUG] Detected production domain, using origin:', window.location.origin);
-          return window.location.origin;
-        }
-        
-        // For local development, connect to Render.com server
-        console.log('🔍 [DEBUG] Local development, using Render.com server');
-        return 'https://gamebuddies-io.onrender.com';
+      // Connect to socket lazily - only when creating room
+      const activeSocket = socket || connectSocket();
+      
+      if (!activeSocket) {
+        throw new Error('Failed to establish socket connection');
+      }
+
+      // Wait for connection if not already connected
+      if (!isConnected) {
+        console.log('⏳ Waiting for socket connection...');
+        await new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            reject(new Error('Connection timeout'));
+          }, 10000);
+
+          const onConnect = () => {
+            clearTimeout(timeout);
+            activeSocket.off('connect', onConnect);
+            activeSocket.off('connect_error', onError);
+            resolve();
+          };
+
+          const onError = (error) => {
+            clearTimeout(timeout);
+            activeSocket.off('connect', onConnect);
+            activeSocket.off('connect_error', onError);
+            reject(error);
+          };
+
+          if (activeSocket.connected) {
+            clearTimeout(timeout);
+            resolve();
+          } else {
+            activeSocket.on('connect', onConnect);
+            activeSocket.on('connect_error', onError);
+          }
+        });
+      }
+
+      // Now we're connected, emit the createRoom event
+      console.log('✅ [CLIENT] Connected to server, creating room...');
+      console.log('🔍 [CLIENT DEBUG] Socket ID:', activeSocket.id);
+      console.log('🔍 [CLIENT DEBUG] Player name:', playerName.trim());
+      
+      // Set up one-time event handlers for room creation
+      const cleanup = () => {
+        activeSocket.off('roomCreated', handleRoomCreated);
+        activeSocket.off('error', handleError);
       };
 
-      const socket = io(getServerUrl(), {
-        transports: ['websocket', 'polling'],
-        timeout: 10000
-      });
-
-      // Set up event handlers
-      socket.on('connect', () => {
-        console.log('✅ [CLIENT] Connected to server, creating room...');
-        console.log('🔍 [CLIENT DEBUG] Socket ID:', socket.id);
-        console.log('🔍 [CLIENT DEBUG] Player name:', playerName.trim());
-        console.log('🔍 [CLIENT DEBUG] Server URL:', getServerUrl());
-        
-        socket.emit('createRoom', { 
-          playerName: playerName.trim()
-        });
-        console.log('📤 [CLIENT] createRoom event sent');
-      });
-
-      socket.on('roomCreated', (data) => {
+      const handleRoomCreated = (data) => {
         console.log('✅ [CLIENT] Room created successfully:', data);
-        console.log('🔍 [CLIENT DEBUG] Room data:', {
-          roomCode: data.roomCode,
-          isHost: data.isHost,
-          room_id: data.room?.id
-        });
+        cleanup();
         
         if (onRoomCreated) {
           onRoomCreated({
@@ -95,40 +95,33 @@ const CreateRoom = ({ onRoomCreated, onCancel }) => {
           });
         }
         
-        // Delay socket disconnect to allow RoomLobby to establish its own connection
-        console.log('🏠 [CREATE DEBUG] Delaying socket cleanup to allow lobby connection');
-        setTimeout(() => {
-          console.log('🏠 [CREATE DEBUG] Cleaning up creation socket after transition');
-          socket.disconnect();
-        }, 1000); // 1 second delay
-      });
+        setIsCreating(false);
+      };
 
-      socket.on('error', (error) => {
+      const handleError = (error) => {
         console.error('❌ [CLIENT] Room creation error:', error);
-        console.error('🔍 [CLIENT DEBUG] Error details:', {
-          message: error.message,
-          code: error.code,
-          debug: error.debug
-        });
+        cleanup();
         
         setError(error.message || 'Failed to create room. Please try again.');
         setIsCreating(false);
-        socket.disconnect();
-      });
+      };
 
-      socket.on('connect_error', (error) => {
-        console.error('❌ Connection error:', error);
-        setError('Failed to connect to server. Please check your internet connection.');
-        setIsCreating(false);
-        socket.disconnect();
+      // Set up event handlers
+      activeSocket.on('roomCreated', handleRoomCreated);
+      activeSocket.on('error', handleError);
+
+      // Emit room creation request
+      activeSocket.emit('createRoom', { 
+        playerName: playerName.trim()
       });
+      console.log('📤 [CLIENT] createRoom event sent');
 
       // Timeout fallback
       setTimeout(() => {
         if (isCreating) {
+          cleanup();
           setError('Room creation timed out. Please try again.');
           setIsCreating(false);
-          socket.disconnect();
         }
       }, 15000);
 
