@@ -91,9 +91,6 @@ const isNavigationError = (err) => {
          suppressedMessages.some(msg => err.message?.includes(msg));
 };
 
-// Store proxy instances for WebSocket upgrade handling
-const proxyInstances = {};
-
 // Setup game proxies with enhanced error handling
 Object.entries(gameProxies).forEach(([key, proxy]) => {
   console.log(`🔗 [PROXY] Setting up ${key.toUpperCase()} proxy: ${proxy.path} -> ${proxy.target}`);
