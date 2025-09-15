@@ -1,4 +1,4 @@
-npm# GameBuddies.io - Gaming Portal Homepage
+# GameBuddies.io - Gaming Portal Homepage
 
 A stylish gaming portal homepage with reverse proxy support for hosting multiple React games under a single domain.
 

@@ -25,4 +25,13 @@ services:
       - key: JWT_SECRET
         value: your-generated-secret-here
       - key: CORS_ORIGINS
-        value: https://gamebuddies-homepage.onrender.com 
+        value: https://gamebuddies-homepage.onrender.com
+      - key: PROXY_LOG_LEVEL
+        value: error
+      # Optional: disable WS proxying per game if they are HTTP-only
+      # - key: SCHOOLED_WS
+      #   value: "true"
+      # - key: SUSD_WS
+      #   value: "true"
+      # - key: DDF_WS
+      #   value: "false"

@@ -19,20 +19,30 @@ export const LazySocketProvider = ({ children }) => {
 
   // Determine server URL based on environment
   const getServerUrl = useCallback(() => {
-    if (process.env.REACT_APP_SERVER_URL) {
-      return process.env.REACT_APP_SERVER_URL;
-    }
-    if (window.location.hostname === 'gamebuddies.io' || window.location.hostname.includes('gamebuddies-client')) {
+    // Prefer explicit env vars (support both names used in docs/code)
+    const envUrl = process.env.REACT_APP_SERVER_URL || process.env.REACT_APP_GAMEBUDDIES_API_URL;
+    if (envUrl) return envUrl;
+
+    // In hosted environments or non-localhost, use current origin
+    if (
+      typeof window !== 'undefined' &&
+      (
+        window.location.hostname === 'gamebuddies.io' ||
+        window.location.hostname.includes('gamebuddies-client') ||
+        window.location.hostname.includes('onrender.com') ||
+        (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1')
+      )
+    ) {
       return window.location.origin;
     }
-    if (window.location.hostname.includes('onrender.com')) {
+
+    // Local development: default to current origin so CRA proxy can handle sockets
+    if (typeof window !== 'undefined') {
       return window.location.origin;
     }
-    if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-      return window.location.origin;
-    }
-    // Default for local development if no other conditions met
-    return 'https://gamebuddies.io';
+
+    // Ultimate fallback
+    return 'http://localhost:3033';
   }, []);
 
   const attemptReconnection = useCallback(() => {
@@ -64,8 +74,13 @@ export const LazySocketProvider = ({ children }) => {
     console.log('🔌 [LazySocketProvider] Connecting to server:', serverUrl);
     setIsConnecting(true);
 
+    const transportsPref = (process.env.REACT_APP_SOCKET_TRANSPORTS || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean);
+
     const newSocket = io(serverUrl, {
-      transports: ['websocket', 'polling'],
+      transports: transportsPref.length ? transportsPref : ['polling', 'websocket'],
       timeout: 20000, // 20 seconds
       reconnection: false, // Disable automatic reconnection
       forceNew: false, // Don't force new connections

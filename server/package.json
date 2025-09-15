@@ -7,7 +7,7 @@
     "start": "node index.js",
     "dev": "nodemon index.js",
     "setup-db": "node scripts/setup-database.js",
-    "migrate": "node scripts/migrate-rooms.js"
+    "migrate": "node scripts/migrate-role-column.js"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.3",

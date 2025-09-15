@@ -16,16 +16,47 @@ const { validators, sanitize, rateLimits } = require('./lib/validation');
 const app = express();
 const server = http.createServer(app);
 
-// Enhanced CORS configuration
+// Behind Render/other proxies, respect X-Forwarded-* for IPs and protocol
+app.set('trust proxy', 1);
+
+// Enhanced CORS configuration (robust parsing + sensible defaults)
+const parseOrigins = (val) =>
+  (val || '')
+    .split(',')
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+const defaultOrigins = [
+  'http://localhost:3000',
+  'http://localhost:3033',
+  'https://gamebuddies.io',
+  'https://gamebuddies-homepage.onrender.com',
+  'https://gamebuddies-client.onrender.com',
+];
+
+const envOrigins = parseOrigins(process.env.CORS_ORIGINS);
+const allowedOrigins = Array.from(new Set([...defaultOrigins, ...envOrigins]));
+
+const isAllowedOrigin = (origin) => {
+  if (!origin) return true; // allow non-browser clients
+  if (allowedOrigins.includes(origin)) return true;
+  try {
+    const { hostname } = new URL(origin);
+    // Permit our known host families
+    if (hostname === 'gamebuddies.io' || hostname.endsWith('.gamebuddies.io')) return true;
+    if (hostname.endsWith('.onrender.com')) return true;
+  } catch (_) {}
+  return false;
+};
+
 const corsOptions = {
-  origin: process.env.CORS_ORIGINS?.split(',') || [
-    'http://localhost:3000',
-    'https://gamebuddies.io',
-    'https://gamebuddies-client.onrender.com'
-  ],
+  origin: (origin, callback) => {
+    if (isAllowedOrigin(origin)) return callback(null, true);
+    return callback(new Error('Not allowed by CORS'));
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With']
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
 };
 
 // Middleware
@@ -47,6 +78,13 @@ const io = socketIo(server, {
   transports: ['websocket', 'polling']
 });
 
+// Helpers for environment parsing
+const envBool = (name, defaultVal) => {
+  const v = process.env[name];
+  if (v == null) return defaultVal;
+  return /^(1|true|yes|on)$/i.test(String(v).trim());
+};
+
 // Game proxy configuration
 const gameProxies = {
   ddf: {
@@ -56,18 +94,22 @@ const gameProxies = {
     // Add health check and error handling
     healthCheck: true,
     fallbackEnabled: true,
-    // Disable WebSocket proxying for DDF to prevent connection loops
-    ws: false
+    // Disable WebSocket proxying for DDF to prevent connection loops (configurable)
+    ws: envBool('DDF_WS', false)
   },
   schooled: {
     path: '/schooled', 
     target: process.env.SCHOOLED_URL || 'https://schoolquizgame.onrender.com',
-    pathRewrite: { '^/schooled': '' }
+    pathRewrite: { '^/schooled': '' },
+    // Default off to avoid noisy proxy WS unless explicitly needed
+    ws: envBool('SCHOOLED_WS', false)
   },
   susd: {
     path: '/susd',
     target: process.env.SUSD_URL || 'https://susd-1.onrender.com',
-    pathRewrite: { '^/susd': '' }
+    pathRewrite: { '^/susd': '' },
+    // Default off to avoid noisy proxy WS unless explicitly needed
+    ws: envBool('SUSD_WS', false)
   }
 };
 
@@ -94,6 +136,35 @@ const isNavigationError = (err) => {
 };
 
 // Setup game proxies with enhanced error handling
+const createFilteredLogger = () => {
+  const base = console;
+  const suppress = (message, args) => {
+    try {
+      const text = [message, ...(args || [])]
+        .map((a) => (a && a.stack ? a.stack : String(a)))
+        .join(' ');
+      return (
+        text.includes('HPM WebSocket error') ||
+        text.includes('ERR_STREAM_WRITE_AFTER_END') ||
+        text.includes('ECONNRESET') ||
+        text.includes('socket hang up')
+      );
+    } catch (_) {
+      return false;
+    }
+  };
+
+  return {
+    log: (...args) => base.log(...args),
+    debug: (...args) => (base.debug ? base.debug(...args) : base.log(...args)),
+    info: (...args) => (base.info ? base.info(...args) : base.log(...args)),
+    warn: (...args) => (base.warn ? base.warn(...args) : base.log(...args)),
+    error: (message, ...args) => {
+      if (suppress(message, args)) return;
+      base.error(message, ...args);
+    },
+  };
+};
 Object.entries(gameProxies).forEach(([key, proxy]) => {
   console.log(`🔗 [PROXY] Setting up ${key.toUpperCase()} proxy: ${proxy.path} -> ${proxy.target}`);
   
@@ -104,7 +175,8 @@ Object.entries(gameProxies).forEach(([key, proxy]) => {
     timeout: 15000,
     proxyTimeout: 15000,
     ws: proxy.ws !== false, // Use individual proxy ws setting, default to true
-    logLevel: 'error',
+    logLevel: process.env.PROXY_LOG_LEVEL || 'silent',
+    logProvider: () => createFilteredLogger(),
     
     // Enhanced error handling to prevent connection loops
     onError: (err, req, res) => {
@@ -131,15 +203,13 @@ Object.entries(gameProxies).forEach(([key, proxy]) => {
 
 // Handle WebSocket upgrade requests for proxied game services
 server.on('upgrade', (request, socket, head) => {
-  const pathname = request.url;
-  
-  // Add comprehensive error handling to the socket
-  socket.on('error', (err) => {
-    if (!isNavigationError(err)) {
-      console.error('Server upgrade socket error:', err.message);
-    }
-  });
-  
+  const pathname = request.url || '';
+
+  // Never interfere with Socket.IO's own upgrade handling
+  if (pathname.startsWith('/socket.io')) {
+    return; // Let socket.io's listener handle this entirely
+  }
+
   // Check if this is a request for one of our proxied game services
   for (const [key, proxy] of Object.entries(gameProxies)) {
     if (pathname.startsWith(proxy.path)) {
@@ -153,6 +223,12 @@ server.on('upgrade', (request, socket, head) => {
       const proxyMiddleware = proxyInstances[proxy.path];
       if (proxyMiddleware && proxyMiddleware.upgrade) {
         try {
+          // Attach error logging only for proxied sockets
+          socket.on('error', (err) => {
+            if (!isNavigationError(err)) {
+              console.error('Server upgrade socket error:', err.message);
+            }
+          });
           // Let the proxy handle the WebSocket upgrade
           proxyMiddleware.upgrade(request, socket, head);
           return;
