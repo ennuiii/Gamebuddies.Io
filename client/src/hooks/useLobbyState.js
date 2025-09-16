@@ -258,8 +258,7 @@ export const useLobbyState = (roomCode) => {
     setPendingUpdates(new Map());
   }, [socket, isConnected]);
 
-  const returnToLobby = useCallback(async () => {
-    console.log('🔄 [LOBBY] Initiating return to lobby');
+  const returnToLobby = useCallback(async () => { console.log('[LOBBY] Return disabled'); return false; }, []);
     
     try {
       // Update status to returning

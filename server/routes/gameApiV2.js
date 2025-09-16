@@ -284,17 +284,7 @@ module.exports = (io, db, connectionManager) => {
         } catch (stateError) {
           console.warn('⚠️ [API V2] Game state save failed:', stateError);
         }
-      }
-
-      // Handle return to lobby
-      if (returnToLobby) {
-        try {
-          await statusSyncManager.handleGameEnd(roomCode, gameState);
-        } catch (returnError) {
-          console.warn('⚠️ [API V2] Return to lobby failed:', returnError);
-        }
-      }
-
+      }\r\n      // Return-to-lobby handling removed\r\n\r\n    } catch (error) {
       console.log(`✅ [API V2] Bulk update completed: ${result.summary.successful}/${result.summary.total} successful`);
 
       res.json({

@@ -96,8 +96,7 @@ const schemas = {
   }),
 
   // Return to lobby validation
-  returnToLobby: Joi.object({
-    roomCode: roomCodeSchema.required(),
+  
     fromGame: gameTypeSchema.optional()
   }),
 
@@ -224,7 +223,7 @@ module.exports = {
     leaveRoom: createValidator('leaveRoom'),
     playerReady: createValidator('playerReady'),
     sendMessage: createValidator('sendMessage'),
-    returnToLobby: createValidator('returnToLobby'),
+    
     autoUpdateRoomStatus: createValidator('autoUpdateRoomStatus')
   }
 };

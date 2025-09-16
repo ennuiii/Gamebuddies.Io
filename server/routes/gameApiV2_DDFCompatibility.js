@@ -10,12 +10,7 @@ module.exports = (io, db, connectionManager, lobbyManager, statusSyncManager) =>
   // =====================================================
 
   // Legacy return endpoint that DDF currently calls
-  router.post('/api/returnToLobby', validateApiKey, rateLimits.apiCalls, async (req, res) => {
-    try {
-      const { roomCode, isHost } = req.body;
-      
-      console.log(`🔄 [DDF Compat] Return to lobby requested for room ${roomCode}, isHost: ${isHost}`);
-
+  // /api/returnToLobby removed\r\n
       if (!roomCode) {
         return res.status(400).json({
           success: false,

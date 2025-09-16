@@ -371,13 +371,7 @@ class LobbyManager {
         ));
       }
 
-      // Broadcast group return signal
-      this.io.to(roomCode).emit('groupReturnInitiated', {
-        roomCode,
-        initiatedBy: hostId,
-        returnUrl: process.env.CLIENT_URL || 'https://gamebuddies.io',
-        message: 'Host has initiated return to lobby for all players'
-      });
+      // Broadcast group return signal removed
 
       console.log(`✅ [LOBBY] Group return initiated for ${members?.length || 0} players`);
       return { success: true, playersReturning: members?.length || 0 };
