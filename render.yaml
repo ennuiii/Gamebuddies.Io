@@ -2,6 +2,7 @@ services:
   - type: web
     name: gamebuddies-homepage
     runtime: node
+    rootDirectory: gamebuddies/Gamebuddies.Io
     buildCommand: npm run install:all && npm run build
     startCommand: npm start
     healthCheckPath: /api/health
