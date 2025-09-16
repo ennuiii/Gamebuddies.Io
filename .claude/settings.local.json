@@ -26,7 +26,11 @@
       "Read(/C:\\GameBuddiesClaude\\DDF\\DDF\\client\\src\\components/**)",
       "Read(/C:\\GameBuddiesClaude\\DDF\\DDF\\client\\src\\components/**)",
       "Read(/C:\\GameBuddiesClaude\\DDF\\DDF\\client\\src\\components/**)",
-      "Read(//c/ddf2/DDF/**)"
+      "Read(//c/ddf2/DDF/**)",
+      "Bash(find:*)",
+      "Bash(./node_modules/.bin/react-scripts --version)",
+      "Bash(git rm:*)",
+      "Bash(rm:*)"
     ],
     "deny": [],
     "ask": [],
