@@ -280,7 +280,10 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
       )}
 
       {showJoinRoom && (
-        <JoinRoom={joinRoomCode} initialPlayerName={prefillName} autoJoin={autoJoin}
+        <JoinRoom
+          initialRoomCode={joinRoomCode}
+          initialPlayerName={prefillName}
+          autoJoin={autoJoin}
           onRoomJoined={handleJoinRoom}
           onCancel={handleCloseModals}
         />
