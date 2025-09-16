@@ -1,4 +1,4 @@
-# External Game Return Button & Status API Implementation Guide
+[DEPRECATED] Return-to-GameBuddies flow was removed. This document may reference obsolete endpoints and events.\r\n\r\n# External Game Return Button & Status API Implementation Guide
 
 This guide provides step-by-step instructions for external games (DDF, Schooled, SUS'D, etc.) to implement the GameBuddies return functionality and status reporting system.
 

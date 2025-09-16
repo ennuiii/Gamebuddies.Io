@@ -1,4 +1,4 @@
-# GameBuddies V2 - Optimized Lobby System Architecture
+[DEPRECATED] Return-to-GameBuddies flow was removed. This document may reference obsolete endpoints and events.\r\n\r\n# GameBuddies V2 - Optimized Lobby System Architecture
 
 ## Core Improvements
 

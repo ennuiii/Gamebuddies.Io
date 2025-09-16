@@ -1,4 +1,4 @@
-# External Games Integration Guide - GameBuddies V2
+[DEPRECATED] Return-to-GameBuddies flow was removed. This document may reference obsolete endpoints and events.\r\n\r\n# External Games Integration Guide - GameBuddies V2
 
 This guide provides complete integration instructions for external games (DDF, Schooled, etc.) to work with GameBuddies V2's enhanced lobby system and seamless return functionality.
 

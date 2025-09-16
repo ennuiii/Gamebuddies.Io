@@ -1,4 +1,4 @@
-# 🚀 DDF-GameBuddies Integration: Final Implementation Steps
+[DEPRECATED] Return-to-GameBuddies flow was removed. This document may reference obsolete endpoints and events.\r\n\r\n# 🚀 DDF-GameBuddies Integration: Final Implementation Steps
 
 ## ✅ ANALYSIS COMPLETE - INTEGRATION WILL WORK!
 

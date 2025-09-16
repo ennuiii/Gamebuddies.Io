@@ -1,4 +1,4 @@
-# GameBuddies Integration Implementation Summary
+[DEPRECATED] Return-to-GameBuddies flow was removed. This document may reference obsolete endpoints and events.\r\n\r\n# GameBuddies Integration Implementation Summary
 
 This document describes the current implementation of GameBuddies integration in DDF (Don't Drop the Fun) game, for review and validation against GameBuddies architecture.
 

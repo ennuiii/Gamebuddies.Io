@@ -1,4 +1,4 @@
-# GameBuddies V2 - Implementation Summary
+[DEPRECATED] Return-to-GameBuddies flow was removed. This document may reference obsolete endpoints and events.\r\n\r\n# GameBuddies V2 - Implementation Summary
 
 ## 🎯 Project Overview
 

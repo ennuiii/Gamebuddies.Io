@@ -1,4 +1,4 @@
-# DDF ↔ GameBuddies V2 Compatibility Analysis
+[DEPRECATED] Return-to-GameBuddies flow was removed. This document may reference obsolete endpoints and events.\r\n\r\n# DDF ↔ GameBuddies V2 Compatibility Analysis
 
 ## 🚨 CRITICAL COMPATIBILITY ISSUES
 
