@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+  const [prefillName, setPrefillName] = useState('');
+  const [autoJoin, setAutoJoin] = useState(false);
 import { motion } from 'framer-motion';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -47,6 +49,21 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
   };
 
   const handleCreateRoomClick = () => {
+
+  // Optional: prefill name and auto-join when name/playerId present
+  useEffect(() => {
+    const name = searchParams.get('name');
+    const playerId = searchParams.get('playerId');
+    if (playerId) { try { sessionStorage.setItem('gamebuddies_playerId', playerId); } catch {} }
+    if (name && name.trim().length >= 2) {
+      setPrefillName(name.trim());
+      setAutoJoin(true);
+    } else {
+      setPrefillName('');
+      setAutoJoin(false);
+    }
+  }, [searchParams]);
+
     setShowCreateRoom(true);
   };
 

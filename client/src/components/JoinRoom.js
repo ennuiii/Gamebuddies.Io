@@ -2,14 +2,14 @@ import React, { useState } from 'react';
 import io from 'socket.io-client';
 import './JoinRoom.css';
 
-const JoinRoom = ({ initialRoomCode = '', onRoomJoined, onCancel }) => {
+const JoinRoom = ({ initialRoomCode = '', initialPlayerName = '', autoJoin = false, onRoomJoined, onCancel }) => {
   const [roomCode, setRoomCode] = useState(initialRoomCode);
-  const [playerName, setPlayerName] = useState('');
+  const [playerName, setPlayerName] = useState(initialPlayerName || '');
   const [isJoining, setIsJoining] = useState(false);
   const [error, setError] = useState('');
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    if (e && e.preventDefault) e.preventDefault();
     
     if (!roomCode.trim()) {
       setError('Please enter a room code');
@@ -187,6 +187,16 @@ const JoinRoom = ({ initialRoomCode = '', onRoomJoined, onCancel }) => {
       setIsJoining(false);
     }
   };
+
+  // Auto-join when both roomCode and playerName are prefilled
+  React.useEffect(() => {
+    if (autoJoin && initialRoomCode && initialPlayerName && !isJoining) {
+      // Small delay to allow modal mount
+      const t = setTimeout(() => handleSubmit(), 200);
+      return () => clearTimeout(t);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoJoin, initialRoomCode, initialPlayerName]);
 
   const handleRoomCodeChange = (e) => {
     const value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
