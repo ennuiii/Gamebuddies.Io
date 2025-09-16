@@ -96,7 +96,8 @@ const schemas = {
   }),
 
   // Return to lobby validation
-  
+  returnToLobby: Joi.object({
+    roomCode: roomCodeSchema.required(),
     fromGame: gameTypeSchema.optional()
   }),
 
