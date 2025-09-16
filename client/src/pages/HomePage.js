@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { useSocket } from '../contexts/LazySocketContext';
 import GameCard from '../components/GameCard';
 import CreateRoom from '../components/CreateRoom';
 import JoinRoom from '../components/JoinRoom';
@@ -11,6 +12,7 @@ import './HomePage.css';
 const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { socket, isConnected: socketIsConnected, connectSocket } = useSocket();
   const [games, setGames] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateRoom, setShowCreateRoom] = useState(false);
@@ -21,6 +23,116 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
   const [joinRoomCode, setJoinRoomCode] = useState('');
   const [prefillName, setPrefillName] = useState('');
   const [autoJoin, setAutoJoin] = useState(false);
+  const [isDirectJoining, setIsDirectJoining] = useState(false); // New state for direct join attempt
+
+  const handleDirectJoin = useCallback(async (roomCode, name) => {
+    if (!roomCode || !name) {
+      console.warn('🚫 [DIRECT JOIN] Missing roomCode or name for direct join.');
+      return false;
+    }
+
+    console.log('🚀 [DIRECT JOIN] Attempting to join room directly:', { roomCode, name });
+    setIsDirectJoining(true);
+
+    try {
+      let activeSocket = socket;
+      if (!activeSocket || !socketIsConnected) {
+        console.log('🔌 [DIRECT JOIN] Socket not connected, connecting...');
+        activeSocket = connectSocket();
+        if (!activeSocket) {
+          throw new Error('Failed to initialize socket connection.');
+        }
+
+        // Wait for connection
+        await new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            activeSocket.off('connect', resolve);
+            activeSocket.off('connect_error', reject);
+            reject(new Error('Socket connection timeout during direct join.'));
+          }, 10000); // 10s timeout
+
+          activeSocket.on('connect', () => {
+            clearTimeout(timeout);
+            activeSocket.off('connect_error', reject);
+            resolve();
+          });
+          activeSocket.on('connect_error', (err) => {
+            clearTimeout(timeout);
+            activeSocket.off('connect', resolve);
+            reject(err);
+          });
+        });
+      }
+      
+      console.log('✅ [DIRECT JOIN] Socket connected, emitting joinRoom...');
+      
+      // Wrap socket emission in a promise
+      const joinPromise = new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          activeSocket.off('roomJoined', handleJoinSuccess);
+          activeSocket.off('error', handleJoinError);
+          reject(new Error('Join room request timed out.'));
+        }, 15000); // 15s timeout for join
+
+        const handleJoinSuccess = (data) => {
+          clearTimeout(timeout);
+          activeSocket.off('error', handleJoinError);
+          console.log('✅ [DIRECT JOIN] Successfully joined room via direct join:', data);
+          resolve(data);
+        };
+
+        const handleJoinError = (error) => {
+          clearTimeout(timeout);
+          activeSocket.off('roomJoined', handleJoinSuccess);
+          console.error('❌ [DIRECT JOIN] Error joining room via direct join:', error);
+          reject(error);
+        };
+        
+        activeSocket.once('roomJoined', handleJoinSuccess);
+        activeSocket.once('error', handleJoinError);
+      });
+
+      activeSocket.emit('joinRoom', { roomCode: roomCode.trim().toUpperCase(), playerName: name.trim() });
+      const joinData = await joinPromise;
+
+      // Successfully joined, set state to show RoomLobby
+      setCurrentRoom({
+        roomCode: joinData.roomCode,
+        playerName: name.trim(),
+        isHost: joinData.isHost, // Server determines host status
+        players: joinData.players,
+        room: joinData.room
+      });
+      setPlayerName(name.trim());
+      setInLobby(true);
+      setIsInLobby(true);
+      setLobbyLeaveFn(() => handleLeaveLobby);
+      setShowJoinRoom(false); // Ensure modal is hidden
+      setIsDirectJoining(false);
+      
+      // Show welcome back message
+      const returningFromGame = searchParams.get('returningFromGame');
+      if (returningFromGame) {
+        setTimeout(() => {
+          const gameName = returningFromGame === 'ddf' ? 'Der dümmste fliegt' : returningFromGame;
+          // You can implement a toast notification system here
+          alert(`Welcome back from ${gameName}! You have instantly rejoined the lobby.`);
+        }, 100);
+      }
+
+      return true;
+
+    } catch (error) {
+      console.error('❌ [DIRECT JOIN] Direct join failed, falling back to modal:', error);
+      setIsDirectJoining(false);
+      // Fallback: show the join room modal with pre-filled data
+      setJoinRoomCode(roomCode);
+      setPrefillName(name);
+      setAutoJoin(true); // Let the modal handle auto-join if it can
+      setShowJoinRoom(true);
+      return false;
+    }
+  }, [socket, socketIsConnected, connectSocket, setIsInLobby, setLobbyLeaveFn, searchParams]);
 
   useEffect(() => {
     fetchGames();
@@ -30,7 +142,7 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
     const nameParam = searchParams.get('name');
     const playerIdParam = searchParams.get('playerId');
     const returningFromGame = searchParams.get('returningFromGame');
-    const wasHost = searchParams.get('wasHost') === 'true';
+    // const wasHost = searchParams.get('wasHost') === 'true'; // wasHost is handled by the server
 
     if (playerIdParam) {
       try {
@@ -38,19 +150,40 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
       } catch {}
     }
 
-    if (joinCode) {
-      console.log('🔄 [HOMEPAGE DEBUG] Player returning from game:', {
+    if (joinCode && nameParam && nameParam.trim().length >= 2) {
+      console.log('🔄 [HOMEPAGE DEBUG] Player returning from game with sufficient info for direct join:', {
         joinCode,
         nameParam,
         playerIdParam,
         returningFromGame,
-        wasHost,
+        // wasHost, // Server handles host status
         timestamp: new Date().toISOString()
       });
 
+      // Attempt direct join
+      handleDirectJoin(joinCode, nameParam).then((success) => {
+        if (!success) {
+          // If direct join failed, the fallback logic inside handleDirectJoin has already set up the modal.
+          // We still need to show the welcome message if returning from game.
+          if (returningFromGame) {
+            setTimeout(() => {
+              const gameName = returningFromGame === 'ddf' ? 'Der dümmste fliegt' : returningFromGame;
+              alert(`Welcome back from ${gameName}! Please rejoin the lobby.`); // Adjusted message for fallback
+            }, 500);
+          }
+        }
+      });
+      
+      navigate('/', { replace: true });
+    } else if (joinCode) {
+      // Fallback for cases where name might be missing or too short
+      console.log('🔄 [HOMEPAGE DEBUG] Player returning with room code but insufficient info for direct join, showing modal.', {
+        joinCode,
+        nameParam,
+        timestamp: new Date().toISOString()
+      });
       setJoinRoomCode(joinCode);
       setShowJoinRoom(true);
-
       if (nameParam && nameParam.trim().length >= 2) {
         setPrefillName(nameParam.trim());
         setAutoJoin(true);
@@ -58,20 +191,15 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
         setPrefillName('');
         setAutoJoin(false);
       }
-
-      // Show welcome back message if returning from game
       if (returningFromGame) {
         setTimeout(() => {
           const gameName = returningFromGame === 'ddf' ? 'Der dümmste fliegt' : returningFromGame;
-          const welcomeMessage = `Welcome back from ${gameName}! You have rejoined the lobby.`;
-          // You can implement a toast notification system here
-          alert(welcomeMessage);
+          alert(`Welcome back from ${gameName}! Please enter your name to rejoin the lobby.`);
         }, 500);
       }
-
       navigate('/', { replace: true });
     }
-  }, [searchParams, navigate]);
+  }, [searchParams, navigate, handleDirectJoin]);
 
   const fetchGames = async () => {
     try {
@@ -323,4 +451,4 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
   );
 };
 
-export default HomePage; 
+export default HomePage;
