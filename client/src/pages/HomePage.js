@@ -18,7 +18,9 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
   const [currentRoom, setCurrentRoom] = useState(null);
   const [playerName, setPlayerName] = useState('');
   const [inLobby, setInLobby] = useState(false);
-  const [joinRoomCode, setJoinRoomCode] = useState('');\n  const [prefillName, setPrefillName] = useState('');\n  const [autoJoin, setAutoJoin] = useState(false);
+  const [joinRoomCode, setJoinRoomCode] = useState('');
+  const [prefillName, setPrefillName] = useState('');
+  const [autoJoin, setAutoJoin] = useState(false);
 
   useEffect(() => {
     fetchGames();
