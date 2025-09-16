@@ -2389,7 +2389,7 @@ io.on('connection', async (socket) => {
 
       participants.forEach(p => {
         const encodedName = encodeURIComponent(p.user?.display_name || p.user?.username);
-        const baseUrl = `${gameProxy.path}?room=${room.room_code}&players=${participants.length}&name=${encodedName}&playerId=${p.user_id}`;
+        const baseUrl = `${gameProxy.path}?room=${room.room_code}&players=${participants.length}&name=${encodedName}&playerId=${p.user_id}&gbRoomCode=${room.room_code}&gbIsHost=${p.role === 'host'}&gbPlayerName=${encodedName}`;
         const gameUrl = p.role === 'host' ? `${baseUrl}&role=gm` : baseUrl;
         
         const delay = p.role === 'host' ? 0 : 2000; // 2 second delay for players

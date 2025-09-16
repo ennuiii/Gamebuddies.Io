@@ -24,8 +24,54 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
 
   useEffect(() => {
     fetchGames();
-    
-    // Handle return-to-lobby URL parameters\n    const joinCode = searchParams.get('join');\n    const nameParam = searchParams.get('name');\n    const playerIdParam = searchParams.get('playerId');\n\n    if (playerIdParam) { try { sessionStorage.setItem('gamebuddies_playerId', playerIdParam); } catch {} }\n\n    if (joinCode) {\n      console.log('?? [HOMEPAGE DEBUG] Join code detected:', joinCode, 'name:', nameParam, 'playerId:', playerIdParam);\n      setJoinRoomCode(joinCode);\n      setShowJoinRoom(true);\n      if (nameParam && nameParam.trim().length >= 2) {\n        setPrefillName(nameParam.trim());\n        setAutoJoin(true);\n      } else {\n        setPrefillName('');\n        setAutoJoin(false);\n      }\n      navigate('/', { replace: true });\n    }\n  }, [searchParams, navigate]);
+
+    // Handle return-to-lobby URL parameters
+    const joinCode = searchParams.get('join');
+    const nameParam = searchParams.get('name');
+    const playerIdParam = searchParams.get('playerId');
+    const returningFromGame = searchParams.get('returningFromGame');
+    const wasHost = searchParams.get('wasHost') === 'true';
+
+    if (playerIdParam) {
+      try {
+        sessionStorage.setItem('gamebuddies_playerId', playerIdParam);
+      } catch {}
+    }
+
+    if (joinCode) {
+      console.log('🔄 [HOMEPAGE DEBUG] Player returning from game:', {
+        joinCode,
+        nameParam,
+        playerIdParam,
+        returningFromGame,
+        wasHost,
+        timestamp: new Date().toISOString()
+      });
+
+      setJoinRoomCode(joinCode);
+      setShowJoinRoom(true);
+
+      if (nameParam && nameParam.trim().length >= 2) {
+        setPrefillName(nameParam.trim());
+        setAutoJoin(true);
+      } else {
+        setPrefillName('');
+        setAutoJoin(false);
+      }
+
+      // Show welcome back message if returning from game
+      if (returningFromGame) {
+        setTimeout(() => {
+          const gameName = returningFromGame === 'ddf' ? 'Der dümmste fliegt' : returningFromGame;
+          const welcomeMessage = `Welcome back from ${gameName}! You have rejoined the lobby.`;
+          // You can implement a toast notification system here
+          alert(welcomeMessage);
+        }, 500);
+      }
+
+      navigate('/', { replace: true });
+    }
+  }, [searchParams, navigate]);
 
   const fetchGames = async () => {
     try {
@@ -39,21 +85,6 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
   };
 
   const handleCreateRoomClick = () => {
-
-  // Optional: prefill name and auto-join when name/playerId present
-  useEffect(() => {
-    const name = searchParams.get('name');
-    const playerId = searchParams.get('playerId');
-    if (playerId) { try { sessionStorage.setItem('gamebuddies_playerId', playerId); } catch {} }
-    if (name && name.trim().length >= 2) {
-      setPrefillName(name.trim());
-      setAutoJoin(true);
-    } else {
-      setPrefillName('');
-      setAutoJoin(false);
-    }
-  }, [searchParams]);
-
     setShowCreateRoom(true);
   };
 
