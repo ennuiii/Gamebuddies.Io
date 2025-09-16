@@ -1,6 +1,4 @@
 import React, { useState, useEffect } from 'react';
-  const [prefillName, setPrefillName] = useState('');
-  const [autoJoin, setAutoJoin] = useState(false);
 import { motion } from 'framer-motion';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -20,22 +18,12 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
   const [currentRoom, setCurrentRoom] = useState(null);
   const [playerName, setPlayerName] = useState('');
   const [inLobby, setInLobby] = useState(false);
-  const [joinRoomCode, setJoinRoomCode] = useState('');
+  const [joinRoomCode, setJoinRoomCode] = useState('');\n  const [prefillName, setPrefillName] = useState('');\n  const [autoJoin, setAutoJoin] = useState(false);
 
   useEffect(() => {
     fetchGames();
     
-    // Check if there's a join parameter in the URL
-    const joinCode = searchParams.get('join');
-    
-    if (joinCode) {
-      console.log('📍 [HOMEPAGE DEBUG] Join code detected:', joinCode);
-      setJoinRoomCode(joinCode);
-      setShowJoinRoom(true);
-      // Clear the URL parameter after using it
-      navigate('/', { replace: true });
-    }
-  }, [searchParams, navigate]);
+    // Handle return-to-lobby URL parameters\n    const joinCode = searchParams.get('join');\n    const nameParam = searchParams.get('name');\n    const playerIdParam = searchParams.get('playerId');\n\n    if (playerIdParam) { try { sessionStorage.setItem('gamebuddies_playerId', playerIdParam); } catch {} }\n\n    if (joinCode) {\n      console.log('?? [HOMEPAGE DEBUG] Join code detected:', joinCode, 'name:', nameParam, 'playerId:', playerIdParam);\n      setJoinRoomCode(joinCode);\n      setShowJoinRoom(true);\n      if (nameParam && nameParam.trim().length >= 2) {\n        setPrefillName(nameParam.trim());\n        setAutoJoin(true);\n      } else {\n        setPrefillName('');\n        setAutoJoin(false);\n      }\n      navigate('/', { replace: true });\n    }\n  }, [searchParams, navigate]);
 
   const fetchGames = async () => {
     try {
@@ -290,8 +278,7 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
       )}
 
       {showJoinRoom && (
-        <JoinRoom
-          initialRoomCode={joinRoomCode}
+        <JoinRoom={joinRoomCode} initialPlayerName={prefillName} autoJoin={autoJoin}
           onRoomJoined={handleJoinRoom}
           onCancel={handleCloseModals}
         />
