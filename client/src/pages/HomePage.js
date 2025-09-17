@@ -26,6 +26,19 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
 
   useEffect(() => {
     fetchGames();
+    
+    // Check for join URL parameters
+    const urlParams = new URLSearchParams(window.location.search);
+    const joinCode = urlParams.get('join');
+    const name = urlParams.get('name');
+    
+    if (joinCode) {
+      console.log('[HomePage] Found join parameter:', joinCode);
+      setJoinRoomCode(joinCode);
+      setPrefillName(name || '');
+      setAutoJoin(true);
+      setShowJoinRoom(true);
+    }
   }, []);
 
   const fetchGames = async () => {
