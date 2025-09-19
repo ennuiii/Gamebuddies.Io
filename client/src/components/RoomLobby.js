@@ -1040,6 +1040,39 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       </div>
 
       <div className="lobby-content">
+        {/* Return progress banner */}
+        {(() => {
+          const total = players.length || 0;
+          const lobbyCount = players.filter(p => (p.currentLocation === 'lobby') || (p.isConnected && !p.inGame)).length;
+          const inGameCount = players.filter(p => p.currentLocation === 'game' || p.inGame).length;
+          const disconnectedCount = players.filter(p => !p.isConnected || p.currentLocation === 'disconnected').length;
+          const needsBanner = (inGameCount + disconnectedCount) > 0 && total > 0;
+          if (!needsBanner) return null;
+          return (
+            <div className="return-progress-banner" style={{
+              margin: '12px 0 16px',
+              padding: '10px 14px',
+              borderRadius: '10px',
+              background: 'linear-gradient(90deg, rgba(56,189,248,0.15), rgba(16,185,129,0.15))',
+              border: '1px solid rgba(148,163,184,0.35)',
+              color: '#e2e8f0',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between'
+            }}>
+              <div style={{ fontWeight: 600 }}>Return Progress</div>
+              <div style={{ fontSize: 14 }}>
+                <span title="In lobby" style={{ marginRight: 12 }}>🟢 {lobbyCount}/{total}</span>
+                {inGameCount > 0 && (
+                  <span title="Still in game" style={{ marginRight: 12 }}>🟠 {inGameCount}</span>
+                )}
+                {disconnectedCount > 0 && (
+                  <span title="Disconnected">🔴 {disconnectedCount}</span>
+                )}
+              </div>
+            </div>
+          );
+        })()}
         {/* Room Status Information */}
         {!currentIsHost && roomStatus !== 'waiting_for_players' && (
           <div className="status-info-section">
