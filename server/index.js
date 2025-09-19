@@ -1286,7 +1286,37 @@ app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async 
     }
     
     // Get updated room data and broadcast
-    const updatedRoom = await db.getRoomByCode(roomCode);
+    let updatedRoom = await db.getRoomByCode(roomCode);
+
+    // If no host is currently assigned, and this bulk update returned at least one player to lobby,
+    // promote the first such player to host so the lobby regains a GM promptly.
+    try {
+      const hasHost = Array.isArray(updatedRoom.participants) && updatedRoom.participants.some(p => p.role === 'host');
+      if (!hasHost) {
+        const lobbyReturnCandidate = results.find(r => r.success && r.updated && r.updated.status === 'lobby');
+        if (lobbyReturnCandidate && lobbyReturnCandidate.playerId) {
+          await db.adminClient
+            .from('room_members')
+            .update({ role: 'host' })
+            .eq('room_id', room.id)
+            .eq('user_id', lobbyReturnCandidate.playerId);
+
+          await db.adminClient
+            .from('rooms')
+            .update({ host_id: lobbyReturnCandidate.playerId })
+            .eq('id', room.id);
+
+          console.log(`✅ [API DEBUG] Restored host to ${lobbyReturnCandidate.playerId} based on bulk returned_to_lobby`);
+          // Refresh room snapshot after promotion
+          const refreshedRoom = await db.getRoomByCode(roomCode);
+          if (refreshedRoom) {
+            updatedRoom = refreshedRoom;
+          }
+        }
+      }
+    } catch (e) {
+      console.error('⚠️ [API DEBUG] Failed to restore host after bulk:', e?.message || e);
+    }
     
     if (io) {
       const allPlayers = updatedRoom.participants?.map(p => ({
