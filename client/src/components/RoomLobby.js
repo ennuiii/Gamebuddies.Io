@@ -26,6 +26,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
   const currentUserIdRef = useRef(null);
   const roomIdRef = useRef(null);
   const timerIntervalsRef = useRef(new Map()); // Track timer intervals
+  const roomVersionRef = useRef(0); // Latest applied room version
 
   // TODO: Review if connectionStatus local state is still needed or if socketIsConnected from context is enough.
   // For now, let's try to use socketIsConnected directly.

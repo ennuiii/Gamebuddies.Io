@@ -694,7 +694,8 @@ app.post('/api/game/rooms/:roomCode/state', validateApiKey, async (req, res) => 
         version: savedState.state_version,
         updatedBy: playerId,
         stateType,
-        timestamp: savedState.created_at
+        timestamp: savedState.created_at,
+        roomVersion: Date.now()
       });
     }
     
@@ -1059,6 +1060,7 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
         console.log(`👑 [API] Including host transfer in broadcast:`, broadcastData.hostTransfer);
       }
       
+      broadcastData.roomVersion = Date.now();
       io.to(roomCode).emit('playerStatusUpdated', broadcastData);
       
       // Confirm broadcast was sent
@@ -1356,7 +1358,8 @@ app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async 
         players: allPlayers,
         room: updatedRoom,
         source: 'external_game_bulk',
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        roomVersion: Date.now()
       });
       
       // Confirm bulk broadcast was sent
@@ -1425,7 +1428,8 @@ app.post('/api/game/rooms/:roomCode/events', validateApiKey, async (req, res) =>
         playerId,
         eventType,
         eventData,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
+        roomVersion: Date.now()
       });
     }
     
@@ -1583,7 +1587,8 @@ async function autoUpdateRoomStatusByHost(roomId, hostUserId, hostLocation) {
       changedBy: `${hostParticipant?.user?.display_name || hostParticipant?.user?.username || 'Host'} (auto)`,
       reason: 'host_location_change',
       isAutomatic: true,
-      hostLocation: hostLocation
+      hostLocation: hostLocation,
+      roomVersion: Date.now()
     });
 
     console.log(`🤖 Room ${room.room_code} status auto-updated to '${targetStatus}' due to host location change`);
@@ -1686,7 +1691,8 @@ async function autoUpdateRoomStatusBasedOnPlayerStates(room, allPlayers, reason)
           reason: 'player_state_analysis',
           isAutomatic: true,
           playerStats,
-          updateReason
+          updateReason,
+          roomVersion: Date.now()
         });
       }
 
@@ -2229,14 +2235,15 @@ io.on('connection', async (socket) => {
         roomCode: data.roomCode
       });
       
-      io.to(data.roomCode).emit('playerJoined', joinEventData);
+      io.to(data.roomCode).emit('playerJoined', { ...joinEventData, roomVersion: Date.now() });
 
       // Send success response to joining player
       const joinSuccessData = {
         roomCode: data.roomCode,
         isHost: isHost,
         players: players,
-        room: updatedRoom
+        room: updatedRoom,
+        roomVersion: Date.now()
       };
       
       console.log(`✅ [REJOINING DEBUG] Sending roomJoined success:`, {
@@ -2313,7 +2320,8 @@ io.on('connection', async (socket) => {
       // Notify all players in room
       io.to(updatedRoom.room_code).emit('gameSelected', {
         gameType: data.gameType,
-        settings: data.settings
+        settings: data.settings,
+        roomVersion: Date.now()
       });
 
       console.log(`🎮 Game selected: ${data.gameType} for room ${updatedRoom.room_code}`);
@@ -2473,12 +2481,13 @@ io.on('connection', async (socket) => {
         if (currentSocketId) {
           setTimeout(() => {
             console.log(`📤 [START GAME DEBUG] Emitting gameStarted to ${p.user?.username} (${currentSocketId})`);
-            io.to(currentSocketId).emit('gameStarted', {
-              gameUrl,
-              gameType: room.current_game,
-              isHost: p.role === 'host',
-              roomCode: room.room_code
-            });
+          io.to(currentSocketId).emit('gameStarted', {
+            gameUrl,
+            gameType: room.current_game,
+            isHost: p.role === 'host',
+            roomCode: room.room_code,
+            roomVersion: Date.now()
+          });
           }, delay);
         } else {
           console.error(`❌ [START GAME DEBUG] No socket connection found for ${p.user?.username} (${p.user_id})`);
@@ -2548,24 +2557,26 @@ io.on('connection', async (socket) => {
         // Send appropriate events based on whether host was transferred
         if (newHost) {
           // Send host transfer event first
-          io.to(data.roomCode).emit('hostTransferred', {
-            oldHostId: connection.userId,
-            newHostId: newHost.user_id,
-            newHostName: newHost.user?.display_name || newHost.user?.username,
-            reason: 'original_host_left',
-            players: allPlayers,
-            room: updatedRoom
-          });
+      io.to(data.roomCode).emit('hostTransferred', {
+        oldHostId: connection.userId,
+        newHostId: newHost.user_id,
+        newHostName: newHost.user?.display_name || newHost.user?.username,
+        reason: 'original_host_left',
+        players: allPlayers,
+        room: updatedRoom,
+        roomVersion: Date.now()
+      });
           console.log(`👑 [LEAVE] Instantly transferred host to ${newHost.user?.display_name || newHost.user?.username}`);
         }
 
         // Then send player left event
-        io.to(data.roomCode).emit('playerLeft', {
-          playerId: connection.userId,
-          players: allPlayers,
-          room: updatedRoom,
-          wasHost: isLeavingHost
-        });
+      io.to(data.roomCode).emit('playerLeft', {
+        playerId: connection.userId,
+        players: allPlayers,
+        room: updatedRoom,
+        wasHost: isLeavingHost,
+        roomVersion: Date.now()
+      });
 
         // If no connected players left, mark room as returning (closest equivalent to abandoned)
         const connectedPlayers = allPlayers.filter(p => p.isConnected);
@@ -2625,7 +2636,8 @@ io.on('connection', async (socket) => {
         playerId: connection.userId,
         playerName: data.playerName,
         status: 'lobby',
-        room: updatedRoom
+        room: updatedRoom,
+        roomVersion: Date.now()
       });
 
       console.log(`✅ Player ${data.playerName} marked as returned to lobby`);
@@ -2692,7 +2704,8 @@ io.on('connection', async (socket) => {
         newHostId: data.targetUserId,
         newHostName: targetParticipant.user?.display_name || targetParticipant.user?.username,
         players: allPlayers,
-        room: updatedRoom
+        room: updatedRoom,
+        roomVersion: Date.now()
       });
 
       console.log(`👑 Host transferred from ${currentParticipant.user?.display_name} to ${targetParticipant.user?.display_name}`);
@@ -2926,7 +2939,8 @@ io.on('connection', async (socket) => {
         oldStatus: room.status,
         newStatus: data.newStatus,
         room: updatedRoom,
-        changedBy: participant.user?.display_name || participant.user?.username
+        changedBy: participant.user?.display_name || participant.user?.username,
+        roomVersion: Date.now()
       });
 
       console.log(`🔄 Room ${room.room_code} status changed from '${room.status}' to '${data.newStatus}' by ${participant.user?.display_name}`);
@@ -3003,7 +3017,8 @@ io.on('connection', async (socket) => {
         room: updatedRoom,
         changedBy: `${participant.user?.display_name || participant.user?.username} (auto)`,
         reason: data.reason,
-        isAutomatic: true
+        isAutomatic: true,
+        roomVersion: Date.now()
       });
 
       console.log(`🤖 Room ${room.room_code} status auto-changed from '${room.status}' to '${serverStatus}' by ${participant.user?.display_name} (reason: ${data.reason})`);
@@ -3117,14 +3132,15 @@ io.on('connection', async (socket) => {
 
           // Send host transfer event first if host was transferred
           if (newHost) {
-            io.to(room.room_code).emit('hostTransferred', {
-              oldHostId: connection.userId,
-              newHostId: newHost.user_id,
-              newHostName: newHost.user?.display_name || newHost.user?.username,
-              reason: 'original_host_disconnected',
-              players: allPlayers,
-              room: updatedRoom
-            });
+          io.to(room.room_code).emit('hostTransferred', {
+            oldHostId: connection.userId,
+            newHostId: newHost.user_id,
+            newHostName: newHost.user?.display_name || newHost.user?.username,
+            reason: 'original_host_disconnected',
+            players: allPlayers,
+            room: updatedRoom,
+            roomVersion: Date.now()
+          });
           }
 
           // Then send player disconnected event
@@ -3132,7 +3148,8 @@ io.on('connection', async (socket) => {
             playerId: connection.userId,
             wasHost: isDisconnectingHost,
             players: allPlayers,
-            room: updatedRoom
+            room: updatedRoom,
+            roomVersion: Date.now()
           });
         }
       }

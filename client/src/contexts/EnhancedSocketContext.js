@@ -167,6 +167,11 @@ export const SocketProvider = ({ children }) => {
     });
 
     socketInstance.on('playerStatusUpdated', (data) => {
+      // Version gating: ignore stale snapshots when roomVersion is present
+      if (typeof data?.roomVersion === 'number') {
+        if (data.roomVersion <= roomVersionRef.current) return;
+        roomVersionRef.current = data.roomVersion;
+      }
       console.log('🔄 [SOCKET] Player status updated:', data);
       
       // Update room state if provided
