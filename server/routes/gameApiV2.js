@@ -358,6 +358,121 @@ module.exports = (io, db, connectionManager) => {
     }
   });
 
+  // V2 Return all players to lobby (atomic)
+  router.post('/rooms/:roomCode/return-all', validateApiKey, rateLimits.apiCalls, async (req, res) => {
+    try {
+      const { roomCode } = req.params;
+      const now = new Date().toISOString();
+
+      console.log(`[API V2] return-all requested for ${roomCode} by ${req.apiKey?.service_name}`);
+
+      // Load room with participants
+      const { data: room, error: roomErr } = await db.adminClient
+        .from('rooms')
+        .select(`
+          *,
+          participants:room_members(
+            user_id,
+            role,
+            is_connected,
+            in_game,
+            current_location,
+            last_ping,
+            joined_at,
+            user:users(username, display_name)
+          )
+        `)
+        .eq('room_code', roomCode)
+        .single();
+
+      if (roomErr || !room) {
+        return res.status(404).json({ error: 'Room not found', code: 'ROOM_NOT_FOUND' });
+      }
+
+      // Update room status to lobby
+      await db.adminClient
+        .from('rooms')
+        .update({ status: 'lobby', last_activity: now })
+        .eq('id', room.id);
+
+      // Update all participants to lobby
+      const { error: updErr } = await db.adminClient
+        .from('room_members')
+        .update({
+          in_game: false,
+          current_location: 'lobby',
+          is_connected: true,
+          last_ping: now
+        })
+        .eq('room_id', room.id);
+
+      if (updErr) {
+        console.error('[API V2] return-all participant update error:', updErr);
+      }
+
+      // Ensure a host exists
+      let hasHost = Array.isArray(room.participants) && room.participants.some(p => p.role === 'host');
+      if (!hasHost) {
+        // Prefer previous room.host_id if present
+        let hostUserId = room.host_id;
+        if (!hostUserId && room.participants && room.participants.length) {
+          // Fallback to oldest participant
+          const sorted = [...room.participants].sort((a, b) => new Date(a.joined_at) - new Date(b.joined_at));
+          hostUserId = sorted[0]?.user_id;
+        }
+        if (hostUserId) {
+          await db.adminClient
+            .from('room_members')
+            .update({ role: 'host' })
+            .eq('room_id', room.id)
+            .eq('user_id', hostUserId);
+          await db.adminClient
+            .from('rooms')
+            .update({ host_id: hostUserId })
+            .eq('id', room.id);
+          console.log(`[API V2] return-all promoted host: ${hostUserId}`);
+        }
+      }
+
+      // Fetch updated snapshot
+      const updatedRoom = await db.getRoomByCode(roomCode);
+      const allPlayers = updatedRoom.participants?.map(p => ({
+        id: p.user_id,
+        name: p.user?.display_name || p.user?.username,
+        isHost: p.role === 'host',
+        isConnected: p.is_connected,
+        inGame: p.in_game,
+        currentLocation: p.current_location || (p.is_connected ? 'lobby' : 'disconnected'),
+        lastPing: p.last_ping,
+        socketId: null
+      })) || [];
+
+      // Broadcast a single authoritative snapshot
+      if (io) {
+        console.log(`[API V2] Broadcasting return-all snapshot to ${roomCode}`);
+        io.to(roomCode).emit('playerStatusUpdated', {
+          reason: 'return_all',
+          players: allPlayers,
+          room: updatedRoom,
+          source: 'return_all',
+          roomVersion: Date.now(),
+          timestamp: now
+        });
+      }
+
+      return res.json({
+        success: true,
+        updated: allPlayers.length,
+        roomCode,
+        roomStatus: updatedRoom.status
+      });
+
+    } catch (error) {
+      console.error('[API V2] return-all error:', error);
+      return res.status(500).json({ error: 'RETURN_ALL_FAILED' });
+    }
+  });
+
   // V2 Heartbeat endpoint for external games
   router.post('/rooms/:roomCode/players/:playerId/heartbeat', validateApiKey, rateLimits.heartbeats, async (req, res) => {
     try {
