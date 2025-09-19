@@ -1003,17 +1003,19 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
     const updatedRoom = await db.getRoomByCode(roomCode);
     
     // Broadcast to GameBuddies lobby with complete player data
+    // Build consolidated players snapshot once for broadcast and status sync
+    const allPlayers = updatedRoom.participants?.map(p => ({
+      id: p.user_id,
+      name: p.user?.display_name || p.user?.username,
+      isHost: p.role === 'host',
+      isConnected: p.is_connected,
+      inGame: p.in_game,
+      currentLocation: p.current_location || (p.is_connected ? 'lobby' : 'disconnected'), // Provide default
+      lastPing: p.last_ping,
+      socketId: null
+    })) || [];
+
     if (io) {
-      const allPlayers = updatedRoom.participants?.map(p => ({
-        id: p.user_id,
-        name: p.user?.display_name || p.user?.username,
-        isHost: p.role === 'host',
-        isConnected: p.is_connected,
-        inGame: p.in_game,
-        currentLocation: p.current_location || (p.is_connected ? 'lobby' : 'disconnected'), // Provide default
-        lastPing: p.last_ping,
-        socketId: null
-      })) || [];
       
       // Debug broadcast details
       console.log(`📡 [API DEBUG] Broadcasting details:`, {
