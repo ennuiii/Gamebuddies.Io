@@ -95,9 +95,12 @@ const JoinRoom = ({ initialRoomCode = '', initialPlayerName = '', autoJoin = fal
         console.log('🔍 [CLIENT DEBUG] Server URL:', serverUrl);
         console.log('🚪 [JOIN DEBUG] Connected, sending joinRoom event');
         
+        const urlParams = new URLSearchParams(window.location.search);
+        const isHostHint = urlParams.get('ishost') === 'true' || urlParams.get('role') === 'gm';
         socket.emit('joinRoom', { 
           roomCode: roomCode.trim().toUpperCase(),
-          playerName: playerName.trim()
+          playerName: playerName.trim(),
+          isHostHint
         });
         console.log('📤 [CLIENT] joinRoom event sent');
       });

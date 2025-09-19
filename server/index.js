@@ -1750,6 +1750,29 @@ io.on('connection', async (socket) => {
         role: participant.role
       });
 
+      // If client indicates they are the host and no host currently exists, promote them
+      try {
+        const clientIsHostHint = data && data.isHostHint === true;
+        const roomHasHost = Array.isArray(room.participants) && room.participants.some(p => p.role === 'host');
+        if (clientIsHostHint && !roomHasHost && user && user.id) {
+          await db.adminClient
+            .from('room_members')
+            .update({ role: 'host' })
+            .eq('room_id', room.id)
+            .eq('user_id', user.id);
+
+          await db.adminClient
+            .from('rooms')
+            .update({ host_id: user.id })
+            .eq('id', room.id);
+
+          userRole = 'host';
+          console.log(`Promoted user ${user.id} to host based on client hint (room had no host)`);
+        }
+      } catch (e) {
+        console.error('[REJOINING DEBUG] Failed to promote host from hint:', e?.message || e);
+      }
+
       // Join socket room
       console.log(`🔗 [DEBUG] Joining socket room: ${room.room_code}`);
       socket.join(room.room_code);
