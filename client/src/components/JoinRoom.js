@@ -116,7 +116,7 @@ const JoinRoom = ({ initialRoomCode = '', initialPlayerName = '', autoJoin = fal
           onRoomJoined({
             roomCode: data.roomCode,
             playerName: playerName.trim(),
-            isHost: false,
+            isHost: !!data.isHost,
             players: data.players,
             room: data.room
           });

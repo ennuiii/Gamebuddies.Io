@@ -1082,18 +1082,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
           </div>
           <div className="players-grid">
             {players
-              .filter(player => {
-                // Show connected players
-                if (player.isConnected) return true;
-                
-                // Show disconnected players only if they still have a countdown timer
-                if (!player.isConnected && disconnectedTimers.has(player.id)) {
-                  return true;
-                }
-                
-                // Hide disconnected players after countdown expires
-                return false;
-              })
+              .filter(() => true)
               .map((player) => {
                 const playerStatus = getPlayerStatus(player);
                 const countdownTime = disconnectedTimers.get(player.id);
