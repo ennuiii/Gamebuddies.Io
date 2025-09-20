@@ -1160,6 +1160,7 @@ app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async 
     }
     
     const results = [];
+    const lobbyThisBatch = new Set(); // Track players moved to lobby in this bulk request
     
     // Debug room context for bulk update
     const roomParticipants = await db.adminClient
@@ -1222,6 +1223,12 @@ app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async 
             break;
             
           case 'disconnected': // Player disconnected from the external game
+            // If this same bulk request already returned this player to lobby, skip downgrade
+            if (lobbyThisBatch.has(playerId)) {
+              console.log(`⚠️ [API DEBUG] Skipping disconnect in same bulk for ${playerId} (already returned_to_lobby)`);
+              results.push({ playerId, success: true, skipped: true, reason: 'already_returned_in_bulk' });
+              break; // Skip applying disconnect
+            }
             updateData.is_connected = false;
             updateData.current_location = 'disconnected';
             updateData.in_game = false;
@@ -1231,6 +1238,7 @@ app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async 
             updateData.is_connected = true;
             updateData.current_location = 'lobby';
             updateData.in_game = false;
+            lobbyThisBatch.add(playerId);
             break;
             
           case 'in_game': // Player is actively in the external game
