@@ -389,10 +389,18 @@ module.exports = (io, db, connectionManager) => {
         return res.status(404).json({ error: 'Room not found', code: 'ROOM_NOT_FOUND' });
       }
 
-      // Update room status to lobby
+      // Update room status to lobby and set short grace window for return-in-progress
+      const graceUntil = new Date(Date.now() + 15000).toISOString();
       await db.adminClient
         .from('rooms')
-        .update({ status: 'lobby', last_activity: now })
+        .update({ 
+          status: 'lobby', 
+          last_activity: now,
+          metadata: { 
+            ...(room.metadata || {}),
+            return_in_progress_until: graceUntil
+          }
+        })
         .eq('id', room.id);
 
       // Update all participants to lobby
