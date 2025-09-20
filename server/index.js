@@ -904,6 +904,21 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
         break;
         
           case 'disconnected': // Player disconnected from the external game
+            // Room-level grace window: skip disconnects right after return-all
+            try {
+              const { data: roomMeta } = await db.adminClient
+                .from('rooms')
+                .select('metadata')
+                .eq('room_code', roomCode)
+                .single();
+              const graceUntil = roomMeta?.metadata?.return_in_progress_until;
+              if (graceUntil && new Date(graceUntil) > new Date()) {
+                console.log(`⚠️ [API DEBUG] Skipping disconnect for ${playerId} due to active return_in_progress window`);
+                break;
+              }
+            } catch (e) {
+              console.warn('[API DEBUG] Grace window check failed (non-fatal):', e?.message || e);
+            }
             // Guard: if this player was already in 'lobby' just before this call, don't downgrade
             try {
               const { data: prevParticipant } = await db.adminClient
@@ -1167,7 +1182,7 @@ app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async 
     // Get room
     const { data: room } = await db.adminClient
       .from('rooms')
-      .select('id, room_code, status')
+      .select('id, room_code, status, metadata')
       .eq('room_code', roomCode)
       .single();
     
@@ -1240,6 +1255,15 @@ app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async 
             break;
             
           case 'disconnected': // Player disconnected from the external game
+            // Global grace window after return-all: suppress disconnects briefly
+            try {
+              const graceUntil = room?.metadata?.return_in_progress_until;
+              if (graceUntil && new Date(graceUntil) > new Date()) {
+                console.log(`⚠️ [API DEBUG] Skipping disconnect for ${playerId} due to active return_in_progress window`);
+                results.push({ playerId, success: true, skipped: true, reason: 'return_in_progress' });
+                break;
+              }
+            } catch {}
             // If this same bulk request already returned this player to lobby, skip downgrade
             if (lobbyThisBatch.has(playerId)) {
               console.log(`⚠️ [API DEBUG] Skipping disconnect in same bulk for ${playerId} (already returned_to_lobby)`);
