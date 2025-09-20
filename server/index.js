@@ -903,11 +903,28 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
         }
         break;
         
-      case 'disconnected': // Player disconnected from the external game
-        updateData.is_connected = false;
-        updateData.current_location = 'disconnected';
-        updateData.in_game = false;
-        break;
+          case 'disconnected': // Player disconnected from the external game
+            // Guard: if this player was already in 'lobby' just before this call, don't downgrade
+            try {
+              const { data: prevParticipant } = await db.adminClient
+                .from('room_members')
+                .select('current_location')
+                .eq('user_id', playerId)
+                .eq('room_id', room.id)
+                .single();
+              if (prevParticipant && prevParticipant.current_location === 'lobby') {
+                console.log(`⚠️ [API DEBUG] Skipping disconnect for ${playerId} due to existing lobby state`);
+                // Short-circuit this player update; treat as success to avoid failing the whole op
+                break;
+              }
+            } catch (e) {
+              // Non-fatal: if guard lookup fails, proceed with disconnect
+              console.warn('[API DEBUG] Disconnect guard (single) failed (non-fatal):', e?.message || e);
+            }
+            updateData.is_connected = false;
+            updateData.current_location = 'disconnected';
+            updateData.in_game = false;
+            break;
         
       case 'returned_to_lobby': // Player explicitly returned to GameBuddies lobby by external game action
         updateData.is_connected = true;
