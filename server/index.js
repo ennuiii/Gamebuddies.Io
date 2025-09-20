@@ -1196,6 +1196,19 @@ app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async 
           last_ping: new Date().toISOString(),
           game_data: gameData || null
         };
+
+        // Guard against immediate regression to 'disconnected' after a lobby return
+        // Use the preloaded roomParticipants snapshot taken before processing this bulk request
+        try {
+          const prevState = roomParticipants?.data?.find?.(p => p.user_id === playerId);
+          if (status === 'disconnected' && prevState && prevState.current_location === 'lobby') {
+            console.log(`⚠️ [API DEBUG] Skipping disconnect for ${playerId} due to recent lobby state`);
+            results.push({ playerId, success: true, skipped: true, reason: 'recent_lobby_state' });
+            continue; // Do not apply a downgrade to disconnected
+          }
+        } catch (guardErr) {
+          console.warn('[API DEBUG] Disconnect guard check failed (non-fatal):', guardErr?.message || guardErr);
+        }
         
         switch (status) {
       case 'connected': // Player connected to the external game instance
