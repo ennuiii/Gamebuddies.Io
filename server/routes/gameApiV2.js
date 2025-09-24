@@ -1,4 +1,4 @@
-const express = require('express');
+﻿const express = require('express');
 const router = express.Router();
 const LobbyManager = require('../lib/lobbyManager');
 const StatusSyncManager = require('../lib/statusSyncManager');
@@ -14,7 +14,7 @@ module.exports = (io, db, connectionManager) => {
       const { roomCode } = req.params;
       const { playerName, playerId, sessionToken } = req.query;
 
-      console.log(`🔍 [API V2] Validating room ${roomCode} for service ${req.apiKey.service_name}`);
+      console.log(`ðŸ” [API V2] Validating room ${roomCode} for service ${req.apiKey.service_name}`);
 
       // Get room with enhanced participant data
       const { data: room, error } = await db.adminClient
@@ -92,7 +92,7 @@ module.exports = (io, db, connectionManager) => {
         .limit(1)
         .single();
 
-      console.log(`✅ [API V2] Room ${roomCode} validated successfully`);
+      console.log(`âœ… [API V2] Room ${roomCode} validated successfully`);
 
       res.json({
         valid: true,
@@ -140,7 +140,7 @@ module.exports = (io, db, connectionManager) => {
       });
 
     } catch (error) {
-      console.error('❌ [API V2] Room validation error:', error);
+      console.error('âŒ [API V2] Room validation error:', error);
       res.status(500).json({
         valid: false,
         error: 'Server error',
@@ -155,7 +155,7 @@ module.exports = (io, db, connectionManager) => {
       const { roomCode, playerId } = req.params;
       const { status, location, metadata = {}, syncSession = false } = req.body;
 
-      console.log(`🔄 [API V2] Updating player ${playerId} status: ${status}/${location}`);
+      console.log(`ðŸ”„ [API V2] Updating player ${playerId} status: ${status}/${location}`);
 
       // Validate status and location values
       const validStatuses = ['connected', 'disconnected', 'in_game', 'returning', 'lobby'];
@@ -207,11 +207,11 @@ module.exports = (io, db, connectionManager) => {
             sessionToken = await lobbyManager.createPlayerSession(playerId, room.id, `api_${Date.now()}`);
           }
         } catch (sessionError) {
-          console.warn('⚠️ [API V2] Session sync failed:', sessionError);
+          console.warn('âš ï¸ [API V2] Session sync failed:', sessionError);
         }
       }
 
-      console.log(`✅ [API V2] Player ${playerId} status updated successfully`);
+      console.log(`âœ… [API V2] Player ${playerId} status updated successfully`);
 
       res.json({
         success: true,
@@ -226,7 +226,7 @@ module.exports = (io, db, connectionManager) => {
       });
 
     } catch (error) {
-      console.error('❌ [API V2] Status update error:', error);
+      console.error('âŒ [API V2] Status update error:', error);
       res.status(500).json({
         error: 'Failed to update status',
         code: 'UPDATE_FAILED'
@@ -240,7 +240,7 @@ module.exports = (io, db, connectionManager) => {
       const { roomCode } = req.params;
       const { reason, players, gameState, returnToLobby = false } = req.body;
 
-      console.log(`📦 [API V2] Bulk updating ${players?.length || 0} players in room ${roomCode}`);
+      console.log(`ðŸ“¦ [API V2] Bulk updating ${players?.length || 0} players in room ${roomCode}`);
 
       if (!players || !Array.isArray(players) || players.length === 0) {
         return res.status(400).json({
@@ -282,10 +282,10 @@ module.exports = (io, db, connectionManager) => {
             await db.saveGameState(room.id, req.apiKey.service_name, gameState, null);
           }
         } catch (stateError) {
-          console.warn('⚠️ [API V2] Game state save failed:', stateError);
+          console.warn('âš ï¸ [API V2] Game state save failed:', stateError);
         }
-      }\r\n      // Return-to-lobby handling removed\r\n\r\n    } catch (error) {
-      console.log(`✅ [API V2] Bulk update completed: ${result.summary.successful}/${result.summary.total} successful`);
+      }\n\n    } catch (error) {
+      console.log(`âœ… [API V2] Bulk update completed: ${result.summary.successful}/${result.summary.total} successful`);
 
       res.json({
         success: true,
@@ -297,7 +297,7 @@ module.exports = (io, db, connectionManager) => {
       });
 
     } catch (error) {
-      console.error('❌ [API V2] Bulk update error:', error);
+      console.error('âŒ [API V2] Bulk update error:', error);
       res.status(500).json({
         error: 'Bulk update failed',
         code: 'BULK_UPDATE_FAILED'
@@ -316,16 +316,16 @@ module.exports = (io, db, connectionManager) => {
         });
       }
 
-      console.log(`🔄 [API V2] Attempting session recovery for token: ${sessionToken.substring(0, 8)}...`);
+      console.log(`ðŸ”„ [API V2] Attempting session recovery for token: ${sessionToken.substring(0, 8)}...`);
 
       const result = await lobbyManager.recoverSession(sessionToken, socketId || `api_${Date.now()}`);
 
-      console.log(`✅ [API V2] Session recovered successfully`);
+      console.log(`âœ… [API V2] Session recovered successfully`);
 
       res.json(result);
 
     } catch (error) {
-      console.error('❌ [API V2] Session recovery error:', error);
+      console.error('âŒ [API V2] Session recovery error:', error);
       res.status(401).json({
         error: 'Session recovery failed',
         code: 'INVALID_SESSION'
@@ -338,7 +338,7 @@ module.exports = (io, db, connectionManager) => {
     try {
       const { roomCode } = req.params;
 
-      console.log(`🔄 [API V2] Manual room sync requested for ${roomCode}`);
+      console.log(`ðŸ”„ [API V2] Manual room sync requested for ${roomCode}`);
 
       const result = await statusSyncManager.syncRoomStatus(roomCode);
 
@@ -350,7 +350,7 @@ module.exports = (io, db, connectionManager) => {
       });
 
     } catch (error) {
-      console.error('❌ [API V2] Room sync error:', error);
+      console.error('âŒ [API V2] Room sync error:', error);
       res.status(500).json({
         error: 'Room sync failed',
         code: 'SYNC_FAILED'
@@ -501,7 +501,7 @@ module.exports = (io, db, connectionManager) => {
       res.json(result);
 
     } catch (error) {
-      console.error('❌ [API V2] Heartbeat error:', error);
+      console.error('âŒ [API V2] Heartbeat error:', error);
       res.status(500).json({
         error: 'Heartbeat failed',
         nextHeartbeat: 30000
@@ -515,7 +515,7 @@ module.exports = (io, db, connectionManager) => {
       const { roomCode } = req.params;
       const { gameResult = {}, returnPlayers = true } = req.body;
 
-      console.log(`🎮 [API V2] Game end reported for room ${roomCode}`);
+      console.log(`ðŸŽ® [API V2] Game end reported for room ${roomCode}`);
 
       let result = { success: true, playersReturned: 0 };
 
@@ -539,7 +539,7 @@ module.exports = (io, db, connectionManager) => {
       res.json(result);
 
     } catch (error) {
-      console.error('❌ [API V2] Game end error:', error);
+      console.error('âŒ [API V2] Game end error:', error);
       res.status(500).json({
         error: 'Game end handling failed',
         code: 'GAME_END_FAILED'
@@ -566,3 +566,5 @@ module.exports = (io, db, connectionManager) => {
 
   return router;
 };
+
+
