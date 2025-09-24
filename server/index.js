@@ -1,3 +1,6 @@
+﻿
+const gameApiV2Router = require('./routes/gameApiV2');
+const gameApiV2DDFRouter = require('./routes/gameApiV2_DDFCompatibility');
 const express = require('express');
 const path = require('path');
 const cors = require('cors');
@@ -11,6 +14,8 @@ require('dotenv').config();
 const rateLimit = require('express-rate-limit');
 const crypto = require('crypto');
 const ConnectionManager = require('./lib/connectionManager');
+const LobbyManager = require('./lib/lobbyManager');
+const StatusSyncManager = require('./lib/statusSyncManager');
 const { validators, sanitize, rateLimits } = require('./lib/validation');
 
 const app = express();
@@ -166,7 +171,7 @@ const createFilteredLogger = () => {
   };
 };
 Object.entries(gameProxies).forEach(([key, proxy]) => {
-  console.log(`🔗 [PROXY] Setting up ${key.toUpperCase()} proxy: ${proxy.path} -> ${proxy.target}`);
+  console.log(`ðŸ”— [PROXY] Setting up ${key.toUpperCase()} proxy: ${proxy.path} -> ${proxy.target}`);
   
   const proxyMiddleware = createProxyMiddleware({
     target: proxy.target,
@@ -182,7 +187,7 @@ Object.entries(gameProxies).forEach(([key, proxy]) => {
     onError: (err, req, res) => {
       // Only log real errors, not connection resets from unreachable services
       if (!isNavigationError(err) && err.code !== 'ECONNRESET') {
-        console.error(`❌ [PROXY] ${key.toUpperCase()} error: ${err.message}`);
+        console.error(`âŒ [PROXY] ${key.toUpperCase()} error: ${err.message}`);
       }
       
       // Only send response if not already sent and not a WebSocket upgrade
@@ -215,7 +220,7 @@ server.on('upgrade', (request, socket, head) => {
     if (pathname.startsWith(proxy.path)) {
       // Skip WebSocket upgrades for proxies that have ws disabled
       if (proxy.ws === false) {
-        console.log(`🚫 [PROXY] Skipping WebSocket upgrade for ${proxy.path} (ws disabled)`);
+        console.log(`ðŸš« [PROXY] Skipping WebSocket upgrade for ${proxy.path} (ws disabled)`);
         socket.destroy();
         return;
       }
@@ -312,7 +317,7 @@ app.get('/api/games', (req, res) => {
   const games = [
     {
       id: 'ddf',
-      name: 'Der dümmste fliegt',
+      name: 'Der dÃ¼mmste fliegt',
       description: 'A fun quiz game where the worst player gets eliminated each round!',
       path: '/ddf',
       screenshot: '/screenshots/DDF.png',
@@ -348,7 +353,7 @@ app.get('/api/games', (req, res) => {
 async function validateApiKey(req, res, next) {
   const apiKey = req.headers['x-api-key'];
   
-  console.log(`🔐 [API AUTH] API key validation attempt:`, {
+  console.log(`ðŸ” [API AUTH] API key validation attempt:`, {
     endpoint: req.path,
     method: req.method,
     hasApiKey: !!apiKey,
@@ -359,7 +364,7 @@ async function validateApiKey(req, res, next) {
   });
   
   if (!apiKey) {
-    console.log(`❌ [API AUTH] No API key provided for ${req.method} ${req.path}`);
+    console.log(`âŒ [API AUTH] No API key provided for ${req.method} ${req.path}`);
     return res.status(401).json({ error: 'API key required' });
   }
   
@@ -372,7 +377,7 @@ async function validateApiKey(req, res, next) {
       .single();
     
     if (error || !key) {
-      console.log(`❌ [API AUTH] Invalid API key:`, {
+      console.log(`âŒ [API AUTH] Invalid API key:`, {
         apiKeyPrefix: `${apiKey.substring(0, 8)}...`,
         error: error?.message,
         endpoint: req.path,
@@ -381,7 +386,7 @@ async function validateApiKey(req, res, next) {
       return res.status(401).json({ error: 'Invalid API key' });
     }
 
-    console.log(`✅ [API AUTH] Valid API key:`, {
+    console.log(`âœ… [API AUTH] Valid API key:`, {
       service: key.name || key.service_name,
       keyId: key.id,
       endpoint: req.path,
@@ -408,7 +413,7 @@ async function validateApiKey(req, res, next) {
     req.apiKey = key;
     next();
   } catch (error) {
-    console.error('❌ [API AUTH] API key validation error:', {
+    console.error('âŒ [API AUTH] API key validation error:', {
       error: error.message,
       stack: error.stack,
       endpoint: req.path,
@@ -425,7 +430,7 @@ app.get('/api/game/rooms/:roomCode/validate', validateApiKey, async (req, res) =
     const { roomCode } = req.params;
     const { playerName, playerId } = req.query;
     
-    console.log(`🔍 [API] Validating room ${roomCode} for ${playerName} (service: ${req.apiKey.service_name})`);
+    console.log(`ðŸ” [API] Validating room ${roomCode} for ${playerName} (service: ${req.apiKey.service_name})`);
     
     // Get room with all related data
     const { data: room, error } = await db.adminClient
@@ -441,7 +446,7 @@ app.get('/api/game/rooms/:roomCode/validate', validateApiKey, async (req, res) =
       .single();
     
     if (error || !room) {
-      console.log(`❌ [API] Room ${roomCode} not found`);
+      console.log(`âŒ [API] Room ${roomCode} not found`);
       return res.status(404).json({ 
         valid: false, 
         error: 'Room not found',
@@ -451,7 +456,7 @@ app.get('/api/game/rooms/:roomCode/validate', validateApiKey, async (req, res) =
     
     // Check room status - V2 Schema uses 'lobby', 'in_game', 'returning'
     if (!['lobby', 'in_game', 'returning'].includes(room.status)) {
-      console.log(`❌ [API] Room ${roomCode} has invalid status: ${room.status}`);
+      console.log(`âŒ [API] Room ${roomCode} has invalid status: ${room.status}`);
       return res.status(400).json({ 
         valid: false, 
         error: `Room is ${room.status}`,
@@ -462,7 +467,7 @@ app.get('/api/game/rooms/:roomCode/validate', validateApiKey, async (req, res) =
     
     // Check if game type matches or room is in lobby state
     if (room.current_game && room.current_game !== req.apiKey.service_name) {
-      console.log(`❌ [API] Room ${roomCode} is for game ${room.current_game}, not ${req.apiKey.service_name}`);
+      console.log(`âŒ [API] Room ${roomCode} is for game ${room.current_game}, not ${req.apiKey.service_name}`);
       return res.status(400).json({ 
         valid: false, 
         error: 'Room is for a different game',
@@ -489,7 +494,7 @@ app.get('/api/game/rooms/:roomCode/validate', validateApiKey, async (req, res) =
       .limit(1)
       .single();
     
-    console.log(`✅ [API] Room ${roomCode} validated successfully`);
+    console.log(`âœ… [API] Room ${roomCode} validated successfully`);
     
     res.json({
       valid: true,
@@ -530,7 +535,7 @@ app.get('/api/game/rooms/:roomCode/validate', validateApiKey, async (req, res) =
     });
     
   } catch (error) {
-    console.error('❌ [API] Room validation error:', error);
+    console.error('âŒ [API] Room validation error:', error);
     res.status(500).json({ 
       valid: false, 
       error: 'Server error',
@@ -545,7 +550,7 @@ app.post('/api/game/rooms/:roomCode/join', validateApiKey, async (req, res) => {
     const { roomCode } = req.params;
     const { playerName, playerId } = req.body;
     
-    console.log(`🚪 [API] Player ${playerName} joining room ${roomCode} (service: ${req.apiKey.service_name})`);
+    console.log(`ðŸšª [API] Player ${playerName} joining room ${roomCode} (service: ${req.apiKey.service_name})`);
     
     // Get room
     const { data: room, error: roomError } = await db.adminClient
@@ -555,14 +560,14 @@ app.post('/api/game/rooms/:roomCode/join', validateApiKey, async (req, res) => {
       .single();
     
     if (roomError || !room) {
-      console.log(`❌ [API] Room ${roomCode} not found for join`);
+      console.log(`âŒ [API] Room ${roomCode} not found for join`);
       return res.status(404).json({ error: 'Room not found' });
     }
     
     // Check if room is full - calculate current players from connected members
     const currentPlayers = room.participants?.filter(p => p.is_connected === true).length || 0;
     if (currentPlayers >= room.max_players) {
-      console.log(`❌ [API] Room ${roomCode} is full (${currentPlayers}/${room.max_players})`);
+      console.log(`âŒ [API] Room ${roomCode} is full (${currentPlayers}/${room.max_players})`);
       return res.status(400).json({ 
         error: 'Room is full',
         code: 'ROOM_FULL'
@@ -582,7 +587,7 @@ app.post('/api/game/rooms/:roomCode/join', validateApiKey, async (req, res) => {
       .single();
     
     if (existingParticipant) {
-      console.log(`🔄 [API] Player ${playerName} rejoining room ${roomCode}`);
+      console.log(`ðŸ”„ [API] Player ${playerName} rejoining room ${roomCode}`);
       // Update connection status
       await db.adminClient
         .from('room_members')
@@ -629,7 +634,7 @@ app.post('/api/game/rooms/:roomCode/join', validateApiKey, async (req, res) => {
       service: req.apiKey.service_name 
     });
     
-    console.log(`✅ [API] Player ${playerName} joined room ${roomCode} successfully`);
+    console.log(`âœ… [API] Player ${playerName} joined room ${roomCode} successfully`);
     
     res.json({
       success: true,
@@ -639,7 +644,7 @@ app.post('/api/game/rooms/:roomCode/join', validateApiKey, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ [API] Player join error:', error);
+    console.error('âŒ [API] Player join error:', error);
     res.status(500).json({ error: 'Failed to join room' });
   }
 });
@@ -650,7 +655,7 @@ app.post('/api/game/rooms/:roomCode/state', validateApiKey, async (req, res) => 
     const { roomCode } = req.params;
     const { playerId, gameState, stateType = 'full' } = req.body;
     
-    console.log(`📊 [API] Syncing game state for room ${roomCode} by player ${playerId}`);
+    console.log(`ðŸ“Š [API] Syncing game state for room ${roomCode} by player ${playerId}`);
     
     // Get room
     const { data: room, error: roomError } = await db.adminClient
@@ -699,7 +704,7 @@ app.post('/api/game/rooms/:roomCode/state', validateApiKey, async (req, res) => 
       });
     }
     
-    console.log(`✅ [API] Game state synced for room ${roomCode}, version ${savedState.state_version}`);
+    console.log(`âœ… [API] Game state synced for room ${roomCode}, version ${savedState.state_version}`);
     
     res.json({
       success: true,
@@ -708,7 +713,7 @@ app.post('/api/game/rooms/:roomCode/state', validateApiKey, async (req, res) => 
     });
     
   } catch (error) {
-    console.error('❌ [API] State sync error:', error);
+    console.error('âŒ [API] State sync error:', error);
     res.status(500).json({ error: 'Failed to sync state' });
   }
 });
@@ -757,7 +762,7 @@ app.get('/api/game/rooms/:roomCode/state', validateApiKey, async (req, res) => {
     });
     
   } catch (error) {
-    console.error('❌ [API] Get state error:', error);
+    console.error('âŒ [API] Get state error:', error);
     res.status(500).json({ error: 'Failed to get state' });
   }
 });
@@ -768,7 +773,7 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
     const { roomCode, playerId } = req.params;
     const { status, gameData, location, reason } = req.body;
     
-    console.log(`🎮 [API] External game status update:`, {
+    console.log(`ðŸŽ® [API] External game status update:`, {
       roomCode,
       playerId,
       status,
@@ -782,7 +787,7 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
     });
     
     // Debug request headers and body
-    console.log(`🔍 [API DEBUG] Request details:`, {
+    console.log(`ðŸ” [API DEBUG] Request details:`, {
       headers: {
         'content-type': req.get('Content-Type'),
         'x-api-key': req.apiKey?.service_name ? `${req.apiKey.service_name} (valid)` : 'invalid',
@@ -807,7 +812,7 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
       .eq('room_code', roomCode)
       .single();
     
-    console.log(`🔍 [API DEBUG] Room query result:`, {
+    console.log(`ðŸ” [API DEBUG] Room query result:`, {
       roomCode,
       hasData: !!room,
       hasError: !!roomError,
@@ -817,7 +822,7 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
     });
     
     if (!room) {
-      console.log(`❌ [API] Room not found: ${roomCode}`);
+      console.log(`âŒ [API] Room not found: ${roomCode}`);
       
       // Debug: Check if room exists but with different status
       const { data: anyRoom } = await db.adminClient
@@ -827,14 +832,14 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
         .single();
       
       if (anyRoom) {
-        console.log(`🔍 [API DEBUG] Room ${roomCode} exists but wasn't returned:`, {
+        console.log(`ðŸ” [API DEBUG] Room ${roomCode} exists but wasn't returned:`, {
           id: anyRoom.id,
           status: anyRoom.status,
           created_at: anyRoom.created_at,
           last_activity: anyRoom.last_activity
         });
       } else {
-        console.log(`🔍 [API DEBUG] Room ${roomCode} does not exist in database at all`);
+        console.log(`ðŸ” [API DEBUG] Room ${roomCode} does not exist in database at all`);
       }
       
       return res.status(404).json({ error: 'Room not found' });
@@ -849,11 +854,11 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
       .single();
     
     if (!participant) {
-      console.log(`❌ [API] Player not found in room: ${playerId}`);
+      console.log(`âŒ [API] Player not found in room: ${playerId}`);
       return res.status(404).json({ error: 'Player not found in room' });
     }
     
-    console.log(`🔍 [API] Current participant status:`, {
+    console.log(`ðŸ” [API] Current participant status:`, {
       user_id: participant.user_id,
       role: participant.role,
       in_game: participant.in_game,
@@ -862,7 +867,7 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
     });
     
     // Debug room context
-    console.log(`🏠 [API DEBUG] Room context:`, {
+    console.log(`ðŸ  [API DEBUG] Room context:`, {
       room_id: room.id,
       room_code: room.room_code,
       room_status: room.status,
@@ -913,7 +918,7 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
                 .single();
               const graceUntil = roomMeta?.metadata?.return_in_progress_until;
               if (graceUntil && new Date(graceUntil) > new Date()) {
-                console.log(`⚠️ [API DEBUG] Skipping disconnect for ${playerId} due to active return_in_progress window`);
+                console.log(`âš ï¸ [API DEBUG] Skipping disconnect for ${playerId} due to active return_in_progress window`);
                 break;
               }
             } catch (e) {
@@ -928,7 +933,7 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
                 .eq('room_id', room.id)
                 .single();
               if (prevParticipant && prevParticipant.current_location === 'lobby') {
-                console.log(`⚠️ [API DEBUG] Skipping disconnect for ${playerId} due to existing lobby state`);
+                console.log(`âš ï¸ [API DEBUG] Skipping disconnect for ${playerId} due to existing lobby state`);
                 // Short-circuit this player update; treat as success to avoid failing the whole op
                 break;
               }
@@ -957,10 +962,10 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
         updateData.is_connected = false; // Default to not connected for unknown status
         updateData.current_location = location || 'disconnected';
         updateData.in_game = false;
-        console.warn(`⚠️ [API] Unknown status type received: '${status}'. Defaulting to disconnected.`);
+        console.warn(`âš ï¸ [API] Unknown status type received: '${status}'. Defaulting to disconnected.`);
     }
     
-    console.log(`📝 [API] Status change analysis:`, {
+    console.log(`ðŸ“ [API] Status change analysis:`, {
       before: {
         is_connected: participant.is_connected,
         current_location: participant.current_location,
@@ -978,7 +983,7 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
       }
     });
     
-    console.log(`📝 [API] Updating participant with:`, updateData);
+    console.log(`ðŸ“ [API] Updating participant with:`, updateData);
     
     // Check if this player was the host before updating
     const wasHost = participant.role === 'host';
@@ -992,14 +997,14 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
       .eq('user_id', playerId);
     
     if (updateError) {
-      console.error(`❌ [API] Database update error:`, updateError);
+      console.error(`âŒ [API] Database update error:`, updateError);
       throw updateError;
     }
     
     // Handle host transfer if host disconnected via external game
     let newHost = null;
     if (wasHost && isDisconnecting) {
-      console.log(`👑 [API] Host ${playerId} disconnected via external game - checking for host transfer`);
+      console.log(`ðŸ‘‘ [API] Host ${playerId} disconnected via external game - checking for host transfer`);
       
       // Get other connected players who could become host
       const { data: otherConnectedPlayers } = await db.adminClient
@@ -1014,12 +1019,12 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
         newHost = await db.autoTransferHost(room.id, playerId);
         
         if (newHost) {
-          console.log(`👑 [API] Host transferred from ${playerId} to ${newHost.user_id} (${newHost.user?.username || newHost.user?.display_name}) via external game disconnect`);
+          console.log(`ðŸ‘‘ [API] Host transferred from ${playerId} to ${newHost.user_id} (${newHost.user?.username || newHost.user?.display_name}) via external game disconnect`);
         } else {
-          console.log(`❌ [API] Failed to transfer host from ${playerId}`);
+          console.log(`âŒ [API] Failed to transfer host from ${playerId}`);
         }
       } else {
-        console.log(`⚠️ [API] Host ${playerId} disconnected but no other connected players - keeping host role`);
+        console.log(`âš ï¸ [API] Host ${playerId} disconnected but no other connected players - keeping host role`);
       }
     }
     
@@ -1051,7 +1056,7 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
     if (io) {
       
       // Debug broadcast details
-      console.log(`📡 [API DEBUG] Broadcasting details:`, {
+      console.log(`ðŸ“¡ [API DEBUG] Broadcasting details:`, {
         roomCode,
         socketRoomExists: io.sockets.adapter.rooms.has(roomCode),
         socketRoomSize: io.sockets.adapter.rooms.get(roomCode)?.size || 0,
@@ -1068,9 +1073,9 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
         return acc;
       }, {});
       
-      console.log(`👥 [API DEBUG] Player status summary after update:`, statusSummary);
+      console.log(`ðŸ‘¥ [API DEBUG] Player status summary after update:`, statusSummary);
       
-      console.log(`📡 [API] Broadcasting status update to room ${roomCode}`);
+      console.log(`ðŸ“¡ [API] Broadcasting status update to room ${roomCode}`);
       const broadcastData = {
         playerId,
         status: updateData.current_location,
@@ -1089,21 +1094,21 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
           newHostName: newHost.user?.username || newHost.user?.display_name,
           reason: 'external_game_disconnect'
         };
-        console.log(`👑 [API] Including host transfer in broadcast:`, broadcastData.hostTransfer);
+        console.log(`ðŸ‘‘ [API] Including host transfer in broadcast:`, broadcastData.hostTransfer);
       }
       
       broadcastData.roomVersion = Date.now();
       io.to(roomCode).emit('playerStatusUpdated', broadcastData);
       
       // Confirm broadcast was sent
-      console.log(`✅ [API DEBUG] Broadcast sent to ${io.sockets.adapter.rooms.get(roomCode)?.size || 0} connected clients`);
+      console.log(`âœ… [API DEBUG] Broadcast sent to ${io.sockets.adapter.rooms.get(roomCode)?.size || 0} connected clients`);
     } else {
-      console.log(`⚠️ [API DEBUG] Socket.io not available - cannot broadcast status update`);
+      console.log(`âš ï¸ [API DEBUG] Socket.io not available - cannot broadcast status update`);
     }
     
     // Auto-update room status if this player is the host
     if (wasHost || participant.role === 'host') {
-      console.log(`👑 [API] Player ${playerId} is host - checking for auto room status update`);
+      console.log(`ðŸ‘‘ [API] Player ${playerId} is host - checking for auto room status update`);
       autoUpdateRoomStatusByHost(room.id, playerId, updateData.current_location);
     }
     
@@ -1121,7 +1126,7 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
       await autoUpdateRoomStatusBasedOnPlayerStates(updatedRoom, allPlayersForAnalysis, reason || 'player_status_change');
     }
     
-    console.log(`✅ [API] Successfully updated player ${playerId} status to ${status} (location: ${updateData.current_location})`);
+    console.log(`âœ… [API] Successfully updated player ${playerId} status to ${status} (location: ${updateData.current_location})`);
     
     res.json({ 
       success: true,
@@ -1133,7 +1138,7 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
     });
     
   } catch (error) {
-    console.error('❌ [API] Status update error:', error);
+    console.error('âŒ [API] Status update error:', error);
     res.status(500).json({ error: 'Failed to update status' });
   }
 });
@@ -1144,7 +1149,7 @@ app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async 
     const { roomCode } = req.params;
     const { players, reason } = req.body;
     
-    console.log(`🎮 [API] Bulk status update for room ${roomCode}:`, {
+    console.log(`ðŸŽ® [API] Bulk status update for room ${roomCode}:`, {
       playerCount: players?.length || 0,
       reason,
       apiService: req.apiKey?.name || req.apiKey?.service_name,
@@ -1154,7 +1159,7 @@ app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async 
     });
     
     // Debug request details
-    console.log(`🔍 [API DEBUG] Bulk request details:`, {
+    console.log(`ðŸ” [API DEBUG] Bulk request details:`, {
       headers: {
         'content-type': req.get('Content-Type'),
         'x-api-key': req.apiKey?.service_name ? `${req.apiKey.service_name} (valid)` : 'invalid',
@@ -1187,7 +1192,7 @@ app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async 
       .single();
     
     if (!room) {
-      console.log(`❌ [API] Room not found: ${roomCode}`);
+      console.log(`âŒ [API] Room not found: ${roomCode}`);
       return res.status(404).json({ error: 'Room not found' });
     }
     
@@ -1200,7 +1205,7 @@ app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async 
       .select('user_id, is_connected, current_location, in_game')
       .eq('room_id', room.id);
     
-    console.log(`🏠 [API DEBUG] Room context before bulk update:`, {
+    console.log(`ðŸ  [API DEBUG] Room context before bulk update:`, {
       room_id: room.id,
       room_code: room.room_code,
       room_status: room.status,
@@ -1216,7 +1221,7 @@ app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async 
     for (const playerUpdate of players) {
       const { playerId, status, gameData, location } = playerUpdate;
       
-      console.log(`👤 [API DEBUG] Processing player ${playerId}:`, {
+      console.log(`ðŸ‘¤ [API DEBUG] Processing player ${playerId}:`, {
         playerId,
         requestedStatus: status,
         requestedLocation: location,
@@ -1235,7 +1240,7 @@ app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async 
         try {
           const prevState = roomParticipants?.data?.find?.(p => p.user_id === playerId);
           if (status === 'disconnected' && prevState && prevState.current_location === 'lobby') {
-            console.log(`⚠️ [API DEBUG] Skipping disconnect for ${playerId} due to recent lobby state`);
+            console.log(`âš ï¸ [API DEBUG] Skipping disconnect for ${playerId} due to recent lobby state`);
             results.push({ playerId, success: true, skipped: true, reason: 'recent_lobby_state' });
             continue; // Do not apply a downgrade to disconnected
           }
@@ -1259,14 +1264,14 @@ app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async 
             try {
               const graceUntil = room?.metadata?.return_in_progress_until;
               if (graceUntil && new Date(graceUntil) > new Date()) {
-                console.log(`⚠️ [API DEBUG] Skipping disconnect for ${playerId} due to active return_in_progress window`);
+                console.log(`âš ï¸ [API DEBUG] Skipping disconnect for ${playerId} due to active return_in_progress window`);
                 results.push({ playerId, success: true, skipped: true, reason: 'return_in_progress' });
                 break;
               }
             } catch {}
             // If this same bulk request already returned this player to lobby, skip downgrade
             if (lobbyThisBatch.has(playerId)) {
-              console.log(`⚠️ [API DEBUG] Skipping disconnect in same bulk for ${playerId} (already returned_to_lobby)`);
+              console.log(`âš ï¸ [API DEBUG] Skipping disconnect in same bulk for ${playerId} (already returned_to_lobby)`);
               results.push({ playerId, success: true, skipped: true, reason: 'already_returned_in_bulk' });
               break; // Skip applying disconnect
             }
@@ -1292,7 +1297,7 @@ app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async 
             updateData.is_connected = false; // Default to not connected for unknown status
             updateData.current_location = location || 'disconnected';
             updateData.in_game = false;
-            console.warn(`⚠️ [API] Unknown status type received: '${status}'. Defaulting to disconnected.`);
+            console.warn(`âš ï¸ [API] Unknown status type received: '${status}'. Defaulting to disconnected.`);
         }
         
         // Update participant
@@ -1303,7 +1308,7 @@ app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async 
           .eq('user_id', playerId);
         
         if (updateError) {
-          console.error(`❌ [API] Failed to update player ${playerId}:`, {
+          console.error(`âŒ [API] Failed to update player ${playerId}:`, {
             playerId,
             error: updateError.message,
             code: updateError.code,
@@ -1312,7 +1317,7 @@ app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async 
           });
           results.push({ playerId, success: false, error: updateError.message });
         } else {
-          console.log(`✅ [API DEBUG] Successfully updated player ${playerId}:`, {
+          console.log(`âœ… [API DEBUG] Successfully updated player ${playerId}:`, {
             playerId,
             newStatus: updateData.current_location,
             newConnection: updateData.is_connected,
@@ -1340,7 +1345,7 @@ app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async 
         }
         
       } catch (playerError) {
-        console.error(`❌ [API] Error updating player ${playerId}:`, {
+        console.error(`âŒ [API] Error updating player ${playerId}:`, {
           playerId,
           error: playerError.message,
           stack: playerError.stack,
@@ -1372,7 +1377,7 @@ app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async 
             .update({ host_id: lobbyReturnCandidate.playerId })
             .eq('id', room.id);
 
-          console.log(`✅ [API DEBUG] Restored host to ${lobbyReturnCandidate.playerId} based on bulk returned_to_lobby`);
+          console.log(`âœ… [API DEBUG] Restored host to ${lobbyReturnCandidate.playerId} based on bulk returned_to_lobby`);
           // Refresh room snapshot after promotion
           const refreshedRoom = await db.getRoomByCode(roomCode);
           if (refreshedRoom) {
@@ -1381,7 +1386,7 @@ app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async 
         }
       }
     } catch (e) {
-      console.error('⚠️ [API DEBUG] Failed to restore host after bulk:', e?.message || e);
+      console.error('âš ï¸ [API DEBUG] Failed to restore host after bulk:', e?.message || e);
     }
     
     if (io) {
@@ -1403,7 +1408,7 @@ app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async 
         return acc;
       }, {});
       
-      console.log(`📡 [API DEBUG] Bulk broadcast details:`, {
+      console.log(`ðŸ“¡ [API DEBUG] Bulk broadcast details:`, {
         roomCode,
         socketRoomExists: io.sockets.adapter.rooms.has(roomCode),
         socketRoomSize: io.sockets.adapter.rooms.get(roomCode)?.size || 0,
@@ -1414,7 +1419,7 @@ app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async 
         failedUpdates: results.filter(r => !r.success).length
       });
       
-      console.log(`📡 [API] Broadcasting bulk status update to room ${roomCode}`);
+      console.log(`ðŸ“¡ [API] Broadcasting bulk status update to room ${roomCode}`);
       io.to(roomCode).emit('playerStatusUpdated', {
         reason,
         players: allPlayers,
@@ -1425,9 +1430,9 @@ app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async 
       });
       
       // Confirm bulk broadcast was sent
-      console.log(`✅ [API DEBUG] Bulk broadcast sent to ${io.sockets.adapter.rooms.get(roomCode)?.size || 0} connected clients`);
+      console.log(`âœ… [API DEBUG] Bulk broadcast sent to ${io.sockets.adapter.rooms.get(roomCode)?.size || 0} connected clients`);
     } else {
-      console.log(`⚠️ [API DEBUG] Socket.io not available - cannot broadcast bulk status update`);
+      console.log(`âš ï¸ [API DEBUG] Socket.io not available - cannot broadcast bulk status update`);
     }
     
     // Auto-update room status based on player status changes
@@ -1437,12 +1442,12 @@ app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async 
     const hostUpdates = allPlayers.filter(p => p.isHost);
     if (hostUpdates.length > 0) {
       const host = hostUpdates[0]; // Should only be one host
-      console.log(`👑 [API] Host ${host.id} status updated in bulk - checking for auto room status update`);
+      console.log(`ðŸ‘‘ [API] Host ${host.id} status updated in bulk - checking for auto room status update`);
       autoUpdateRoomStatusByHost(room.id, host.id, host.currentLocation);
     }
     
     const successCount = results.filter(r => r.success).length;
-    console.log(`✅ [API] Bulk update completed: ${successCount}/${results.length} players updated successfully`);
+    console.log(`âœ… [API] Bulk update completed: ${successCount}/${results.length} players updated successfully`);
     
     res.json({ 
       success: true,
@@ -1455,7 +1460,7 @@ app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async 
     });
     
   } catch (error) {
-    console.error('❌ [API] Bulk status update error:', error);
+    console.error('âŒ [API] Bulk status update error:', error);
     res.status(500).json({ error: 'Failed to update player statuses' });
   }
 });
@@ -1498,7 +1503,7 @@ app.post('/api/game/rooms/:roomCode/events', validateApiKey, async (req, res) =>
     res.json({ success: true });
     
   } catch (error) {
-    console.error('❌ [API] Event logging error:', error);
+    console.error('âŒ [API] Event logging error:', error);
     res.status(500).json({ error: 'Failed to log event' });
   }
 });
@@ -1591,7 +1596,7 @@ app.get('/api/debug/storage', (req, res) => {
 // Helper function to automatically update room status based on host location
 async function autoUpdateRoomStatusByHost(roomId, hostUserId, hostLocation) {
   try {
-    console.log(`🤖 Checking if room status needs auto-update for host location change:`, {
+    console.log(`ðŸ¤– Checking if room status needs auto-update for host location change:`, {
       roomId,
       hostUserId,
       hostLocation
@@ -1600,7 +1605,7 @@ async function autoUpdateRoomStatusByHost(roomId, hostUserId, hostLocation) {
     // Get current room
     const room = await db.getRoomById(roomId);
     if (!room) {
-      console.log(`❌ Room ${roomId} not found for auto status update`);
+      console.log(`âŒ Room ${roomId} not found for auto status update`);
       return;
     }
 
@@ -1613,17 +1618,17 @@ async function autoUpdateRoomStatusByHost(roomId, hostUserId, hostLocation) {
       targetStatus = 'lobby';
     } else if (hostLocation === 'disconnected') {
       // Don't change status when host disconnects - they might return
-      console.log(`🔄 Host disconnected but keeping room status as '${room.status}'`);
+      console.log(`ðŸ”„ Host disconnected but keeping room status as '${room.status}'`);
       return;
     }
 
     // Only update if status needs to change
     if (room.status === targetStatus) {
-      console.log(`🔄 Room ${room.room_code} already has correct status '${targetStatus}' for host location '${hostLocation}'`);
+      console.log(`ðŸ”„ Room ${room.room_code} already has correct status '${targetStatus}' for host location '${hostLocation}'`);
       return;
     }
 
-    console.log(`🤖 Auto-updating room ${room.room_code} status from '${room.status}' to '${targetStatus}' due to host location: ${hostLocation}`);
+    console.log(`ðŸ¤– Auto-updating room ${room.room_code} status from '${room.status}' to '${targetStatus}' due to host location: ${hostLocation}`);
 
     // Update room status in database
     const updateData = { status: targetStatus };
@@ -1653,10 +1658,10 @@ async function autoUpdateRoomStatusByHost(roomId, hostUserId, hostLocation) {
       roomVersion: Date.now()
     });
 
-    console.log(`🤖 Room ${room.room_code} status auto-updated to '${targetStatus}' due to host location change`);
+    console.log(`ðŸ¤– Room ${room.room_code} status auto-updated to '${targetStatus}' due to host location change`);
 
   } catch (error) {
-    console.error('❌ Error auto-updating room status by host location:', error);
+    console.error('âŒ Error auto-updating room status by host location:', error);
   }
 }
 
@@ -1666,7 +1671,7 @@ async function autoUpdateRoomStatusByHost(roomId, hostUserId, hostLocation) {
  */
 async function autoUpdateRoomStatusBasedOnPlayerStates(room, allPlayers, reason) {
   try {
-    console.log(`🧠 [Smart Room Update] Analyzing player states for room ${room.room_code}:`, {
+    console.log(`ðŸ§  [Smart Room Update] Analyzing player states for room ${room.room_code}:`, {
       currentRoomStatus: room.status,
       totalPlayers: allPlayers.length,
       reason
@@ -1681,7 +1686,7 @@ async function autoUpdateRoomStatusBasedOnPlayerStates(room, allPlayers, reason)
       return stats;
     }, { inGameCount: 0, connectedCount: 0 });
 
-    console.log(`📊 [Smart Room Update] Player statistics:`, playerStats);
+    console.log(`ðŸ“Š [Smart Room Update] Player statistics:`, playerStats);
 
     let targetStatus = room.status; // Default to current status
     let shouldUpdate = false;
@@ -1728,8 +1733,8 @@ async function autoUpdateRoomStatusBasedOnPlayerStates(room, allPlayers, reason)
     }
 
     if (shouldUpdate && targetStatus !== room.status) {
-      console.log(`🔄 [Smart Room Update] Updating room ${room.room_code} status: ${room.status} → ${targetStatus}`);
-      console.log(`📝 [Smart Room Update] Reason: ${updateReason}`);
+      console.log(`ðŸ”„ [Smart Room Update] Updating room ${room.room_code} status: ${room.status} â†’ ${targetStatus}`);
+      console.log(`ðŸ“ [Smart Room Update] Reason: ${updateReason}`);
 
       const updateData = { status: targetStatus };
       
@@ -1758,29 +1763,36 @@ async function autoUpdateRoomStatusBasedOnPlayerStates(room, allPlayers, reason)
         });
       }
 
-      console.log(`✅ [Smart Room Update] Room ${room.room_code} status updated to '${targetStatus}'`);
+      console.log(`âœ… [Smart Room Update] Room ${room.room_code} status updated to '${targetStatus}'`);
     } else {
-      console.log(`⏸️ [Smart Room Update] No room status change needed for ${room.room_code}`);
+      console.log(`â¸ï¸ [Smart Room Update] No room status change needed for ${room.room_code}`);
     }
 
   } catch (error) {
-    console.error('❌ Error in smart room status update:', error);
+    console.error('âŒ Error in smart room status update:', error);
   }
 }
 
 // Initialize connection manager
 const connectionManager = new ConnectionManager();
+const lobbyManager = new LobbyManager(io, db, connectionManager);
+const statusSyncManager = new StatusSyncManager(db, io, lobbyManager);
+
+
+// API routers
+app.use('/api/v2/game', gameApiV2Router(io, db, connectionManager));
+app.use(gameApiV2DDFRouter(io, db, connectionManager, lobbyManager, statusSyncManager));
 
 // Clean up stale connections periodically
 setInterval(() => {
   const cleaned = connectionManager.cleanupStaleConnections();
   if (cleaned.length > 0) {
-    console.log(`🧹 Cleaned up ${cleaned.length} stale connections`);
+    console.log(`ðŸ§¹ Cleaned up ${cleaned.length} stale connections`);
   }
 }, 60000); // Every minute
 
 io.on('connection', async (socket) => {
-  console.log(`🔌 User connected: ${socket.id}`);
+  console.log(`ðŸ”Œ User connected: ${socket.id}`);
   
   // Store connection info
   connectionManager.addConnection(socket.id);
@@ -1810,20 +1822,20 @@ io.on('connection', async (socket) => {
       // Sanitize input
       const playerName = sanitize.playerName(data.playerName);
       
-      console.log(`🏠 [SUPABASE] Creating room for ${playerName}`);
-      console.log(`🔍 [DEBUG] Socket ID: ${socket.id}`);
+      console.log(`ðŸ  [SUPABASE] Creating room for ${playerName}`);
+      console.log(`ðŸ” [DEBUG] Socket ID: ${socket.id}`);
       
       // Get or create user profile
-      console.log(`👤 [DEBUG] Creating/getting user profile...`);
+      console.log(`ðŸ‘¤ [DEBUG] Creating/getting user profile...`);
       const user = await db.getOrCreateUser(
         `${socket.id}_${playerName}`, // Unique per connection to prevent conflicts
         playerName,
         playerName
       );
-      console.log(`✅ [DEBUG] User created/found:`, { id: user.id, username: user.username });
+      console.log(`âœ… [DEBUG] User created/found:`, { id: user.id, username: user.username });
 
       // Create room in database
-      console.log(`🏗️ [DEBUG] Creating room in database...`);
+      console.log(`ðŸ—ï¸ [DEBUG] Creating room in database...`);
       const room = await db.createRoom({
         host_id: user.id,
         current_game: null, // Will be updated when game is selected
@@ -1836,16 +1848,16 @@ io.on('connection', async (socket) => {
           created_from: 'web_client'
         }
       });
-      console.log(`✅ [DEBUG] Room created:`, { 
+      console.log(`âœ… [DEBUG] Room created:`, { 
         id: room.id, 
         room_code: room.room_code, 
         host_id: room.host_id
       });
 
       // Add creator as participant
-      console.log(`👥 [DEBUG] Adding creator as participant...`);
+      console.log(`ðŸ‘¥ [DEBUG] Adding creator as participant...`);
       const participant = await db.addParticipant(room.id, user.id, socket.id, 'host');
-      console.log(`✅ [DEBUG] Participant added:`, { 
+      console.log(`âœ… [DEBUG] Participant added:`, { 
         participant_id: participant.id, 
         role: participant.role
       });
@@ -1874,7 +1886,7 @@ io.on('connection', async (socket) => {
       }
 
       // Join socket room
-      console.log(`🔗 [DEBUG] Joining socket room: ${room.room_code}`);
+      console.log(`ðŸ”— [DEBUG] Joining socket room: ${room.room_code}`);
       socket.join(room.room_code);
       
       // Update connection tracking
@@ -1906,11 +1918,11 @@ io.on('connection', async (socket) => {
         }
       });
 
-      console.log(`🎉 [SUCCESS] Room ${room.room_code} created by ${playerName} using SUPABASE storage`);
+      console.log(`ðŸŽ‰ [SUCCESS] Room ${room.room_code} created by ${playerName} using SUPABASE storage`);
 
     } catch (error) {
-      console.error('❌ [ERROR] Room creation failed:', error);
-      console.error('🔍 [DEBUG] Error details:', {
+      console.error('âŒ [ERROR] Room creation failed:', error);
+      console.error('ðŸ” [DEBUG] Error details:', {
         message: error.message,
         stack: error.stack
       });
@@ -1927,11 +1939,11 @@ io.on('connection', async (socket) => {
   // Handle socket room joining for listening only (used by return handler)
   socket.on('joinSocketRoom', (data) => {
     try {
-      console.log(`🔗 [SOCKET ROOM] Joining socket room for listening: ${data.roomCode}`);
+      console.log(`ðŸ”— [SOCKET ROOM] Joining socket room for listening: ${data.roomCode}`);
       socket.join(data.roomCode);
-      console.log(`✅ [SOCKET ROOM] Successfully joined socket room ${data.roomCode} for listening`);
+      console.log(`âœ… [SOCKET ROOM] Successfully joined socket room ${data.roomCode} for listening`);
     } catch (error) {
-      console.error('❌ [SOCKET ROOM] Error joining socket room:', error);
+      console.error('âŒ [SOCKET ROOM] Error joining socket room:', error);
     }
   });
 
@@ -1979,13 +1991,13 @@ io.on('connection', async (socket) => {
           connectionCount: connectionManager.getStats().totalConnections
         };
         
-        console.log(`🚪 [REJOINING DEBUG] Join request received:`, debugData);
+        console.log(`ðŸšª [REJOINING DEBUG] Join request received:`, debugData);
         
         // Check if this is a potential rejoin scenario
         const existingConnection = connectionManager.getConnection(socket.id);
         const isReconnection = existingConnection?.userId !== null;
       
-      console.log(`🔍 [REJOINING DEBUG] Connection analysis:`, {
+      console.log(`ðŸ” [REJOINING DEBUG] Connection analysis:`, {
         hasExistingConnection: !!existingConnection,
         isReconnection,
         existingUserId: existingConnection?.userId,
@@ -1993,11 +2005,11 @@ io.on('connection', async (socket) => {
       });
 
       // Get room from database
-      console.log(`🔍 [REJOINING DEBUG] Looking up room in database...`);
+      console.log(`ðŸ” [REJOINING DEBUG] Looking up room in database...`);
       const room = await db.getRoomByCode(data.roomCode);
       if (!room) {
-        console.log(`❌ [REJOINING DEBUG] Room ${data.roomCode} not found in database`);
-        console.log(`🔍 [REJOINING DEBUG] Database search details:`, {
+        console.log(`âŒ [REJOINING DEBUG] Room ${data.roomCode} not found in database`);
+        console.log(`ðŸ” [REJOINING DEBUG] Database search details:`, {
           searchCode: data.roomCode,
           codeLength: data.roomCode?.length,
           codeType: typeof data.roomCode
@@ -2013,7 +2025,7 @@ io.on('connection', async (socket) => {
         return;
       }
       
-      console.log(`✅ [REJOINING DEBUG] Room found:`, { 
+      console.log(`âœ… [REJOINING DEBUG] Room found:`, { 
         id: room.id, 
         room_code: room.room_code, 
         status: room.status,
@@ -2026,7 +2038,7 @@ io.on('connection', async (socket) => {
       });
 
       // Enhanced participant debugging
-      console.log(`👥 [REJOINING DEBUG] Current participants:`, 
+      console.log(`ðŸ‘¥ [REJOINING DEBUG] Current participants:`, 
         room.participants?.map(p => ({
           user_id: p.user_id,
           username: p.user?.username,
@@ -2040,7 +2052,7 @@ io.on('connection', async (socket) => {
       // Check if room is full - calculate from connected members
       const connectedPlayers = room.participants?.filter(p => p.is_connected === true).length || 0;
       if (connectedPlayers >= room.max_players) {
-        console.log(`❌ [REJOINING DEBUG] Room is full:`, {
+        console.log(`âŒ [REJOINING DEBUG] Room is full:`, {
           connected: connectedPlayers,
           max: room.max_players
         });
@@ -2053,7 +2065,7 @@ io.on('connection', async (socket) => {
       
       // Check if room is still accepting players
       const isOriginalCreator = room.metadata?.created_by_name === data.playerName;
-      console.log(`🔍 [REJOINING DEBUG] Creator check:`, {
+      console.log(`ðŸ” [REJOINING DEBUG] Creator check:`, {
         playerName: data.playerName,
         createdByName: room.metadata?.created_by_name,
         isOriginalCreator,
@@ -2062,7 +2074,7 @@ io.on('connection', async (socket) => {
       
       // V2 Schema: Accept players when room status is 'lobby' or 'in_game', or if original creator is rejoining
       if (room.status !== 'lobby' && room.status !== 'in_game' && !isOriginalCreator) {
-        console.log(`❌ [REJOINING DEBUG] Room not accepting players:`, {
+        console.log(`âŒ [REJOINING DEBUG] Room not accepting players:`, {
           status: room.status,
           isOriginalCreator
         });
@@ -2085,7 +2097,7 @@ io.on('connection', async (socket) => {
         p.user?.username === data.playerName
       );
       
-      console.log(`🔍 [REJOINING DEBUG] Checking for existing participant:`, {
+      console.log(`ðŸ” [REJOINING DEBUG] Checking for existing participant:`, {
         searchingFor: data.playerName,
         existingParticipant: existingParticipant ? {
           user_id: existingParticipant.user_id,
@@ -2100,7 +2112,7 @@ io.on('connection', async (socket) => {
       
       // Handle rejoining scenario
       if (existingParticipant) {
-        console.log(`🔄 [REJOINING DEBUG] Rejoining as existing participant:`, {
+        console.log(`ðŸ”„ [REJOINING DEBUG] Rejoining as existing participant:`, {
           participant_id: existingParticipant.id,
           user_id: existingParticipant.user_id,
           original_role: existingParticipant.role,
@@ -2120,7 +2132,7 @@ io.on('connection', async (socket) => {
           .filter(conn => conn.socketId !== socket.id);
         
         userConnections.forEach(staleConn => {
-          console.log(`🧹 [CLEANUP] Removing stale connection for user ${existingParticipant.user_id}: ${staleConn.socketId}`);
+          console.log(`ðŸ§¹ [CLEANUP] Removing stale connection for user ${existingParticipant.user_id}: ${staleConn.socketId}`);
           connectionManager.removeConnection(staleConn.socketId);
         });
         
@@ -2131,7 +2143,7 @@ io.on('connection', async (socket) => {
           roomId: room.id,
           roomCode: roomCode
         });
-          console.log(`🔗 [REJOINING DEBUG] Updated connection tracking with original user ID:`, {
+          console.log(`ðŸ”— [REJOINING DEBUG] Updated connection tracking with original user ID:`, {
             socketId: socket.id,
             userId: existingParticipant.user_id, // Original user ID
             roomId: room.id,
@@ -2141,11 +2153,11 @@ io.on('connection', async (socket) => {
         
         // Update connection status for existing participant (set to connected with new socket)
         await db.updateParticipantConnection(existingParticipant.user_id, socket.id, 'connected');
-        console.log(`✅ [REJOINING DEBUG] Updated existing participant connection status to connected`);
+        console.log(`âœ… [REJOINING DEBUG] Updated existing participant connection status to connected`);
         
         // Auto-update room status if this reconnecting user is the host
         if (existingParticipant.role === 'host') {
-          console.log(`👑 [REJOINING DEBUG] Reconnecting host - checking for auto room status update`);
+          console.log(`ðŸ‘‘ [REJOINING DEBUG] Reconnecting host - checking for auto room status update`);
           autoUpdateRoomStatusByHost(room.id, existingParticipant.user_id, 'lobby');
         }
         
@@ -2159,17 +2171,17 @@ io.on('connection', async (socket) => {
             })
             .eq('user_id', existingParticipant.user_id)
             .eq('room_id', room.id);
-          console.log(`🔄 [REJOINING DEBUG] Reset rejoining participant to lobby status (in_game: false)`);
+          console.log(`ðŸ”„ [REJOINING DEBUG] Reset rejoining participant to lobby status (in_game: false)`);
         }
       } else {
         // Get or create user profile for new participants
-        console.log(`👤 [REJOINING DEBUG] Getting/creating user profile for new participant...`);
+        console.log(`ðŸ‘¤ [REJOINING DEBUG] Getting/creating user profile for new participant...`);
         user = await db.getOrCreateUser(
           `${socket.id}_${data.playerName}`, // Unique per connection to prevent conflicts
           data.playerName,
           data.playerName
         );
-        console.log(`✅ [REJOINING DEBUG] User profile:`, {
+        console.log(`âœ… [REJOINING DEBUG] User profile:`, {
           id: user.id,
           username: user.username,
           external_id: user.external_id
@@ -2182,7 +2194,7 @@ io.on('connection', async (socket) => {
           p.user_id !== existingParticipant?.user_id // Don't flag the same user as duplicate
         );
         
-        console.log(`🔍 [REJOINING DEBUG] Duplicate check for new participants:`, {
+        console.log(`ðŸ” [REJOINING DEBUG] Duplicate check for new participants:`, {
           searchingFor: data.playerName,
           duplicateConnectedParticipant: duplicateConnectedParticipant ? {
             user_id: duplicateConnectedParticipant.user_id,
@@ -2194,7 +2206,7 @@ io.on('connection', async (socket) => {
         });
         
         if (duplicateConnectedParticipant) {
-          console.log(`❌ [REJOINING DEBUG] Duplicate name blocked: ${data.playerName} already in room ${data.roomCode}`);
+          console.log(`âŒ [REJOINING DEBUG] Duplicate name blocked: ${data.playerName} already in room ${data.roomCode}`);
           socket.emit('error', { 
             message: 'A player with this name is already in the room. Please choose a different name.',
             code: 'DUPLICATE_PLAYER',
@@ -2208,7 +2220,7 @@ io.on('connection', async (socket) => {
         
         // Determine role: original room creator becomes host, others are players
         userRole = isOriginalCreator ? 'host' : 'player';
-        console.log(`👥 [REJOINING DEBUG] Adding new participant with role: ${userRole}`);
+        console.log(`ðŸ‘¥ [REJOINING DEBUG] Adding new participant with role: ${userRole}`);
         await db.addParticipant(room.id, user.id, socket.id, userRole);
         
         // If joining an in_game room, mark new player as NOT in_game and in 'lobby' location
@@ -2221,10 +2233,10 @@ io.on('connection', async (socket) => {
             })
             .eq('user_id', user.id)
             .eq('room_id', room.id);
-          console.log(`🎮 [REJOINING DEBUG] Marked new participant as NOT in_game and in 'lobby' location`);
+          console.log(`ðŸŽ® [REJOINING DEBUG] Marked new participant as NOT in_game and in 'lobby' location`);
         }
         
-        console.log(`✅ [REJOINING DEBUG] Added new participant`);
+        console.log(`âœ… [REJOINING DEBUG] Added new participant`);
         
         // Update connection tracking
         // Clean up any existing connections for this user before creating new one
@@ -2232,7 +2244,7 @@ io.on('connection', async (socket) => {
           .filter(conn => conn.socketId !== socket.id);
         
         userConnections.forEach(staleConn => {
-          console.log(`🧹 [CLEANUP] Removing stale connection for user ${user.id}: ${staleConn.socketId}`);
+          console.log(`ðŸ§¹ [CLEANUP] Removing stale connection for user ${user.id}: ${staleConn.socketId}`);
           connectionManager.removeConnection(staleConn.socketId);
         });
         
@@ -2243,7 +2255,7 @@ io.on('connection', async (socket) => {
           roomId: room.id,
           roomCode: roomCode
         });
-        console.log(`🔗 [REJOINING DEBUG] Updated connection tracking:`, {
+        console.log(`ðŸ”— [REJOINING DEBUG] Updated connection tracking:`, {
           socketId: socket.id,
           userId: user.id,
           roomId: room.id,
@@ -2253,13 +2265,13 @@ io.on('connection', async (socket) => {
       }
 
       // Join socket room
-      console.log(`🔗 [REJOINING DEBUG] Joining socket room: ${data.roomCode}`);
+      console.log(`ðŸ”— [REJOINING DEBUG] Joining socket room: ${data.roomCode}`);
       socket.join(data.roomCode);
 
 
 
       // Get updated room data
-      console.log(`🔄 [REJOINING DEBUG] Fetching updated room data...`);
+      console.log(`ðŸ”„ [REJOINING DEBUG] Fetching updated room data...`);
       const updatedRoom = await db.getRoomByCode(data.roomCode);
       
       // Prepare player list - include ALL participants with their status
@@ -2274,7 +2286,7 @@ io.on('connection', async (socket) => {
           socketId: null // Socket IDs are tracked in activeConnections, not stored in DB
       })) || [];
 
-      console.log(`👥 [REJOINING DEBUG] Final player list:`, players);
+      console.log(`ðŸ‘¥ [REJOINING DEBUG] Final player list:`, players);
 
       // Notify all players in room
       const isHost = userRole === 'host';
@@ -2289,7 +2301,7 @@ io.on('connection', async (socket) => {
         room: updatedRoom
       };
       
-      console.log(`📢 [REJOINING DEBUG] Broadcasting playerJoined event:`, {
+      console.log(`ðŸ“¢ [REJOINING DEBUG] Broadcasting playerJoined event:`, {
         playerId: joinEventData.player.id,
         playerName: joinEventData.player.name,
         isHost: joinEventData.player.isHost,
@@ -2308,7 +2320,7 @@ io.on('connection', async (socket) => {
         roomVersion: Date.now()
       };
       
-      console.log(`✅ [REJOINING DEBUG] Sending roomJoined success:`, {
+      console.log(`âœ… [REJOINING DEBUG] Sending roomJoined success:`, {
         roomCode: joinSuccessData.roomCode,
         isHost: joinSuccessData.isHost,
         playerCount: joinSuccessData.players.length,
@@ -2318,17 +2330,17 @@ io.on('connection', async (socket) => {
       
       socket.emit('roomJoined', joinSuccessData);
 
-      console.log(`🎉 [REJOINING SUCCESS] ${data.playerName} ${existingParticipant ? 'rejoined' : 'joined'} room ${data.roomCode}`);
+      console.log(`ðŸŽ‰ [REJOINING SUCCESS] ${data.playerName} ${existingParticipant ? 'rejoined' : 'joined'} room ${data.roomCode}`);
       
       // Auto-update room status based on player states after rejoin
       // This ensures room properly transitions back to lobby when players return from games
       if (updatedRoom.status === 'in_game') {
-        console.log(`🔄 [REJOINING] Checking if room should return to lobby after player rejoin`);
+        console.log(`ðŸ”„ [REJOINING] Checking if room should return to lobby after player rejoin`);
         await autoUpdateRoomStatusBasedOnPlayerStates(updatedRoom, players, 'player_rejoined');
       }
 
       } catch (error) {
-        console.error('❌ [REJOINING ERROR] Room join/rejoin failed:', {
+        console.error('âŒ [REJOINING ERROR] Room join/rejoin failed:', {
           error: error.message,
           stack: error.stack,
           socketId: socket.id,
@@ -2350,7 +2362,7 @@ io.on('connection', async (socket) => {
       }
     } catch (error) {
       // Outer catch for validation errors
-      console.error('❌ [JOIN ROOM ERROR] Validation or setup error:', error);
+      console.error('âŒ [JOIN ROOM ERROR] Validation or setup error:', error);
       socket.emit('error', { 
         message: 'Invalid request data',
         code: 'VALIDATION_ERROR'
@@ -2362,8 +2374,8 @@ io.on('connection', async (socket) => {
   socket.on('selectGame', async (data) => {
     try {
       const connection = connectionManager.getConnection(socket.id);
-      console.log(`🎮 [DEBUG] Game selection from socket: ${socket.id}`);
-      console.log(`🎮 [DEBUG] Connection data:`, { 
+      console.log(`ðŸŽ® [DEBUG] Game selection from socket: ${socket.id}`);
+      console.log(`ðŸŽ® [DEBUG] Connection data:`, { 
         userId: connection?.userId, 
         roomId: connection?.roomId 
       });
@@ -2386,24 +2398,24 @@ io.on('connection', async (socket) => {
         roomVersion: Date.now()
       });
 
-      console.log(`🎮 Game selected: ${data.gameType} for room ${updatedRoom.room_code}`);
+      console.log(`ðŸŽ® Game selected: ${data.gameType} for room ${updatedRoom.room_code}`);
 
     } catch (error) {
-      console.error('❌ Error selecting game:', error);
+      console.error('âŒ Error selecting game:', error);
       socket.emit('error', { message: 'Failed to select game' });
     }
   });
 
   // Handle game start
   socket.on('startGame', async (data) => {
-    console.log(`🚀 [START GAME SERVER] ============ START GAME EVENT RECEIVED ============`);
-    console.log(`🚀 [START GAME SERVER] Socket ID: ${socket.id}`);
-    console.log(`🚀 [START GAME SERVER] Event data:`, data);
-    console.log(`🚀 [START GAME SERVER] Timestamp:`, new Date().toISOString());
+    console.log(`ðŸš€ [START GAME SERVER] ============ START GAME EVENT RECEIVED ============`);
+    console.log(`ðŸš€ [START GAME SERVER] Socket ID: ${socket.id}`);
+    console.log(`ðŸš€ [START GAME SERVER] Event data:`, data);
+    console.log(`ðŸš€ [START GAME SERVER] Timestamp:`, new Date().toISOString());
     
     try {
       const connection = connectionManager.getConnection(socket.id);
-              console.log(`🚀 [START GAME SERVER] Connection lookup:`, {
+              console.log(`ðŸš€ [START GAME SERVER] Connection lookup:`, {
           socketId: socket.id,
           hasConnection: !!connection,
           userId: connection?.userId,
@@ -2412,7 +2424,7 @@ io.on('connection', async (socket) => {
         });
         
         const allConnections = Array.from(connectionManager.activeConnections.entries());
-        console.log(`🚀 [START GAME SERVER] All active connections:`, allConnections.map(([socketId, conn]) => ({
+        console.log(`ðŸš€ [START GAME SERVER] All active connections:`, allConnections.map(([socketId, conn]) => ({
           socketId,
           userId: conn.userId,
           username: conn.username,
@@ -2421,21 +2433,21 @@ io.on('connection', async (socket) => {
         })));
       
       if (!connection?.roomId) {
-        console.error(`❌ [START GAME SERVER] Connection has no roomId - cannot start game`);
+        console.error(`âŒ [START GAME SERVER] Connection has no roomId - cannot start game`);
         socket.emit('error', { message: 'Not in a room' });
         return;
       }
     
-      console.log(`🔍 [START GAME SERVER] Getting room data for code: ${data.roomCode}`);
+      console.log(`ðŸ” [START GAME SERVER] Getting room data for code: ${data.roomCode}`);
       // Get room data
       const room = await db.getRoomByCode(data.roomCode);
       if (!room) {
-        console.error(`❌ [START GAME SERVER] Room not found for code: ${data.roomCode}`);
+        console.error(`âŒ [START GAME SERVER] Room not found for code: ${data.roomCode}`);
         socket.emit('error', { message: 'Room not found' });
         return;
       }
       
-      console.log(`✅ [START GAME SERVER] Room found:`, {
+      console.log(`âœ… [START GAME SERVER] Room found:`, {
         id: room.id,
         room_code: room.room_code,
         status: room.status,
@@ -2443,7 +2455,7 @@ io.on('connection', async (socket) => {
         participants_count: room.participants?.length || 0
       });
     
-      console.log(`🚀 [DEBUG] Room participants:`, room.participants?.map(p => ({
+      console.log(`ðŸš€ [DEBUG] Room participants:`, room.participants?.map(p => ({
         user_id: p.user_id,
         role: p.role,
         is_connected: p.is_connected,
@@ -2455,15 +2467,15 @@ io.on('connection', async (socket) => {
         p.user_id === connection.userId && p.role === 'host'
       );
       
-      console.log(`🚀 [START GAME DEBUG] Looking for host with userId: ${connection.userId}`);
-      console.log(`🚀 [START GAME DEBUG] Found participant:`, userParticipant ? {
+      console.log(`ðŸš€ [START GAME DEBUG] Looking for host with userId: ${connection.userId}`);
+      console.log(`ðŸš€ [START GAME DEBUG] Found participant:`, userParticipant ? {
         user_id: userParticipant.user_id,
         role: userParticipant.role,
         username: userParticipant.user?.username,
         is_connected: userParticipant.is_connected
       } : 'NOT FOUND');
       
-      console.log(`🚀 [START GAME DEBUG] All participants:`, room.participants?.map(p => ({
+      console.log(`ðŸš€ [START GAME DEBUG] All participants:`, room.participants?.map(p => ({
         user_id: p.user_id,
         role: p.role,
         username: p.user?.username,
@@ -2472,12 +2484,12 @@ io.on('connection', async (socket) => {
       })));
       
       if (!userParticipant) {
-        console.error(`❌ [START GAME SERVER] User is not host or not found in room`);
+        console.error(`âŒ [START GAME SERVER] User is not host or not found in room`);
         socket.emit('error', { message: 'Only the host can start the game' });
         return;
       }
       
-      console.log(`✅ [START GAME SERVER] Host validation passed - proceeding with game start`);
+      console.log(`âœ… [START GAME SERVER] Host validation passed - proceeding with game start`);
     
       // Update room status and mark all connected participants as in_game
       await db.updateRoom(room.id, {
@@ -2498,7 +2510,7 @@ io.on('connection', async (socket) => {
           .eq('room_id', room.id);
       }
       
-      console.log(`🎮 [START GAME DEBUG] Marked ${connectedParticipants.length} participants as in_game and in 'game' location`);
+      console.log(`ðŸŽ® [START GAME DEBUG] Marked ${connectedParticipants.length} participants as in_game and in 'game' location`);
 
       // Get game proxy configuration
       const gameProxy = gameProxies[room.current_game];
@@ -2527,7 +2539,7 @@ io.on('connection', async (socket) => {
         
         const currentSocketId = userConnection ? userConnection.socketId : null;
         
-        console.log(`🚀 [START GAME DEBUG] Sending game event to ${p.user?.username}:`, {
+        console.log(`ðŸš€ [START GAME DEBUG] Sending game event to ${p.user?.username}:`, {
           user_id: p.user_id,
           role: p.role,
           username: p.user?.username,
@@ -2542,7 +2554,7 @@ io.on('connection', async (socket) => {
         
         if (currentSocketId) {
           setTimeout(() => {
-            console.log(`📤 [START GAME DEBUG] Emitting gameStarted to ${p.user?.username} (${currentSocketId})`);
+            console.log(`ðŸ“¤ [START GAME DEBUG] Emitting gameStarted to ${p.user?.username} (${currentSocketId})`);
           io.to(currentSocketId).emit('gameStarted', {
             gameUrl,
             gameType: room.current_game,
@@ -2552,9 +2564,9 @@ io.on('connection', async (socket) => {
           });
           }, delay);
         } else {
-          console.error(`❌ [START GAME DEBUG] No socket connection found for ${p.user?.username} (${p.user_id})`);
+          console.error(`âŒ [START GAME DEBUG] No socket connection found for ${p.user?.username} (${p.user_id})`);
           const allConnections = Array.from(connectionManager.activeConnections.entries());
-          console.error(`❌ [START GAME DEBUG] ActiveConnections dump:`, allConnections.map(([socketId, conn]) => ({
+          console.error(`âŒ [START GAME DEBUG] ActiveConnections dump:`, allConnections.map(([socketId, conn]) => ({
             socketId,
             userId: conn.userId,
             username: conn.username,
@@ -2563,14 +2575,14 @@ io.on('connection', async (socket) => {
         }
       });
 
-      console.log(`🚀 [START GAME SERVER] Game start complete: ${room.current_game} for room ${room.room_code}`);
-      console.log(`🚀 [START GAME SERVER] Total participants processed: ${participants.length}`);
-      console.log(`🚀 [START GAME SERVER] ============ END START GAME PROCESSING ============`);
+      console.log(`ðŸš€ [START GAME SERVER] Game start complete: ${room.current_game} for room ${room.room_code}`);
+      console.log(`ðŸš€ [START GAME SERVER] Total participants processed: ${participants.length}`);
+      console.log(`ðŸš€ [START GAME SERVER] ============ END START GAME PROCESSING ============`);
 
     } catch (error) {
-      console.error('❌ [START GAME SERVER] CRITICAL ERROR starting game:', error);
-      console.error('❌ [START GAME SERVER] Error stack:', error.stack);
-      console.log(`❌ [START GAME SERVER] ============ START GAME FAILED ============`);
+      console.error('âŒ [START GAME SERVER] CRITICAL ERROR starting game:', error);
+      console.error('âŒ [START GAME SERVER] Error stack:', error.stack);
+      console.log(`âŒ [START GAME SERVER] ============ START GAME FAILED ============`);
       socket.emit('error', { message: 'Failed to start game' });
     }
   });
@@ -2597,7 +2609,7 @@ io.on('connection', async (socket) => {
       // Handle INSTANT host transfer if the host is leaving
       let newHost = null;
       if (isLeavingHost && room) {
-        console.log(`👑 [LEAVE] Host ${connection.userId} leaving - transferring host instantly`);
+        console.log(`ðŸ‘‘ [LEAVE] Host ${connection.userId} leaving - transferring host instantly`);
         newHost = await db.autoTransferHost(connection.roomId, connection.userId);
       }
 
@@ -2628,7 +2640,7 @@ io.on('connection', async (socket) => {
         room: updatedRoom,
         roomVersion: Date.now()
       });
-          console.log(`👑 [LEAVE] Instantly transferred host to ${newHost.user?.display_name || newHost.user?.username}`);
+          console.log(`ðŸ‘‘ [LEAVE] Instantly transferred host to ${newHost.user?.display_name || newHost.user?.username}`);
         }
 
         // Then send player left event
@@ -2653,17 +2665,18 @@ io.on('connection', async (socket) => {
       connection.roomId = null;
       connection.userId = null;
 
-      console.log(`👋 Player left room ${data.roomCode}${isLeavingHost ? ' (was host)' : ''}`);
+      console.log(`ðŸ‘‹ Player left room ${data.roomCode}${isLeavingHost ? ' (was host)' : ''}`);
 
     } catch (error) {
-      console.error('❌ Error leaving room:', error);
+      console.error('âŒ Error leaving room:', error);
     }
   });
 
-  // Return-to-lobby logic removed\r\n  // Handle individual player return to lobby
+  // Return-to-lobby logic removed\r
+  // Handle individual player return to lobby
   socket.on('playerReturnToLobby', async (data) => {
     try {
-      console.log(`🔄 Player returning to lobby: ${data.playerName} in room ${data.roomCode}`);
+      console.log(`ðŸ”„ Player returning to lobby: ${data.playerName} in room ${data.roomCode}`);
       
       const connection = connectionManager.getConnection(socket.id);
       if (!connection?.roomId || !connection?.userId) {
@@ -2702,10 +2715,10 @@ io.on('connection', async (socket) => {
         roomVersion: Date.now()
       });
 
-      console.log(`✅ Player ${data.playerName} marked as returned to lobby`);
+      console.log(`âœ… Player ${data.playerName} marked as returned to lobby`);
 
     } catch (error) {
-      console.error('❌ Error handling player return to lobby:', error);
+      console.error('âŒ Error handling player return to lobby:', error);
       socket.emit('error', { message: 'Failed to update status' });
     }
   });
@@ -2713,7 +2726,7 @@ io.on('connection', async (socket) => {
   // Handle manual host transfer
   socket.on('transferHost', async (data) => {
     try {
-      console.log(`👑 Host transfer requested: ${data.targetUserId} in room ${data.roomCode}`);
+      console.log(`ðŸ‘‘ Host transfer requested: ${data.targetUserId} in room ${data.roomCode}`);
       
       const connection = connectionManager.getConnection(socket.id);
       if (!connection?.roomId || !connection?.userId) {
@@ -2770,10 +2783,10 @@ io.on('connection', async (socket) => {
         roomVersion: Date.now()
       });
 
-      console.log(`👑 Host transferred from ${currentParticipant.user?.display_name} to ${targetParticipant.user?.display_name}`);
+      console.log(`ðŸ‘‘ Host transferred from ${currentParticipant.user?.display_name} to ${targetParticipant.user?.display_name}`);
 
     } catch (error) {
-      console.error('❌ Error transferring host:', error);
+      console.error('âŒ Error transferring host:', error);
       socket.emit('error', { message: 'Failed to transfer host' });
     }
   });
@@ -2781,7 +2794,7 @@ io.on('connection', async (socket) => {
   // Handle player kick
   socket.on('kickPlayer', async (data) => {
     try {
-      console.log(`👢 [KICK DEBUG] Kick player requested:`, {
+      console.log(`ðŸ‘¢ [KICK DEBUG] Kick player requested:`, {
         targetUserId: data.targetUserId,
         roomCode: data.roomCode,
         kickedBy: socket.id,
@@ -2790,7 +2803,7 @@ io.on('connection', async (socket) => {
       
       const connection = connectionManager.getConnection(socket.id);
       if (!connection?.roomId || !connection?.userId) {
-        console.log(`❌ [KICK DEBUG] Kicker not in a room:`, {
+        console.log(`âŒ [KICK DEBUG] Kicker not in a room:`, {
           socketId: socket.id,
           hasConnection: !!connection,
           roomId: connection?.roomId,
@@ -2803,12 +2816,12 @@ io.on('connection', async (socket) => {
       // Get room and verify current user is host
       const room = await db.getRoomByCode(data.roomCode);
       if (!room) {
-        console.log(`❌ [KICK DEBUG] Room not found: ${data.roomCode}`);
+        console.log(`âŒ [KICK DEBUG] Room not found: ${data.roomCode}`);
         socket.emit('error', { message: 'Room not found' });
         return;
       }
 
-      console.log(`🔍 [KICK DEBUG] Room participants:`, room.participants?.map(p => ({
+      console.log(`ðŸ” [KICK DEBUG] Room participants:`, room.participants?.map(p => ({
         user_id: p.user_id,
         username: p.user?.username,
         role: p.role,
@@ -2818,7 +2831,7 @@ io.on('connection', async (socket) => {
       // Check if current user is host
       const currentParticipant = room.participants?.find(p => p.user_id === connection.userId);
       if (!currentParticipant || currentParticipant.role !== 'host') {
-        console.log(`❌ [KICK DEBUG] User is not host:`, {
+        console.log(`âŒ [KICK DEBUG] User is not host:`, {
           userId: connection.userId,
           participant: currentParticipant ? {
             role: currentParticipant.role,
@@ -2836,7 +2849,7 @@ io.on('connection', async (socket) => {
       // Verify target user is in the room and is not the host
       const targetParticipant = room.participants?.find(p => p.user_id === data.targetUserId);
       if (!targetParticipant) {
-        console.log(`❌ [KICK DEBUG] Target player not found:`, {
+        console.log(`âŒ [KICK DEBUG] Target player not found:`, {
           targetUserId: data.targetUserId,
           availableParticipants: room.participants?.map(p => p.user_id)
         });
@@ -2849,7 +2862,7 @@ io.on('connection', async (socket) => {
       }
 
       if (targetParticipant.role === 'host') {
-        console.log(`❌ [KICK DEBUG] Cannot kick host:`, {
+        console.log(`âŒ [KICK DEBUG] Cannot kick host:`, {
           targetUserId: data.targetUserId,
           targetRole: targetParticipant.role
         });
@@ -2865,7 +2878,7 @@ io.on('connection', async (socket) => {
       const targetConnections = connectionManager.getUserConnections(data.targetUserId);
       const targetConnection = targetConnections[0];
 
-      console.log(`👢 [KICK DEBUG] Kicking player:`, {
+      console.log(`ðŸ‘¢ [KICK DEBUG] Kicking player:`, {
         targetUserId: data.targetUserId,
         targetUsername: targetParticipant.user?.username,
         targetSocketId: targetConnection?.socketId,
@@ -2877,7 +2890,7 @@ io.on('connection', async (socket) => {
 
       // Notify the kicked player
       if (targetConnection?.socketId) {
-        console.log(`📤 [KICK DEBUG] Notifying kicked player on socket: ${targetConnection.socketId}`);
+        console.log(`ðŸ“¤ [KICK DEBUG] Notifying kicked player on socket: ${targetConnection.socketId}`);
         io.to(targetConnection.socketId).emit('playerKicked', {
           reason: 'You have been removed from the room by the host',
           kickedBy: currentParticipant.user?.display_name || currentParticipant.user?.username,
@@ -2906,7 +2919,7 @@ io.on('connection', async (socket) => {
         socketId: null
       })) || [];
 
-      console.log(`👥 [KICK DEBUG] All players after kick:`, allPlayers.map(p => ({
+      console.log(`ðŸ‘¥ [KICK DEBUG] All players after kick:`, allPlayers.map(p => ({
         id: p.id,
         name: p.name,
         isHost: p.isHost,
@@ -2932,10 +2945,10 @@ io.on('connection', async (socket) => {
         targetConnection.userId = null;
       }
 
-      console.log(`✅ [KICK DEBUG] Successfully kicked ${targetParticipant.user?.username} from room ${data.roomCode}`);
+      console.log(`âœ… [KICK DEBUG] Successfully kicked ${targetParticipant.user?.username} from room ${data.roomCode}`);
 
     } catch (error) {
-      console.error('❌ [KICK ERROR] Error kicking player:', {
+      console.error('âŒ [KICK ERROR] Error kicking player:', {
         error: error.message,
         stack: error.stack,
         socketId: socket.id,
@@ -2954,7 +2967,7 @@ io.on('connection', async (socket) => {
   // Handle room status change
   socket.on('changeRoomStatus', async (data) => {
     try {
-      console.log(`🔄 Room status change requested: ${data.newStatus} for room ${data.roomCode}`);
+      console.log(`ðŸ”„ Room status change requested: ${data.newStatus} for room ${data.roomCode}`);
       
       const connection = connectionManager.getConnection(socket.id);
       if (!connection?.roomId || !connection?.userId) {
@@ -3005,10 +3018,10 @@ io.on('connection', async (socket) => {
         roomVersion: Date.now()
       });
 
-      console.log(`🔄 Room ${room.room_code} status changed from '${room.status}' to '${data.newStatus}' by ${participant.user?.display_name}`);
+      console.log(`ðŸ”„ Room ${room.room_code} status changed from '${room.status}' to '${data.newStatus}' by ${participant.user?.display_name}`);
 
     } catch (error) {
-      console.error('❌ Error changing room status:', error);
+      console.error('âŒ Error changing room status:', error);
       socket.emit('error', { message: 'Failed to change room status' });
     }
   });
@@ -3016,25 +3029,25 @@ io.on('connection', async (socket) => {
   // Handle automatic room status updates based on host location
   socket.on('autoUpdateRoomStatus', async (data) => {
     try {
-      console.log(`🤖 Auto-updating room status: ${data.newStatus} for room ${data.roomCode} (reason: ${data.reason})`);
+      console.log(`ðŸ¤– Auto-updating room status: ${data.newStatus} for room ${data.roomCode} (reason: ${data.reason})`);
       
       const connection = connectionManager.getConnection(socket.id);
       if (!connection?.roomId || !connection?.userId) {
-        console.log(`❌ Auto status update failed: socket not in room`);
+        console.log(`âŒ Auto status update failed: socket not in room`);
         return; // Don't emit error, just log
       }
 
       // Get room and verify user is host
       const room = await db.getRoomByCode(data.roomCode);
       if (!room) {
-        console.log(`❌ Auto status update failed: room ${data.roomCode} not found`);
+        console.log(`âŒ Auto status update failed: room ${data.roomCode} not found`);
         return;
       }
 
       // Check if user is host (only host can trigger auto updates)
       const participant = room.participants?.find(p => p.user_id === connection.userId);
       if (!participant || participant.role !== 'host') {
-        console.log(`❌ Auto status update failed: user ${connection.userId} is not host`);
+        console.log(`âŒ Auto status update failed: user ${connection.userId} is not host`);
         return;
       }
 
@@ -3048,14 +3061,14 @@ io.on('connection', async (socket) => {
 
       // Don't update if status is already correct
       if (room.status === serverStatus) {
-        console.log(`🔄 Auto status update skipped: room ${data.roomCode} already has status '${serverStatus}'`);
+        console.log(`ðŸ”„ Auto status update skipped: room ${data.roomCode} already has status '${serverStatus}'`);
         return;
       }
 
       // Validate the new status - V2 Schema
       const validStatuses = ['lobby', 'in_game', 'returning'];
       if (!validStatuses.includes(serverStatus)) {
-        console.log(`❌ Auto status update failed: invalid status '${serverStatus}'`);
+        console.log(`âŒ Auto status update failed: invalid status '${serverStatus}'`);
         return;
       }
 
@@ -3083,10 +3096,10 @@ io.on('connection', async (socket) => {
         roomVersion: Date.now()
       });
 
-      console.log(`🤖 Room ${room.room_code} status auto-changed from '${room.status}' to '${serverStatus}' by ${participant.user?.display_name} (reason: ${data.reason})`);
+      console.log(`ðŸ¤– Room ${room.room_code} status auto-changed from '${room.status}' to '${serverStatus}' by ${participant.user?.display_name} (reason: ${data.reason})`);
 
     } catch (error) {
-      console.error('❌ Error auto-updating room status:', error);
+      console.error('âŒ Error auto-updating room status:', error);
       // Don't emit error to client - this is automatic and shouldn't interrupt user flow
     }
   });
@@ -3094,7 +3107,7 @@ io.on('connection', async (socket) => {
   // Handle disconnection
   socket.on('disconnect', async () => {
     try {
-      console.log(`🔌 User disconnected: ${socket.id}`);
+      console.log(`ðŸ”Œ User disconnected: ${socket.id}`);
       
       // Get and remove connection from manager
       const connection = connectionManager.removeConnection(socket.id);
@@ -3117,10 +3130,10 @@ io.on('connection', async (socket) => {
           // If room is in_game and player is marked as in_game, they're likely in the external game
           if (room.status === 'in_game' && disconnectingParticipant.in_game === true) {
             connectionStatus = 'game';
-            console.log(`🎮 Player ${disconnectingParticipant.user?.username} disconnected but room is in_game - marking as 'game' status`);
+            console.log(`ðŸŽ® Player ${disconnectingParticipant.user?.username} disconnected but room is in_game - marking as 'game' status`);
           } else {
             connectionStatus = 'disconnected';
-            console.log(`🔌 Player ${disconnectingParticipant.user?.username} disconnected - marking as 'disconnected' status`);
+            console.log(`ðŸ”Œ Player ${disconnectingParticipant.user?.username} disconnected - marking as 'disconnected' status`);
           }
         }
 
@@ -3145,8 +3158,8 @@ io.on('connection', async (socket) => {
           ) || [];
           
           if (otherConnectedPlayers.length > 0) {
-            console.log(`👑 [DISCONNECT] Host ${connection.userId} disconnected - transferring host instantly`);
-            console.log(`👑 [DISCONNECT] Other connected players available:`, 
+            console.log(`ðŸ‘‘ [DISCONNECT] Host ${connection.userId} disconnected - transferring host instantly`);
+            console.log(`ðŸ‘‘ [DISCONNECT] Other connected players available:`, 
               otherConnectedPlayers.map(p => ({
                 user_id: p.user_id,
                 username: p.user?.username,
@@ -3159,21 +3172,21 @@ io.on('connection', async (socket) => {
             newHost = await db.autoTransferHost(connection.roomId, connection.userId);
             
             if (newHost) {
-              console.log(`👑 [DISCONNECT] Host transfer completed:`, {
+              console.log(`ðŸ‘‘ [DISCONNECT] Host transfer completed:`, {
                 oldHostId: connection.userId,
                 newHostId: newHost.user_id,
                 newHostName: newHost.user?.display_name || newHost.user?.username
               });
               
-              console.log(`👑 [DISCONNECT] Host transfer completed successfully`, {
+              console.log(`ðŸ‘‘ [DISCONNECT] Host transfer completed successfully`, {
                 newHostId: newHost.user_id,
                 newHostName: newHost.user?.display_name || newHost.user?.username
               });
             } else {
-              console.log(`❌ [DISCONNECT] Host transfer failed - no suitable replacement found`);
+              console.log(`âŒ [DISCONNECT] Host transfer failed - no suitable replacement found`);
             }
           } else {
-            console.log(`⚠️ Host disconnected but no other connected players - keeping host role`);
+            console.log(`âš ï¸ Host disconnected but no other connected players - keeping host role`);
           }
         }
 
@@ -3220,7 +3233,7 @@ io.on('connection', async (socket) => {
       // Connection already removed by connectionManager.removeConnection(socket.id) above
 
     } catch (error) {
-      console.error('❌ Error handling disconnect:', error);
+      console.error('âŒ Error handling disconnect:', error);
     }
   });
 });
@@ -3235,14 +3248,14 @@ app.get('/api/supabase-config', (req, res) => {
       anonKey: process.env.SUPABASE_ANON_KEY
     };
     
-    console.log('📡 [API] Providing Supabase config to frontend:', {
+    console.log('ðŸ“¡ [API] Providing Supabase config to frontend:', {
       url: config.url ? `${config.url.substring(0, 20)}...` : 'MISSING',
       anonKey: config.anonKey ? `${config.anonKey.substring(0, 20)}...` : 'MISSING'
     });
     
     res.json(config);
   } catch (error) {
-    console.error('❌ Error providing Supabase config:', error);
+    console.error('âŒ Error providing Supabase config:', error);
     res.status(500).json({
       success: false,
       error: 'Failed to get Supabase configuration'
@@ -3277,7 +3290,7 @@ app.post('/api/admin/cleanup-rooms', async (req, res) => {
         : `Cleaned ${result.cleaned} rooms`
     });
   } catch (error) {
-    console.error('❌ Room cleanup API error:', error);
+    console.error('âŒ Room cleanup API error:', error);
     res.status(500).json({
       success: false,
       error: error.message
@@ -3294,7 +3307,7 @@ app.get('/api/admin/room-stats', async (req, res) => {
       stats
     });
   } catch (error) {
-    console.error('❌ Room stats API error:', error);
+    console.error('âŒ Room stats API error:', error);
     res.status(500).json({
       success: false,
       error: error.message
@@ -3307,7 +3320,7 @@ app.get('/api/admin/room-stats', async (req, res) => {
 // Manual cleanup trigger
 app.post('/api/admin/cleanup-now', async (req, res) => {
   try {
-    console.log('🧹 Manual cleanup triggered');
+    console.log('ðŸ§¹ Manual cleanup triggered');
     
     // Run all cleanup tasks
     await db.cleanupStaleConnections();
@@ -3328,7 +3341,7 @@ app.post('/api/admin/cleanup-now', async (req, res) => {
       message: `Manual cleanup completed: ${roomCleanup.cleaned} rooms cleaned`
     });
   } catch (error) {
-    console.error('❌ Manual cleanup error:', error);
+    console.error('âŒ Manual cleanup error:', error);
     res.status(500).json({
       success: false,
       error: error.message
@@ -3341,7 +3354,7 @@ app.post('/api/admin/cleanup-now', async (req, res) => {
 // Periodic cleanup of stale connections and inactive rooms
 setInterval(async () => {
   try {
-    console.log('🧹 Running periodic cleanup...');
+    console.log('ðŸ§¹ Running periodic cleanup...');
     
     // Clean up stale connections
     await db.cleanupStaleConnections();
@@ -3357,11 +3370,11 @@ setInterval(async () => {
     });
     
     if (roomCleanup.cleaned > 0) {
-      console.log(`🧹 Periodic cleanup: ${roomCleanup.cleaned} rooms cleaned`);
+      console.log(`ðŸ§¹ Periodic cleanup: ${roomCleanup.cleaned} rooms cleaned`);
     }
     
   } catch (error) {
-    console.error('❌ Periodic cleanup error:', error);
+    console.error('âŒ Periodic cleanup error:', error);
   }
 }, 15 * 60 * 1000); // Every 15 minutes
 
@@ -3372,7 +3385,7 @@ setInterval(async () => {
     
     // Run more aggressive cleanup during off-peak hours (2 AM - 6 AM)
     if (hour >= 2 && hour <= 6) {
-      console.log('🌙 Running off-peak aggressive cleanup...');
+      console.log('ðŸŒ™ Running off-peak aggressive cleanup...');
       
       const roomCleanup = await db.cleanupInactiveRooms({
         maxAgeHours: 12,     // More aggressive: 12 hours
@@ -3383,31 +3396,31 @@ setInterval(async () => {
       });
       
       if (roomCleanup.cleaned > 0) {
-        console.log(`🌙 Off-peak cleanup: ${roomCleanup.cleaned} rooms cleaned`);
+        console.log(`ðŸŒ™ Off-peak cleanup: ${roomCleanup.cleaned} rooms cleaned`);
       }
     }
   } catch (error) {
-    console.error('❌ Off-peak cleanup error:', error);
+    console.error('âŒ Off-peak cleanup error:', error);
   }
 }, 60 * 60 * 1000); // Every hour
 
 // Graceful shutdown
 process.on('SIGTERM', async () => {
-  console.log('🛑 SIGTERM received, shutting down gracefully...');
+  console.log('ðŸ›‘ SIGTERM received, shutting down gracefully...');
   
   // Close all socket connections
   io.close();
   
   // Close server
   server.close(() => {
-    console.log('✅ Server closed');
+    console.log('âœ… Server closed');
     process.exit(0);
   });
 });
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error('💥 Unhandled error:', {
+  console.error('ðŸ’¥ Unhandled error:', {
     error: err.message,
     stack: err.stack,
     url: req.url,
@@ -3467,12 +3480,19 @@ server.on('error', (err) => {
 // Start server
 const PORT = process.env.PORT || 3033;
 server.listen(PORT, () => {
-  console.log(`🚀 GameBuddies Server v2.1.0 running on port ${PORT}`);
-  console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🗄️ Storage: SUPABASE (Persistent)`);
-  console.log(`🎮 Game proxies configured: ${Object.keys(gameProxies).join(',')}`);
-  console.log(`✅ Supabase configured - using persistent database storage`);
-  console.log(`🔇 WebSocket navigation errors suppressed for clean logs`);
+  console.log(`ðŸš€ GameBuddies Server v2.1.0 running on port ${PORT}`);
+  console.log(`ðŸ“Š Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log(`ðŸ—„ï¸ Storage: SUPABASE (Persistent)`);
+  console.log(`ðŸŽ® Game proxies configured: ${Object.keys(gameProxies).join(',')}`);
+  console.log(`âœ… Supabase configured - using persistent database storage`);
+  console.log(`ðŸ”‡ WebSocket navigation errors suppressed for clean logs`);
 });
 
 module.exports = { app, server, io }; 
+
+
+
+
+
+
+
