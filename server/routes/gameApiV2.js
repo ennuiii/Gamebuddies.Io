@@ -284,7 +284,9 @@ module.exports = (io, db, connectionManager) => {
         } catch (stateError) {
           console.warn('âš ï¸ [API V2] Game state save failed:', stateError);
         }
-      }\n\n    } catch (error) {
+      }
+
+    } catch (error) {
       console.log(`âœ… [API V2] Bulk update completed: ${result.summary.successful}/${result.summary.total} successful`);
 
       res.json({
