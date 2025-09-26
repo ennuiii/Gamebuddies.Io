@@ -1,5 +1,7 @@
 // Input validation schemas for GameBuddies
 const Joi = require('joi');
+const rateLimit = require('express-rate-limit');
+const { db } = require('./supabase');
 
 // Player name validation
 const playerNameSchema = Joi.string()
@@ -205,11 +207,105 @@ const rateLimits = {
   default: { max: 60, window: 60000 } // 60 requests per minute default
 };
 
+const apiRateLimiterConfig = {
+  apiCalls: { windowMs: 60 * 1000, max: 120 },
+  statusUpdates: { windowMs: 60 * 1000, max: 180 },
+  bulkUpdates: { windowMs: 60 * 1000, max: 30 },
+  polling: { windowMs: 60 * 1000, max: 60 },
+  heartbeats: { windowMs: 60 * 1000, max: 300 }
+};
+
+const createRateLimiter = (config = {}) => rateLimit({
+  windowMs: config.windowMs ?? config.window ?? 60 * 1000,
+  max: config.max ?? 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    error: 'Too many requests',
+    code: 'RATE_LIMITED'
+  }
+});
+
+const apiRateLimiters = Object.fromEntries(
+  Object.entries(apiRateLimiterConfig).map(([key, config]) => [key, createRateLimiter(config)])
+);
+
+Object.assign(rateLimits, apiRateLimiters);
+
+
 // Export validation utilities
+async function validateApiKey(req, res, next) {
+  const apiKey = req.headers['x-api-key'];
+
+  if (!apiKey) {
+    return res.status(401).json({
+      success: false,
+      error: 'API key required',
+      code: 'API_KEY_REQUIRED'
+    });
+  }
+
+  try {
+    const { data: keyRecord, error } = await db.adminClient
+      .from('api_keys')
+      .select('*')
+      .eq('key_hash', apiKey)
+      .eq('is_active', true)
+      .single();
+
+    if (error || !keyRecord) {
+      return res.status(401).json({
+        success: false,
+        error: 'Invalid API key',
+        code: 'INVALID_API_KEY'
+      });
+    }
+
+    req.apiKey = keyRecord;
+
+    const nowIso = new Date().toISOString();
+
+    try {
+      await db.adminClient
+        .from('api_keys')
+        .update({ last_used: nowIso })
+        .eq('id', keyRecord.id);
+    } catch (updateError) {
+      console.warn('[API AUTH] Failed to update API key usage timestamp:', updateError);
+    }
+
+    try {
+      await db.adminClient
+        .from('api_requests')
+        .insert({
+          api_key_id: keyRecord.id,
+          endpoint: req.path,
+          method: req.method,
+          ip_address: req.ip,
+          user_agent: req.get('User-Agent') || '',
+          created_at: nowIso
+        });
+    } catch (logError) {
+      console.warn('[API AUTH] Failed to log API request:', logError);
+    }
+
+    return next();
+  } catch (err) {
+    console.error('[API AUTH] API key validation error:', err);
+    return res.status(500).json({
+      success: false,
+      error: 'API key validation failed',
+      code: 'API_KEY_VALIDATION_FAILED'
+    });
+  }
+}
+
 module.exports = {
   schemas,
   createValidator,
   sanitize,
+  validateApiKey,
   rateLimits,
   
   // Convenience validators

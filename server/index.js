@@ -16,7 +16,7 @@ const crypto = require('crypto');
 const ConnectionManager = require('./lib/connectionManager');
 const LobbyManager = require('./lib/lobbyManager');
 const StatusSyncManager = require('./lib/statusSyncManager');
-const { validators, sanitize, rateLimits } = require('./lib/validation');
+const { validators, sanitize, rateLimits, validateApiKey } = require('./lib/validation');
 
 const app = express();
 const server = http.createServer(app);
@@ -349,80 +349,7 @@ app.get('/api/games', (req, res) => {
 
 // ===== GAMEBUDDIES API FOR EXTERNAL GAMES =====
 
-// Middleware for API key validation
-async function validateApiKey(req, res, next) {
-  const apiKey = req.headers['x-api-key'];
-  
-  console.log(`ðŸ” [API AUTH] API key validation attempt:`, {
-    endpoint: req.path,
-    method: req.method,
-    hasApiKey: !!apiKey,
-    apiKeyPrefix: apiKey ? `${apiKey.substring(0, 8)}...` : 'none',
-    ip: req.ip || req.connection?.remoteAddress,
-    userAgent: req.get('User-Agent'),
-    timestamp: new Date().toISOString()
-  });
-  
-  if (!apiKey) {
-    console.log(`âŒ [API AUTH] No API key provided for ${req.method} ${req.path}`);
-    return res.status(401).json({ error: 'API key required' });
-  }
-  
-  try {
-    const { data: key, error } = await db.adminClient
-      .from('api_keys')
-      .select('*')
-      .eq('key_hash', apiKey)
-      .eq('is_active', true)
-      .single();
-    
-    if (error || !key) {
-      console.log(`âŒ [API AUTH] Invalid API key:`, {
-        apiKeyPrefix: `${apiKey.substring(0, 8)}...`,
-        error: error?.message,
-        endpoint: req.path,
-        ip: req.ip || req.connection?.remoteAddress
-      });
-      return res.status(401).json({ error: 'Invalid API key' });
-    }
-
-    console.log(`âœ… [API AUTH] Valid API key:`, {
-      service: key.name || key.service_name,
-      keyId: key.id,
-      endpoint: req.path,
-      lastUsed: key.last_used
-    });
-    
-    // Update last used
-    await db.adminClient
-      .from('api_keys')
-      .update({ last_used: new Date().toISOString() })
-      .eq('id', key.id);
-    
-    // Log API request
-    await db.adminClient
-      .from('api_requests')
-      .insert({
-        api_key_id: key.id,
-        endpoint: req.path,
-        method: req.method,
-        ip_address: req.ip,
-        user_agent: req.get('User-Agent')
-      });
-    
-    req.apiKey = key;
-    next();
-  } catch (error) {
-    console.error('âŒ [API AUTH] API key validation error:', {
-      error: error.message,
-      stack: error.stack,
-      endpoint: req.path,
-      method: req.method,
-      ip: req.ip || req.connection?.remoteAddress
-    });
-    res.status(500).json({ error: 'Server error' });
-  }
-}
+// Middleware for API key validation is provided by lib/validation
 
 // Room validation endpoint
 app.get('/api/game/rooms/:roomCode/validate', validateApiKey, async (req, res) => {
