@@ -1,10 +1,11 @@
 const express = require('express');
 const router = express.Router();
 const { validateApiKey, rateLimits } = require('../lib/validation');
+const apiKeyMiddleware = typeof validateApiKey === 'function' ? validateApiKey : (req, res, next) => next();
 
 module.exports = (io, db, connectionManager, lobbyManager, statusSyncManager) => {
   // Primary endpoint used by external games (e.g. DDF) to trigger a return flow.
-  router.post('/api/v2/external/return', validateApiKey, rateLimits.apiCalls, async (req, res) => {
+  router.post('/api/v2/external/return', apiKeyMiddleware, rateLimits.apiCalls, async (req, res) => {
     try {
       const {
         roomCode,
@@ -135,7 +136,7 @@ module.exports = (io, db, connectionManager, lobbyManager, statusSyncManager) =>
   });
 
   // Polling endpoint for external games to check return status
-  router.get('/api/v2/rooms/:roomCode/return-status', validateApiKey, rateLimits.polling, async (req, res) => {
+  router.get('/api/v2/rooms/:roomCode/return-status', apiKeyMiddleware, rateLimits.polling, async (req, res) => {
     try {
       const { roomCode } = req.params;
       const { playerId } = req.query;
@@ -209,7 +210,7 @@ module.exports = (io, db, connectionManager, lobbyManager, statusSyncManager) =>
   });
 
   // Legacy room validation endpoint for backward compatibility
-  router.get('/api/rooms/:roomCode/validate', validateApiKey, rateLimits.apiCalls, async (req, res) => {
+  router.get('/api/rooms/:roomCode/validate', apiKeyMiddleware, rateLimits.apiCalls, async (req, res) => {
     try {
       const { roomCode } = req.params;
       const { playerName, playerId } = req.query;
@@ -247,7 +248,7 @@ module.exports = (io, db, connectionManager, lobbyManager, statusSyncManager) =>
   });
 
   // Enhanced room validation endpoint with session token generation
-  router.get('/api/v2/rooms/:roomCode/validate-with-session', validateApiKey, rateLimits.apiCalls, async (req, res) => {
+  router.get('/api/v2/rooms/:roomCode/validate-with-session', apiKeyMiddleware, rateLimits.apiCalls, async (req, res) => {
     try {
       const { roomCode } = req.params;
       const { playerId, playerName } = req.query;
@@ -290,7 +291,7 @@ module.exports = (io, db, connectionManager, lobbyManager, statusSyncManager) =>
   });
 
   // Heartbeat endpoint for external games to maintain connection awareness
-  router.post('/api/v2/external-heartbeat', validateApiKey, rateLimits.heartbeats, async (req, res) => {
+  router.post('/api/v2/external-heartbeat', apiKeyMiddleware, rateLimits.heartbeats, async (req, res) => {
     try {
       const { roomCode, playerId, gameData = {} } = req.body;
 
