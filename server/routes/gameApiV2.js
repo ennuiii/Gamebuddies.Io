@@ -271,25 +271,26 @@ module.exports = (io, db, connectionManager) => {
 
       // Handle game state if provided
       if (gameState) {
-        try {
-          const { data: room } = await db.adminClient
-            .from('rooms')
-            .select('id')
-            .eq('room_code', roomCode)
-            .single();
+        const { data: room, error: roomLookupError } = await db.adminClient
+          .from('rooms')
+          .select('id')
+          .eq('room_code', roomCode)
+          .single();
 
-          if (room) {
+        if (roomLookupError) {
+          console.warn('[API V2] Room lookup failed during game state save:', roomLookupError);
+        } else if (room) {
+          try {
             await db.saveGameState(room.id, req.apiKey.service_name, gameState, null);
+          } catch (stateError) {
+            console.warn('[API V2] Game state save failed:', stateError);
           }
-        } catch (stateError) {
-          console.warn('âš ï¸ [API V2] Game state save failed:', stateError);
         }
       }
 
-    } catch (error) {
-      console.log(`âœ… [API V2] Bulk update completed: ${result.summary.successful}/${result.summary.total} successful`);
+      console.log(`[API V2] Bulk update completed: ${result.summary.successful}/${result.summary.total} successful`);
 
-      res.json({
+      return res.json({
         success: true,
         results: result.results,
         errors: result.errors,
