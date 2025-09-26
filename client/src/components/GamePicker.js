@@ -21,6 +21,12 @@ const GamePicker = ({ onGameSelect, isHost, disabled }) => {
       icon: '🔍',
       description: 'Imposter game - find who\'s acting suspicious!',
       maxPlayers: 10
+    },
+    'bingo': {
+      name: 'Bingo Buddies',
+      icon: '🎱',
+      description: 'Fast-paced multiplayer bingo with custom cards and power-ups.',
+      maxPlayers: 12
     }
   };
 

@@ -21,8 +21,19 @@ const RoomReady = ({ room, gameType, onClose }) => {
       name: 'SUS\'D',
       icon: '🔍',
       path: '/susd'
+    },
+    'bingo': {
+      name: 'Bingo Buddies',
+      icon: '🎱',
+      path: '/bingo'
     }
   }[gameType];
+  const resolvedGame = game || {
+    name: gameType || 'GameBuddies Game',
+    icon: '🎮',
+    path: `/${gameType || ''}`
+  };
+
 
   // Redirect to game after countdown
   useEffect(() => {
@@ -30,7 +41,7 @@ const RoomReady = ({ room, gameType, onClose }) => {
       setCountdown(prev => {
         if (prev <= 1) {
           // Redirect to game with room code
-          const gameUrl = `${game.path}?room=${room.roomCode}`;
+          const gameUrl = `${resolvedGame.path}?room=${room.roomCode}`;
           window.location.href = gameUrl;
           return 0;
         }
@@ -39,10 +50,10 @@ const RoomReady = ({ room, gameType, onClose }) => {
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [room.roomCode, game.path]);
+  }, [room.roomCode, resolvedGame.path]);
 
   const copyInviteLink = () => {
-    const gameUrl = `${window.location.origin}${game.path}?room=${room.roomCode}`;
+    const gameUrl = `${window.location.origin}${resolvedGame.path}?room=${room.roomCode}`;
     navigator.clipboard.writeText(gameUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -55,7 +66,7 @@ const RoomReady = ({ room, gameType, onClose }) => {
   };
 
   const joinNow = () => {
-    const gameUrl = `${game.path}?room=${room.roomCode}`;
+    const gameUrl = `${resolvedGame.path}?room=${room.roomCode}`;
     window.location.href = gameUrl;
   };
 
@@ -80,8 +91,8 @@ const RoomReady = ({ room, gameType, onClose }) => {
         
         <div className="room-details">
           <div className="game-info">
-            <span className="game-icon">{game.icon}</span>
-            <span className="game-name">{game.name}</span>
+            <span className="game-icon">{resolvedGame.icon}</span>
+            <span className="game-name">{resolvedGame.name}</span>
           </div>
           
           <div className="room-code-section">

@@ -17,6 +17,8 @@ services:
         value: https://schoolquizgame.onrender.com
       - key: SUSD_URL
         value: https://susd-1.onrender.com
+      - key: BINGO_URL
+        value: https://bingobuddies.onrender.com
       - key: SUPABASE_URL
         value: https://your-project-ref.supabase.co
       - key: SUPABASE_ANON_KEY
@@ -35,4 +37,6 @@ services:
       # - key: SUSD_WS
       #   value: "true"
       # - key: DDF_WS
+      #   value: "false"
+      # - key: BINGO_WS
       #   value: "false"

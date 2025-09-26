@@ -20,6 +20,44 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
   const [isStartingGame, setIsStartingGame] = useState(false);
   const [disconnectedTimers, setDisconnectedTimers] = useState(new Map()); // Track disconnect timers
   
+  const selectedGameInfo = ({
+    ddf: {
+      name: 'Der Duemmste fliegt',
+      icon: '🎮',
+      description: 'Quiz game where the worst player gets eliminated',
+      maxPlayers: 8
+    },
+    schooled: {
+      name: 'School Quiz',
+      icon: '🎓',
+      description: 'Educational quiz game for students',
+      maxPlayers: 10
+    },
+    schoolquiz: {
+      name: 'School Quiz',
+      icon: '🎓',
+      description: 'Educational quiz game for students',
+      maxPlayers: 10
+    },
+    susd: {
+      name: "SUS'D",
+      icon: '🕵️',
+      description: "Imposter game - find who's acting suspicious!",
+      maxPlayers: 10
+    },
+    bingo: {
+      name: 'Bingo Buddies',
+      icon: '🎱',
+      description: 'Fast-paced multiplayer bingo with custom cards and power-ups.',
+      maxPlayers: 12
+    }
+  })[selectedGame] || {
+    name: selectedGame || 'Unknown game',
+    icon: '🎮',
+    description: 'Waiting for host to select a game',
+    maxPlayers: null
+  };
+
   // Use refs for values that shouldn't trigger re-renders
   const roomCodeRef = useRef(roomCode);
   const playerNameRef = useRef(playerName);
@@ -1187,12 +1225,12 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
           ) : (
             <div className="selected-game-card">
               <div className="game-icon">
-                {selectedGame === 'ddf' ? '🎮' : selectedGame === 'schooled' ? '🎓' : selectedGame === 'susd' ? '🔍' : '🎮'}
+                {selectedGameInfo.icon}
               </div>
               <div className="game-details">
-                <h4>{selectedGame === 'ddf' ? 'Der dümmste fliegt' : selectedGame === 'schooled' ? 'School Quiz' : selectedGame === 'susd' ? 'SUS\'D' : selectedGame}</h4>
-                <p>{selectedGame === 'ddf' ? 'Quiz game where the worst player gets eliminated' : selectedGame === 'schooled' ? 'Educational quiz game for students' : selectedGame === 'susd' ? 'Imposter game - find who\'s acting suspicious!' : 'Unknown game'}</p>
-                <span className="max-players">Max {selectedGame === 'ddf' ? '8' : selectedGame === 'schooled' ? '10' : selectedGame === 'susd' ? '10' : '8'} players</span>
+                <h4>{selectedGameInfo.name}</h4>
+                <p>{selectedGameInfo.description}</p>
+                <span className="max-players">Max {selectedGameInfo.maxPlayers ?? '??'} players</span>
               </div>
               {currentIsHost && (
                 <div>

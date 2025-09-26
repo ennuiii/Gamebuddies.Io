@@ -27,7 +27,7 @@ const roomCodeSchema = Joi.string()
 
 // Game type validation
 const gameTypeSchema = Joi.string()
-  .valid('ddf', 'schooled', 'susd', 'lobby')
+  .valid('ddf', 'schooled', 'susd', 'bingo', 'lobby')
   .messages({
     'any.only': 'Invalid game type selected'
   });
