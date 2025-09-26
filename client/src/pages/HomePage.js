@@ -49,11 +49,79 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
     setShowJoinRoom(true);
   }, []);
 
-  const persistSessionMetadata = useCallback((roomCode, name, isHost) => {
+  const getStoredSessionInfo = useCallback(() => {
+    const info = {
+      name: sessionStorage.getItem('gamebuddies_playerName') || '',
+      roomCode: sessionStorage.getItem('gamebuddies_roomCode') || '',
+      playerId: sessionStorage.getItem('gamebuddies_playerId') || null,
+      isHost: (sessionStorage.getItem('gamebuddies_isHost') || '') === 'true'
+    };
+
+    const raw = sessionStorage.getItem('gamebuddies:return-session');
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        info.name = parsed.playerName || parsed.metadata?.name || parsed.gbPlayerName || info.name;
+        info.roomCode = (parsed.roomCode || parsed.gbRoomCode || info.roomCode || '').toUpperCase();
+        info.playerId = parsed.playerId || parsed.metadata?.playerId || info.playerId;
+        const parsedHost = parsed.isHost;
+        const parsedGbHost = parsed.gbIsHost;
+        if (parsedHost !== undefined) {
+          info.isHost = parsedHost === true || parsedHost === 'true';
+        } else if (parsedGbHost !== undefined) {
+          info.isHost = parsedGbHost === true || parsedGbHost === 'true';
+        }
+      } catch (err) {
+        console.warn('[HomePage] Failed to parse stored return session data:', err);
+      }
+    }
+
+    return info;
+  }, []);
+
+  const persistSessionMetadata = useCallback((roomCode, name, isHost, playerId = null, sessionToken = null) => {
+    if (!roomCode) {
+      return;
+    }
+
+    const resolvedName = name || sessionStorage.getItem('gamebuddies_playerName') || '';
+    const origin = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
+
     sessionStorage.setItem('gamebuddies_roomCode', roomCode);
-    sessionStorage.setItem('gamebuddies_playerName', name);
+    if (resolvedName) {
+      sessionStorage.setItem('gamebuddies_playerName', resolvedName);
+    }
     sessionStorage.setItem('gamebuddies_isHost', String(!!isHost));
-    sessionStorage.setItem('gamebuddies_returnUrl', `${window.location.origin}/lobby/${roomCode}`);
+    if (playerId) {
+      sessionStorage.setItem('gamebuddies_playerId', playerId);
+    }
+    if (sessionToken) {
+      sessionStorage.setItem('gamebuddies_sessionToken', sessionToken);
+    }
+    if (origin) {
+      sessionStorage.setItem('gamebuddies_returnUrl', `${origin}/lobby/${roomCode}`);
+    }
+
+    const existingPlayerId = sessionStorage.getItem('gamebuddies_playerId') || null;
+    const sessionRecord = {
+      roomCode,
+      playerName: resolvedName,
+      playerId: playerId || existingPlayerId,
+      isHost: !!isHost,
+      returnUrl: origin ? `${origin}/lobby/${roomCode}` : undefined,
+      capturedAt: new Date().toISOString(),
+      source: 'gamebuddies'
+    };
+
+    if (sessionToken) {
+      sessionRecord.sessionToken = sessionToken;
+    }
+
+    try {
+      sessionStorage.setItem('gamebuddies:return-session', JSON.stringify(sessionRecord));
+    } catch (err) {
+      console.warn('[HomePage] Unable to persist return session metadata:', err);
+    }
   }, []);
 
   const handleLeaveLobby = useCallback(() => {
@@ -68,6 +136,7 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
     sessionStorage.removeItem('gamebuddies_playerId');
     sessionStorage.removeItem('gamebuddies_sessionToken');
     sessionStorage.removeItem('gamebuddies_returnUrl');
+    sessionStorage.removeItem('gamebuddies:return-session');
     navigate('/', { replace: true });
   }, [navigate, setIsInLobby, setLobbyLeaveFn]);
 
@@ -78,7 +147,7 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
     setInLobby(true);
     setIsInLobby(true);
     setLobbyLeaveFn(() => handleLeaveLobby);
-    persistSessionMetadata(room.roomCode, room.playerName, room.isHost ?? true);
+    persistSessionMetadata(room.roomCode, room.playerName, room.isHost ?? true, room.playerId ?? null);
   }, [handleLeaveLobby, persistSessionMetadata, setIsInLobby, setLobbyLeaveFn]);
 
   const handleJoinRoom = useCallback((room) => {
@@ -89,7 +158,7 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
     setInLobby(true);
     setIsInLobby(true);
     setLobbyLeaveFn(() => handleLeaveLobby);
-    persistSessionMetadata(room.roomCode, room.playerName, room.isHost);
+    persistSessionMetadata(room.roomCode, room.playerName, room.isHost, room.playerId ?? null);
     setAutoJoin(false);
   }, [handleLeaveLobby, persistSessionMetadata, setIsInLobby, setLobbyLeaveFn]);
 
@@ -152,18 +221,14 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
       setPrefillName(recoveredName);
       setLobbyLeaveFn(() => handleLeaveLobby);
 
-      persistSessionMetadata(recoveredRoomCode, recoveredName, isHost);
-      if (playerId) {
-        sessionStorage.setItem('gamebuddies_playerId', playerId);
-      }
-      sessionStorage.setItem('gamebuddies_sessionToken', sessionToken);
+      persistSessionMetadata(recoveredRoomCode, recoveredName, isHost, playerId, sessionToken);
 
       return true;
     } catch (error) {
       console.error('[HomePage] Session recovery failed:', error);
       setShowJoinRoom(true);
       setJoinRoomCode(roomCode);
-      const storedName = sessionStorage.getItem('gamebuddies_playerName') || '';
+      const { name: storedName } = getStoredSessionInfo();
       const fallbackName = nameHint || storedName;
       setPrefillName(fallbackName);
       setAutoJoin(Boolean(fallbackName));
@@ -171,7 +236,7 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
     } finally {
       setIsRecoveringSession(false);
     }
-  }, [socket, connectSocket, handleLeaveLobby, persistSessionMetadata, setIsInLobby, setLobbyLeaveFn]);
+  }, [socket, connectSocket, handleLeaveLobby, persistSessionMetadata, setIsInLobby, setLobbyLeaveFn, getStoredSessionInfo]);
 
 
   useEffect(() => {
@@ -187,7 +252,7 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
 
     const normalizedCode = joinCodeParam.trim().toUpperCase();
     const nameParam = params.get('name') || params.get('player') || '';
-    const storedName = sessionStorage.getItem('gamebuddies_playerName') || '';
+    const { name: storedName } = getStoredSessionInfo();
     const effectiveName = nameParam || storedName;
     const key = `join:${normalizedCode}:${effectiveName}`;
 
@@ -203,7 +268,7 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
     setShowJoinRoom(true);
 
     processedLinksRef.current.add(key);
-  }, [location.search, inLobby]);
+  }, [location.search, inLobby, getStoredSessionInfo]);
 
   useEffect(() => {
     const match = location.pathname.match(/^\/lobby\/([A-Za-z0-9-]+)/i);
@@ -215,7 +280,7 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
     const params = new URLSearchParams(location.search);
     const sessionToken = params.get('session');
     const nameParam = params.get('name') || params.get('player') || '';
-    const storedName = sessionStorage.getItem('gamebuddies_playerName') || '';
+    const { name: storedName } = getStoredSessionInfo();
     const effectiveName = nameParam || storedName;
     const key = `lobby:${roomCode}:${sessionToken || effectiveName}`;
 
@@ -240,7 +305,7 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
       setShowJoinRoom(true);
       processedLinksRef.current.add(key);
     }
-  }, [location.pathname, location.search, inLobby, isRecoveringSession, handleSessionRecovery]);
+  }, [location.pathname, location.search, inLobby, isRecoveringSession, handleSessionRecovery, getStoredSessionInfo]);
 
   // If in lobby, show the lobby component
   if (inLobby && currentRoom) {
