@@ -163,10 +163,10 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
       console.error('[HomePage] Session recovery failed:', error);
       setShowJoinRoom(true);
       setJoinRoomCode(roomCode);
-      if (nameHint) {
-        setPrefillName(nameHint);
-      }
-      setAutoJoin(false);
+      const storedName = sessionStorage.getItem('gamebuddies_playerName') || '';
+      const fallbackName = nameHint || storedName;
+      setPrefillName(fallbackName);
+      setAutoJoin(Boolean(fallbackName));
       return false;
     } finally {
       setIsRecoveringSession(false);
@@ -187,7 +187,9 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
 
     const normalizedCode = joinCodeParam.trim().toUpperCase();
     const nameParam = params.get('name') || params.get('player') || '';
-    const key = `join:${normalizedCode}:${nameParam}`;
+    const storedName = sessionStorage.getItem('gamebuddies_playerName') || '';
+    const effectiveName = nameParam || storedName;
+    const key = `join:${normalizedCode}:${effectiveName}`;
 
     if (processedLinksRef.current.has(key)) {
       return;
@@ -196,8 +198,8 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
     console.log('[HomePage] Found join parameter:', normalizedCode);
 
     setJoinRoomCode(normalizedCode);
-    setPrefillName(nameParam);
-    setAutoJoin(Boolean(nameParam));
+    setPrefillName(effectiveName);
+    setAutoJoin(Boolean(effectiveName));
     setShowJoinRoom(true);
 
     processedLinksRef.current.add(key);
@@ -213,7 +215,9 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
     const params = new URLSearchParams(location.search);
     const sessionToken = params.get('session');
     const nameParam = params.get('name') || params.get('player') || '';
-    const key = `lobby:${roomCode}:${sessionToken || nameParam}`;
+    const storedName = sessionStorage.getItem('gamebuddies_playerName') || '';
+    const effectiveName = nameParam || storedName;
+    const key = `lobby:${roomCode}:${sessionToken || effectiveName}`;
 
     if (processedLinksRef.current.has(key) || inLobby || isRecoveringSession) {
       return;
@@ -231,8 +235,8 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
       })();
     } else {
       setJoinRoomCode(roomCode);
-      setPrefillName(nameParam);
-      setAutoJoin(Boolean(nameParam));
+      setPrefillName(effectiveName);
+      setAutoJoin(Boolean(effectiveName));
       setShowJoinRoom(true);
       processedLinksRef.current.add(key);
     }
