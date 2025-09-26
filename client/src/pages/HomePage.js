@@ -1,6 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { useSocket } from '../contexts/LazySocketContext';
 import GameCard from '../components/GameCard';
@@ -10,9 +10,11 @@ import RoomLobby from '../components/RoomLobby';
 import './HomePage.css';
 
 const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
-  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { socket, isConnected: socketIsConnected, connectSocket } = useSocket();
+  const location = useLocation();
+  const processedLinksRef = useRef(new Set());
+  const [isRecoveringSession, setIsRecoveringSession] = useState(false);
+  const { socket, connectSocket } = useSocket();
   const [games, setGames] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateRoom, setShowCreateRoom] = useState(false);
@@ -24,52 +26,62 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
   const [prefillName, setPrefillName] = useState('');
   const [autoJoin, setAutoJoin] = useState(false);
 
-  useEffect(() => {
-    fetchGames();
-    
-    // Check for join URL parameters
-    const urlParams = new URLSearchParams(window.location.search);
-    const joinCode = urlParams.get('join');
-    const name = urlParams.get('name');
-    
-    if (joinCode) {
-      console.log('[HomePage] Found join parameter:', joinCode);
-      setJoinRoomCode(joinCode);
-      setPrefillName(name || '');
-      setAutoJoin(true);
-      setShowJoinRoom(true);
-    }
-  }, []);
-
-  const fetchGames = async () => {
+  const fetchGames = useCallback(async () => {
     try {
       const response = await axios.get('/api/games');
       setGames(response.data);
-      setLoading(false);
     } catch (error) {
       console.error('Error fetching games:', error);
+    } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const handleCreateRoomClick = () => {
+  useEffect(() => {
+    fetchGames();
+  }, [fetchGames]);
+
+  const handleCreateRoomClick = useCallback(() => {
     setShowCreateRoom(true);
-  };
+  }, []);
 
-  const handleJoinRoomClick = () => {
+  const handleJoinRoomClick = useCallback(() => {
     setShowJoinRoom(true);
-  };
+  }, []);
 
-  const handleRoomCreated = (room) => {
+  const persistSessionMetadata = useCallback((roomCode, name, isHost) => {
+    sessionStorage.setItem('gamebuddies_roomCode', roomCode);
+    sessionStorage.setItem('gamebuddies_playerName', name);
+    sessionStorage.setItem('gamebuddies_isHost', String(!!isHost));
+    sessionStorage.setItem('gamebuddies_returnUrl', `${window.location.origin}/lobby/${roomCode}`);
+  }, []);
+
+  const handleLeaveLobby = useCallback(() => {
+    setInLobby(false);
+    setCurrentRoom(null);
+    setPlayerName('');
+    setIsInLobby(false);
+    setLobbyLeaveFn(null);
+    sessionStorage.removeItem('gamebuddies_roomCode');
+    sessionStorage.removeItem('gamebuddies_playerName');
+    sessionStorage.removeItem('gamebuddies_isHost');
+    sessionStorage.removeItem('gamebuddies_playerId');
+    sessionStorage.removeItem('gamebuddies_sessionToken');
+    sessionStorage.removeItem('gamebuddies_returnUrl');
+    navigate('/', { replace: true });
+  }, [navigate, setIsInLobby, setLobbyLeaveFn]);
+
+  const handleRoomCreated = useCallback((room) => {
     setCurrentRoom(room);
     setPlayerName(room.playerName);
     setShowCreateRoom(false);
     setInLobby(true);
     setIsInLobby(true);
     setLobbyLeaveFn(() => handleLeaveLobby);
-  };
+    persistSessionMetadata(room.roomCode, room.playerName, room.isHost ?? true);
+  }, [handleLeaveLobby, persistSessionMetadata, setIsInLobby, setLobbyLeaveFn]);
 
-  const handleJoinRoom = (room) => {
+  const handleJoinRoom = useCallback((room) => {
     // The actual room data will be fetched in RoomLobby
     setCurrentRoom(room);
     setPlayerName(room.playerName);
@@ -77,21 +89,154 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
     setInLobby(true);
     setIsInLobby(true);
     setLobbyLeaveFn(() => handleLeaveLobby);
-  };
+    persistSessionMetadata(room.roomCode, room.playerName, room.isHost);
+    setAutoJoin(false);
+  }, [handleLeaveLobby, persistSessionMetadata, setIsInLobby, setLobbyLeaveFn]);
 
-  const handleLeaveLobby = () => {
-    setInLobby(false);
-    setCurrentRoom(null);
-    setPlayerName('');
-    setIsInLobby(false);
-    setLobbyLeaveFn(null);
-  };
-
-  const handleCloseModals = () => {
+  const handleCloseModals = useCallback(() => {
     setShowCreateRoom(false);
     setShowJoinRoom(false);
     setJoinRoomCode('');
-  };
+    setPrefillName('');
+    setAutoJoin(false);
+  }, []);
+
+  const handleSessionRecovery = useCallback(async (roomCode, sessionToken, nameHint = '') => {
+    if (!sessionToken) {
+      return false;
+    }
+
+    setIsRecoveringSession(true);
+
+    try {
+      const activeSocket = socket || connectSocket();
+      const socketId = activeSocket && activeSocket.id ? activeSocket.id : undefined;
+
+      const response = await fetch('/api/v2/sessions/recover', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionToken,
+          socketId
+        })
+      });
+
+      if (!response.ok) {
+        throw new Error('Session recovery request failed');
+      }
+
+      const data = await response.json();
+      const playerState = data.playerState || {};
+      const recoveredName =
+        nameHint ||
+        playerState?.user?.display_name ||
+        playerState?.user?.username ||
+        playerState?.display_name ||
+        playerState?.username ||
+        'Player';
+
+      const recoveredRoomCode = (data.roomCode || roomCode || '').toUpperCase();
+      const playerId = data.playerId || playerState?.user_id || playerState?.id || null;
+      const isHost = playerState?.role === 'host';
+
+      setCurrentRoom({
+        roomCode: recoveredRoomCode,
+        playerName: recoveredName,
+        isHost: !!isHost
+      });
+      setPlayerName(recoveredName);
+      setShowJoinRoom(false);
+      setInLobby(true);
+      setIsInLobby(true);
+      setAutoJoin(false);
+      setPrefillName(recoveredName);
+      setLobbyLeaveFn(() => handleLeaveLobby);
+
+      persistSessionMetadata(recoveredRoomCode, recoveredName, isHost);
+      if (playerId) {
+        sessionStorage.setItem('gamebuddies_playerId', playerId);
+      }
+      sessionStorage.setItem('gamebuddies_sessionToken', sessionToken);
+
+      return true;
+    } catch (error) {
+      console.error('[HomePage] Session recovery failed:', error);
+      setShowJoinRoom(true);
+      setJoinRoomCode(roomCode);
+      if (nameHint) {
+        setPrefillName(nameHint);
+      }
+      setAutoJoin(false);
+      return false;
+    } finally {
+      setIsRecoveringSession(false);
+    }
+  }, [socket, connectSocket, handleLeaveLobby, persistSessionMetadata, setIsInLobby, setLobbyLeaveFn]);
+
+
+  useEffect(() => {
+    if (inLobby) {
+      return;
+    }
+
+    const params = new URLSearchParams(location.search);
+    const joinCodeParam = params.get('join');
+    if (!joinCodeParam) {
+      return;
+    }
+
+    const normalizedCode = joinCodeParam.trim().toUpperCase();
+    const nameParam = params.get('name') || params.get('player') || '';
+    const key = `join:${normalizedCode}:${nameParam}`;
+
+    if (processedLinksRef.current.has(key)) {
+      return;
+    }
+
+    console.log('[HomePage] Found join parameter:', normalizedCode);
+
+    setJoinRoomCode(normalizedCode);
+    setPrefillName(nameParam);
+    setAutoJoin(Boolean(nameParam));
+    setShowJoinRoom(true);
+
+    processedLinksRef.current.add(key);
+  }, [location.search, inLobby]);
+
+  useEffect(() => {
+    const match = location.pathname.match(/^\/lobby\/([A-Za-z0-9-]+)/i);
+    if (!match) {
+      return;
+    }
+
+    const roomCode = match[1].toUpperCase();
+    const params = new URLSearchParams(location.search);
+    const sessionToken = params.get('session');
+    const nameParam = params.get('name') || params.get('player') || '';
+    const key = `lobby:${roomCode}:${sessionToken || nameParam}`;
+
+    if (processedLinksRef.current.has(key) || inLobby || isRecoveringSession) {
+      return;
+    }
+
+    if (sessionToken) {
+      (async () => {
+        const success = await handleSessionRecovery(roomCode, sessionToken, nameParam);
+        processedLinksRef.current.add(key);
+        if (success && params.has('session')) {
+          const url = new URL(window.location.href);
+          url.searchParams.delete('session');
+          window.history.replaceState({}, '', url.toString());
+        }
+      })();
+    } else {
+      setJoinRoomCode(roomCode);
+      setPrefillName(nameParam);
+      setAutoJoin(Boolean(nameParam));
+      setShowJoinRoom(true);
+      processedLinksRef.current.add(key);
+    }
+  }, [location.pathname, location.search, inLobby, isRecoveringSession, handleSessionRecovery]);
 
   // If in lobby, show the lobby component
   if (inLobby && currentRoom) {

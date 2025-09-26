@@ -74,6 +74,15 @@ function AppContent() {
           } 
         />
         <Route 
+          path="/lobby/:roomCode" 
+          element={
+            <HomePage 
+              setIsInLobby={setIsInLobby}
+              setLobbyLeaveFn={setLobbyLeaveFn}
+            />
+          } 
+        />
+        <Route 
           path="/*" 
           element={
             <HomePage 
