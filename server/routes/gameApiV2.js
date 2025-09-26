@@ -5,11 +5,16 @@ const StatusSyncManager = require('../lib/statusSyncManager');
 const { validateApiKey, rateLimits } = require('../lib/validation');
 
 module.exports = (io, db, connectionManager) => {
+  const noopRateLimit = (req, res, next) => next();
+  const getRateLimiter = (name) => {
+    const candidate = rateLimits?.[name];
+    return typeof candidate === 'function' ? candidate : noopRateLimit;
+  };
   const lobbyManager = new LobbyManager(io, db, connectionManager);
   const statusSyncManager = new StatusSyncManager(db, io, lobbyManager);
 
   // V2 Room validation with enhanced session support
-  router.get('/rooms/:roomCode/validate', validateApiKey, rateLimits.apiCalls, async (req, res) => {
+  router.get('/rooms/:roomCode/validate', validateApiKey, getRateLimiter('apiCalls'), async (req, res) => {
     try {
       const { roomCode } = req.params;
       const { playerName, playerId, sessionToken } = req.query;
@@ -150,7 +155,7 @@ module.exports = (io, db, connectionManager) => {
   });
 
   // V2 Enhanced player status update
-  router.post('/rooms/:roomCode/players/:playerId/status', validateApiKey, rateLimits.statusUpdates, async (req, res) => {
+  router.post('/rooms/:roomCode/players/:playerId/status', validateApiKey, getRateLimiter('statusUpdates'), async (req, res) => {
     try {
       const { roomCode, playerId } = req.params;
       const { status, location, metadata = {}, syncSession = false } = req.body;
@@ -235,7 +240,7 @@ module.exports = (io, db, connectionManager) => {
   });
 
   // V2 Bulk status update with enhanced features
-  router.post('/rooms/:roomCode/bulk-status', validateApiKey, rateLimits.bulkUpdates, async (req, res) => {
+  router.post('/rooms/:roomCode/bulk-status', validateApiKey, getRateLimiter('bulkUpdates'), async (req, res) => {
     try {
       const { roomCode } = req.params;
       const { reason, players, gameState, returnToLobby = false } = req.body;
@@ -337,7 +342,7 @@ module.exports = (io, db, connectionManager) => {
   });
 
   // V2 Room status sync endpoint
-  router.post('/rooms/:roomCode/sync', validateApiKey, rateLimits.apiCalls, async (req, res) => {
+  router.post('/rooms/:roomCode/sync', validateApiKey, getRateLimiter('apiCalls'), async (req, res) => {
     try {
       const { roomCode } = req.params;
 
@@ -362,7 +367,7 @@ module.exports = (io, db, connectionManager) => {
   });
 
   // V2 Return all players to lobby (atomic)
-  router.post('/rooms/:roomCode/return-all', validateApiKey, rateLimits.apiCalls, async (req, res) => {
+  router.post('/rooms/:roomCode/return-all', validateApiKey, getRateLimiter('apiCalls'), async (req, res) => {
     try {
       const { roomCode } = req.params;
       const now = new Date().toISOString();
@@ -485,7 +490,7 @@ module.exports = (io, db, connectionManager) => {
   });
 
   // V2 Heartbeat endpoint for external games
-  router.post('/rooms/:roomCode/players/:playerId/heartbeat', validateApiKey, rateLimits.heartbeats, async (req, res) => {
+  router.post('/rooms/:roomCode/players/:playerId/heartbeat', validateApiKey, getRateLimiter('heartbeats'), async (req, res) => {
     try {
       const { roomCode, playerId } = req.params;
       const { metadata = {} } = req.body;
@@ -513,7 +518,7 @@ module.exports = (io, db, connectionManager) => {
   });
 
   // V2 Game end handler
-  router.post('/rooms/:roomCode/game-end', validateApiKey, rateLimits.apiCalls, async (req, res) => {
+  router.post('/rooms/:roomCode/game-end', validateApiKey, getRateLimiter('apiCalls'), async (req, res) => {
     try {
       const { roomCode } = req.params;
       const { gameResult = {}, returnPlayers = true } = req.body;
