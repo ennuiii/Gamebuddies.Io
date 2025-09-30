@@ -34,6 +34,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Drop existing trigger if it exists, then create it
+DROP TRIGGER IF EXISTS trigger_update_room_invites_updated_at ON room_invites;
+
 CREATE TRIGGER trigger_update_room_invites_updated_at
   BEFORE UPDATE ON room_invites
   FOR EACH ROW
