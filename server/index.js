@@ -121,6 +121,12 @@ const gameProxies = {
     target: process.env.BINGO_URL || 'https://bingobuddies.onrender.com',
     pathRewrite: { '^/bingo': '' },
     ws: envBool('BINGO_WS', false)
+  },
+  cluescale: {
+    path: '/cluescale',
+    target: process.env.CLUESCALE_URL || 'https://cluescale.onrender.com',
+    pathRewrite: { '^/cluescale': '' },
+    ws: envBool('CLUESCALE_WS', false)
   }
 };
 
@@ -356,9 +362,18 @@ app.get('/api/games', (req, res) => {
       screenshot: '/screenshots/bingo.png',
       available: true,
       maxPlayers: 12
+    },
+    {
+      id: 'cluescale',
+      name: 'ClueScale',
+      description: 'A mystery-solving game where players follow clues to scale the challenge!',
+      path: '/cluescale',
+      screenshot: '/screenshots/cluescale.png',
+      available: true,
+      maxPlayers: 10
     }
   ];
-  
+
   res.json(games);
 });
 

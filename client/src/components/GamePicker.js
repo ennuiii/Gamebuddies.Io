@@ -27,6 +27,12 @@ const GamePicker = ({ onGameSelect, isHost, disabled }) => {
       icon: '🎱',
       description: 'Fast-paced multiplayer bingo with custom cards and power-ups.',
       maxPlayers: 12
+    },
+    'cluescale': {
+      name: 'ClueScale',
+      icon: '🔎',
+      description: 'A mystery-solving game where players follow clues to scale the challenge!',
+      maxPlayers: 10
     }
   };
 
