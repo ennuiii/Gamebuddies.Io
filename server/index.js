@@ -1778,8 +1778,9 @@ io.on('connection', async (socket) => {
       
       // Sanitize input
       const playerName = sanitize.playerName(data.playerName);
-      
-      console.log(`🏠 [SUPABASE] Creating room for ${playerName}`);
+      const streamerMode = data.streamerMode || false;
+
+      console.log(`🏠 [SUPABASE] Creating room for ${playerName}`, { streamerMode });
       console.log(`🔍 [DEBUG] Socket ID: ${socket.id}`);
       
       // Get or create user profile
@@ -1799,6 +1800,7 @@ io.on('connection', async (socket) => {
         status: 'lobby',
         is_public: true,
         max_players: 10,
+        streamer_mode: streamerMode,
         game_settings: {},
         metadata: {
           created_by_name: playerName,
@@ -3269,6 +3271,111 @@ app.get('/api/admin/room-stats', async (req, res) => {
       success: false,
       error: error.message
     });
+  }
+});
+
+// Generate invite token for streamer mode room
+app.post('/api/rooms/:roomCode/generate-invite', async (req, res) => {
+  try {
+    const { roomCode } = req.params;
+
+    // Get room and verify it's in streamer mode
+    const { data: room, error: roomError } = await db.adminClient
+      .from('rooms')
+      .select('id, streamer_mode, host_id')
+      .eq('room_code', roomCode)
+      .single();
+
+    if (roomError || !room) {
+      return res.status(404).json({ error: 'Room not found' });
+    }
+
+    if (!room.streamer_mode) {
+      return res.status(400).json({ error: 'Room is not in streamer mode' });
+    }
+
+    // Generate unique invite token
+    const crypto = require('crypto');
+    const inviteToken = crypto.randomBytes(16).toString('hex');
+
+    // Insert invite token into database
+    const { error: inviteError } = await db.adminClient
+      .from('room_invites')
+      .insert({
+        room_id: room.id,
+        token: inviteToken,
+        created_by: room.host_id,
+        uses_remaining: null // Unlimited uses
+      });
+
+    if (inviteError) {
+      console.error('Error creating invite:', inviteError);
+      return res.status(500).json({ error: 'Failed to generate invite' });
+    }
+
+    // Construct invite URL
+    const baseUrl = process.env.BASE_URL || 'http://localhost:3032';
+    const inviteUrl = `${baseUrl}/?invite=${inviteToken}`;
+
+    res.json({
+      success: true,
+      inviteUrl,
+      token: inviteToken
+    });
+
+  } catch (error) {
+    console.error('❌ Generate invite error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Resolve invite token to room code
+app.post('/api/invites/resolve', async (req, res) => {
+  try {
+    const { inviteToken } = req.body;
+
+    if (!inviteToken) {
+      return res.status(400).json({ error: 'Invite token is required' });
+    }
+
+    // Look up invite token
+    const { data: invite, error: inviteError } = await db.adminClient
+      .from('room_invites')
+      .select(`
+        *,
+        room:rooms(*)
+      `)
+      .eq('token', inviteToken)
+      .gt('expires_at', new Date().toISOString())
+      .single();
+
+    if (inviteError || !invite) {
+      return res.status(404).json({ error: 'Invalid or expired invite' });
+    }
+
+    // Check if invite has uses remaining
+    if (invite.uses_remaining !== null && invite.uses_remaining <= 0) {
+      return res.status(403).json({ error: 'Invite link has been fully used' });
+    }
+
+    // Decrement uses if limited
+    if (invite.uses_remaining !== null) {
+      await db.adminClient
+        .from('room_invites')
+        .update({ uses_remaining: invite.uses_remaining - 1 })
+        .eq('id', invite.id);
+    }
+
+    // Return room information
+    res.json({
+      success: true,
+      roomCode: invite.room.room_code,
+      roomData: invite.room
+    });
+
+  } catch (error) {
+    console.error('❌ Resolve invite error:', error);
+    res.status(500).json({ error: 'Internal server error' });
   }
 });
 

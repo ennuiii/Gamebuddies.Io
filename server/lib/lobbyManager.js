@@ -49,7 +49,8 @@ class LobbyManager {
           current_game: gameType === 'lobby' ? null : gameType,
           game_settings: settings,
           max_players: settings.maxPlayers || 10,
-          metadata: { 
+          streamer_mode: settings.streamerMode || false,
+          metadata: {
             created_by_host: true,
             version: '2.0'
           }

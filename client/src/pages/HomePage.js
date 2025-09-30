@@ -239,6 +239,62 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
   }, [socket, connectSocket, handleLeaveLobby, persistSessionMetadata, setIsInLobby, setLobbyLeaveFn, getStoredSessionInfo]);
 
 
+  // Handle invite token parameter
+  useEffect(() => {
+    if (inLobby) {
+      return;
+    }
+
+    const params = new URLSearchParams(location.search);
+    const inviteToken = params.get('invite');
+    if (!inviteToken) {
+      return;
+    }
+
+    const key = `invite:${inviteToken}`;
+    if (processedLinksRef.current.has(key)) {
+      return;
+    }
+
+    console.log('[HomePage] Found invite parameter:', inviteToken);
+
+    // Resolve invite token to room code
+    (async () => {
+      try {
+        const response = await fetch('/api/invites/resolve', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ inviteToken })
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          alert(`Invite error: ${error.error || 'Invalid or expired invite'}`);
+          return;
+        }
+
+        const { roomCode } = await response.json();
+
+        const { name: storedName } = getStoredSessionInfo();
+        setJoinRoomCode(roomCode);
+        setPrefillName(storedName);
+        setAutoJoin(Boolean(storedName));
+        setShowJoinRoom(true);
+
+        processedLinksRef.current.add(key);
+
+        // Clean up URL by removing invite param
+        const url = new URL(window.location.href);
+        url.searchParams.delete('invite');
+        window.history.replaceState({}, '', url.toString());
+
+      } catch (error) {
+        console.error('[HomePage] Failed to resolve invite:', error);
+        alert('Failed to resolve invite link. Please try again.');
+      }
+    })();
+  }, [location.search, inLobby, getStoredSessionInfo]);
+
   useEffect(() => {
     if (inLobby) {
       return;

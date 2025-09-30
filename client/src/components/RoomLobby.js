@@ -897,7 +897,29 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
     }
   };
 
+  const handleGenerateInvite = async () => {
+    try {
+      const response = await fetch(`/api/rooms/${roomCodeRef.current}/generate-invite`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
 
+      if (!response.ok) {
+        const error = await response.json();
+        addNotification(`Failed to generate invite: ${error.error}`, 'error');
+        return;
+      }
+
+      const { inviteUrl } = await response.json();
+
+      await navigator.clipboard.writeText(inviteUrl);
+      addNotification('Invite link copied to clipboard!', 'success');
+
+    } catch (error) {
+      console.error('Failed to generate invite:', error);
+      addNotification('Failed to generate invite link', 'error');
+    }
+  };
 
   const handleReturnToLobby = () => {
     if (socket && socketIsConnected) {
@@ -1049,7 +1071,12 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
         </button>
         
         <div className="room-info-header">
-          <div className="room-code-display">{roomCode}</div>
+          {/* Show room code only to host if streamer mode is enabled */}
+          {roomData?.streamer_mode && !currentIsHost ? (
+            <div className="room-code-display streamer-mode">🔒 Private Room</div>
+          ) : (
+            <div className="room-code-display">{roomCode}</div>
+          )}
           <div className="room-status-section">
             <div className="room-status-display">
               <span className="status-label">Status:</span>
@@ -1059,18 +1086,31 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
             </div>
           </div>
           <div className="room-actions">
-            <button className="copy-btn" onClick={() => navigator.clipboard.writeText(roomCode)}>
-              📋 Copy Code
-            </button>
-            <button 
-              className="copy-link-btn" 
-              onClick={() => {
-                const roomUrl = `${window.location.origin}/?join=${roomCode}`;
-                navigator.clipboard.writeText(roomUrl);
-              }}
-            >
-              🔗 Copy Link
-            </button>
+            {roomData?.streamer_mode && currentIsHost ? (
+              // Streamer mode: Host sees invite link generator
+              <button
+                className="copy-link-btn"
+                onClick={handleGenerateInvite}
+              >
+                🔗 Generate Invite Link
+              </button>
+            ) : !roomData?.streamer_mode ? (
+              // Normal mode: Show copy buttons to everyone
+              <>
+                <button className="copy-btn" onClick={() => navigator.clipboard.writeText(roomCode)}>
+                  📋 Copy Code
+                </button>
+                <button
+                  className="copy-link-btn"
+                  onClick={() => {
+                    const roomUrl = `${window.location.origin}/?join=${roomCode}`;
+                    navigator.clipboard.writeText(roomUrl);
+                  }}
+                >
+                  🔗 Copy Link
+                </button>
+              </>
+            ) : null /* Streamer mode non-hosts see nothing */}
           </div>
         </div>
         

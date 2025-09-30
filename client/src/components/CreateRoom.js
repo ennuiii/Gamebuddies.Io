@@ -4,6 +4,7 @@ import './CreateRoom.css';
 
 const CreateRoom = ({ onRoomCreated, onCancel }) => {
   const [playerName, setPlayerName] = useState('');
+  const [streamerMode, setStreamerMode] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState('');
   const { socket, isConnected, isConnecting, connectSocket } = useSocket();
@@ -111,10 +112,11 @@ const CreateRoom = ({ onRoomCreated, onCancel }) => {
       activeSocket.on('error', handleError);
 
       // Emit room creation request
-      activeSocket.emit('createRoom', { 
-        playerName: playerName.trim()
+      activeSocket.emit('createRoom', {
+        playerName: playerName.trim(),
+        streamerMode: streamerMode
       });
-      console.log('📤 [CLIENT] createRoom event sent');
+      console.log('📤 [CLIENT] createRoom event sent', { streamerMode });
 
       // Timeout fallback
       setTimeout(() => {
@@ -150,6 +152,21 @@ const CreateRoom = ({ onRoomCreated, onCancel }) => {
               disabled={isCreating}
               autoFocus
             />
+          </div>
+
+          <div className="form-group checkbox-group">
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                checked={streamerMode}
+                onChange={(e) => setStreamerMode(e.target.checked)}
+                disabled={isCreating}
+              />
+              <span className="checkbox-text">
+                🎥 Streamer Mode
+                <small>Hide room code from other players</small>
+              </span>
+            </label>
           </div>
 
           {error && (
