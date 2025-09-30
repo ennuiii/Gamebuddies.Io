@@ -295,6 +295,60 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
     })();
   }, [location.search, inLobby, getStoredSessionInfo]);
 
+  // Handle return from external game with session token
+  useEffect(() => {
+    if (inLobby) {
+      return;
+    }
+
+    const params = new URLSearchParams(location.search);
+    const returnSession = params.get('return');
+    if (!returnSession) {
+      return;
+    }
+
+    const key = `return:${returnSession}`;
+    if (processedLinksRef.current.has(key)) {
+      return;
+    }
+
+    console.log('[HomePage] Found return session parameter:', returnSession.substring(0, 8) + '...');
+
+    // Resolve session token to room code
+    (async () => {
+      try {
+        const response = await fetch(`/api/game-sessions/${returnSession}`);
+
+        if (!response.ok) {
+          const error = await response.json();
+          alert(`Return session error: ${error.error || 'Invalid or expired session'}`);
+          return;
+        }
+
+        const { roomCode, streamerMode } = await response.json();
+
+        console.log('[HomePage] Session resolved to room:', roomCode);
+
+        const { name: storedName } = getStoredSessionInfo();
+        setJoinRoomCode(roomCode);
+        setPrefillName(storedName);
+        setAutoJoin(Boolean(storedName));
+        setShowJoinRoom(true);
+
+        processedLinksRef.current.add(key);
+
+        // Clean up URL by removing return param
+        const url = new URL(window.location.href);
+        url.searchParams.delete('return');
+        window.history.replaceState({}, '', url.toString());
+
+      } catch (error) {
+        console.error('[HomePage] Failed to resolve return session:', error);
+        alert('Failed to return to room. Session may have expired.');
+      }
+    })();
+  }, [location.search, inLobby, getStoredSessionInfo]);
+
   useEffect(() => {
     if (inLobby) {
       return;

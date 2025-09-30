@@ -2479,14 +2479,62 @@ io.on('connection', async (socket) => {
     }
     
       // Send game URLs to participants with delay for non-hosts
-      const participants = room.participants?.filter(p => 
+      const participants = room.participants?.filter(p =>
         p.is_connected === true
       ) || [];
 
+      // Check if room is in streamer mode
+      const isStreamerMode = room.streamer_mode || false;
+
+      // Generate session tokens for streamer mode rooms
+      const sessionTokens = {};
+      if (isStreamerMode) {
+        const crypto = require('crypto');
+
+        for (const participant of participants) {
+          const sessionToken = crypto.randomBytes(32).toString('hex');
+
+          // Insert session token into database
+          await db.adminClient
+            .from('game_sessions')
+            .insert({
+              session_token: sessionToken,
+              room_id: room.id,
+              room_code: room.room_code,
+              player_id: participant.user_id,
+              game_type: room.current_game,
+              streamer_mode: true,
+              metadata: {
+                player_name: participant.user?.display_name || participant.user?.username,
+                is_host: participant.role === 'host',
+                total_players: participants.length
+              }
+            });
+
+          sessionTokens[participant.user_id] = sessionToken;
+
+          console.log(`🔐 [STREAMER MODE] Generated session token for ${participant.user?.username}:`, sessionToken.substring(0, 8) + '...');
+        }
+      }
+
       participants.forEach(p => {
         const encodedName = encodeURIComponent(p.user?.display_name || p.user?.username);
-        const baseUrl = `${gameProxy.path}?room=${room.room_code}&players=${participants.length}&name=${encodedName}&playerId=${p.user_id}&gbRoomCode=${room.room_code}&gbIsHost=${p.role === 'host'}&gbPlayerName=${encodedName}`;
-        const gameUrl = p.role === 'host' ? `${baseUrl}&role=gm` : baseUrl;
+
+        let gameUrl;
+        if (isStreamerMode) {
+          // Streamer mode: Use session token (room code hidden from URL)
+          const sessionToken = sessionTokens[p.user_id];
+          const roleParam = p.role === 'host' ? '&role=gm' : '';
+          gameUrl = `${gameProxy.path}?session=${sessionToken}&players=${participants.length}&name=${encodedName}&playerId=${p.user_id}${roleParam}`;
+
+          console.log(`🔐 [STREAMER MODE] Game URL for ${p.user?.username} (room code hidden)`);
+        } else {
+          // Normal mode: Use room code (backward compatible)
+          const baseUrl = `${gameProxy.path}?room=${room.room_code}&players=${participants.length}&name=${encodedName}&playerId=${p.user_id}&gbRoomCode=${room.room_code}&gbIsHost=${p.role === 'host'}&gbPlayerName=${encodedName}`;
+          gameUrl = p.role === 'host' ? `${baseUrl}&role=gm` : baseUrl;
+
+          console.log(`📝 [NORMAL MODE] Game URL for ${p.user?.username} with room code: ${room.room_code}`);
+        }
         
         const delay = p.role === 'host' ? 0 : 2000; // 2 second delay for players
         
@@ -3381,7 +3429,59 @@ app.post('/api/invites/resolve', async (req, res) => {
   }
 });
 
+// Resolve game session token (for external games)
+app.get('/api/game-sessions/:token', async (req, res) => {
+  try {
+    const { token } = req.params;
 
+    if (!token) {
+      return res.status(400).json({ error: 'Session token is required' });
+    }
+
+    // Look up session token
+    const { data: session, error: sessionError } = await db.adminClient
+      .from('game_sessions')
+      .select(`
+        *,
+        room:rooms(id, room_code, status, streamer_mode, host_id)
+      `)
+      .eq('session_token', token)
+      .gt('expires_at', new Date().toISOString())
+      .single();
+
+    if (sessionError || !session) {
+      console.log('❌ Session not found or expired:', token.substring(0, 8) + '...');
+      return res.status(404).json({ error: 'Session not found or expired' });
+    }
+
+    // Update last accessed timestamp
+    await db.adminClient
+      .from('game_sessions')
+      .update({ last_accessed: new Date().toISOString() })
+      .eq('session_token', token);
+
+    console.log('✅ Session resolved:', {
+      token: token.substring(0, 8) + '...',
+      roomCode: session.room_code,
+      gameType: session.game_type
+    });
+
+    // Return session information
+    res.json({
+      success: true,
+      roomCode: session.room_code,
+      gameType: session.game_type,
+      streamerMode: session.streamer_mode,
+      playerId: session.player_id,
+      metadata: session.metadata,
+      expiresAt: session.expires_at
+    });
+
+  } catch (error) {
+    console.error('❌ Resolve game session error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 // Manual cleanup trigger
 app.post('/api/admin/cleanup-now', async (req, res) => {
