@@ -7,6 +7,7 @@ const JoinRoom = ({ initialRoomCode = '', initialPlayerName = '', autoJoin = fal
   const [playerName, setPlayerName] = useState(initialPlayerName || '');
   const [isJoining, setIsJoining] = useState(false);
   const [error, setError] = useState('');
+  const isInviteLink = !!initialRoomCode; // Track if user came via invite link
 
   const handleSubmit = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
@@ -214,21 +215,31 @@ const JoinRoom = ({ initialRoomCode = '', initialPlayerName = '', autoJoin = fal
         <h2 className="join-room-title">Join Room</h2>
         
         <form onSubmit={handleSubmit} className="join-room-form">
-          <div className="form-group">
-            <label htmlFor="roomCode">ROOM CODE</label>
-            <input
-              type="text"
-              id="roomCode"
-              value={roomCode}
-              onChange={handleRoomCodeChange}
-              placeholder="4AJ5XQ"
-              disabled={isJoining}
-              maxLength={6}
-              autoFocus
-              className="room-code-input"
-            />
-            <small>Ask the room host for the 6-character room code</small>
-          </div>
+          {isInviteLink ? (
+            <div className="form-group">
+              <label htmlFor="roomCode">ROOM CODE</label>
+              <div className="invite-link-indicator">
+                🔗 Joining via invite link
+              </div>
+              <small>Room code hidden for privacy</small>
+            </div>
+          ) : (
+            <div className="form-group">
+              <label htmlFor="roomCode">ROOM CODE</label>
+              <input
+                type="text"
+                id="roomCode"
+                value={roomCode}
+                onChange={handleRoomCodeChange}
+                placeholder="4AJ5XQ"
+                disabled={isJoining}
+                maxLength={6}
+                autoFocus
+                className="room-code-input"
+              />
+              <small>Ask the room host for the 6-character room code</small>
+            </div>
+          )}
 
           <div className="form-group">
             <label htmlFor="playerName">YOUR NAME</label>

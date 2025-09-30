@@ -127,14 +127,47 @@
 }
 
 @keyframes codeGlow {
-  0%, 100% { 
-    filter: brightness(1); 
+  0%, 100% {
+    filter: brightness(1);
     transform: scale(1);
   }
-  50% { 
-    filter: brightness(1.2); 
+  50% {
+    filter: brightness(1.2);
     transform: scale(1.02);
   }
+}
+
+.room-code-display.streamer-mode {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.toggle-code-btn {
+  padding: 0.5rem 1rem;
+  background: rgba(0, 217, 255, 0.15);
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(0, 217, 255, 0.4);
+  border-radius: 12px;
+  color: var(--secondary-color);
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 50px;
+  min-height: 50px;
+}
+
+.toggle-code-btn:hover {
+  background: rgba(0, 217, 255, 0.25);
+  border-color: var(--secondary-color);
+  transform: scale(1.05);
+}
+
+.toggle-code-btn:active {
+  transform: scale(0.95);
 }
 
 .room-actions {

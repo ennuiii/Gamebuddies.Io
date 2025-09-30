@@ -134,6 +134,22 @@
   text-shadow: 0 0 2px rgba(0, 0, 0, 0.8);
 }
 
+.invite-link-indicator {
+  padding: 1rem 1.5rem;
+  background: rgba(0, 217, 255, 0.15);
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(0, 217, 255, 0.4);
+  border-radius: 12px;
+  color: var(--secondary-color);
+  font-size: 1.1rem;
+  font-weight: 600;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
 /* Use existing styles from CreateRoom.css for consistency */
 .form-group {
   display: flex;

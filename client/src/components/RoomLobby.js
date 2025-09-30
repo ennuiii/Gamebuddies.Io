@@ -19,6 +19,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
   const [roomStatus, setRoomStatus] = useState('waiting_for_players');
   const [isStartingGame, setIsStartingGame] = useState(false);
   const [disconnectedTimers, setDisconnectedTimers] = useState(new Map()); // Track disconnect timers
+  const [showRoomCode, setShowRoomCode] = useState(false); // For streamer mode: toggle room code visibility
   
   const selectedGameInfo = ({
     ddf: {
@@ -1071,9 +1072,20 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
         </button>
         
         <div className="room-info-header">
-          {/* Show room code only to host if streamer mode is enabled */}
-          {roomData?.streamer_mode && !currentIsHost ? (
-            <div className="room-code-display streamer-mode">🔒 Private Room</div>
+          {/* In streamer mode, hide room code for everyone (show asterisks) */}
+          {roomData?.streamer_mode ? (
+            <div className="room-code-display streamer-mode">
+              {showRoomCode ? roomCode : '••••••'}
+              {currentIsHost && (
+                <button
+                  className="toggle-code-btn"
+                  onClick={() => setShowRoomCode(!showRoomCode)}
+                  title={showRoomCode ? "Hide code" : "Show code"}
+                >
+                  {showRoomCode ? '🙈' : '👁️'}
+                </button>
+              )}
+            </div>
           ) : (
             <div className="room-code-display">{roomCode}</div>
           )}
