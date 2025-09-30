@@ -3313,8 +3313,10 @@ app.post('/api/rooms/:roomCode/generate-invite', async (req, res) => {
       return res.status(500).json({ error: 'Failed to generate invite' });
     }
 
-    // Construct invite URL
-    const baseUrl = process.env.BASE_URL || 'http://localhost:3032';
+    // Construct invite URL using request origin
+    const protocol = req.get('x-forwarded-proto') || req.protocol || 'http';
+    const host = req.get('host');
+    const baseUrl = process.env.BASE_URL || `${protocol}://${host}`;
     const inviteUrl = `${baseUrl}/?invite=${inviteToken}`;
 
     res.json({
