@@ -405,16 +405,36 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
 
     console.log('[HomePage] 🎫 Found session-only URL (streamer mode):', sessionToken.substring(0, 20) + '...');
 
-    // Recover session without knowing the room code
+    // Resolve session without knowing the room code
     (async () => {
-      const nameParam = params.get('name') || params.get('player') || '';
-      const success = await handleSessionRecovery(null, sessionToken, nameParam);
-      processedLinksRef.current.add(key);
+      try {
+        const nameParam = params.get('name') || params.get('player') || '';
+        const response = await fetch(`/api/game-sessions/${sessionToken}`);
 
-      if (success && params.has('session')) {
+        if (!response.ok) {
+          throw new Error('Session resolution failed');
+        }
+
+        const { roomCode, playerId, metadata } = await response.json();
+        const storedName = metadata?.player_name || nameParam;
+
+        console.log('[HomePage] ✅ Session resolved to room:', roomCode);
+
+        // Join the lobby with the resolved room code
+        setJoinRoomCode(roomCode);
+        setPrefillName(storedName);
+        setAutoJoin(Boolean(storedName));
+        setShowJoinRoom(true);
+
+        processedLinksRef.current.add(key);
+
+        // Clean up URL
         const url = new URL(window.location.href);
         url.searchParams.delete('session');
         window.history.replaceState({}, '', url.toString());
+      } catch (error) {
+        console.error('[HomePage] Session resolution failed:', error);
+        alert('Failed to return to room. Session may have expired.');
       }
     })();
   }, [location.pathname, location.search, inLobby, isRecoveringSession, handleSessionRecovery]);

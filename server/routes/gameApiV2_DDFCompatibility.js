@@ -75,12 +75,27 @@ module.exports = (io, db, connectionManager, lobbyManager, statusSyncManager) =>
 
       if (targetPlayerId) {
         try {
-          sessionToken = await lobbyManager.createPlayerSession(
-            targetPlayerId,
-            room.id,
-            `external_return_${Date.now()}`
-          );
-          console.log('[DDF Compat] ✅ Session token created:', sessionToken ? 'success' : 'failed');
+          const crypto = require('crypto');
+          sessionToken = crypto.randomBytes(32).toString('hex');
+
+          // Insert into game_sessions table for streamer mode compatibility
+          await db.adminClient
+            .from('game_sessions')
+            .insert({
+              session_token: sessionToken,
+              room_id: room.id,
+              room_code: roomCode,
+              player_id: targetPlayerId,
+              game_type: room.current_game || 'lobby',
+              streamer_mode: room.streamer_mode || false,
+              metadata: {
+                return_flow: true,
+                initiated_by: initiatedSource,
+                created_at: now.toISOString()
+              }
+            });
+
+          console.log('[DDF Compat] ✅ Game session token created for return');
         } catch (sessionError) {
           console.warn('[DDF Compat] Session creation failed:', sessionError);
         }
