@@ -61,13 +61,26 @@ module.exports = (io, db, connectionManager, lobbyManager, statusSyncManager) =>
         .eq('room_code', roomCode);
 
       let sessionToken = null;
-      if (playerId) {
+      // For streamer mode group returns, create session for host
+      const targetPlayerId = playerId || (room.streamer_mode && returnAll ? room.host_id : null);
+
+      console.log('[DDF Compat] 🎫 Session token logic:', {
+        hasPlayerId: !!playerId,
+        isStreamerMode: room.streamer_mode,
+        isReturnAll: returnAll,
+        hostId: room.host_id,
+        targetPlayerId,
+        willCreateSession: !!targetPlayerId
+      });
+
+      if (targetPlayerId) {
         try {
           sessionToken = await lobbyManager.createPlayerSession(
-            playerId,
+            targetPlayerId,
             room.id,
             `external_return_${Date.now()}`
           );
+          console.log('[DDF Compat] ✅ Session token created:', sessionToken ? 'success' : 'failed');
         } catch (sessionError) {
           console.warn('[DDF Compat] Session creation failed:', sessionError);
         }
