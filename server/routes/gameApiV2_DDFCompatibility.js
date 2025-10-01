@@ -61,8 +61,11 @@ module.exports = (io, db, connectionManager, lobbyManager, statusSyncManager) =>
         .eq('room_code', roomCode);
 
       let sessionToken = null;
-      // For streamer mode group returns, create session for host
-      const targetPlayerId = playerId || (room.streamer_mode && returnAll ? room.host_id : null);
+      // Create session token if:
+      // - Individual return (playerId specified), OR
+      // - Streamer mode group return (need session to hide room code, but use null player_id)
+      const shouldCreateSession = playerId || (room.streamer_mode && returnAll);
+      const targetPlayerId = playerId || null; // null = generic room session for group returns
 
       console.log('[DDF Compat] 🎫 Session token logic:', {
         hasPlayerId: !!playerId,
@@ -70,10 +73,11 @@ module.exports = (io, db, connectionManager, lobbyManager, statusSyncManager) =>
         isReturnAll: returnAll,
         hostId: room.host_id,
         targetPlayerId,
-        willCreateSession: !!targetPlayerId
+        shouldCreateSession,
+        isGenericRoomSession: shouldCreateSession && !targetPlayerId
       });
 
-      if (targetPlayerId) {
+      if (shouldCreateSession) {
         try {
           const crypto = require('crypto');
           sessionToken = crypto.randomBytes(32).toString('hex');

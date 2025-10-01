@@ -416,9 +416,16 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
         }
 
         const { roomCode, playerId, playerName, metadata } = await response.json();
-        const effectiveName = playerName || metadata?.player_name || nameParam;
 
-        console.log('[HomePage] ✅ Session resolved to room:', roomCode, 'player:', effectiveName);
+        // For generic room sessions (group returns), use stored identity
+        const { name: storedName } = getStoredSessionInfo();
+        const effectiveName = playerName || metadata?.player_name || storedName || nameParam;
+
+        console.log('[HomePage] ✅ Session resolved to room:', roomCode, 'player:', effectiveName, {
+          hasPlayerName: !!playerName,
+          hasStoredName: !!storedName,
+          isGenericSession: !playerId
+        });
 
         // Join the lobby with the resolved room code and player name
         setJoinRoomCode(roomCode);
