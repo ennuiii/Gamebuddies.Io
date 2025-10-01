@@ -26,7 +26,7 @@ module.exports = (io, db, connectionManager, lobbyManager, statusSyncManager) =>
 
       const { data: room, error: roomError } = await db.adminClient
         .from('rooms')
-        .select('id, room_code, host_id, status, metadata')
+        .select('id, room_code, host_id, status, metadata, streamer_mode')
         .eq('room_code', roomCode)
         .single();
 
@@ -111,9 +111,12 @@ module.exports = (io, db, connectionManager, lobbyManager, statusSyncManager) =>
         }
       }
 
-      const returnUrl = sessionToken
-        ? `https://gamebuddies.io/lobby/${roomCode}?session=${sessionToken}`
-        : `https://gamebuddies.io/lobby/${roomCode}`;
+      // For streamer mode, use session-only URL to hide room code
+      const returnUrl = room.streamer_mode && sessionToken
+        ? `https://gamebuddies.io/lobby?session=${sessionToken}`
+        : sessionToken
+          ? `https://gamebuddies.io/lobby/${roomCode}?session=${sessionToken}`
+          : `https://gamebuddies.io/lobby/${roomCode}`;
 
       res.json({
         success: true,
@@ -169,9 +172,12 @@ module.exports = (io, db, connectionManager, lobbyManager, statusSyncManager) =>
         }
       }
 
-      const returnUrl = sessionToken
-        ? `https://gamebuddies.io/lobby/${roomCode}?session=${sessionToken}`
-        : `https://gamebuddies.io/lobby/${roomCode}`;
+      // For streamer mode, use session-only URL to hide room code
+      const returnUrl = room.streamer_mode && sessionToken
+        ? `https://gamebuddies.io/lobby?session=${sessionToken}`
+        : sessionToken
+          ? `https://gamebuddies.io/lobby/${roomCode}?session=${sessionToken}`
+          : `https://gamebuddies.io/lobby/${roomCode}`;
 
       res.json({
         shouldReturn,
