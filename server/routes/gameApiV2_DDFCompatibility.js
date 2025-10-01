@@ -30,6 +30,13 @@ module.exports = (io, db, connectionManager, lobbyManager, statusSyncManager) =>
         .eq('room_code', roomCode)
         .single();
 
+      console.log('[DDF Compat] 🔍 Room query result:', {
+        roomCode,
+        found: !!room,
+        streamerMode: room?.streamer_mode,
+        error: roomError
+      });
+
       if (roomError || !room) {
         return res.status(404).json({
           success: false,
@@ -117,6 +124,15 @@ module.exports = (io, db, connectionManager, lobbyManager, statusSyncManager) =>
         : sessionToken
           ? `https://gamebuddies.io/lobby/${roomCode}?session=${sessionToken}`
           : `https://gamebuddies.io/lobby/${roomCode}`;
+
+      console.log('[DDF Compat] 🔗 Return URL construction:', {
+        streamerMode: room.streamer_mode,
+        hasSessionToken: !!sessionToken,
+        sessionTokenPreview: sessionToken ? sessionToken.substring(0, 20) + '...' : null,
+        finalUrl: returnUrl,
+        urlPattern: room.streamer_mode && sessionToken ? 'session-only' :
+                    sessionToken ? 'room-with-session' : 'room-only'
+      });
 
       res.json({
         success: true,
