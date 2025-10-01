@@ -3454,6 +3454,18 @@ app.get('/api/game-sessions/:token', async (req, res) => {
       return res.status(404).json({ error: 'Session not found or expired' });
     }
 
+    // Fetch player name if playerId is available
+    let playerName = null;
+    if (session.player_id) {
+      const { data: user } = await db.adminClient
+        .from('users')
+        .select('username, display_name')
+        .eq('id', session.player_id)
+        .single();
+
+      playerName = user?.display_name || user?.username || null;
+    }
+
     // Update last accessed timestamp
     await db.adminClient
       .from('game_sessions')
@@ -3463,7 +3475,8 @@ app.get('/api/game-sessions/:token', async (req, res) => {
     console.log('✅ Session resolved:', {
       token: token.substring(0, 8) + '...',
       roomCode: session.room_code,
-      gameType: session.game_type
+      gameType: session.game_type,
+      playerName
     });
 
     // Return session information
@@ -3473,6 +3486,7 @@ app.get('/api/game-sessions/:token', async (req, res) => {
       gameType: session.game_type,
       streamerMode: session.streamer_mode,
       playerId: session.player_id,
+      playerName: playerName,
       metadata: session.metadata,
       expiresAt: session.expires_at
     });

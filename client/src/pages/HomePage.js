@@ -415,15 +415,15 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
           throw new Error('Session resolution failed');
         }
 
-        const { roomCode, playerId, metadata } = await response.json();
-        const storedName = metadata?.player_name || nameParam;
+        const { roomCode, playerId, playerName, metadata } = await response.json();
+        const effectiveName = playerName || metadata?.player_name || nameParam;
 
-        console.log('[HomePage] ✅ Session resolved to room:', roomCode);
+        console.log('[HomePage] ✅ Session resolved to room:', roomCode, 'player:', effectiveName);
 
-        // Join the lobby with the resolved room code
+        // Join the lobby with the resolved room code and player name
         setJoinRoomCode(roomCode);
-        setPrefillName(storedName);
-        setAutoJoin(Boolean(storedName));
+        setPrefillName(effectiveName);
+        setAutoJoin(Boolean(effectiveName));
         setShowJoinRoom(true);
 
         processedLinksRef.current.add(key);
