@@ -380,6 +380,45 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
     processedLinksRef.current.add(key);
   }, [location.search, inLobby, getStoredSessionInfo]);
 
+  // Handle session-only URLs (streamer mode): /lobby?session=xxx
+  useEffect(() => {
+    // Only handle if we're at /lobby without a room code in the path
+    if (location.pathname !== '/lobby' && location.pathname !== '/lobby/') {
+      return;
+    }
+
+    if (inLobby || isRecoveringSession) {
+      return;
+    }
+
+    const params = new URLSearchParams(location.search);
+    const sessionToken = params.get('session');
+
+    if (!sessionToken) {
+      return;
+    }
+
+    const key = `lobby-session-only:${sessionToken}`;
+    if (processedLinksRef.current.has(key)) {
+      return;
+    }
+
+    console.log('[HomePage] 🎫 Found session-only URL (streamer mode):', sessionToken.substring(0, 20) + '...');
+
+    // Recover session without knowing the room code
+    (async () => {
+      const nameParam = params.get('name') || params.get('player') || '';
+      const success = await handleSessionRecovery(null, sessionToken, nameParam);
+      processedLinksRef.current.add(key);
+
+      if (success && params.has('session')) {
+        const url = new URL(window.location.href);
+        url.searchParams.delete('session');
+        window.history.replaceState({}, '', url.toString());
+      }
+    })();
+  }, [location.pathname, location.search, inLobby, isRecoveringSession, handleSessionRecovery]);
+
   useEffect(() => {
     const match = location.pathname.match(/^\/lobby\/([A-Za-z0-9-]+)/i);
     if (!match) {
