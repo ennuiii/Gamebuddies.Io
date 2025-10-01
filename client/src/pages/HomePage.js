@@ -181,7 +181,7 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
       const activeSocket = socket || connectSocket();
       const socketId = activeSocket && activeSocket.id ? activeSocket.id : undefined;
 
-      const response = await fetch('/api/v2/sessions/recover', {
+      const response = await fetch('/api/v2/game/sessions/recover', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
