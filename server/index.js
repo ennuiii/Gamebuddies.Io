@@ -236,43 +236,54 @@ async function setupGameProxies() {
       proxyConfig.selfHandleResponse = true;
       proxyConfig.onProxyRes = (proxyRes, req, res) => {
         const contentType = proxyRes.headers['content-type'] || '';
-        console.log(`🔍 [BUMPERBALL] Request: ${req.url}, Content-Type: ${contentType}`);
+        console.log(`🔍 [BUMPERBALL] Request: ${req.url || '/'}, Content-Type: ${contentType || '(empty)'}`);
 
-        // Only rewrite HTML responses
-        if (contentType.includes('text/html')) {
-          console.log('✏️ [BUMPERBALL] Rewriting HTML response');
-          let body = '';
-          proxyRes.on('data', (chunk) => {
-            body += chunk.toString('utf8');
-          });
+        // Buffer the entire response to detect HTML
+        let body = Buffer.from('');
+        proxyRes.on('data', (chunk) => {
+          body = Buffer.concat([body, chunk]);
+        });
 
-          proxyRes.on('end', () => {
-            // Show a sample before rewriting
-            const sample = body.substring(0, 500);
-            console.log(`📝 [BUMPERBALL] HTML sample (before): ${sample.substring(0, 200)}...`);
+        proxyRes.on('end', () => {
+          const bodyStr = body.toString('utf8');
+          const isHTML = contentType.includes('text/html') ||
+                         bodyStr.trimStart().startsWith('<!DOCTYPE') ||
+                         bodyStr.trimStart().startsWith('<html');
+
+          if (isHTML) {
+            console.log('✏️ [BUMPERBALL] Detected HTML response, rewriting...');
+            const sample = bodyStr.substring(0, 200);
+            console.log(`📝 [BUMPERBALL] HTML sample (before): ${sample}...`);
 
             // Rewrite absolute paths to include /bumperball prefix
-            const rewritten = body
+            const rewritten = bodyStr
               .replace(/src="\/([^"])/g, 'src="/bumperball/$1')
               .replace(/href="\/([^"])/g, 'href="/bumperball/$1')
               .replace(/url\(\/([^)])/g, 'url(/bumperball/$1');
 
-            // Show sample after rewriting
-            const rewrittenSample = rewritten.substring(0, 500);
-            console.log(`📝 [BUMPERBALL] HTML sample (after): ${rewrittenSample.substring(0, 200)}...`);
+            const rewrittenSample = rewritten.substring(0, 200);
+            console.log(`📝 [BUMPERBALL] HTML sample (after): ${rewrittenSample}...`);
 
             // Send the rewritten HTML
-            res.setHeader('Content-Type', 'text/html');
+            res.setHeader('Content-Type', 'text/html; charset=utf-8');
             res.setHeader('Content-Length', Buffer.byteLength(rewritten));
+            res.writeHead(proxyRes.statusCode);
             res.end(rewritten);
             console.log('✅ [BUMPERBALL] HTML rewrite complete');
-          });
-        } else {
-          // For non-HTML responses, pass through normally
-          console.log(`⏩ [BUMPERBALL] Passing through ${contentType} response`);
-          res.writeHead(proxyRes.statusCode, proxyRes.headers);
-          proxyRes.pipe(res);
-        }
+          } else {
+            // For non-HTML responses, pass through as-is
+            console.log(`⏩ [BUMPERBALL] Passing through non-HTML response (${body.length} bytes)`);
+            res.writeHead(proxyRes.statusCode, proxyRes.headers);
+            res.end(body);
+          }
+        });
+
+        proxyRes.on('error', (err) => {
+          console.error(`❌ [BUMPERBALL] Proxy response error:`, err);
+          if (!res.headersSent) {
+            res.status(502).send('Bad Gateway');
+          }
+        });
       };
     }
 
