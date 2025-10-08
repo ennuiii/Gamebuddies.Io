@@ -11,7 +11,7 @@
  * - Automatically discovers new games (no manual config)
  */
 
-const supabase = require('../lib/supabase');
+const { supabase } = require('../lib/supabase');
 
 class GameKeepAliveService {
   constructor() {
