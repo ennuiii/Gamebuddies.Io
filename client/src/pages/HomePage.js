@@ -29,9 +29,13 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
   const fetchGames = useCallback(async () => {
     try {
       const response = await axios.get('/api/games');
-      setGames(response.data);
+      // API returns { success: true, games: [...] }
+      const gamesData = response.data.games || response.data;
+      setGames(gamesData);
     } catch (error) {
       console.error('Error fetching games:', error);
+      // Fallback to empty array on error
+      setGames([]);
     } finally {
       setLoading(false);
     }

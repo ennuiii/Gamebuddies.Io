@@ -32,7 +32,10 @@ router.get('/', async (req, res) => {
       displayName: game.display_name,
       description: game.description || '',
       icon: game.icon || '🎮',
+      screenshot: game.thumbnail_url,  // GameCard expects 'screenshot'
       thumbnailUrl: game.thumbnail_url,
+      path: `/${game.id}`,  // GameCard expects 'path' for routing
+      available: game.is_active && !game.maintenance_mode,  // GameCard expects 'available'
       maxPlayers: game.max_players || 10,
       minPlayers: game.min_players || 2,
       baseUrl: game.base_url,
@@ -96,7 +99,10 @@ router.get('/:gameId', async (req, res) => {
         displayName: game.display_name,
         description: game.description || '',
         icon: game.icon || '🎮',
+        screenshot: game.thumbnail_url,
         thumbnailUrl: game.thumbnail_url,
+        path: `/${game.id}`,
+        available: game.is_active && !game.maintenance_mode,
         maxPlayers: game.max_players || 10,
         minPlayers: game.min_players || 2,
         baseUrl: game.base_url,
