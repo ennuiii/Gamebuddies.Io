@@ -91,51 +91,53 @@ const envBool = (name, defaultVal) => {
   return /^(1|true|yes|on)$/i.test(String(v).trim());
 };
 
-// Game proxy configuration
-const gameProxies = {
-  ddf: {
-    path: '/ddf',
-    target: process.env.DDF_URL || 'https://ddf-server.onrender.com', 
-    pathRewrite: { '^/ddf': '' },
-    // Add health check and error handling
-    healthCheck: true,
-    fallbackEnabled: true,
-    // Disable WebSocket proxying for DDF to prevent connection loops (configurable)
-    ws: envBool('DDF_WS', false)
-  },
-  schooled: {
-    path: '/schooled', 
-    target: process.env.SCHOOLED_URL || 'https://schoolquizgame.onrender.com',
-    pathRewrite: { '^/schooled': '' },
-    // Default off to avoid noisy proxy WS unless explicitly needed
-    ws: envBool('SCHOOLED_WS', false)
-  },
-  susd: {
-    path: '/susd',
-    target: process.env.SUSD_URL || 'https://susd-1.onrender.com',
-    pathRewrite: { '^/susd': '' },
-    // Default off to avoid noisy proxy WS unless explicitly needed
-    ws: envBool('SUSD_WS', false)
-  },
-  bingo: {
-    path: '/bingo',
-    target: process.env.BINGO_URL || 'https://bingobuddies.onrender.com',
-    pathRewrite: { '^/bingo': '' },
-    ws: envBool('BINGO_WS', false)
-  },
-  cluescale: {
-    path: '/cluescale',
-    target: process.env.CLUESCALE_URL || 'https://cluescale.onrender.com',
-    pathRewrite: { '^/cluescale': '' },
-    ws: envBool('CLUESCALE_WS', false)
-  },
-  bumperball: {
-    path: '/bumperball',
-    target: process.env.BUMPERBALL_URL || 'https://bumperballarenaclient.onrender.com',
-    pathRewrite: { '^/bumperball': '' },
-    ws: envBool('BUMPERBALL_WS', false)
+// Game proxy configuration - now loaded dynamically from database
+let gameProxies = {};
+
+// Function to load game proxies from database
+async function loadGameProxiesFromDatabase() {
+  try {
+    console.log('[PROXY] 🔄 Loading game configurations from database...');
+
+    const { data: games, error } = await db.client
+      .from('games')
+      .select('*')
+      .eq('is_active', true)
+      .eq('is_external', true); // Only external games need proxies
+
+    if (error) {
+      console.error('[PROXY] ❌ Error loading games from database:', error);
+      return {};
+    }
+
+    const proxies = {};
+
+    for (const game of games) {
+      const gameId = game.id;
+      const gameIdUpper = gameId.toUpperCase();
+
+      // Use environment variable if available, otherwise use base_url from database
+      const envVarName = `${gameIdUpper}_URL`;
+      const target = process.env[envVarName] || game.base_url;
+
+      proxies[gameId] = {
+        path: `/${gameId}`,
+        target: target,
+        pathRewrite: { [`^/${gameId}`]: '' },
+        ws: envBool(`${gameIdUpper}_WS`, false)
+      };
+
+      console.log(`[PROXY] ✅ Configured ${gameId}: /${gameId} -> ${target}`);
+    }
+
+    console.log(`[PROXY] 🎮 Loaded ${Object.keys(proxies).length} game proxies from database`);
+    return proxies;
+
+  } catch (err) {
+    console.error('[PROXY] ❌ Unexpected error loading game proxies:', err);
+    return {};
   }
-};
+}
 
 // DDF routes are handled directly by the proxy - no SPA rewriting needed
 // The DDF service has its own SPA catch-all handler to serve index.html
@@ -189,10 +191,16 @@ const createFilteredLogger = () => {
     },
   };
 };
-Object.entries(gameProxies).forEach(([key, proxy]) => {
-  console.log(`🔗 [PROXY] Setting up ${key.toUpperCase()} proxy: ${proxy.path} -> ${proxy.target}`);
-  
-  const proxyMiddleware = createProxyMiddleware({
+// Function to setup all game proxies
+async function setupGameProxies() {
+  // Load proxies from database
+  gameProxies = await loadGameProxiesFromDatabase();
+
+  // Setup each proxy
+  Object.entries(gameProxies).forEach(([key, proxy]) => {
+    console.log(`🔗 [PROXY] Setting up ${key.toUpperCase()} proxy: ${proxy.path} -> ${proxy.target}`);
+
+    const proxyMiddleware = createProxyMiddleware({
     target: proxy.target,
     changeOrigin: true,
     pathRewrite: proxy.pathRewrite,
@@ -221,9 +229,10 @@ Object.entries(gameProxies).forEach(([key, proxy]) => {
     }
   });
 
-  proxyInstances[proxy.path] = proxyMiddleware;
-  app.use(proxy.path, proxyMiddleware);
-});
+    proxyInstances[proxy.path] = proxyMiddleware;
+    app.use(proxy.path, proxyMiddleware);
+  });
+}
 
 // Handle WebSocket upgrade requests for proxied game services
 server.on('upgrade', (request, socket, head) => {
@@ -3616,16 +3625,31 @@ server.on('error', (err) => {
   }
 });
 
-// Start server
+// Start server - now async to load game proxies from database first
 const PORT = process.env.PORT || 3033;
-server.listen(PORT, () => {
-  console.log(`🚀 GameBuddies Server v2.1.0 running on port ${PORT}`);
-  console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🗄️ Storage: SUPABASE (Persistent)`);
-  console.log(`🎮 Game proxies configured: ${Object.keys(gameProxies).join(',')}`);
-  console.log(`✅ Supabase configured - using persistent database storage`);
-  console.log(`🔇 WebSocket navigation errors suppressed for clean logs`);
-});
+
+async function startServer() {
+  try {
+    // Load and setup game proxies from database
+    await setupGameProxies();
+
+    // Start listening
+    server.listen(PORT, () => {
+      console.log(`🚀 GameBuddies Server v2.1.0 running on port ${PORT}`);
+      console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
+      console.log(`🗄️ Storage: SUPABASE (Persistent)`);
+      console.log(`🎮 Game proxies configured: ${Object.keys(gameProxies).join(',')}`);
+      console.log(`✅ Supabase configured - using persistent database storage`);
+      console.log(`🔇 WebSocket navigation errors suppressed for clean logs`);
+    });
+  } catch (error) {
+    console.error('❌ Failed to start server:', error);
+    process.exit(1);
+  }
+}
+
+// Start the server
+startServer();
 
 module.exports = { app, server, io }; 
 

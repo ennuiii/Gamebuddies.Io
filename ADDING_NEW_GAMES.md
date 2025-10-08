@@ -36,36 +36,37 @@ INSERT INTO games (
 );
 ```
 
-### Step 2: Add Proxy Configuration (Required for External Games)
+### Step 2: Restart Server
 
-If your game is hosted externally (like on Render.com), you need to add a proxy route.
+**That's it!** The proxy routes are now automatically configured from the database.
 
-**Edit `server/index.js`** and add to the `gameProxies` object (around line 132):
+When you restart the server, it will:
+1. Read all active external games from the database
+2. Automatically create proxy routes for each game (e.g., `/mygame` → `base_url`)
+3. Use environment variables if available (e.g., `MYGAME_URL` overrides `base_url`)
 
-```javascript
-  mygame: {
-    path: '/mygame',
-    target: process.env.MYGAME_URL || 'https://mygame.onrender.com',
-    pathRewrite: { '^/mygame': '' },
-    ws: envBool('MYGAME_WS', false)
-  }
-```
-
-**Add to `server/env.example`** (optional but recommended):
+**Optional:** Add environment variable override in `.env`:
 
 ```bash
 MYGAME_URL=https://mygame.onrender.com
 ```
 
-### Step 3: Deploy and Restart Server
+This lets you override the database URL without changing the database.
 
-If you added environment variables, restart the server:
+### Step 3: Deploy and Restart
+
+Deploy your server and restart it. The server will:
+1. Load all games from the database
+2. Create proxy routes automatically
+3. Your game will be accessible at `https://gamebuddies.io/mygame`
 
 ```bash
+# On your server or Render.com
+git pull origin main
 npm start
 ```
 
-If you only added the database entry (no env vars), **no restart needed!** Just refresh the browser.
+**Note:** A restart IS required because proxy routes are configured at server startup.
 
 ### Step 4: Test
 
