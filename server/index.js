@@ -1,6 +1,7 @@
 
 const gameApiV2Router = require('./routes/gameApiV2');
 const gameApiV2DDFRouter = require('./routes/gameApiV2_DDFCompatibility');
+const gamesRouter = require('./routes/games');
 const express = require('express');
 const path = require('path');
 const cors = require('cors');
@@ -1739,6 +1740,7 @@ const statusSyncManager = new StatusSyncManager(db, io, lobbyManager);
 // API routers
 app.use('/api/v2/game', gameApiV2Router(io, db, connectionManager));
 app.use(gameApiV2DDFRouter(io, db, connectionManager, lobbyManager, statusSyncManager));
+app.use('/api/games', gamesRouter);
 
 // Clean up stale connections periodically
 setInterval(() => {

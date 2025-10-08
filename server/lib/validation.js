@@ -25,11 +25,57 @@ const roomCodeSchema = Joi.string()
     'string.alphanum': 'Room code must contain only letters and numbers'
   });
 
-// Game type validation
+// Game type validation - now dynamic from database
+// Cache valid game types for 5 minutes to avoid hitting DB on every validation
+let validGameTypesCache = null;
+let cacheTimestamp = 0;
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+async function getValidGameTypes() {
+  const now = Date.now();
+
+  // Return cached values if still fresh
+  if (validGameTypesCache && (now - cacheTimestamp) < CACHE_DURATION) {
+    return validGameTypesCache;
+  }
+
+  try {
+    const { data: games, error } = await db.client
+      .from('games')
+      .select('id')
+      .eq('is_active', true)
+      .eq('maintenance_mode', false);
+
+    if (error) {
+      console.error('[Validation] Error fetching game types:', error);
+      // Fallback to last known cache or basic types
+      return validGameTypesCache || ['ddf', 'schooled', 'susd', 'bingo', 'lobby'];
+    }
+
+    // Update cache
+    validGameTypesCache = [...games.map(g => g.id), 'lobby']; // 'lobby' is always valid
+    cacheTimestamp = now;
+
+    return validGameTypesCache;
+  } catch (err) {
+    console.error('[Validation] Unexpected error fetching game types:', err);
+    // Fallback to last known cache or basic types
+    return validGameTypesCache || ['ddf', 'schooled', 'susd', 'bingo', 'lobby'];
+  }
+}
+
+// Dynamic game type schema with async validation
 const gameTypeSchema = Joi.string()
-  .valid('ddf', 'schooled', 'susd', 'bingo', 'lobby')
+  .external(async (value) => {
+    const validTypes = await getValidGameTypes();
+    if (!validTypes.includes(value)) {
+      throw new Error('Invalid game type selected');
+    }
+    return value;
+  })
   .messages({
-    'any.only': 'Invalid game type selected'
+    'any.invalid': 'Invalid game type selected',
+    'external': 'Invalid game type selected'
   });
 
 // Validation schemas for different socket events
@@ -109,36 +155,37 @@ const schemas = {
   })
 };
 
-// Validation middleware factory
+// Validation middleware factory (now supports async validation)
 function createValidator(schemaName) {
-  return (data) => {
+  return async (data) => {
     const schema = schemas[schemaName];
     if (!schema) {
       throw new Error(`No validation schema found for: ${schemaName}`);
     }
 
-    const { error, value } = schema.validate(data, {
-      abortEarly: false,
-      stripUnknown: true
-    });
+    try {
+      // Use validateAsync to support external async validators
+      const value = await schema.validateAsync(data, {
+        abortEarly: false,
+        stripUnknown: true
+      });
 
-    if (error) {
-      const errors = error.details.map(detail => ({
+      return {
+        isValid: true,
+        value
+      };
+    } catch (error) {
+      const errors = error.details ? error.details.map(detail => ({
         field: detail.path.join('.'),
         message: detail.message
-      }));
-      
+      })) : [{ field: 'unknown', message: error.message }];
+
       return {
         isValid: false,
         errors,
         message: errors.map(e => e.message).join(', ')
       };
     }
-
-    return {
-      isValid: true,
-      value
-    };
   };
 }
 
@@ -301,13 +348,22 @@ async function validateApiKey(req, res, next) {
   }
 }
 
+// Clear game types cache (useful after adding new games)
+function clearGameTypesCache() {
+  validGameTypesCache = null;
+  cacheTimestamp = 0;
+  console.log('[Validation] Game types cache cleared');
+}
+
 module.exports = {
   schemas,
   createValidator,
   sanitize,
   validateApiKey,
   rateLimits,
-  
+  getValidGameTypes,
+  clearGameTypesCache,
+
   // Convenience validators
   validators: {
     createRoom: createValidator('createRoom'),
@@ -320,7 +376,7 @@ module.exports = {
     leaveRoom: createValidator('leaveRoom'),
     playerReady: createValidator('playerReady'),
     sendMessage: createValidator('sendMessage'),
-    
+
     autoUpdateRoomStatus: createValidator('autoUpdateRoomStatus')
   }
 };
