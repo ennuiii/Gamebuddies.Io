@@ -1760,11 +1760,11 @@ io.on('connection', async (socket) => {
   socket.on('createRoom', async (data) => {
     try {
       // Validate input
-      const validation = validators.createRoom(data);
+      const validation = await validators.createRoom(data);
       if (!validation.isValid) {
-        socket.emit('error', { 
+        socket.emit('error', {
           message: validation.message,
-          code: 'INVALID_INPUT' 
+          code: 'INVALID_INPUT'
         });
         return;
       }
@@ -1912,11 +1912,11 @@ io.on('connection', async (socket) => {
   socket.on('joinRoom', async (data) => {
     try {
       // Validate input
-      const validation = validators.joinRoom(data);
+      const validation = await validators.joinRoom(data);
       if (!validation.isValid) {
-        socket.emit('error', { 
+        socket.emit('error', {
           message: validation.message,
-          code: 'INVALID_INPUT' 
+          code: 'INVALID_INPUT'
         });
         return;
       }
