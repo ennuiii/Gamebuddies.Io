@@ -1,15 +1,16 @@
 /**
  * Game Keep-Alive Service
  *
- * Automatically pings all external game servers every minute
+ * Automatically pings all external game servers every 5 minutes
  * to prevent Render.com free tier from spinning them down.
  *
  * Features:
  * - Queries database for active external games
- * - Pings each game's /health endpoint every 60 seconds
+ * - Pings each game's /health endpoint every 5 minutes
+ * - Respects server rate limits (some games limit to 5+ min intervals)
  * - Logs failures for monitoring
  * - Automatically discovers new games (no manual config)
- * - Lightweight: ~1KB per ping = ~300KB/hour for 5 games
+ * - 10-minute safety buffer (Render spins down after 15 min idle)
  */
 
 const { supabase } = require('../lib/supabase');
@@ -17,7 +18,7 @@ const { supabase } = require('../lib/supabase');
 class GameKeepAliveService {
   constructor() {
     this.interval = null;
-    this.pingInterval = 1 * 60 * 1000; // 1 minute (very frequent to ensure servers stay warm)
+    this.pingInterval = 5 * 60 * 1000; // 5 minutes (balances server uptime with rate limits)
     this.requestTimeout = 30000; // 30 second timeout per request
     this.isRunning = false;
   }
