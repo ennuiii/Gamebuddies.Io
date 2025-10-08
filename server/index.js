@@ -325,58 +325,9 @@ app.get('/api/stats', (req, res) => {
   }
 });
 
-// Games endpoint - returns available games
-app.get('/api/games', (req, res) => {
-  const games = [
-    {
-      id: 'ddf',
-      name: 'Der dümmste fliegt',
-      description: 'A fun quiz game where the worst player gets eliminated each round!',
-      path: '/ddf',
-      screenshot: '/screenshots/DDF.png',
-      available: true,
-      maxPlayers: 8
-    },
-    {
-      id: 'schooled',
-      name: 'School Quiz Game',
-      description: 'Test your knowledge in this educational quiz game!',
-      path: '/schooled',
-      screenshot: '/screenshots/schooled.png',
-      available: true,
-      maxPlayers: 6
-    },
-    {
-      id: 'susd',
-      name: 'SUS\'D',
-      description: 'An imposter game where one player is the imposter and others must guess who it is!',
-      path: '/susd',
-      screenshot: '/screenshots/sus.png',
-      available: true,
-      maxPlayers: 10
-    },
-    {
-      id: 'bingo',
-      name: 'Bingo Buddies',
-      description: 'Fast-paced multiplayer bingo with custom cards and power-ups.',
-      path: '/bingo',
-      screenshot: '/screenshots/bingo.png',
-      available: true,
-      maxPlayers: 12
-    },
-    {
-      id: 'cluescale',
-      name: 'ClueScale',
-      description: 'A mystery-solving game where players follow clues to scale the challenge!',
-      path: '/cluescale',
-      screenshot: '/screenshots/cluescale.png',
-      available: true,
-      maxPlayers: 10
-    }
-  ];
-
-  res.json(games);
-});
+// REMOVED: Old hardcoded games endpoint
+// Now using dynamic database-driven endpoint from server/routes/games.js
+// registered at line ~1743 as: app.use('/api/games', gamesRouter);
 
 // ===== GAMEBUDDIES API FOR EXTERNAL GAMES =====
 
