@@ -9,6 +9,8 @@ const { db } = require('../lib/supabase');
  */
 router.get('/', async (req, res) => {
   try {
+    console.log('[Games API] 🎮 Fetching games from database...');
+
     const { data: games, error } = await db.client
       .from('games')
       .select('*')
@@ -17,13 +19,15 @@ router.get('/', async (req, res) => {
       .order('name');
 
     if (error) {
-      console.error('[Games API] Error fetching games:', error);
+      console.error('[Games API] ❌ Error fetching games:', error);
       return res.status(500).json({
         success: false,
         error: 'Failed to fetch games',
         code: 'DATABASE_ERROR'
       });
     }
+
+    console.log(`[Games API] ✅ Found ${games.length} games:`, games.map(g => g.id));
 
     // Transform data to match frontend expectations
     const transformedGames = games.map(game => ({
@@ -44,6 +48,13 @@ router.get('/', async (req, res) => {
       settingsSchema: game.settings_schema || {},
       defaultSettings: game.default_settings || {}
     }));
+
+    console.log('[Games API] 📤 Returning games:', transformedGames.map(g => ({
+      id: g.id,
+      name: g.name,
+      icon: g.icon,
+      available: g.available
+    })));
 
     res.json({
       success: true,

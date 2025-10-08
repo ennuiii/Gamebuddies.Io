@@ -11,16 +11,24 @@ const GamePicker = ({ onGameSelect, isHost, disabled }) => {
   useEffect(() => {
     const fetchGames = async () => {
       try {
+        console.log('[GamePicker] 🎮 Fetching games from /api/games...');
         const response = await fetch('/api/games');
+        console.log('[GamePicker] 📡 Response status:', response.status);
+
         const data = await response.json();
+        console.log('[GamePicker] 📦 API response:', data);
 
         if (data.success && data.games) {
+          console.log('[GamePicker] ✅ Successfully loaded', data.games.length, 'games');
+          console.log('[GamePicker] 🎯 Game IDs:', data.games.map(g => g.id));
           setGames(data.games);
         } else {
+          console.error('[GamePicker] ❌ Invalid response format:', data);
           throw new Error('Failed to load games');
         }
       } catch (err) {
-        console.error('Error loading games:', err);
+        console.error('[GamePicker] ❌ Error loading games:', err);
+        console.error('[GamePicker] 📋 Error details:', err.message);
         setError('Failed to load games. Please refresh the page.');
 
         // Fallback to hardcoded games for backwards compatibility
@@ -99,6 +107,9 @@ const GamePicker = ({ onGameSelect, isHost, disabled }) => {
     );
   }
 
+  // Debug log when rendering
+  console.log('[GamePicker] 🎨 Rendering with', games.length, 'games:', games.map(g => ({id: g.id, name: g.name})));
+
   return (
     <div className="game-picker">
       {error && (
@@ -114,7 +125,9 @@ const GamePicker = ({ onGameSelect, isHost, disabled }) => {
       )}
       <h3 className="picker-title">Select a Game</h3>
       <div className="games-grid">
-        {games.map((game) => (
+        {games.map((game) => {
+          console.log('[GamePicker] 🎮 Rendering game:', game.id, game.name);
+          return (
           <motion.button
             key={game.id}
             className="game-option"
@@ -140,7 +153,8 @@ const GamePicker = ({ onGameSelect, isHost, disabled }) => {
               <span className="max-players">Max {game.maxPlayers} players</span>
             </div>
           </motion.button>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

@@ -36,8 +36,11 @@ async function getValidGameTypes() {
 
   // Return cached values if still fresh
   if (validGameTypesCache && (now - cacheTimestamp) < CACHE_DURATION) {
+    console.log('[Validation] 📦 Using cached game types:', validGameTypesCache);
     return validGameTypesCache;
   }
+
+  console.log('[Validation] 🔄 Refreshing game types cache from database...');
 
   try {
     const { data: games, error } = await db.client
@@ -47,20 +50,25 @@ async function getValidGameTypes() {
       .eq('maintenance_mode', false);
 
     if (error) {
-      console.error('[Validation] Error fetching game types:', error);
+      console.error('[Validation] ❌ Error fetching game types:', error);
       // Fallback to last known cache or basic types
-      return validGameTypesCache || ['ddf', 'schooled', 'susd', 'bingo', 'lobby'];
+      const fallback = validGameTypesCache || ['ddf', 'schooled', 'susd', 'bingo', 'lobby'];
+      console.log('[Validation] ⚠️ Using fallback game types:', fallback);
+      return fallback;
     }
 
     // Update cache
     validGameTypesCache = [...games.map(g => g.id), 'lobby']; // 'lobby' is always valid
     cacheTimestamp = now;
 
+    console.log('[Validation] ✅ Updated game types cache:', validGameTypesCache);
     return validGameTypesCache;
   } catch (err) {
-    console.error('[Validation] Unexpected error fetching game types:', err);
+    console.error('[Validation] ❌ Unexpected error fetching game types:', err);
     // Fallback to last known cache or basic types
-    return validGameTypesCache || ['ddf', 'schooled', 'susd', 'bingo', 'lobby'];
+    const fallback = validGameTypesCache || ['ddf', 'schooled', 'susd', 'bingo', 'lobby'];
+    console.log('[Validation] ⚠️ Using fallback game types:', fallback);
+    return fallback;
   }
 }
 

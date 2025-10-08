@@ -28,12 +28,24 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
 
   const fetchGames = useCallback(async () => {
     try {
+      console.log('[HomePage] 🎮 Fetching games from /api/games...');
       const response = await axios.get('/api/games');
+      console.log('[HomePage] 📦 Raw API response:', response.data);
+
       // API returns { success: true, games: [...] }
       const gamesData = response.data.games || response.data;
+      console.log('[HomePage] ✅ Parsed games data:', gamesData);
+      console.log('[HomePage] 📊 Number of games:', gamesData.length);
+      console.log('[HomePage] 🎯 Game IDs:', gamesData.map(g => g.id));
+
       setGames(gamesData);
     } catch (error) {
-      console.error('Error fetching games:', error);
+      console.error('[HomePage] ❌ Error fetching games:', error);
+      console.error('[HomePage] 📋 Error details:', {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status
+      });
       // Fallback to empty array on error
       setGames([]);
     } finally {
