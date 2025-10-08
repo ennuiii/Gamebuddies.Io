@@ -4,24 +4,12 @@ import './GameCard.css';
 
 const GameCard = ({ game }) => {
   const [imageError, setImageError] = useState(false);
-  const [hasTriedFallback, setHasTriedFallback] = useState(false);
 
-  const handleImageError = (e) => {
-    if (!hasTriedFallback) {
-      // Try a different fallback first
-      setHasTriedFallback(true);
-      e.target.src = `data:image/svg+xml;base64,${btoa(`
-        <svg width="400" height="225" xmlns="http://www.w3.org/2000/svg">
-          <rect width="400" height="225" fill="#16213e"/>
-          <text x="200" y="112" font-family="Arial, sans-serif" font-size="18" fill="#ffffff" text-anchor="middle" dominant-baseline="middle">
-            ${game.name}
-          </text>
-        </svg>
-      `)}`;
-    } else {
-      // If even the SVG fails, hide the image and show placeholder
-      setImageError(true);
-    }
+  // Check if there's a screenshot/thumbnail URL
+  const hasImage = game.screenshot || game.thumbnailUrl;
+
+  const handleImageError = () => {
+    setImageError(true);
   };
 
   // The entire card is now a link to the game path (e.g., "/ddf" or "/schooled")
@@ -33,16 +21,16 @@ const GameCard = ({ game }) => {
         transition={{ duration: 0.3 }}
       >
         <div className="game-card-image-container">
-          {!imageError ? (
+          {hasImage && !imageError ? (
             <img
-              src={game.screenshot}
+              src={game.screenshot || game.thumbnailUrl}
               alt={game.name}
               className="game-card-image"
               onError={handleImageError}
             />
           ) : (
             <div className="game-card-placeholder">
-              <div className="placeholder-icon">🎮</div>
+              <div className="placeholder-icon">{game.icon || '🎮'}</div>
               <div className="placeholder-text">{game.name}</div>
             </div>
           )}
