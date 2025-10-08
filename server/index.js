@@ -236,28 +236,40 @@ async function setupGameProxies() {
       proxyConfig.selfHandleResponse = true;
       proxyConfig.onProxyRes = (proxyRes, req, res) => {
         const contentType = proxyRes.headers['content-type'] || '';
+        console.log(`🔍 [BUMPERBALL] Request: ${req.url}, Content-Type: ${contentType}`);
 
         // Only rewrite HTML responses
         if (contentType.includes('text/html')) {
+          console.log('✏️ [BUMPERBALL] Rewriting HTML response');
           let body = '';
           proxyRes.on('data', (chunk) => {
             body += chunk.toString('utf8');
           });
 
           proxyRes.on('end', () => {
+            // Show a sample before rewriting
+            const sample = body.substring(0, 500);
+            console.log(`📝 [BUMPERBALL] HTML sample (before): ${sample.substring(0, 200)}...`);
+
             // Rewrite absolute paths to include /bumperball prefix
             const rewritten = body
               .replace(/src="\/([^"])/g, 'src="/bumperball/$1')
               .replace(/href="\/([^"])/g, 'href="/bumperball/$1')
               .replace(/url\(\/([^)])/g, 'url(/bumperball/$1');
 
+            // Show sample after rewriting
+            const rewrittenSample = rewritten.substring(0, 500);
+            console.log(`📝 [BUMPERBALL] HTML sample (after): ${rewrittenSample.substring(0, 200)}...`);
+
             // Send the rewritten HTML
             res.setHeader('Content-Type', 'text/html');
             res.setHeader('Content-Length', Buffer.byteLength(rewritten));
             res.end(rewritten);
+            console.log('✅ [BUMPERBALL] HTML rewrite complete');
           });
         } else {
           // For non-HTML responses, pass through normally
+          console.log(`⏩ [BUMPERBALL] Passing through ${contentType} response`);
           res.writeHead(proxyRes.statusCode, proxyRes.headers);
           proxyRes.pipe(res);
         }
