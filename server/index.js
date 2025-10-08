@@ -3596,10 +3596,7 @@ app.use('/api/*', (req, res) => {
   });
 });
 
-// Catch-all handler: send back React's index.html file for non-API routes
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../client/build/index.html'));
-});
+// NOTE: Catch-all route moved to startServer() to ensure it's registered AFTER game proxies
 
 // Global error handlers to suppress navigation-related WebSocket errors
 process.on('uncaughtException', (err) => {
@@ -3632,6 +3629,13 @@ async function startServer() {
   try {
     // Load and setup game proxies from database
     await setupGameProxies();
+
+    // Now that proxies are set up, register catch-all route
+    // This MUST come after proxies so they can intercept game URLs
+    app.get('*', (req, res) => {
+      res.sendFile(path.join(__dirname, '../client/build/index.html'));
+    });
+    console.log('✅ Catch-all route registered (after game proxies)');
 
     // Start listening
     server.listen(PORT, () => {
