@@ -230,63 +230,6 @@ async function setupGameProxies() {
       }
     };
 
-    // Special handling for bumperball: rewrite HTML to fix asset paths
-    if (key === 'bumperball') {
-      console.log('🔧 [PROXY] Adding HTML rewriting for bumperball assets');
-      proxyConfig.selfHandleResponse = true;
-      proxyConfig.onProxyRes = (proxyRes, req, res) => {
-        const contentType = proxyRes.headers['content-type'] || '';
-        console.log(`🔍 [BUMPERBALL] Request: ${req.url || '/'}, Content-Type: ${contentType || '(empty)'}`);
-
-        // Buffer the entire response to detect HTML
-        let body = Buffer.from('');
-        proxyRes.on('data', (chunk) => {
-          body = Buffer.concat([body, chunk]);
-        });
-
-        proxyRes.on('end', () => {
-          const bodyStr = body.toString('utf8');
-          const isHTML = contentType.includes('text/html') ||
-                         bodyStr.trimStart().startsWith('<!DOCTYPE') ||
-                         bodyStr.trimStart().startsWith('<html');
-
-          if (isHTML) {
-            console.log('✏️ [BUMPERBALL] Detected HTML response, rewriting...');
-            const sample = bodyStr.substring(0, 200);
-            console.log(`📝 [BUMPERBALL] HTML sample (before): ${sample}...`);
-
-            // Rewrite absolute paths to include /bumperball prefix
-            const rewritten = bodyStr
-              .replace(/src="\/([^"])/g, 'src="/bumperball/$1')
-              .replace(/href="\/([^"])/g, 'href="/bumperball/$1')
-              .replace(/url\(\/([^)])/g, 'url(/bumperball/$1');
-
-            const rewrittenSample = rewritten.substring(0, 200);
-            console.log(`📝 [BUMPERBALL] HTML sample (after): ${rewrittenSample}...`);
-
-            // Send the rewritten HTML
-            res.setHeader('Content-Type', 'text/html; charset=utf-8');
-            res.setHeader('Content-Length', Buffer.byteLength(rewritten));
-            res.writeHead(proxyRes.statusCode);
-            res.end(rewritten);
-            console.log('✅ [BUMPERBALL] HTML rewrite complete');
-          } else {
-            // For non-HTML responses, pass through as-is
-            console.log(`⏩ [BUMPERBALL] Passing through non-HTML response (${body.length} bytes)`);
-            res.writeHead(proxyRes.statusCode, proxyRes.headers);
-            res.end(body);
-          }
-        });
-
-        proxyRes.on('error', (err) => {
-          console.error(`❌ [BUMPERBALL] Proxy response error:`, err);
-          if (!res.headersSent) {
-            res.status(502).send('Bad Gateway');
-          }
-        });
-      };
-    }
-
     const proxyMiddleware = createProxyMiddleware(proxyConfig);
 
     proxyInstances[proxy.path] = proxyMiddleware;
