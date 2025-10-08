@@ -17,11 +17,20 @@ ALTER TABLE rooms DROP CONSTRAINT IF EXISTS valid_game;
 
 -- Add a foreign key constraint instead (optional but recommended)
 -- This ensures rooms can only reference valid games
-ALTER TABLE rooms
-  ADD CONSTRAINT fk_rooms_current_game
-  FOREIGN KEY (current_game)
-  REFERENCES games(id)
-  ON DELETE SET NULL;
+DO $$
+BEGIN
+  -- Only add constraint if it doesn't exist
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'fk_rooms_current_game'
+  ) THEN
+    ALTER TABLE rooms
+      ADD CONSTRAINT fk_rooms_current_game
+      FOREIGN KEY (current_game)
+      REFERENCES games(id)
+      ON DELETE SET NULL;
+  END IF;
+END $$;
 
 -- Create index for faster game lookups
 CREATE INDEX IF NOT EXISTS idx_games_active ON games(is_active, maintenance_mode);

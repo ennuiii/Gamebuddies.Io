@@ -67,6 +67,11 @@ async function getValidGameTypes() {
 // Dynamic game type schema with async validation
 const gameTypeSchema = Joi.string()
   .external(async (value) => {
+    // Skip validation if value is undefined/null/empty (for optional fields)
+    if (!value) {
+      return value;
+    }
+
     const validTypes = await getValidGameTypes();
     if (!validTypes.includes(value)) {
       throw new Error('Invalid game type selected');
