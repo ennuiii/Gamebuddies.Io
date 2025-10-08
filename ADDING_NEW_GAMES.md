@@ -36,15 +36,28 @@ INSERT INTO games (
 );
 ```
 
-### Step 2: Add Environment Variable (Optional)
+### Step 2: Add Proxy Configuration (Required for External Games)
 
-If your game needs a specific environment variable (like for reverse proxy), add it to `.env`:
+If your game is hosted externally (like on Render.com), you need to add a proxy route.
+
+**Edit `server/index.js`** and add to the `gameProxies` object (around line 132):
+
+```javascript
+  mygame: {
+    path: '/mygame',
+    target: process.env.MYGAME_URL || 'https://mygame.onrender.com',
+    pathRewrite: { '^/mygame': '' },
+    ws: envBool('MYGAME_WS', false)
+  }
+```
+
+**Add to `server/env.example`** (optional but recommended):
 
 ```bash
 MYGAME_URL=https://mygame.onrender.com
 ```
 
-### Step 3: Restart Server
+### Step 3: Deploy and Restart Server
 
 If you added environment variables, restart the server:
 

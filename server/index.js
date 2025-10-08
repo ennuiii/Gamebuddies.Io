@@ -128,6 +128,12 @@ const gameProxies = {
     target: process.env.CLUESCALE_URL || 'https://cluescale.onrender.com',
     pathRewrite: { '^/cluescale': '' },
     ws: envBool('CLUESCALE_WS', false)
+  },
+  bumperball: {
+    path: '/bumperball',
+    target: process.env.BUMPERBALL_URL || 'https://bumperballarenaclient.onrender.com',
+    pathRewrite: { '^/bumperball': '' },
+    ws: envBool('BUMPERBALL_WS', false)
   }
 };
 
