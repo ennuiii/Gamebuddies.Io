@@ -64,10 +64,10 @@ class GameKeepAliveService {
     try {
       const { data, error } = await supabase
         .from('games')
-        .select('id, name, base_url')
+        .select('id, name, server_url')
         .eq('is_external', true)
         .eq('is_active', true)
-        .not('base_url', 'is', null);
+        .not('server_url', 'is', null);
 
       if (error) {
         console.error('[Keep-Alive] Error fetching games:', error);
@@ -88,17 +88,13 @@ class GameKeepAliveService {
     const startTime = Date.now();
 
     try {
-      // Construct health URL
-      // Handle both full URLs and relative paths
-      let healthUrl;
-      if (game.base_url.startsWith('http://') || game.base_url.startsWith('https://')) {
-        healthUrl = `${game.base_url}/health`;
-      } else {
-        // If it's a relative path, it's behind GameBuddies proxy, skip pinging
-        // (these are served by GameBuddies and don't need keep-alive)
-        console.log(`[Keep-Alive] Skipping ${game.name} (proxied game, no external server)`);
+      // Construct health URL from server_url
+      if (!game.server_url) {
+        console.log(`[Keep-Alive] Skipping ${game.name} (no server_url configured)`);
         return { success: true, skipped: true };
       }
+
+      const healthUrl = `${game.server_url}/health`;
 
       // Create AbortController for timeout
       const controller = new AbortController();

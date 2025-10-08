@@ -15,6 +15,7 @@ INSERT INTO games (
   display_name,
   description,
   base_url,
+  server_url,
   icon,
   min_players,
   max_players,
@@ -22,19 +23,26 @@ INSERT INTO games (
   is_external,
   requires_api_key
 ) VALUES (
-  'mygame',                              -- Unique game ID (lowercase, no spaces)
-  'My Awesome Game',                     -- Internal name
-  'My Awesome Game',                     -- Display name shown to users
-  'An amazing multiplayer game!',       -- Description
-  'https://mygame.onrender.com',        -- Game URL
-  '🎯',                                  -- Emoji icon (or leave null to use thumbnail)
-  2,                                     -- Minimum players
-  12,                                    -- Maximum players
-  true,                                  -- Active (true = visible, false = hidden)
-  true,                                  -- External game
-  false                                  -- Requires API key
+  'mygame',                                    -- Unique game ID (lowercase, no spaces)
+  'My Awesome Game',                           -- Internal name
+  'My Awesome Game',                           -- Display name shown to users
+  'An amazing multiplayer game!',             -- Description
+  'https://mygame-client.onrender.com',       -- CLIENT URL (proxied for assets)
+  'https://mygame-server.onrender.com',       -- SERVER URL (pinged to stay alive)
+  '🎯',                                        -- Emoji icon (or leave null to use thumbnail)
+  2,                                           -- Minimum players
+  12,                                          -- Maximum players
+  true,                                        -- Active (true = visible, false = hidden)
+  true,                                        -- External game
+  false                                        -- Requires API key
 );
 ```
+
+**Important URL Distinction:**
+- `base_url`: Your **client** static site URL (e.g., `bumperballarenaclient.onrender.com`)
+  - GameBuddies proxies this to serve your game's HTML/CSS/JS
+- `server_url`: Your **backend** server URL (e.g., `bumperballarena.onrender.com`)
+  - Keep-alive service pings this every 10 min to prevent Render.com spin-down
 
 ### Step 2: Restart Server
 
@@ -183,7 +191,8 @@ The `games` table stores all game metadata:
 | `display_name` | VARCHAR(100) | Name shown to users |
 | `description` | TEXT | Game description |
 | `thumbnail_url` | TEXT | URL to game thumbnail image |
-| `base_url` | TEXT | Game server URL |
+| `base_url` | TEXT | **Client** static site URL (proxied for game assets) |
+| `server_url` | TEXT | **Server** backend URL (pinged to prevent spin-down) |
 | `icon` | VARCHAR(10) | Emoji icon (e.g., '🎮') |
 | `is_external` | BOOLEAN | Whether game is hosted externally |
 | `requires_api_key` | BOOLEAN | Whether game requires API authentication |
