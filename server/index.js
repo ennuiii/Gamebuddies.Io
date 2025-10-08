@@ -18,6 +18,7 @@ const ConnectionManager = require('./lib/connectionManager');
 const LobbyManager = require('./lib/lobbyManager');
 const StatusSyncManager = require('./lib/statusSyncManager');
 const { validators, sanitize, rateLimits, validateApiKey } = require('./lib/validation');
+const gameKeepAlive = require('./services/gameKeepAlive');
 
 const app = express();
 const server = http.createServer(app);
@@ -3648,6 +3649,9 @@ async function startServer() {
       console.log(`🎮 Game proxies configured: ${Object.keys(gameProxies).join(',')}`);
       console.log(`✅ Supabase configured - using persistent database storage`);
       console.log(`🔇 WebSocket navigation errors suppressed for clean logs`);
+
+      // Start game keep-alive service (prevents Render.com free tier spin-down)
+      gameKeepAlive.start();
     });
   } catch (error) {
     console.error('❌ Failed to start server:', error);
