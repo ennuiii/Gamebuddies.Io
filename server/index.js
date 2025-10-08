@@ -200,34 +200,71 @@ async function setupGameProxies() {
   Object.entries(gameProxies).forEach(([key, proxy]) => {
     console.log(`🔗 [PROXY] Setting up ${key.toUpperCase()} proxy: ${proxy.path} -> ${proxy.target}`);
 
-    const proxyMiddleware = createProxyMiddleware({
-    target: proxy.target,
-    changeOrigin: true,
-    pathRewrite: proxy.pathRewrite,
-    timeout: 15000,
-    proxyTimeout: 15000,
-    ws: proxy.ws !== false, // Use individual proxy ws setting, default to true
-    logLevel: process.env.PROXY_LOG_LEVEL || 'silent',
-    logProvider: () => createFilteredLogger(),
-    
-    // Enhanced error handling to prevent connection loops
-    onError: (err, req, res) => {
-      // Only log real errors, not connection resets from unreachable services
-      if (!isNavigationError(err) && err.code !== 'ECONNRESET') {
-        console.error(`❌ [PROXY] ${key.toUpperCase()} error: ${err.message}`);
+    // Base proxy configuration
+    const proxyConfig = {
+      target: proxy.target,
+      changeOrigin: true,
+      pathRewrite: proxy.pathRewrite,
+      timeout: 15000,
+      proxyTimeout: 15000,
+      ws: proxy.ws !== false, // Use individual proxy ws setting, default to true
+      logLevel: process.env.PROXY_LOG_LEVEL || 'silent',
+      logProvider: () => createFilteredLogger(),
+
+      // Enhanced error handling to prevent connection loops
+      onError: (err, req, res) => {
+        // Only log real errors, not connection resets from unreachable services
+        if (!isNavigationError(err) && err.code !== 'ECONNRESET') {
+          console.error(`❌ [PROXY] ${key.toUpperCase()} error: ${err.message}`);
+        }
+
+        // Only send response if not already sent and not a WebSocket upgrade
+        if (!res.headersSent && !req.headers.upgrade) {
+          res.status(503).json({
+            error: `${key.toUpperCase()} game service is temporarily unavailable`,
+            message: 'The game server may be starting up or temporarily down. Please try again in a few moments.',
+            service: key,
+            target: proxy.target
+          });
+        }
       }
-      
-      // Only send response if not already sent and not a WebSocket upgrade
-      if (!res.headersSent && !req.headers.upgrade) {
-        res.status(503).json({
-          error: `${key.toUpperCase()} game service is temporarily unavailable`,
-          message: 'The game server may be starting up or temporarily down. Please try again in a few moments.',
-          service: key,
-          target: proxy.target
-        });
-      }
+    };
+
+    // Special handling for bumperball: rewrite HTML to fix asset paths
+    if (key === 'bumperball') {
+      console.log('🔧 [PROXY] Adding HTML rewriting for bumperball assets');
+      proxyConfig.selfHandleResponse = true;
+      proxyConfig.onProxyRes = (proxyRes, req, res) => {
+        const contentType = proxyRes.headers['content-type'] || '';
+
+        // Only rewrite HTML responses
+        if (contentType.includes('text/html')) {
+          let body = '';
+          proxyRes.on('data', (chunk) => {
+            body += chunk.toString('utf8');
+          });
+
+          proxyRes.on('end', () => {
+            // Rewrite absolute paths to include /bumperball prefix
+            const rewritten = body
+              .replace(/src="\/([^"])/g, 'src="/bumperball/$1')
+              .replace(/href="\/([^"])/g, 'href="/bumperball/$1')
+              .replace(/url\(\/([^)])/g, 'url(/bumperball/$1');
+
+            // Send the rewritten HTML
+            res.setHeader('Content-Type', 'text/html');
+            res.setHeader('Content-Length', Buffer.byteLength(rewritten));
+            res.end(rewritten);
+          });
+        } else {
+          // For non-HTML responses, pass through normally
+          res.writeHead(proxyRes.statusCode, proxyRes.headers);
+          proxyRes.pipe(res);
+        }
+      };
     }
-  });
+
+    const proxyMiddleware = createProxyMiddleware(proxyConfig);
 
     proxyInstances[proxy.path] = proxyMiddleware;
     app.use(proxy.path, proxyMiddleware);
