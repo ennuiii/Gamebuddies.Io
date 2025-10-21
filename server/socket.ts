@@ -85,7 +85,7 @@ export function initializeSocketHandlers(
           host_id: user.id,
           current_game: null,
           status: 'lobby',
-          is_public: true,
+          is_public: data.isPublic !== undefined ? data.isPublic : true,
           max_players: data.maxPlayers || 10,
           streamer_mode: streamerMode,
           game_settings: {},
@@ -354,15 +354,13 @@ export function initializeSocketHandlers(
           throw new RoomNotFoundError(data.roomCode);
         }
 
-        // Update room with selected game
-        await db.adminClient
-          .from('rooms')
-          .update({ current_game: data.gameType })
-          .eq('id', room.id);
+        // Update room with selected game (works with both real and mock DB)
+        await db.updateRoom(room.id, { current_game: data.gameType });
 
         // Notify all players
         io.to(data.roomCode).emit('gameSelected', {
-          gameType: data.gameType
+          gameType: data.gameType,
+          roomCode: data.roomCode
         });
 
         logger.room('Game selected', { roomCode: data.roomCode, gameType: data.gameType });
@@ -454,6 +452,12 @@ export function initializeSocketHandlers(
           socket.to(roomCode).emit('playerLeft', {
             playerId: participant.user_id,
             username: participant.user?.username || 'Unknown'
+          });
+
+          // Confirm to the leaving player
+          socket.emit('leftRoom', {
+            roomCode,
+            success: true
           });
 
           logger.room('Player left', { roomCode, playerId: participant.user_id });

@@ -50,12 +50,10 @@ class MockDatabaseService {
       is_public: roomData.is_public !== undefined ? roomData.is_public : false,
       streamer_mode: roomData.streamer_mode || false,
       host_id: roomData.host_id,
-      ...roomData,
-      room_code: roomCode,
     };
 
     rooms.set(room.id, room);
-    console.log(`✅ Mock: Created room ${roomCode}`);
+    console.log(`✅ Mock: Created room ${roomCode} (public: ${room.is_public})`);
     return room;
   }
 
