@@ -1734,6 +1734,7 @@ io.on('connection', async (socket) => {
       if (!validation.isValid) {
         socket.emit('error', {
           message: validation.message,
+          error: validation.message,
           code: 'INVALID_INPUT'
         });
         return;
@@ -1741,9 +1742,10 @@ io.on('connection', async (socket) => {
       
       // Check rate limiting
       if (connectionManager.isRateLimited(socket.id, 'createRoom', rateLimits.createRoom.max)) {
-        socket.emit('error', { 
+        socket.emit('error', {
           message: 'Too many room creation attempts. Please wait a moment.',
-          code: 'RATE_LIMITED' 
+          error: 'Too many room creation attempts. Please wait a moment.',
+          code: 'RATE_LIMITED'
         });
         return;
       }
@@ -1857,8 +1859,9 @@ io.on('connection', async (socket) => {
         message: error.message,
         stack: error.stack
       });
-      socket.emit('error', { 
+      socket.emit('error', {
         message: 'Failed to create room. Please try again.',
+        error: 'Failed to create room. Please try again.',
         code: 'ROOM_CREATION_FAILED',
         debug: {
           error_message: error.message
@@ -1894,9 +1897,10 @@ io.on('connection', async (socket) => {
       
       // Check rate limiting
       if (connectionManager.isRateLimited(socket.id, 'joinRoom', rateLimits.joinRoom.max)) {
-        socket.emit('error', { 
+        socket.emit('error', {
           message: 'Too many join attempts. Please wait a moment.',
-          code: 'RATE_LIMITED' 
+          error: 'Too many join attempts. Please wait a moment.',
+          code: 'RATE_LIMITED'
         });
         return;
       }
@@ -1909,6 +1913,7 @@ io.on('connection', async (socket) => {
       if (!connectionManager.acquireLock(playerName, roomCode, socket.id)) {
         socket.emit('error', { 
           message: 'Another connection attempt is in progress. Please wait.',
+          error: 'Another connection attempt is in progress. Please wait.',
           code: 'CONNECTION_IN_PROGRESS' 
         });
         return;
@@ -1991,6 +1996,7 @@ io.on('connection', async (socket) => {
         });
         socket.emit('error', { 
           message: 'Room is full. Cannot join.',
+          error: 'Room is full. Cannot join.',
           code: 'ROOM_FULL'
         });
         return;
@@ -2013,6 +2019,7 @@ io.on('connection', async (socket) => {
         });
         socket.emit('error', { 
           message: `Room is ${room.status} and not accepting new players.`,
+          error: 'Room is ${room.status} and not accepting new players.',
           code: 'ROOM_NOT_ACCEPTING',
           debug: {
             room_status: room.status,
@@ -2142,6 +2149,7 @@ io.on('connection', async (socket) => {
           console.log(`❌ [REJOINING DEBUG] Duplicate name blocked: ${data.playerName} already in room ${data.roomCode}`);
           socket.emit('error', { 
             message: 'A player with this name is already in the room. Please choose a different name.',
+            error: 'A player with this name is already in the room. Please choose a different name.',
             code: 'DUPLICATE_PLAYER',
             debug: {
               existing_user_id: duplicateConnectedParticipant.user_id,
@@ -2283,6 +2291,7 @@ io.on('connection', async (socket) => {
         });
         socket.emit('error', { 
           message: 'Failed to join room. Please try again.',
+          error: 'Failed to join room. Please try again.',
           code: 'JOIN_FAILED',
           debug: {
             error_message: error.message,
@@ -2298,6 +2307,7 @@ io.on('connection', async (socket) => {
       console.error('❌ [JOIN ROOM ERROR] Validation or setup error:', error);
       socket.emit('error', { 
         message: 'Invalid request data',
+        error: 'Invalid request data',
         code: 'VALIDATION_ERROR'
       });
     }
@@ -2314,7 +2324,7 @@ io.on('connection', async (socket) => {
       });
       
       if (!connection?.roomId) {
-        socket.emit('error', { message: 'Not in a room' });
+        socket.emit('error', { message: 'Not in a room', error: 'Not in a room' });
       return;
     }
     
@@ -2336,7 +2346,7 @@ io.on('connection', async (socket) => {
 
     } catch (error) {
       console.error('❌ Error selecting game:', error);
-      socket.emit('error', { message: 'Failed to select game' });
+      socket.emit('error', { message: 'Failed to select game', error: 'Failed to select game' });
     }
   });
 
@@ -2368,7 +2378,7 @@ io.on('connection', async (socket) => {
       
       if (!connection?.roomId) {
         console.error(`❌ [START GAME SERVER] Connection has no roomId - cannot start game`);
-        socket.emit('error', { message: 'Not in a room' });
+        socket.emit('error', { message: 'Not in a room', error: 'Not in a room' });
         return;
       }
     
@@ -2377,7 +2387,7 @@ io.on('connection', async (socket) => {
       const room = await db.getRoomByCode(data.roomCode);
       if (!room) {
         console.error(`❌ [START GAME SERVER] Room not found for code: ${data.roomCode}`);
-        socket.emit('error', { message: 'Room not found' });
+        socket.emit('error', { message: 'Room not found', error: 'Room not found' });
         return;
       }
       
@@ -2419,7 +2429,7 @@ io.on('connection', async (socket) => {
       
       if (!userParticipant) {
         console.error(`❌ [START GAME SERVER] User is not host or not found in room`);
-        socket.emit('error', { message: 'Only the host can start the game' });
+        socket.emit('error', { message: 'Only the host can start the game', error: 'Only the host can start the game' });
         return;
       }
       
@@ -2449,7 +2459,7 @@ io.on('connection', async (socket) => {
       // Get game proxy configuration
       const gameProxy = gameProxies[room.current_game];
       if (!gameProxy) {
-        socket.emit('error', { message: 'Game not supported' });
+        socket.emit('error', { message: 'Game not supported', error: 'Game not supported' });
       return;
     }
     
@@ -2565,7 +2575,7 @@ io.on('connection', async (socket) => {
       console.error('❌ [START GAME SERVER] CRITICAL ERROR starting game:', error);
       console.error('❌ [START GAME SERVER] Error stack:', error.stack);
       console.log(`❌ [START GAME SERVER] ============ START GAME FAILED ============`);
-      socket.emit('error', { message: 'Failed to start game' });
+      socket.emit('error', { message: 'Failed to start game', error: 'Failed to start game' });
     }
   });
 
@@ -2668,14 +2678,14 @@ io.on('connection', async (socket) => {
       
       const connection = connectionManager.getConnection(socket.id);
       if (!connection?.roomId || !connection?.userId) {
-        socket.emit('error', { message: 'Not in a room' });
+        socket.emit('error', { message: 'Not in a room', error: 'Not in a room' });
         return;
       }
 
       // Get room
       const room = await db.getRoomByCode(data.roomCode);
       if (!room) {
-        socket.emit('error', { message: 'Room not found' });
+        socket.emit('error', { message: 'Room not found', error: 'Room not found' });
         return;
       }
 
@@ -2707,7 +2717,7 @@ io.on('connection', async (socket) => {
 
     } catch (error) {
       console.error('❌ Error handling player return to lobby:', error);
-      socket.emit('error', { message: 'Failed to update status' });
+      socket.emit('error', { message: 'Failed to update status', error: 'Failed to update status' });
     }
   });
 
@@ -2718,28 +2728,28 @@ io.on('connection', async (socket) => {
       
       const connection = connectionManager.getConnection(socket.id);
       if (!connection?.roomId || !connection?.userId) {
-        socket.emit('error', { message: 'Not in a room' });
+        socket.emit('error', { message: 'Not in a room', error: 'Not in a room' });
         return;
       }
 
       // Get room and verify current user is host
       const room = await db.getRoomByCode(data.roomCode);
       if (!room) {
-        socket.emit('error', { message: 'Room not found' });
+        socket.emit('error', { message: 'Room not found', error: 'Room not found' });
         return;
       }
 
       // Check if current user is host
       const currentParticipant = room.participants?.find(p => p.user_id === connection.userId);
       if (!currentParticipant || currentParticipant.role !== 'host') {
-        socket.emit('error', { message: 'Only the host can transfer host privileges' });
+        socket.emit('error', { message: 'Only the host can transfer host privileges', error: 'Only the host can transfer host privileges' });
         return;
       }
 
       // Verify target user is in the room
       const targetParticipant = room.participants?.find(p => p.user_id === data.targetUserId);
       if (!targetParticipant) {
-        socket.emit('error', { message: 'Target player not found in room' });
+        socket.emit('error', { message: 'Target player not found in room', error: 'Target player not found in room' });
         return;
       }
 
@@ -2775,7 +2785,7 @@ io.on('connection', async (socket) => {
 
     } catch (error) {
       console.error('❌ Error transferring host:', error);
-      socket.emit('error', { message: 'Failed to transfer host' });
+      socket.emit('error', { message: 'Failed to transfer host', error: 'Failed to transfer host' });
     }
   });
 
@@ -2797,7 +2807,7 @@ io.on('connection', async (socket) => {
           roomId: connection?.roomId,
           userId: connection?.userId
         });
-        socket.emit('error', { message: 'Not in a room' });
+        socket.emit('error', { message: 'Not in a room', error: 'Not in a room' });
         return;
       }
 
@@ -2805,7 +2815,7 @@ io.on('connection', async (socket) => {
       const room = await db.getRoomByCode(data.roomCode);
       if (!room) {
         console.log(`❌ [KICK DEBUG] Room not found: ${data.roomCode}`);
-        socket.emit('error', { message: 'Room not found' });
+        socket.emit('error', { message: 'Room not found', error: 'Room not found' });
         return;
       }
 
@@ -2959,28 +2969,28 @@ io.on('connection', async (socket) => {
       
       const connection = connectionManager.getConnection(socket.id);
       if (!connection?.roomId || !connection?.userId) {
-        socket.emit('error', { message: 'Not in a room' });
+        socket.emit('error', { message: 'Not in a room', error: 'Not in a room' });
         return;
       }
 
       // Get room and verify user is host
       const room = await db.getRoomByCode(data.roomCode);
       if (!room) {
-        socket.emit('error', { message: 'Room not found' });
+        socket.emit('error', { message: 'Room not found', error: 'Room not found' });
         return;
       }
 
       // Check if user is host
       const participant = room.participants?.find(p => p.user_id === connection.userId);
       if (!participant || participant.role !== 'host') {
-        socket.emit('error', { message: 'Only the host can change room status' });
+        socket.emit('error', { message: 'Only the host can change room status', error: 'Only the host can change room status' });
         return;
       }
 
       // Validate the new status - V2 Schema
       const validStatuses = ['lobby', 'in_game', 'returning'];
       if (!validStatuses.includes(data.newStatus)) {
-        socket.emit('error', { message: 'Invalid room status' });
+        socket.emit('error', { message: 'Invalid room status', error: 'Invalid room status' });
         return;
       }
 
@@ -3010,7 +3020,7 @@ io.on('connection', async (socket) => {
 
     } catch (error) {
       console.error('❌ Error changing room status:', error);
-      socket.emit('error', { message: 'Failed to change room status' });
+      socket.emit('error', { message: 'Failed to change room status', error: 'Failed to change room status' });
     }
   });
 
