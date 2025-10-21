@@ -1770,8 +1770,8 @@ io.on('connection', async (socket) => {
         host_id: user.id,
         current_game: null, // Will be updated when game is selected
         status: 'lobby',
-        is_public: true,
-        max_players: 10,
+        is_public: data.isPublic !== undefined ? data.isPublic : true,
+        max_players: data.maxPlayers || 10,
         streamer_mode: streamerMode,
         game_settings: {},
         metadata: {
@@ -1886,6 +1886,7 @@ io.on('connection', async (socket) => {
       if (!validation.isValid) {
         socket.emit('error', {
           message: validation.message,
+          error: validation.message,
           code: 'INVALID_INPUT'
         });
         return;
@@ -1945,8 +1946,9 @@ io.on('connection', async (socket) => {
           codeLength: data.roomCode?.length,
           codeType: typeof data.roomCode
         });
-        socket.emit('error', { 
+        socket.emit('error', {
           message: 'Room not found. The room may have been cleaned up or expired.',
+          error: 'Room not found. The room may have been cleaned up or expired.',
           code: 'ROOM_NOT_FOUND',
           debug: {
             room_code: data.roomCode,
@@ -2325,6 +2327,7 @@ io.on('connection', async (socket) => {
       // Notify all players in room
       io.to(updatedRoom.room_code).emit('gameSelected', {
         gameType: data.gameType,
+        roomCode: updatedRoom.room_code,
         settings: data.settings,
         roomVersion: Date.now()
       });
@@ -2643,6 +2646,12 @@ io.on('connection', async (socket) => {
       // Clear connection tracking
       connection.roomId = null;
       connection.userId = null;
+
+      // Confirm to the leaving player
+      socket.emit('leftRoom', {
+        roomCode: data.roomCode,
+        success: true
+      });
 
       console.log(`👋 Player left room ${data.roomCode}${isLeavingHost ? ' (was host)' : ''}`);
 

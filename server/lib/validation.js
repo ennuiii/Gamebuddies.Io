@@ -98,7 +98,8 @@ const schemas = {
     playerName: playerNameSchema.required(),
     gameType: gameTypeSchema.optional(),
     maxPlayers: Joi.number().min(2).max(20).optional(),
-    isPublic: Joi.boolean().optional()
+    isPublic: Joi.boolean().optional(),
+    streamerMode: Joi.boolean().optional()
   }),
 
   // Join room validation
