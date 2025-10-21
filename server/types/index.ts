@@ -200,9 +200,10 @@ export interface ServerToClientEvents {
   roomJoined: (data: { room: Room; player: RoomMember; roomCode: string; isHost: boolean }) => void;
   playerJoined: (player: RoomMember) => void;
   playerLeft: (data: { playerId: string; username: string }) => void;
+  leftRoom: (data: { roomCode: string; success: boolean }) => void;
   playerStatusChanged: (data: { playerId: string; status: any }) => void;
   playerReady: (data: { playerId: string; isReady: boolean }) => void;
-  gameSelected: (data: { gameType: string }) => void;
+  gameSelected: (data: { gameType: string; roomCode: string }) => void;
   gameStarted: (data: { gameUrl: string; settings: any }) => void;
   playerReturnedToLobby: (data: { playerId: string }) => void;
   hostTransferred: (data: { oldHostId: string; newHostId: string }) => void;
