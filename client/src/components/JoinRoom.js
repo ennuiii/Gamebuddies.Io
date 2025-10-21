@@ -2,16 +2,22 @@ import React, { useState } from 'react';
 import io from 'socket.io-client';
 import './JoinRoom.css';
 
-const JoinRoom = ({ initialRoomCode = '', initialPlayerName = '', autoJoin = false, onRoomJoined, onCancel }) => {
+const JoinRoom = ({
+  initialRoomCode = '',
+  initialPlayerName = '',
+  autoJoin = false,
+  onRoomJoined,
+  onCancel,
+}) => {
   const [roomCode, setRoomCode] = useState(initialRoomCode);
   const [playerName, setPlayerName] = useState(initialPlayerName || '');
   const [isJoining, setIsJoining] = useState(false);
   const [error, setError] = useState('');
   const isInviteLink = !!initialRoomCode; // Track if user came via invite link
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = async e => {
     if (e && e.preventDefault) e.preventDefault();
-    
+
     if (!roomCode.trim()) {
       setError('Please enter a room code');
       return;
@@ -45,35 +51,41 @@ const JoinRoom = ({ initialRoomCode = '', initialPlayerName = '', autoJoin = fal
       playerName: playerName.trim(),
       timestamp: new Date().toISOString(),
       isInitialRoomCode: !!initialRoomCode,
-      currentURL: window.location.href
+      currentURL: window.location.href,
     });
 
     try {
       console.log('🚪 [JOIN DEBUG] Joining room:', roomCode.trim().toUpperCase());
-      
+
       // Determine server URL based on environment
       const getServerUrl = () => {
         console.log('🔍 [JOIN DEBUG] Determining server URL...');
         console.log('🔍 [JOIN DEBUG] window.location.hostname:', window.location.hostname);
         console.log('🔍 [JOIN DEBUG] REACT_APP_SERVER_URL:', process.env.REACT_APP_SERVER_URL);
-        
+
         if (process.env.REACT_APP_SERVER_URL) {
-          console.log('🔍 [JOIN DEBUG] Using REACT_APP_SERVER_URL:', process.env.REACT_APP_SERVER_URL);
+          console.log(
+            '🔍 [JOIN DEBUG] Using REACT_APP_SERVER_URL:',
+            process.env.REACT_APP_SERVER_URL
+          );
           return process.env.REACT_APP_SERVER_URL;
         }
-        
+
         // If running on Render.com (check for .onrender.com domain)
         if (window.location.hostname.includes('onrender.com')) {
           console.log('🔍 [JOIN DEBUG] Detected Render.com, using origin:', window.location.origin);
           return window.location.origin;
         }
-        
+
         // If running on any production domain (not localhost)
         if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-          console.log('🔍 [JOIN DEBUG] Detected production domain, using origin:', window.location.origin);
+          console.log(
+            '🔍 [JOIN DEBUG] Detected production domain, using origin:',
+            window.location.origin
+          );
           return window.location.origin;
         }
-        
+
         // For local development, connect to Render.com server
         console.log('🔍 [JOIN DEBUG] Local development, using Render.com server');
         return 'https://gamebuddies-io.onrender.com';
@@ -84,7 +96,7 @@ const JoinRoom = ({ initialRoomCode = '', initialPlayerName = '', autoJoin = fal
 
       const socket = io(serverUrl, {
         transports: ['websocket', 'polling'],
-        timeout: 10000
+        timeout: 10000,
       });
 
       // Set up event handlers
@@ -95,37 +107,37 @@ const JoinRoom = ({ initialRoomCode = '', initialPlayerName = '', autoJoin = fal
         console.log('🔍 [CLIENT DEBUG] Player name:', playerName.trim());
         console.log('🔍 [CLIENT DEBUG] Server URL:', serverUrl);
         console.log('🚪 [JOIN DEBUG] Connected, sending joinRoom event');
-        
+
         const urlParams = new URLSearchParams(window.location.search);
         const isHostHint = urlParams.get('ishost') === 'true' || urlParams.get('role') === 'gm';
-        socket.emit('joinRoom', { 
+        socket.emit('joinRoom', {
           roomCode: roomCode.trim().toUpperCase(),
           playerName: playerName.trim(),
-          isHostHint
+          isHostHint,
         });
         console.log('📤 [CLIENT] joinRoom event sent');
       });
 
-      socket.on('roomJoined', (data) => {
+      socket.on('roomJoined', data => {
         console.log('✅ [CLIENT] Room joined successfully:', data);
         console.log('🔍 [CLIENT DEBUG] Join data:', {
           roomCode: data.roomCode,
           isHost: data.isHost,
           playerCount: data.players?.length || 0,
-          room_id: data.room?.id
+          room_id: data.room?.id,
         });
         console.log('🚪 [JOIN DEBUG] Join successful, transitioning to lobby');
-        
+
         if (onRoomJoined) {
           onRoomJoined({
             roomCode: data.roomCode,
             playerName: playerName.trim(),
             isHost: !!data.isHost,
             players: data.players,
-            room: data.room
+            room: data.room,
           });
         }
-        
+
         // Delay socket disconnect to allow RoomLobby to establish its own connection
         console.log('🚪 [JOIN DEBUG] Delaying socket cleanup to allow lobby connection');
         setTimeout(() => {
@@ -134,16 +146,16 @@ const JoinRoom = ({ initialRoomCode = '', initialPlayerName = '', autoJoin = fal
         }, 1000); // 1 second delay
       });
 
-      socket.on('error', (error) => {
+      socket.on('error', error => {
         console.error('❌ [JOIN DEBUG] Join room error:', {
           error: error.message || error,
           code: error.code,
           debug: error.debug,
           roomCode: roomCode.trim().toUpperCase(),
           playerName: playerName.trim(),
-          timestamp: new Date().toISOString()
+          timestamp: new Date().toISOString(),
         });
-        
+
         // Provide user-friendly error messages
         let errorMessage = error.message;
         switch (error.code) {
@@ -158,18 +170,19 @@ const JoinRoom = ({ initialRoomCode = '', initialPlayerName = '', autoJoin = fal
             errorMessage = 'This room is no longer accepting new players.';
             break;
           case 'DUPLICATE_PLAYER':
-            errorMessage = 'A player with this name is already in the room. Please choose a different name.';
+            errorMessage =
+              'A player with this name is already in the room. Please choose a different name.';
             break;
           default:
             errorMessage = errorMessage || 'Failed to join room. Please try again.';
         }
-        
+
         setError(errorMessage);
         setIsJoining(false);
         socket.disconnect();
       });
 
-      socket.on('connect_error', (error) => {
+      socket.on('connect_error', error => {
         console.error('❌ Connection error:', error);
         setError('Failed to connect to server. Please check your internet connection.');
         setIsJoining(false);
@@ -184,7 +197,6 @@ const JoinRoom = ({ initialRoomCode = '', initialPlayerName = '', autoJoin = fal
           socket.disconnect();
         }
       }, 15000);
-
     } catch (error) {
       console.error('❌ Unexpected error:', error);
       setError('An unexpected error occurred. Please try again.');
@@ -199,10 +211,10 @@ const JoinRoom = ({ initialRoomCode = '', initialPlayerName = '', autoJoin = fal
       const t = setTimeout(() => handleSubmit(), 200);
       return () => clearTimeout(t);
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoJoin, initialRoomCode, initialPlayerName]);
 
-  const handleRoomCodeChange = (e) => {
+  const handleRoomCodeChange = e => {
     const value = e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '');
     if (value.length <= 6) {
       setRoomCode(value);
@@ -213,14 +225,12 @@ const JoinRoom = ({ initialRoomCode = '', initialPlayerName = '', autoJoin = fal
     <div className="join-room-overlay">
       <div className="join-room-modal">
         <h2 className="join-room-title">Join Room</h2>
-        
+
         <form onSubmit={handleSubmit} className="join-room-form">
           {isInviteLink ? (
             <div className="form-group">
               <label htmlFor="roomCode">ROOM CODE</label>
-              <div className="invite-link-indicator">
-                🔗 Joining via invite link
-              </div>
+              <div className="invite-link-indicator">🔗 Joining via invite link</div>
               <small>Room code hidden for privacy</small>
             </div>
           ) : (
@@ -247,7 +257,7 @@ const JoinRoom = ({ initialRoomCode = '', initialPlayerName = '', autoJoin = fal
               type="text"
               id="playerName"
               value={playerName}
-              onChange={(e) => setPlayerName(e.target.value)}
+              onChange={e => setPlayerName(e.target.value)}
               placeholder="Enter your name"
               disabled={isJoining}
               maxLength={20}
@@ -255,19 +265,10 @@ const JoinRoom = ({ initialRoomCode = '', initialPlayerName = '', autoJoin = fal
             <small>This will be your display name in the room</small>
           </div>
 
-          {error && (
-            <div className="error-message">
-              {error}
-            </div>
-          )}
+          {error && <div className="error-message">{error}</div>}
 
           <div className="form-actions">
-            <button
-              type="button"
-              onClick={onCancel}
-              className="cancel-button"
-              disabled={isJoining}
-            >
+            <button type="button" onClick={onCancel} className="cancel-button" disabled={isJoining}>
               Cancel
             </button>
             <button
@@ -293,4 +294,4 @@ const JoinRoom = ({ initialRoomCode = '', initialPlayerName = '', autoJoin = fal
   );
 };
 
-export default JoinRoom; 
+export default JoinRoom;

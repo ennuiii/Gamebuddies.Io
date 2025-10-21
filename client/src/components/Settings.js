@@ -8,7 +8,7 @@ const Settings = ({ isOpen, onClose }) => {
 
   if (!isOpen) return null;
 
-  const handleOverlayClick = (e) => {
+  const handleOverlayClick = e => {
     if (e.target === e.currentTarget) {
       onClose();
     }
@@ -16,14 +16,14 @@ const Settings = ({ isOpen, onClose }) => {
 
   return (
     <AnimatePresence>
-      <motion.div 
+      <motion.div
         className="settings-overlay"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         onClick={handleOverlayClick}
       >
-        <motion.div 
+        <motion.div
           className="settings-modal"
           initial={{ opacity: 0, scale: 0.9, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -33,8 +33,20 @@ const Settings = ({ isOpen, onClose }) => {
           <div className="settings-header">
             <h2 className="settings-title">Settings</h2>
             <button className="close-button" onClick={onClose}>
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M18 6L6 18M6 6l12 12"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
               </svg>
             </button>
           </div>
@@ -46,16 +58,16 @@ const Settings = ({ isOpen, onClose }) => {
                 <label className="setting-label">Theme</label>
                 <div className="current-theme">
                   <div className="theme-preview">
-                    <div 
-                      className="theme-color theme-primary" 
+                    <div
+                      className="theme-color theme-primary"
                       style={{ backgroundColor: themes.default.colors['--primary-color'] }}
                     />
-                    <div 
-                      className="theme-color theme-secondary" 
+                    <div
+                      className="theme-color theme-secondary"
                       style={{ backgroundColor: themes.default.colors['--secondary-color'] }}
                     />
-                    <div 
-                      className="theme-color theme-accent" 
+                    <div
+                      className="theme-color theme-accent"
                       style={{ backgroundColor: themes.default.colors['--accent-color'] }}
                     />
                   </div>
@@ -76,4 +88,4 @@ const Settings = ({ isOpen, onClose }) => {
   );
 };
 
-export default Settings; 
+export default Settings;

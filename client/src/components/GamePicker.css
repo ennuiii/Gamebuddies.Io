@@ -4,7 +4,7 @@
   backdrop-filter: blur(20px);
   border-radius: 20px;
   border: 1px solid rgba(255, 255, 255, 0.15);
-  box-shadow: 
+  box-shadow:
     0 15px 40px rgba(0, 0, 0, 0.3),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
   position: relative;
@@ -23,8 +23,12 @@
 }
 
 @keyframes pickerShine {
-  0% { left: -100%; }
-  100% { left: 100%; }
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
 }
 
 .picker-title {
@@ -72,7 +76,7 @@
   text-align: center;
   position: relative;
   overflow: hidden;
-  box-shadow: 
+  box-shadow:
     0 10px 30px rgba(0, 0, 0, 0.2),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
@@ -94,9 +98,9 @@
 
 .game-option:hover:not(:disabled) {
   background: rgba(255, 255, 255, 0.15);
-  border-color: #4CAF50;
+  border-color: #4caf50;
   transform: translateY(-5px) scale(1.02);
-  box-shadow: 
+  box-shadow:
     0 15px 40px rgba(76, 175, 80, 0.3),
     0 0 0 1px rgba(76, 175, 80, 0.2),
     inset 0 1px 0 rgba(255, 255, 255, 0.2);
@@ -164,18 +168,24 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #4CAF50;
+  background: #4caf50;
   animation: loading-bounce 1.4s ease-in-out infinite both;
 }
 
-.loading-dots span:nth-child(1) { animation-delay: -0.32s; }
-.loading-dots span:nth-child(2) { animation-delay: -0.16s; }
+.loading-dots span:nth-child(1) {
+  animation-delay: -0.32s;
+}
+.loading-dots span:nth-child(2) {
+  animation-delay: -0.16s;
+}
 
 @keyframes loading-bounce {
-  0%, 80%, 100% {
+  0%,
+  80%,
+  100% {
     transform: scale(0);
   }
   40% {
     transform: scale(1);
   }
-} 
+}

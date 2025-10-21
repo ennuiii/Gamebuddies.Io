@@ -116,9 +116,7 @@ export function useAdManager(): UseAdManagerReturn {
   useEffect(() => {
     if (!isPremium && adConfig.enabled && typeof window !== 'undefined') {
       // Check if script is already loaded
-      const existingScript = document.querySelector(
-        'script[src*="adsbygoogle.js"]'
-      );
+      const existingScript = document.querySelector('script[src*="adsbygoogle.js"]');
 
       if (!existingScript) {
         const script = document.createElement('script');

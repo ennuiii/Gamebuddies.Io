@@ -36,7 +36,10 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
       const gamesData = response.data.games || response.data;
       console.log('[HomePage] ✅ Parsed games data:', gamesData);
       console.log('[HomePage] 📊 Number of games:', gamesData.length);
-      console.log('[HomePage] 🎯 Game IDs:', gamesData.map(g => g.id));
+      console.log(
+        '[HomePage] 🎯 Game IDs:',
+        gamesData.map(g => g.id)
+      );
 
       setGames(gamesData);
     } catch (error) {
@@ -44,7 +47,7 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
       console.error('[HomePage] 📋 Error details:', {
         message: error.message,
         response: error.response?.data,
-        status: error.response?.status
+        status: error.response?.status,
       });
       // Fallback to empty array on error
       setGames([]);
@@ -70,7 +73,7 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
       name: sessionStorage.getItem('gamebuddies_playerName') || '',
       roomCode: sessionStorage.getItem('gamebuddies_roomCode') || '',
       playerId: sessionStorage.getItem('gamebuddies_playerId') || null,
-      isHost: (sessionStorage.getItem('gamebuddies_isHost') || '') === 'true'
+      isHost: (sessionStorage.getItem('gamebuddies_isHost') || '') === 'true',
     };
 
     const raw = sessionStorage.getItem('gamebuddies:return-session');
@@ -95,50 +98,53 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
     return info;
   }, []);
 
-  const persistSessionMetadata = useCallback((roomCode, name, isHost, playerId = null, sessionToken = null) => {
-    if (!roomCode) {
-      return;
-    }
+  const persistSessionMetadata = useCallback(
+    (roomCode, name, isHost, playerId = null, sessionToken = null) => {
+      if (!roomCode) {
+        return;
+      }
 
-    const resolvedName = name || sessionStorage.getItem('gamebuddies_playerName') || '';
-    const origin = (typeof window !== 'undefined' && window.location) ? window.location.origin : '';
+      const resolvedName = name || sessionStorage.getItem('gamebuddies_playerName') || '';
+      const origin = typeof window !== 'undefined' && window.location ? window.location.origin : '';
 
-    sessionStorage.setItem('gamebuddies_roomCode', roomCode);
-    if (resolvedName) {
-      sessionStorage.setItem('gamebuddies_playerName', resolvedName);
-    }
-    sessionStorage.setItem('gamebuddies_isHost', String(!!isHost));
-    if (playerId) {
-      sessionStorage.setItem('gamebuddies_playerId', playerId);
-    }
-    if (sessionToken) {
-      sessionStorage.setItem('gamebuddies_sessionToken', sessionToken);
-    }
-    if (origin) {
-      sessionStorage.setItem('gamebuddies_returnUrl', `${origin}/lobby/${roomCode}`);
-    }
+      sessionStorage.setItem('gamebuddies_roomCode', roomCode);
+      if (resolvedName) {
+        sessionStorage.setItem('gamebuddies_playerName', resolvedName);
+      }
+      sessionStorage.setItem('gamebuddies_isHost', String(!!isHost));
+      if (playerId) {
+        sessionStorage.setItem('gamebuddies_playerId', playerId);
+      }
+      if (sessionToken) {
+        sessionStorage.setItem('gamebuddies_sessionToken', sessionToken);
+      }
+      if (origin) {
+        sessionStorage.setItem('gamebuddies_returnUrl', `${origin}/lobby/${roomCode}`);
+      }
 
-    const existingPlayerId = sessionStorage.getItem('gamebuddies_playerId') || null;
-    const sessionRecord = {
-      roomCode,
-      playerName: resolvedName,
-      playerId: playerId || existingPlayerId,
-      isHost: !!isHost,
-      returnUrl: origin ? `${origin}/lobby/${roomCode}` : undefined,
-      capturedAt: new Date().toISOString(),
-      source: 'gamebuddies'
-    };
+      const existingPlayerId = sessionStorage.getItem('gamebuddies_playerId') || null;
+      const sessionRecord = {
+        roomCode,
+        playerName: resolvedName,
+        playerId: playerId || existingPlayerId,
+        isHost: !!isHost,
+        returnUrl: origin ? `${origin}/lobby/${roomCode}` : undefined,
+        capturedAt: new Date().toISOString(),
+        source: 'gamebuddies',
+      };
 
-    if (sessionToken) {
-      sessionRecord.sessionToken = sessionToken;
-    }
+      if (sessionToken) {
+        sessionRecord.sessionToken = sessionToken;
+      }
 
-    try {
-      sessionStorage.setItem('gamebuddies:return-session', JSON.stringify(sessionRecord));
-    } catch (err) {
-      console.warn('[HomePage] Unable to persist return session metadata:', err);
-    }
-  }, []);
+      try {
+        sessionStorage.setItem('gamebuddies:return-session', JSON.stringify(sessionRecord));
+      } catch (err) {
+        console.warn('[HomePage] Unable to persist return session metadata:', err);
+      }
+    },
+    []
+  );
 
   const handleLeaveLobby = useCallback(() => {
     setInLobby(false);
@@ -156,27 +162,38 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
     navigate('/', { replace: true });
   }, [navigate, setIsInLobby, setLobbyLeaveFn]);
 
-  const handleRoomCreated = useCallback((room) => {
-    setCurrentRoom(room);
-    setPlayerName(room.playerName);
-    setShowCreateRoom(false);
-    setInLobby(true);
-    setIsInLobby(true);
-    setLobbyLeaveFn(() => handleLeaveLobby);
-    persistSessionMetadata(room.roomCode, room.playerName, room.isHost ?? true, room.playerId ?? null);
-  }, [handleLeaveLobby, persistSessionMetadata, setIsInLobby, setLobbyLeaveFn]);
+  const handleRoomCreated = useCallback(
+    room => {
+      setCurrentRoom(room);
+      setPlayerName(room.playerName);
+      setShowCreateRoom(false);
+      setInLobby(true);
+      setIsInLobby(true);
+      setLobbyLeaveFn(() => handleLeaveLobby);
+      persistSessionMetadata(
+        room.roomCode,
+        room.playerName,
+        room.isHost ?? true,
+        room.playerId ?? null
+      );
+    },
+    [handleLeaveLobby, persistSessionMetadata, setIsInLobby, setLobbyLeaveFn]
+  );
 
-  const handleJoinRoom = useCallback((room) => {
-    // The actual room data will be fetched in RoomLobby
-    setCurrentRoom(room);
-    setPlayerName(room.playerName);
-    setShowJoinRoom(false);
-    setInLobby(true);
-    setIsInLobby(true);
-    setLobbyLeaveFn(() => handleLeaveLobby);
-    persistSessionMetadata(room.roomCode, room.playerName, room.isHost, room.playerId ?? null);
-    setAutoJoin(false);
-  }, [handleLeaveLobby, persistSessionMetadata, setIsInLobby, setLobbyLeaveFn]);
+  const handleJoinRoom = useCallback(
+    room => {
+      // The actual room data will be fetched in RoomLobby
+      setCurrentRoom(room);
+      setPlayerName(room.playerName);
+      setShowJoinRoom(false);
+      setInLobby(true);
+      setIsInLobby(true);
+      setLobbyLeaveFn(() => handleLeaveLobby);
+      persistSessionMetadata(room.roomCode, room.playerName, room.isHost, room.playerId ?? null);
+      setAutoJoin(false);
+    },
+    [handleLeaveLobby, persistSessionMetadata, setIsInLobby, setLobbyLeaveFn]
+  );
 
   const handleCloseModals = useCallback(() => {
     setShowCreateRoom(false);
@@ -186,74 +203,84 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
     setAutoJoin(false);
   }, []);
 
-  const handleSessionRecovery = useCallback(async (roomCode, sessionToken, nameHint = '') => {
-    if (!sessionToken) {
-      return false;
-    }
-
-    setIsRecoveringSession(true);
-
-    try {
-      const activeSocket = socket || connectSocket();
-      const socketId = activeSocket && activeSocket.id ? activeSocket.id : undefined;
-
-      const response = await fetch('/api/v2/game/sessions/recover', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sessionToken,
-          socketId
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error('Session recovery request failed');
+  const handleSessionRecovery = useCallback(
+    async (roomCode, sessionToken, nameHint = '') => {
+      if (!sessionToken) {
+        return false;
       }
 
-      const data = await response.json();
-      const playerState = data.playerState || {};
-      const recoveredName =
-        nameHint ||
-        playerState?.user?.display_name ||
-        playerState?.user?.username ||
-        playerState?.display_name ||
-        playerState?.username ||
-        'Player';
+      setIsRecoveringSession(true);
 
-      const recoveredRoomCode = (data.roomCode || roomCode || '').toUpperCase();
-      const playerId = data.playerId || playerState?.user_id || playerState?.id || null;
-      const isHost = playerState?.role === 'host';
+      try {
+        const activeSocket = socket || connectSocket();
+        const socketId = activeSocket && activeSocket.id ? activeSocket.id : undefined;
 
-      setCurrentRoom({
-        roomCode: recoveredRoomCode,
-        playerName: recoveredName,
-        isHost: !!isHost
-      });
-      setPlayerName(recoveredName);
-      setShowJoinRoom(false);
-      setInLobby(true);
-      setIsInLobby(true);
-      setAutoJoin(false);
-      setPrefillName(recoveredName);
-      setLobbyLeaveFn(() => handleLeaveLobby);
+        const response = await fetch('/api/v2/game/sessions/recover', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sessionToken,
+            socketId,
+          }),
+        });
 
-      persistSessionMetadata(recoveredRoomCode, recoveredName, isHost, playerId, sessionToken);
+        if (!response.ok) {
+          throw new Error('Session recovery request failed');
+        }
 
-      return true;
-    } catch (error) {
-      console.error('[HomePage] Session recovery failed:', error);
-      setShowJoinRoom(true);
-      setJoinRoomCode(roomCode);
-      const { name: storedName } = getStoredSessionInfo();
-      const fallbackName = nameHint || storedName;
-      setPrefillName(fallbackName);
-      setAutoJoin(Boolean(fallbackName));
-      return false;
-    } finally {
-      setIsRecoveringSession(false);
-    }
-  }, [socket, connectSocket, handleLeaveLobby, persistSessionMetadata, setIsInLobby, setLobbyLeaveFn, getStoredSessionInfo]);
+        const data = await response.json();
+        const playerState = data.playerState || {};
+        const recoveredName =
+          nameHint ||
+          playerState?.user?.display_name ||
+          playerState?.user?.username ||
+          playerState?.display_name ||
+          playerState?.username ||
+          'Player';
 
+        const recoveredRoomCode = (data.roomCode || roomCode || '').toUpperCase();
+        const playerId = data.playerId || playerState?.user_id || playerState?.id || null;
+        const isHost = playerState?.role === 'host';
+
+        setCurrentRoom({
+          roomCode: recoveredRoomCode,
+          playerName: recoveredName,
+          isHost: !!isHost,
+        });
+        setPlayerName(recoveredName);
+        setShowJoinRoom(false);
+        setInLobby(true);
+        setIsInLobby(true);
+        setAutoJoin(false);
+        setPrefillName(recoveredName);
+        setLobbyLeaveFn(() => handleLeaveLobby);
+
+        persistSessionMetadata(recoveredRoomCode, recoveredName, isHost, playerId, sessionToken);
+
+        return true;
+      } catch (error) {
+        console.error('[HomePage] Session recovery failed:', error);
+        setShowJoinRoom(true);
+        setJoinRoomCode(roomCode);
+        const { name: storedName } = getStoredSessionInfo();
+        const fallbackName = nameHint || storedName;
+        setPrefillName(fallbackName);
+        setAutoJoin(Boolean(fallbackName));
+        return false;
+      } finally {
+        setIsRecoveringSession(false);
+      }
+    },
+    [
+      socket,
+      connectSocket,
+      handleLeaveLobby,
+      persistSessionMetadata,
+      setIsInLobby,
+      setLobbyLeaveFn,
+      getStoredSessionInfo,
+    ]
+  );
 
   // Handle invite token parameter
   useEffect(() => {
@@ -280,7 +307,7 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
         const response = await fetch('/api/invites/resolve', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ inviteToken })
+          body: JSON.stringify({ inviteToken }),
         });
 
         if (!response.ok) {
@@ -303,7 +330,6 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
         const url = new URL(window.location.href);
         url.searchParams.delete('invite');
         window.history.replaceState({}, '', url.toString());
-
       } catch (error) {
         console.error('[HomePage] Failed to resolve invite:', error);
         alert('Failed to resolve invite link. Please try again.');
@@ -328,7 +354,10 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
       return;
     }
 
-    console.log('[HomePage] Found return session parameter:', returnSession.substring(0, 8) + '...');
+    console.log(
+      '[HomePage] Found return session parameter:',
+      returnSession.substring(0, 8) + '...'
+    );
 
     // Resolve session token to room code
     (async () => {
@@ -357,7 +386,6 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
         const url = new URL(window.location.href);
         url.searchParams.delete('return');
         window.history.replaceState({}, '', url.toString());
-
       } catch (error) {
         console.error('[HomePage] Failed to resolve return session:', error);
         alert('Failed to return to room. Session may have expired.');
@@ -419,7 +447,10 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
       return;
     }
 
-    console.log('[HomePage] 🎫 Found session-only URL (streamer mode):', sessionToken.substring(0, 20) + '...');
+    console.log(
+      '[HomePage] 🎫 Found session-only URL (streamer mode):',
+      sessionToken.substring(0, 20) + '...'
+    );
 
     // Resolve session without knowing the room code
     (async () => {
@@ -440,7 +471,7 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
         console.log('[HomePage] ✅ Session resolved to room:', roomCode, 'player:', effectiveName, {
           hasPlayerName: !!playerName,
           hasStoredName: !!storedName,
-          isGenericSession: !playerId
+          isGenericSession: !playerId,
         });
 
         // Join the lobby with the resolved room code and player name
@@ -497,12 +528,19 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
       setShowJoinRoom(true);
       processedLinksRef.current.add(key);
     }
-  }, [location.pathname, location.search, inLobby, isRecoveringSession, handleSessionRecovery, getStoredSessionInfo]);
+  }, [
+    location.pathname,
+    location.search,
+    inLobby,
+    isRecoveringSession,
+    handleSessionRecovery,
+    getStoredSessionInfo,
+  ]);
 
   // If in lobby, show the lobby component
   if (inLobby && currentRoom) {
     return (
-      <RoomLobby 
+      <RoomLobby
         roomCode={currentRoom.roomCode}
         playerName={playerName}
         isHost={currentRoom.isHost}
@@ -524,11 +562,11 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
 
       {/* Hero Section */}
       <section className="hero">
-        <motion.div 
+        <motion.div
           className="hero-content"
           initial={{ opacity: 0, y: 50 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, ease: "easeOut" }}
+          transition={{ duration: 1, ease: 'easeOut' }}
         >
           <motion.div
             className="hero-badge"
@@ -538,8 +576,8 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
           >
             <span className="badge-text">🎮 Now Live</span>
           </motion.div>
-          
-          <motion.h1 
+
+          <motion.h1
             className="hero-title"
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -548,8 +586,8 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
             <span className="brand-text">GameBuddies</span>
             <span className="brand-dot">.io</span>
           </motion.h1>
-          
-          <motion.p 
+
+          <motion.p
             className="hero-subtitle"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -559,8 +597,8 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
             <br />
             <span className="subtitle-highlight">Connect, Play, and Dominate Together</span>
           </motion.p>
-          
-          <motion.div 
+
+          <motion.div
             className="hero-buttons"
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -571,7 +609,7 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
               onClick={handleCreateRoomClick}
               whileHover={{ scale: 1.05, y: -3 }}
               whileTap={{ scale: 0.95 }}
-              transition={{ type: "spring", stiffness: 300 }}
+              transition={{ type: 'spring', stiffness: 300 }}
             >
               <span className="button-text">Create Room</span>
               <span className="button-icon">🚀</span>
@@ -581,7 +619,7 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
               onClick={handleJoinRoomClick}
               whileHover={{ scale: 1.05, y: -3 }}
               whileTap={{ scale: 0.95 }}
-              transition={{ type: "spring", stiffness: 300 }}
+              transition={{ type: 'spring', stiffness: 300 }}
             >
               <span className="button-text">Join Room</span>
               <span className="button-icon">🎯</span>
@@ -593,7 +631,7 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
       {/* Games Section */}
       <section className="games-section" id="games-section">
         <div className="container">
-          <motion.div 
+          <motion.div
             className="section-header"
             initial={{ opacity: 0, y: 30 }}
             whileInView={{ opacity: 1, y: 0 }}
@@ -603,7 +641,7 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
             <h2 className="section-title">Quick Play Games</h2>
             <p className="section-subtitle">Jump into these popular games instantly</p>
           </motion.div>
-          
+
           {loading ? (
             <div className="loading-container">
               <div className="loading-spinner"></div>
@@ -630,7 +668,7 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
       {/* Call to Action Section */}
       <section className="cta-section">
         <div className="container">
-          <motion.div 
+          <motion.div
             className="cta-content"
             initial={{ opacity: 0, scale: 0.9 }}
             whileInView={{ opacity: 1, scale: 1 }}
@@ -638,7 +676,9 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
             viewport={{ once: true }}
           >
             <h2 className="cta-title">Ready to Start Gaming?</h2>
-            <p className="cta-subtitle">Join thousands of players already having fun on GameBuddies.io</p>
+            <p className="cta-subtitle">
+              Join thousands of players already having fun on GameBuddies.io
+            </p>
             <motion.button
               className="cta-button large"
               onClick={handleCreateRoomClick}
@@ -678,10 +718,7 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
 
       {/* Modals */}
       {showCreateRoom && (
-        <CreateRoom
-          onRoomCreated={handleRoomCreated}
-          onCancel={handleCloseModals}
-        />
+        <CreateRoom onRoomCreated={handleRoomCreated} onCancel={handleCloseModals} />
       )}
 
       {showJoinRoom && (

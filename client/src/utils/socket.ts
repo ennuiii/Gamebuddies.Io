@@ -1,19 +1,16 @@
-import io from 'socket.io-client';
+import io, { Socket } from 'socket.io-client';
 
 // Use the current window location for socket connection
 // This ensures it works in both development and production
-const SOCKET_URL = process.env.REACT_APP_SOCKET_URL || 
-  (window.location.hostname === 'localhost' 
-    ? 'http://localhost:3033' 
-    : window.location.origin);
+const SOCKET_URL =
+  process.env.REACT_APP_SOCKET_URL ||
+  (window.location.hostname === 'localhost' ? 'http://localhost:3033' : window.location.origin);
 
 class SocketService {
-  constructor() {
-    this.socket = null;
-    this.isConnecting = false;
-  }
+  private socket: Socket | null = null;
+  private isConnecting: boolean = false;
 
-  connect() {
+  connect(): Socket | null {
     // Prevent multiple simultaneous connection attempts
     if (this.socket?.connected || this.isConnecting) {
       return this.socket;
@@ -28,7 +25,7 @@ class SocketService {
 
     if (!this.socket) {
       this.isConnecting = true;
-      
+
       this.socket = io(SOCKET_URL, {
         transports: ['websocket', 'polling'],
         autoConnect: true,
@@ -37,7 +34,7 @@ class SocketService {
         reconnectionDelay: 1000,
         reconnectionDelayMax: 5000,
         timeout: 10000,
-        forceNew: true
+        forceNew: true,
       });
 
       this.socket.on('connect', () => {
@@ -45,7 +42,7 @@ class SocketService {
         this.isConnecting = false;
       });
 
-      this.socket.on('disconnect', (reason) => {
+      this.socket.on('disconnect', (reason: string) => {
         console.log('Disconnected from server:', reason);
         this.isConnecting = false;
         // Clean up socket on disconnect
@@ -55,7 +52,7 @@ class SocketService {
         }
       });
 
-      this.socket.on('error', (error) => {
+      this.socket.on('error', (error: Error) => {
         console.error('Socket error:', error);
         this.isConnecting = false;
         // Clean up socket on error
@@ -65,7 +62,7 @@ class SocketService {
         }
       });
 
-      this.socket.on('connect_error', (error) => {
+      this.socket.on('connect_error', (error: Error) => {
         console.error('Connection error:', error.message);
         this.isConnecting = false;
         // Clean up socket on connection error
@@ -75,7 +72,7 @@ class SocketService {
         }
       });
 
-      this.socket.on('reconnect_attempt', (attemptNumber) => {
+      this.socket.on('reconnect_attempt', (attemptNumber: number) => {
         console.log('Reconnection attempt:', attemptNumber);
       });
 
@@ -87,7 +84,7 @@ class SocketService {
     return this.socket;
   }
 
-  disconnect() {
+  disconnect(): void {
     if (this.socket) {
       // Remove all listeners first
       this.socket.removeAllListeners();
@@ -100,7 +97,7 @@ class SocketService {
     }
   }
 
-  joinRoom(roomCode, playerName) {
+  joinRoom(roomCode: string, playerName: string): void {
     // Ensure we're connected before emitting
     const socket = this.connect();
     if (socket) {
@@ -121,31 +118,31 @@ class SocketService {
     }
   }
 
-  leaveRoom() {
+  leaveRoom(): void {
     if (this.socket && this.socket.connected) {
       this.socket.emit('leaveRoom');
     }
   }
 
-  selectGame(roomCode, gameType) {
+  selectGame(roomCode: string, gameType: string): void {
     if (this.socket && this.socket.connected) {
       this.socket.emit('selectGame', { roomCode, gameType });
     }
   }
 
-  startGame(roomCode) {
+  startGame(roomCode: string): void {
     if (this.socket && this.socket.connected) {
       this.socket.emit('startGame', { roomCode });
     }
   }
 
-  on(event, callback) {
+  on(event: string, callback: (...args: any[]) => void): void {
     if (this.socket) {
       this.socket.on(event, callback);
     }
   }
 
-  off(event, callback) {
+  off(event: string, callback?: (...args: any[]) => void): void {
     if (this.socket) {
       // If callback is provided, remove only that listener
       if (callback) {
@@ -159,4 +156,4 @@ class SocketService {
 }
 
 const socketService = new SocketService();
-export default socketService; 
+export default socketService;

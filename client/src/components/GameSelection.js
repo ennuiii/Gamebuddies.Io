@@ -27,7 +27,7 @@ const GameSelection = ({ room, onGameSelected, onClose }) => {
     }
   };
 
-  const handleGameSelect = async (gameType) => {
+  const handleGameSelect = async gameType => {
     setLoading(true);
     setError('');
 
@@ -70,17 +70,13 @@ const GameSelection = ({ room, onGameSelected, onClose }) => {
         initial={{ scale: 0.8, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ type: 'spring', damping: 20 }}
-        onClick={(e) => e.stopPropagation()}
+        onClick={e => e.stopPropagation()}
       >
         <div className="room-info">
           <h2 className="room-code-label">Room Code</h2>
           <div className="room-code-display">
             <span className="room-code">{room.roomCode}</span>
-            <button 
-              className="copy-button"
-              onClick={copyRoomCode}
-              title="Copy room code"
-            >
+            <button className="copy-button" onClick={copyRoomCode} title="Copy room code">
               📋
             </button>
           </div>
@@ -89,7 +85,7 @@ const GameSelection = ({ room, onGameSelected, onClose }) => {
 
         <div className="game-selection-content">
           <h3 className="select-game-title">Select a Game</h3>
-          
+
           {fetchingGames ? (
             <div className="loading-container">
               <div className="loading-spinner"></div>
@@ -119,11 +115,7 @@ const GameSelection = ({ room, onGameSelected, onClose }) => {
           )}
         </div>
 
-        <button
-          className="close-button"
-          onClick={onClose}
-          disabled={loading}
-        >
+        <button className="close-button" onClick={onClose} disabled={loading}>
           Cancel
         </button>
       </motion.div>
@@ -131,4 +123,4 @@ const GameSelection = ({ room, onGameSelected, onClose }) => {
   );
 };
 
-export default GameSelection; 
+export default GameSelection;

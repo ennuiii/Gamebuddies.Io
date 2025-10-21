@@ -17,14 +17,14 @@ const DebugPanel = () => {
           playerName: sessionStorage.getItem('gamebuddies_playerName'),
           isHost: sessionStorage.getItem('gamebuddies_isHost'),
           gameType: sessionStorage.getItem('gamebuddies_gameType'),
-          returnUrl: sessionStorage.getItem('gamebuddies_returnUrl')
+          returnUrl: sessionStorage.getItem('gamebuddies_returnUrl'),
         },
         environment: {
           hostname: window.location.hostname,
           origin: window.location.origin,
           userAgent: navigator.userAgent.substring(0, 100) + '...',
-          serverUrl: process.env.REACT_APP_SERVER_URL
-        }
+          serverUrl: process.env.REACT_APP_SERVER_URL,
+        },
       });
     };
 
@@ -36,7 +36,7 @@ const DebugPanel = () => {
 
   // Keyboard shortcut listener
   useEffect(() => {
-    const handleKeyPress = (event) => {
+    const handleKeyPress = event => {
       // Only listen for key presses if not focused on an input element
       if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {
         return;
@@ -75,10 +75,11 @@ const DebugPanel = () => {
   }, [keySequence]);
 
   // Show debug panel only in development or when URL contains debug=true or manually triggered
-  const shouldShow = process.env.NODE_ENV === 'development' || 
-                   window.location.search.includes('debug=true') ||
-                   window.location.search.includes('debug=1') ||
-                   isVisible; // Allow manual triggering via keyboard
+  const shouldShow =
+    process.env.NODE_ENV === 'development' ||
+    window.location.search.includes('debug=true') ||
+    window.location.search.includes('debug=1') ||
+    isVisible; // Allow manual triggering via keyboard
 
   if (!shouldShow) return null;
 
@@ -96,7 +97,7 @@ const DebugPanel = () => {
     maxWidth: '400px',
     maxHeight: '500px',
     overflow: 'auto',
-    border: '1px solid #333'
+    border: '1px solid #333',
   };
 
   const toggleStyle = {
@@ -110,13 +111,13 @@ const DebugPanel = () => {
     borderRadius: '3px',
     cursor: 'pointer',
     fontSize: '12px',
-    border: 'none'
+    border: 'none',
   };
 
   if (!isVisible) {
     return (
-      <button 
-        style={toggleStyle} 
+      <button
+        style={toggleStyle}
         onClick={() => setIsVisible(true)}
         title="Show GameBuddies Debug Panel (or type 'debug')"
       >
@@ -127,9 +128,16 @@ const DebugPanel = () => {
 
   return (
     <div style={debugStyle}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '10px',
+        }}
+      >
         <strong>🐛 GameBuddies Debug Panel</strong>
-        <button 
+        <button
           onClick={() => setIsVisible(false)}
           style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer' }}
         >
@@ -140,7 +148,7 @@ const DebugPanel = () => {
       <div style={{ marginBottom: '10px', fontSize: '10px', color: '#888' }}>
         💡 Tip: Type "debug" anywhere to show this panel
       </div>
-      
+
       <div style={{ marginBottom: '10px' }}>
         <strong>Current State:</strong>
         <pre style={{ margin: '5px 0', fontSize: '10px', whiteSpace: 'pre-wrap' }}>
@@ -158,10 +166,18 @@ const DebugPanel = () => {
                 ...Object.keys(sessionStorage).reduce((acc, key) => {
                   acc[key] = sessionStorage.getItem(key);
                   return acc;
-                }, {})
+                }, {}),
               });
             }}
-            style={{ fontSize: '10px', padding: '2px 5px', background: '#444', color: '#fff', border: 'none', borderRadius: '2px', cursor: 'pointer' }}
+            style={{
+              fontSize: '10px',
+              padding: '2px 5px',
+              background: '#444',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '2px',
+              cursor: 'pointer',
+            }}
           >
             Log State
           </button>
@@ -174,7 +190,15 @@ const DebugPanel = () => {
               });
               console.log('🐛 [DEBUG] Cleared GameBuddies session storage');
             }}
-            style={{ fontSize: '10px', padding: '2px 5px', background: '#600', color: '#fff', border: 'none', borderRadius: '2px', cursor: 'pointer' }}
+            style={{
+              fontSize: '10px',
+              padding: '2px 5px',
+              background: '#600',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '2px',
+              cursor: 'pointer',
+            }}
           >
             Clear Session
           </button>
@@ -185,7 +209,15 @@ const DebugPanel = () => {
               window.history.replaceState({}, '', url);
               console.log('🐛 [DEBUG] Added debug=true to URL');
             }}
-            style={{ fontSize: '10px', padding: '2px 5px', background: '#006', color: '#fff', border: 'none', borderRadius: '2px', cursor: 'pointer' }}
+            style={{
+              fontSize: '10px',
+              padding: '2px 5px',
+              background: '#006',
+              color: '#fff',
+              border: 'none',
+              borderRadius: '2px',
+              cursor: 'pointer',
+            }}
           >
             Persist Debug
           </button>
@@ -193,7 +225,9 @@ const DebugPanel = () => {
       </div>
 
       {systemState.sessionStorage?.roomCode && (
-        <div style={{ padding: '5px', backgroundColor: 'rgba(0, 255, 0, 0.1)', borderRadius: '3px' }}>
+        <div
+          style={{ padding: '5px', backgroundColor: 'rgba(0, 255, 0, 0.1)', borderRadius: '3px' }}
+        >
           <strong>🎮 Active GameBuddies Session</strong>
           <br />
           Room: {systemState.sessionStorage.roomCode}
@@ -205,7 +239,15 @@ const DebugPanel = () => {
       )}
 
       {keySequence.length > 0 && (
-        <div style={{ padding: '5px', backgroundColor: 'rgba(255, 255, 0, 0.1)', borderRadius: '3px', marginTop: '5px', fontSize: '10px' }}>
+        <div
+          style={{
+            padding: '5px',
+            backgroundColor: 'rgba(255, 255, 0, 0.1)',
+            borderRadius: '3px',
+            marginTop: '5px',
+            fontSize: '10px',
+          }}
+        >
           Key sequence: "{keySequence}"
         </div>
       )}
@@ -213,4 +255,4 @@ const DebugPanel = () => {
   );
 };
 
-export default DebugPanel; 
+export default DebugPanel;

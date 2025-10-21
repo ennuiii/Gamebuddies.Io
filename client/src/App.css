@@ -44,7 +44,7 @@ body {
   left: 0;
   width: 100%;
   height: 100%;
-  background-image: 
+  background-image:
     radial-gradient(circle at 20% 50%, rgba(233, 69, 96, 0.1) 0%, transparent 50%),
     radial-gradient(circle at 80% 80%, rgba(0, 217, 255, 0.1) 0%, transparent 50%),
     radial-gradient(circle at 40% 20%, rgba(255, 107, 107, 0.1) 0%, transparent 50%);
@@ -53,8 +53,13 @@ body {
 }
 
 @keyframes backgroundPulse {
-  0%, 100% { opacity: 0.3; }
-  50% { opacity: 0.6; }
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.6;
+  }
 }
 
 /* Global animations */
@@ -70,20 +75,25 @@ body {
 }
 
 @keyframes neonPulse {
-  0%, 100% {
-    box-shadow: 0 0 10px var(--secondary-color),
-                0 0 20px var(--secondary-color),
-                0 0 30px var(--secondary-color);
+  0%,
+  100% {
+    box-shadow:
+      0 0 10px var(--secondary-color),
+      0 0 20px var(--secondary-color),
+      0 0 30px var(--secondary-color);
   }
   50% {
-    box-shadow: 0 0 20px var(--secondary-color),
-                0 0 30px var(--secondary-color),
-                0 0 40px var(--secondary-color);
+    box-shadow:
+      0 0 20px var(--secondary-color),
+      0 0 30px var(--secondary-color),
+      0 0 40px var(--secondary-color);
   }
 }
 
 /* Global input improvements for mobile */
-input, textarea, select {
+input,
+textarea,
+select {
   /* Prevent zoom on focus on iOS */
   font-size: 16px;
   /* Better touch targets */
@@ -205,7 +215,8 @@ button {
 /* iOS-specific improvements */
 @supports (-webkit-touch-callout: none) {
   /* iOS Safari */
-  input, textarea {
+  input,
+  textarea {
     font-size: 16px !important; /* Prevent zoom on focus */
   }
 
@@ -213,4 +224,4 @@ button {
   .App {
     min-height: -webkit-fill-available;
   }
-} 
+}

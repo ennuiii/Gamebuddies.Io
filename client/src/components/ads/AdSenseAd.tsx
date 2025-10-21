@@ -182,12 +182,7 @@ export const AdPlacements = {
    * In-content ad (responsive)
    */
   InContent: (props: Omit<AdSenseAdProps, 'format' | 'style'>) => (
-    <AdSenseAd
-      {...props}
-      format="auto"
-      style={{ display: 'block' }}
-      placement="in-content"
-    />
+    <AdSenseAd {...props} format="auto" style={{ display: 'block' }} placement="in-content" />
   ),
 
   /**

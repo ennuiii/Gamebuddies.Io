@@ -209,27 +209,27 @@
     max-width: 95%;
     margin: 0 auto;
   }
-  
+
   .settings-header {
     padding: 1.5rem 1.5rem 1rem 1.5rem;
   }
-  
+
   .settings-title {
     font-size: 1.5rem;
   }
-  
+
   .settings-content {
     padding: 1.5rem;
   }
-  
+
   .settings-footer {
     padding: 1rem 1.5rem;
   }
-  
+
   .theme-option {
     padding: 0.8rem;
   }
-  
+
   .theme-name {
     font-size: 0.9rem;
   }
@@ -239,19 +239,19 @@
   .settings-overlay {
     padding: 10px;
   }
-  
+
   .settings-header {
     padding: 1rem;
   }
-  
+
   .settings-title {
     font-size: 1.3rem;
   }
-  
+
   .settings-content {
     padding: 1rem;
   }
-  
+
   .settings-footer {
     padding: 1rem;
   }
@@ -287,4 +287,4 @@
 .current-theme .theme-name {
   font-weight: 500;
   color: var(--text-primary);
-} 
+}

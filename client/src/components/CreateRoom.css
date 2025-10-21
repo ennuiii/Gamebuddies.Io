@@ -4,7 +4,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: 
+  background:
     radial-gradient(circle at 30% 70%, rgba(120, 119, 198, 0.4) 0%, transparent 70%),
     radial-gradient(circle at 70% 30%, rgba(255, 107, 107, 0.3) 0%, transparent 70%),
     rgba(0, 0, 0, 0.85);
@@ -20,7 +20,7 @@
 /* Fallback for browsers that don't support backdrop-filter */
 @supports not (backdrop-filter: blur(10px)) {
   .create-room-overlay {
-    background: 
+    background:
       radial-gradient(circle at 30% 70%, rgba(120, 119, 198, 0.6) 0%, transparent 70%),
       radial-gradient(circle at 70% 30%, rgba(255, 107, 107, 0.5) 0%, transparent 70%),
       rgba(0, 0, 0, 0.92);
@@ -28,11 +28,11 @@
 }
 
 @keyframes overlayFadeIn {
-  from { 
+  from {
     opacity: 0;
     backdrop-filter: blur(0px);
   }
-  to { 
+  to {
     opacity: 1;
     backdrop-filter: blur(10px);
   }
@@ -45,7 +45,7 @@
   padding: 3rem;
   max-width: 500px;
   width: 100%;
-  box-shadow: 
+  box-shadow:
     0 25px 60px rgba(0, 0, 0, 0.8),
     0 0 0 1px rgba(255, 255, 255, 0.1),
     inset 0 1px 0 rgba(255, 255, 255, 0.2);
@@ -86,8 +86,12 @@
 }
 
 @keyframes modalShine {
-  0% { left: -100%; }
-  100% { left: 100%; }
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
 }
 
 .create-room-title {
@@ -107,11 +111,12 @@
 }
 
 @keyframes titleGlow {
-  0%, 100% { 
+  0%,
+  100% {
     filter: brightness(1);
     transform: scale(1);
   }
-  50% { 
+  50% {
     filter: brightness(1.1);
     transform: scale(1.01);
   }
@@ -137,7 +142,7 @@
   letter-spacing: 1px;
 }
 
-.form-group input[type="text"] {
+.form-group input[type='text'] {
   padding: 1rem 1.5rem;
   background: rgba(255, 255, 255, 0.08);
   backdrop-filter: blur(10px);
@@ -154,16 +159,16 @@
 
 /* Fallback for browsers that don't support backdrop-filter */
 @supports not (backdrop-filter: blur(10px)) {
-  .form-group input[type="text"] {
+  .form-group input[type='text'] {
     background: rgba(15, 15, 35, 0.9);
     border: 2px solid rgba(255, 255, 255, 0.3);
   }
 }
 
-.form-group input[type="text"]:focus {
+.form-group input[type='text']:focus {
   outline: none;
   border-color: var(--secondary-color);
-  box-shadow: 
+  box-shadow:
     0 0 30px rgba(0, 217, 255, 0.4),
     0 0 0 1px rgba(0, 217, 255, 0.2),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
@@ -173,19 +178,19 @@
 
 /* Focus fallback for browsers that don't support backdrop-filter */
 @supports not (backdrop-filter: blur(10px)) {
-  .form-group input[type="text"]:focus {
+  .form-group input[type='text']:focus {
     background: rgba(15, 15, 35, 0.95);
     border-color: var(--secondary-color);
   }
 }
 
-.form-group input[type="text"]::placeholder {
+.form-group input[type='text']::placeholder {
   color: rgba(255, 255, 255, 0.5);
   transition: opacity 0.3s ease;
   -webkit-text-fill-color: rgba(255, 255, 255, 0.5);
 }
 
-.form-group input[type="text"]:focus::placeholder {
+.form-group input[type='text']:focus::placeholder {
   opacity: 0.7;
 }
 
@@ -200,7 +205,7 @@
   letter-spacing: normal;
 }
 
-.checkbox-group input[type="checkbox"] {
+.checkbox-group input[type='checkbox'] {
   width: 20px;
   height: 20px;
   cursor: pointer;
@@ -276,7 +281,9 @@
   background: rgba(255, 255, 255, 0.1);
   border-radius: 50%;
   transform: translate(-50%, -50%);
-  transition: width 0.4s, height 0.4s;
+  transition:
+    width 0.4s,
+    height 0.4s;
 }
 
 .cancel-button:hover::before {
@@ -294,7 +301,7 @@
 .create-button {
   background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
   color: white;
-  box-shadow: 
+  box-shadow:
     0 8px 25px rgba(233, 69, 96, 0.4),
     inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
@@ -315,7 +322,7 @@
 }
 
 .create-button:hover:not(:disabled) {
-  box-shadow: 
+  box-shadow:
     0 12px 35px rgba(233, 69, 96, 0.6),
     inset 0 1px 0 rgba(255, 255, 255, 0.3);
   transform: translateY(-4px) scale(1.02);
@@ -329,7 +336,7 @@
 
 /* Mobile-specific input improvements */
 @media (max-width: 768px) {
-  .form-group input[type="text"] {
+  .form-group input[type='text'] {
     padding: 1.2rem 1.5rem;
     font-size: 1rem;
     background: rgba(15, 15, 35, 0.95);
@@ -341,35 +348,35 @@
     -webkit-appearance: none;
     appearance: none;
   }
-  
-  .form-group input[type="text"]:focus {
+
+  .form-group input[type='text']:focus {
     background: rgba(15, 15, 35, 0.98);
     border-color: var(--secondary-color);
-    box-shadow: 
+    box-shadow:
       0 0 20px rgba(0, 217, 255, 0.5),
       0 0 0 1px rgba(0, 217, 255, 0.3);
     color: #ffffff !important;
     -webkit-text-fill-color: #ffffff !important;
   }
-  
-  .form-group input[type="text"]::placeholder {
+
+  .form-group input[type='text']::placeholder {
     color: rgba(255, 255, 255, 0.7) !important;
     -webkit-text-fill-color: rgba(255, 255, 255, 0.7) !important;
     opacity: 1;
   }
-  
+
   /* Ensure consistent styling across all mobile browsers */
-  .form-group input[type="text"]::-webkit-input-placeholder {
+  .form-group input[type='text']::-webkit-input-placeholder {
     color: rgba(255, 255, 255, 0.7) !important;
     -webkit-text-fill-color: rgba(255, 255, 255, 0.7) !important;
   }
-  
-  .form-group input[type="text"]::-moz-placeholder {
+
+  .form-group input[type='text']::-moz-placeholder {
     color: rgba(255, 255, 255, 0.7) !important;
     opacity: 1;
   }
-  
-  .form-group input[type="text"]:-ms-input-placeholder {
+
+  .form-group input[type='text']:-ms-input-placeholder {
     color: rgba(255, 255, 255, 0.7) !important;
   }
 }
@@ -379,13 +386,13 @@
     padding: 1.5rem;
     margin: 1rem;
   }
-  
+
   .create-room-title {
     font-size: 1.8rem;
     margin-bottom: 2rem;
   }
-  
-  .form-group input[type="text"] {
+
+  .form-group input[type='text'] {
     padding: 1rem 1.2rem;
     font-size: 1rem;
     background: rgba(15, 15, 35, 0.98);
@@ -398,19 +405,19 @@
     appearance: none;
     outline: none;
   }
-  
-  .form-group input[type="text"]:focus {
+
+  .form-group input[type='text']:focus {
     background: rgba(15, 15, 35, 1);
     border-color: var(--secondary-color);
-    box-shadow: 
+    box-shadow:
       0 0 25px rgba(0, 217, 255, 0.6),
       0 0 0 2px rgba(0, 217, 255, 0.4);
   }
-  
+
   .cancel-button,
   .create-button {
     padding: 1rem 1.5rem;
     font-size: 1rem;
     min-height: 50px;
   }
-} 
+}

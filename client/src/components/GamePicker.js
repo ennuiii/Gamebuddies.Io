@@ -20,7 +20,10 @@ const GamePicker = ({ onGameSelect, isHost, disabled }) => {
 
         if (data.success && data.games) {
           console.log('[GamePicker] ✅ Successfully loaded', data.games.length, 'games');
-          console.log('[GamePicker] 🎯 Game IDs:', data.games.map(g => g.id));
+          console.log(
+            '[GamePicker] 🎯 Game IDs:',
+            data.games.map(g => g.id)
+          );
           setGames(data.games);
         } else {
           console.error('[GamePicker] ❌ Invalid response format:', data);
@@ -38,36 +41,37 @@ const GamePicker = ({ onGameSelect, isHost, disabled }) => {
             name: 'Der dümmste fliegt',
             icon: '🎮',
             description: 'Quiz game where the worst player gets eliminated',
-            maxPlayers: 8
+            maxPlayers: 8,
           },
           {
             id: 'schooled',
             name: 'School Quiz',
             icon: '🎓',
             description: 'Educational quiz game for students',
-            maxPlayers: 10
+            maxPlayers: 10,
           },
           {
             id: 'susd',
-            name: 'SUS\'D',
+            name: "SUS'D",
             icon: '🔍',
-            description: 'Imposter game - find who\'s acting suspicious!',
-            maxPlayers: 10
+            description: "Imposter game - find who's acting suspicious!",
+            maxPlayers: 10,
           },
           {
             id: 'bingo',
             name: 'Bingo Buddies',
             icon: '🎱',
             description: 'Fast-paced multiplayer bingo with custom cards and power-ups.',
-            maxPlayers: 12
+            maxPlayers: 12,
           },
           {
             id: 'cluescale',
             name: 'ClueScale',
             icon: '🔎',
-            description: 'A mystery-solving game where players follow clues to scale the challenge!',
-            maxPlayers: 10
-          }
+            description:
+              'A mystery-solving game where players follow clues to scale the challenge!',
+            maxPlayers: 10,
+          },
         ]);
       } finally {
         setLoading(false);
@@ -108,51 +112,59 @@ const GamePicker = ({ onGameSelect, isHost, disabled }) => {
   }
 
   // Debug log when rendering
-  console.log('[GamePicker] 🎨 Rendering with', games.length, 'games:', games.map(g => ({id: g.id, name: g.name})));
+  console.log(
+    '[GamePicker] 🎨 Rendering with',
+    games.length,
+    'games:',
+    games.map(g => ({ id: g.id, name: g.name }))
+  );
 
   return (
     <div className="game-picker">
       {error && (
-        <div className="error-message" style={{
-          color: '#ff6b6b',
-          marginBottom: '1rem',
-          padding: '0.5rem',
-          background: 'rgba(255, 107, 107, 0.1)',
-          borderRadius: '4px'
-        }}>
+        <div
+          className="error-message"
+          style={{
+            color: '#ff6b6b',
+            marginBottom: '1rem',
+            padding: '0.5rem',
+            background: 'rgba(255, 107, 107, 0.1)',
+            borderRadius: '4px',
+          }}
+        >
           {error}
         </div>
       )}
       <h3 className="picker-title">Select a Game</h3>
       <div className="games-grid">
-        {games.map((game) => {
+        {games.map(game => {
           console.log('[GamePicker] 🎮 Rendering game:', game.id, game.name);
           return (
-          <motion.button
-            key={game.id}
-            className="game-option"
-            onClick={() => onGameSelect(game.id)}
-            disabled={disabled}
-            whileHover={{ scale: disabled ? 1 : 1.05 }}
-            whileTap={{ scale: disabled ? 1 : 0.95 }}
-          >
-            <div className="game-icon">
-              {game.thumbnailUrl ? (
-                <img
-                  src={game.thumbnailUrl}
-                  alt={game.name}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                />
-              ) : (
-                game.icon || '🎮'
-              )}
-            </div>
-            <h4 className="game-name">{game.name}</h4>
-            <p className="game-description">{game.description}</p>
-            <div className="game-meta">
-              <span className="max-players">Max {game.maxPlayers} players</span>
-            </div>
-          </motion.button>
+            <motion.button
+              key={game.id}
+              className="game-option"
+              onClick={() => onGameSelect(game.id)}
+              disabled={disabled}
+              whileHover={{ scale: disabled ? 1 : 1.05 }}
+              whileTap={{ scale: disabled ? 1 : 0.95 }}
+            >
+              <div className="game-icon">
+                {game.thumbnailUrl ? (
+                  <img
+                    src={game.thumbnailUrl}
+                    alt={game.name}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                ) : (
+                  game.icon || '🎮'
+                )}
+              </div>
+              <h4 className="game-name">{game.name}</h4>
+              <p className="game-description">{game.description}</p>
+              <div className="game-meta">
+                <span className="max-players">Max {game.maxPlayers} players</span>
+              </div>
+            </motion.button>
           );
         })}
       </div>
@@ -160,4 +172,4 @@ const GamePicker = ({ onGameSelect, isHost, disabled }) => {
   );
 };
 
-export default GamePicker; 
+export default GamePicker;

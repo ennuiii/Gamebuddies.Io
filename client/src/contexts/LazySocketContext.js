@@ -26,12 +26,10 @@ export const LazySocketProvider = ({ children }) => {
     // In hosted environments or non-localhost, use current origin
     if (
       typeof window !== 'undefined' &&
-      (
-        window.location.hostname === 'gamebuddies.io' ||
+      (window.location.hostname === 'gamebuddies.io' ||
         window.location.hostname.includes('gamebuddies-client') ||
         window.location.hostname.includes('onrender.com') ||
-        (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1')
-      )
+        (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1'))
     ) {
       return window.location.origin;
     }
@@ -47,15 +45,19 @@ export const LazySocketProvider = ({ children }) => {
 
   const attemptReconnection = useCallback(() => {
     if (reconnectionAttemptsRef.current >= maxReconnectionAttempts) {
-      console.log('❌ [LazySocketProvider] Max reconnection attempts reached. Stopping reconnection.');
+      console.log(
+        '❌ [LazySocketProvider] Max reconnection attempts reached. Stopping reconnection.'
+      );
       setIsConnecting(false);
       return;
     }
-    
+
     reconnectionAttemptsRef.current++;
     const delay = Math.pow(2, reconnectionAttemptsRef.current) * 1000; // Exponential backoff
-    console.log(`🔄 [LazySocketProvider] Reconnection attempt ${reconnectionAttemptsRef.current}/${maxReconnectionAttempts} in ${delay}ms`);
-    
+    console.log(
+      `🔄 [LazySocketProvider] Reconnection attempt ${reconnectionAttemptsRef.current}/${maxReconnectionAttempts} in ${delay}ms`
+    );
+
     reconnectionTimeoutRef.current = setTimeout(() => {
       if (socketRef.current && !socketRef.current.connected && !isConnected) {
         console.log('🔌 [LazySocketProvider] Attempting reconnection...');
@@ -76,7 +78,7 @@ export const LazySocketProvider = ({ children }) => {
 
     const transportsPref = (process.env.REACT_APP_SOCKET_TRANSPORTS || '')
       .split(',')
-      .map((s) => s.trim())
+      .map(s => s.trim())
       .filter(Boolean);
 
     const newSocket = io(serverUrl, {
@@ -84,7 +86,7 @@ export const LazySocketProvider = ({ children }) => {
       timeout: 20000, // 20 seconds
       reconnection: false, // Disable automatic reconnection
       forceNew: false, // Don't force new connections
-      autoConnect: false // Don't auto-connect
+      autoConnect: false, // Don't auto-connect
     });
 
     newSocket.on('connect', () => {
@@ -94,7 +96,7 @@ export const LazySocketProvider = ({ children }) => {
       setIsConnected(true);
       setIsConnecting(false);
       reconnectionAttemptsRef.current = 0; // Reset reconnection attempts on successful connection
-      
+
       // Clear any pending reconnection timeout
       if (reconnectionTimeoutRef.current) {
         clearTimeout(reconnectionTimeoutRef.current);
@@ -102,14 +104,16 @@ export const LazySocketProvider = ({ children }) => {
       }
     });
 
-    newSocket.on('disconnect', (reason) => {
+    newSocket.on('disconnect', reason => {
       console.log('❌ [LazySocketProvider] Disconnected from server. Reason:', reason);
       setIsConnected(false);
       setIsConnecting(false);
-      
+
       // Only attempt reconnection for certain disconnect reasons
       if (reason === 'io server disconnect') {
-        console.log('🔄 [LazySocketProvider] Server initiated disconnect, attempting reconnection...');
+        console.log(
+          '🔄 [LazySocketProvider] Server initiated disconnect, attempting reconnection...'
+        );
         attemptReconnection();
       } else if (reason === 'transport close' || reason === 'transport error') {
         console.log('🔄 [LazySocketProvider] Transport issue, attempting reconnection...');
@@ -117,17 +121,17 @@ export const LazySocketProvider = ({ children }) => {
       }
     });
 
-    newSocket.on('connect_error', (error) => {
+    newSocket.on('connect_error', error => {
       console.error('❌ [LazySocketProvider] Connection error:', error);
       setIsConnected(false);
       setIsConnecting(false);
-      
+
       // Attempt reconnection with backoff
       attemptReconnection();
     });
 
     socketRef.current = newSocket;
-    
+
     // Connect the socket
     newSocket.connect();
 
@@ -137,13 +141,13 @@ export const LazySocketProvider = ({ children }) => {
   const disconnectSocket = useCallback(() => {
     if (socketRef.current) {
       console.log('🧹 [LazySocketProvider] Disconnecting socket');
-      
+
       // Clear any pending reconnection timeout
       if (reconnectionTimeoutRef.current) {
         clearTimeout(reconnectionTimeoutRef.current);
         reconnectionTimeoutRef.current = null;
       }
-      
+
       socketRef.current.disconnect();
       socketRef.current = null;
       setSocket(null);

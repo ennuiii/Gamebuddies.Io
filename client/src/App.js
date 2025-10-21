@@ -18,7 +18,7 @@ function AppContent() {
   console.log('🏠 [APP DEBUG] App component rendering:', {
     timestamp: new Date().toISOString(),
     location: window.location.href,
-    isInLobby
+    isInLobby,
   });
 
   const handleNavigateHome = useCallback(() => {
@@ -56,7 +56,7 @@ function AppContent() {
 
   return (
     <div className="App">
-      <Header 
+      <Header
         onNavigateHome={handleNavigateHome}
         onNavigateGames={handleNavigateGames}
         isInLobby={isInLobby}
@@ -64,32 +64,17 @@ function AppContent() {
       <Notification /> {/* Display Notification component here */}
       <DebugPanel />
       <Routes>
-        <Route 
-          path="/" 
-          element={
-            <HomePage 
-              setIsInLobby={setIsInLobby}
-              setLobbyLeaveFn={setLobbyLeaveFn}
-            />
-          } 
+        <Route
+          path="/"
+          element={<HomePage setIsInLobby={setIsInLobby} setLobbyLeaveFn={setLobbyLeaveFn} />}
         />
-        <Route 
-          path="/lobby/:roomCode" 
-          element={
-            <HomePage 
-              setIsInLobby={setIsInLobby}
-              setLobbyLeaveFn={setLobbyLeaveFn}
-            />
-          } 
+        <Route
+          path="/lobby/:roomCode"
+          element={<HomePage setIsInLobby={setIsInLobby} setLobbyLeaveFn={setLobbyLeaveFn} />}
         />
-        <Route 
-          path="/*" 
-          element={
-            <HomePage 
-              setIsInLobby={setIsInLobby}
-              setLobbyLeaveFn={setLobbyLeaveFn}
-            />
-          } 
+        <Route
+          path="/*"
+          element={<HomePage setIsInLobby={setIsInLobby} setLobbyLeaveFn={setLobbyLeaveFn} />}
         />
       </Routes>
     </div>
@@ -100,7 +85,9 @@ function App() {
   return (
     <ThemeProvider>
       <LazySocketProvider>
-        <NotificationProvider> {/* Wrap with NotificationProvider */}
+        <NotificationProvider>
+          {' '}
+          {/* Wrap with NotificationProvider */}
           <Router>
             <AppContent />
           </Router>
@@ -110,4 +97,4 @@ function App() {
   );
 }
 
-export default App; 
+export default App;

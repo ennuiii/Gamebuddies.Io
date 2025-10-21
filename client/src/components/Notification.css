@@ -74,5 +74,5 @@
 
 /* Ensure close button has good contrast on warning */
 .notification-warning .notification-close-btn {
-    color: #212121;
+  color: #212121;
 }

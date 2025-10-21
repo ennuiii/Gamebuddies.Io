@@ -208,16 +208,16 @@
   .game-selection-modal {
     padding: 1.5rem;
   }
-  
+
   .room-code {
     font-size: 2.5rem;
   }
-  
+
   .games-grid {
     grid-template-columns: 1fr;
   }
-  
+
   .game-option {
     padding: 1.5rem 1rem;
   }
-} 
+}

@@ -15,11 +15,7 @@ const GameCard = ({ game }) => {
   // The entire card is now a link to the game path (e.g., "/ddf" or "/schooled")
   return (
     <a href={game.path} className="game-card-link">
-      <motion.div
-        className="game-card"
-        whileHover={{ y: -10 }}
-        transition={{ duration: 0.3 }}
-      >
+      <motion.div className="game-card" whileHover={{ y: -10 }} transition={{ duration: 0.3 }}>
         <div className="game-card-image-container">
           {hasImage && !imageError ? (
             <img
@@ -35,9 +31,7 @@ const GameCard = ({ game }) => {
             </div>
           )}
           <div className="game-card-overlay">
-            <div className="play-button">
-              PLAY NOW
-            </div>
+            <div className="play-button">PLAY NOW</div>
           </div>
         </div>
 
@@ -50,9 +44,7 @@ const GameCard = ({ game }) => {
               {game.available ? 'Available' : 'Coming Soon'}
             </span>
             {/* The button is now just for show, as the whole card is a link */}
-            <div className="play-button-small">
-              Play
-            </div>
+            <div className="play-button-small">Play</div>
           </div>
         </div>
       </motion.div>

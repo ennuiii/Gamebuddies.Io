@@ -18,7 +18,7 @@ export const useRealtimeSubscription = ({
   onUpdate,
   onDelete,
   dependencies = [],
-  enabled = true
+  enabled = true,
 }) => {
   const subscriptionRef = useRef(null);
   const channelRef = useRef(null);
@@ -59,38 +59,36 @@ export const useRealtimeSubscription = ({
         const timestamp = Date.now();
         const randomId = Math.random().toString(36).substring(7);
         const channelName = `${table}_changes_${timestamp}_${randomId}`;
-        
-        // Create subscription
-        const channel = supabase
-          .channel(channelName)
-          .on(
-            'postgres_changes',
-            {
-              event: '*',
-              schema: 'public',
-              table: table,
-              ...filters
-            },
-            (payload) => {
-              console.log(`🔔 [REALTIME] ${table} change:`, payload);
-              
-              switch (payload.eventType) {
-                case 'INSERT':
-                  if (onInsert) onInsert(payload.new, payload);
-                  break;
-                case 'UPDATE':
-                  if (onUpdate) onUpdate(payload.new, payload.old, payload);
-                  break;
-                case 'DELETE':
-                  if (onDelete) onDelete(payload.old, payload);
-                  break;
-                default:
-                  console.log(`🔔 [REALTIME] Unknown event type: ${payload.eventType}`);
-              }
-            }
-          );
 
-        const subscription = await channel.subscribe((status) => {
+        // Create subscription
+        const channel = supabase.channel(channelName).on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: table,
+            ...filters,
+          },
+          payload => {
+            console.log(`🔔 [REALTIME] ${table} change:`, payload);
+
+            switch (payload.eventType) {
+              case 'INSERT':
+                if (onInsert) onInsert(payload.new, payload);
+                break;
+              case 'UPDATE':
+                if (onUpdate) onUpdate(payload.new, payload.old, payload);
+                break;
+              case 'DELETE':
+                if (onDelete) onDelete(payload.old, payload);
+                break;
+              default:
+                console.log(`🔔 [REALTIME] Unknown event type: ${payload.eventType}`);
+            }
+          }
+        );
+
+        const subscription = await channel.subscribe(status => {
           console.log(`🔔 [REALTIME] Subscription status for ${table}:`, status);
           if (status === 'SUBSCRIBED') {
             console.log(`✅ [REALTIME] Successfully subscribed to ${table}`);
@@ -112,7 +110,7 @@ export const useRealtimeSubscription = ({
     return () => {
       console.log(`🧹 [REALTIME] Cleaning up subscription for ${table}`);
       if (channelRef.current) {
-        getSupabaseClient().then(async (supabase) => {
+        getSupabaseClient().then(async supabase => {
           if (supabase && channelRef.current) {
             try {
               await supabase.removeChannel(channelRef.current);
@@ -131,4 +129,4 @@ export const useRealtimeSubscription = ({
   return subscriptionRef.current;
 };
 
-export default useRealtimeSubscription; 
+export default useRealtimeSubscription;

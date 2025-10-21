@@ -198,7 +198,9 @@
 /* ===== TOUCH IMPROVEMENTS ===== */
 @media (max-width: 768px) {
   /* Larger tap targets */
-  a, button, .clickable {
+  a,
+  button,
+  .clickable {
     min-height: 44px;
     min-width: 44px;
   }
@@ -218,17 +220,22 @@
   }
 
   /* Remove tap highlight on links/buttons */
-  a, button {
+  a,
+  button {
     -webkit-tap-highlight-color: transparent;
   }
 
   /* Improve text selection on mobile */
-  p, span, div {
+  p,
+  span,
+  div {
     -webkit-user-select: text;
     user-select: text;
   }
 
-  button, input[type="button"], input[type="submit"] {
+  button,
+  input[type='button'],
+  input[type='submit'] {
     -webkit-user-select: none;
     user-select: none;
   }
@@ -282,7 +289,9 @@
   }
 
   /* Simplify shadows on mobile for better performance */
-  .card, .game-card, .modal-content {
+  .card,
+  .game-card,
+  .modal-content {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   }
 
@@ -296,7 +305,8 @@
 @media (max-width: 768px) {
   /* Increase contrast for mobile */
   @media (prefers-contrast: more) {
-    button, .clickable {
+    button,
+    .clickable {
       border: 2px solid currentColor;
     }
   }

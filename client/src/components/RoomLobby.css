@@ -1,6 +1,6 @@
 .room-lobby {
   min-height: calc(100vh - 80px); /* Subtract header height */
-  background: 
+  background:
     radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
     radial-gradient(circle at 80% 20%, rgba(255, 107, 107, 0.3) 0%, transparent 50%),
     radial-gradient(circle at 40% 40%, rgba(0, 217, 255, 0.2) 0%, transparent 50%),
@@ -18,7 +18,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: 
+  background:
     radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.1) 0%, transparent 40%),
     radial-gradient(circle at 80% 20%, rgba(255, 107, 107, 0.1) 0%, transparent 40%);
   pointer-events: none;
@@ -27,8 +27,13 @@
 }
 
 @keyframes backgroundPulse {
-  0%, 100% { opacity: 0.3; }
-  50% { opacity: 0.6; }
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.6;
+  }
 }
 
 .lobby-header {
@@ -41,7 +46,7 @@
   backdrop-filter: blur(20px);
   border-radius: 20px;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 
+  box-shadow:
     0 8px 32px rgba(0, 0, 0, 0.3),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
   position: relative;
@@ -99,7 +104,7 @@
   background: rgba(233, 69, 96, 0.2);
   border-color: var(--primary-color);
   color: white;
-  box-shadow: 
+  box-shadow:
     0 8px 25px rgba(233, 69, 96, 0.4),
     0 0 0 1px rgba(233, 69, 96, 0.1);
   transform: translateY(-2px);
@@ -127,7 +132,8 @@
 }
 
 @keyframes codeGlow {
-  0%, 100% {
+  0%,
+  100% {
     filter: brightness(1);
     transform: scale(1);
   }
@@ -230,7 +236,7 @@
   border-color: var(--secondary-color);
   color: white;
   transform: translateY(-3px);
-  box-shadow: 
+  box-shadow:
     0 10px 25px rgba(0, 217, 255, 0.4),
     0 0 0 1px rgba(0, 217, 255, 0.1);
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
@@ -308,7 +314,9 @@
   background: rgba(255, 255, 255, 0.2);
   border-radius: 50%;
   transform: translate(-50%, -50%);
-  transition: width 0.3s, height 0.3s;
+  transition:
+    width 0.3s,
+    height 0.3s;
 }
 
 .return-to-lobby-btn:hover::before {
@@ -368,7 +376,7 @@
 
 .player-card:hover {
   transform: translateY(-5px);
-  box-shadow: 
+  box-shadow:
     0 15px 40px rgba(0, 0, 0, 0.3),
     0 0 0 1px rgba(255, 255, 255, 0.1),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
@@ -377,7 +385,7 @@
 
 .player-card.host {
   border: 1px solid rgba(0, 217, 255, 0.3);
-  box-shadow: 
+  box-shadow:
     0 10px 30px rgba(0, 217, 255, 0.2),
     inset 0 1px 0 rgba(0, 217, 255, 0.1);
   background: rgba(0, 217, 255, 0.05);
@@ -397,8 +405,13 @@
 }
 
 @keyframes hostGlow {
-  0%, 100% { opacity: 0.3; }
-  50% { opacity: 0.6; }
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 0.6;
+  }
 }
 
 .player-avatar {
@@ -412,7 +425,7 @@
   font-size: 1.8rem;
   font-weight: 700;
   color: white;
-  box-shadow: 
+  box-shadow:
     0 8px 25px rgba(0, 0, 0, 0.3),
     inset 0 1px 0 rgba(255, 255, 255, 0.2);
   position: relative;
@@ -431,8 +444,12 @@
 }
 
 @keyframes avatarShine {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
 }
 
 .player-info {
@@ -469,8 +486,13 @@
 }
 
 @keyframes hostBadgePulse {
-  0%, 100% { box-shadow: 0 4px 15px rgba(0, 217, 255, 0.3); }
-  50% { box-shadow: 0 6px 20px rgba(0, 217, 255, 0.5); }
+  0%,
+  100% {
+    box-shadow: 0 4px 15px rgba(0, 217, 255, 0.3);
+  }
+  50% {
+    box-shadow: 0 6px 20px rgba(0, 217, 255, 0.5);
+  }
 }
 
 .status-badge {
@@ -502,8 +524,12 @@
 }
 
 @keyframes statusShine {
-  0% { left: -100%; }
-  100% { left: 100%; }
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
 }
 
 /* Player card status variations */
@@ -533,11 +559,12 @@
 }
 
 @keyframes disconnectPulse {
-  0%, 100% { 
+  0%,
+  100% {
     box-shadow: 0 0 20px rgba(255, 107, 53, 0.3);
     border-color: rgba(255, 107, 53, 0.5);
   }
-  50% { 
+  50% {
     box-shadow: 0 0 30px rgba(255, 107, 53, 0.5);
     border-color: rgba(255, 107, 53, 0.8);
   }
@@ -560,11 +587,12 @@
 }
 
 @keyframes countdownPulse {
-  0%, 100% { 
+  0%,
+  100% {
     transform: scale(1);
     box-shadow: 0 4px 15px rgba(255, 107, 53, 0.4);
   }
-  50% { 
+  50% {
     transform: scale(1.05);
     box-shadow: 0 6px 20px rgba(255, 107, 53, 0.6);
   }
@@ -584,7 +612,7 @@
   align-items: center;
   gap: 3rem;
   border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 
+  box-shadow:
     0 15px 40px rgba(0, 0, 0, 0.3),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
   position: relative;
@@ -611,8 +639,12 @@
 }
 
 @keyframes gameCardShine {
-  0% { left: -100%; }
-  100% { left: 100%; }
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
 }
 
 .game-icon {
@@ -623,8 +655,13 @@
 }
 
 @keyframes gameIconFloat {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-10px); }
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
 }
 
 .game-details {
@@ -689,7 +726,9 @@
   background: rgba(0, 217, 255, 0.2);
   border-radius: 50%;
   transform: translate(-50%, -50%);
-  transition: width 0.4s, height 0.4s;
+  transition:
+    width 0.4s,
+    height 0.4s;
 }
 
 .change-game-btn:hover::before,
@@ -703,7 +742,7 @@
   background: rgba(0, 217, 255, 0.2);
   border-color: var(--secondary-color);
   color: white;
-  box-shadow: 
+  box-shadow:
     0 15px 40px rgba(0, 217, 255, 0.4),
     0 0 0 1px rgba(0, 217, 255, 0.2);
   transform: translateY(-3px);
@@ -727,13 +766,22 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(45deg, transparent 48%, rgba(255, 255, 255, 0.05) 50%, transparent 52%);
+  background: linear-gradient(
+    45deg,
+    transparent 48%,
+    rgba(255, 255, 255, 0.05) 50%,
+    transparent 52%
+  );
   animation: dashedBorder 3s linear infinite;
 }
 
 @keyframes dashedBorder {
-  0% { transform: translateX(-100%); }
-  100% { transform: translateX(100%); }
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
 }
 
 .no-game-selected p {
@@ -756,7 +804,7 @@
   color: white;
   cursor: pointer;
   transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  box-shadow: 
+  box-shadow:
     0 10px 30px rgba(233, 69, 96, 0.4),
     inset 0 1px 0 rgba(255, 255, 255, 0.2);
   text-transform: uppercase;
@@ -781,7 +829,7 @@
 }
 
 .start-game-button:hover {
-  box-shadow: 
+  box-shadow:
     0 15px 40px rgba(233, 69, 96, 0.6),
     inset 0 1px 0 rgba(255, 255, 255, 0.3);
   transform: translateY(-5px) scale(1.02);
@@ -841,13 +889,17 @@
 }
 
 @keyframes statusBadgeShine {
-  0% { left: -100%; }
-  100% { left: 100%; }
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
 }
 
 .status-badge.status-waiting_for_players {
   background: linear-gradient(135deg, rgba(76, 175, 80, 0.2), rgba(76, 175, 80, 0.3));
-  color: #4CAF50;
+  color: #4caf50;
   border-color: rgba(76, 175, 80, 0.4);
   box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
 }
@@ -862,32 +914,33 @@
 
 .status-badge.status-paused {
   background: linear-gradient(135deg, rgba(255, 193, 7, 0.2), rgba(255, 193, 7, 0.3));
-  color: #FFC107;
+  color: #ffc107;
   border-color: rgba(255, 193, 7, 0.4);
   box-shadow: 0 4px 15px rgba(255, 193, 7, 0.3);
 }
 
 .status-badge.status-finished {
   background: linear-gradient(135deg, rgba(244, 67, 54, 0.2), rgba(244, 67, 54, 0.3));
-  color: #F44336;
+  color: #f44336;
   border-color: rgba(244, 67, 54, 0.4);
   box-shadow: 0 4px 15px rgba(244, 67, 54, 0.3);
 }
 
 .status-badge.status-launching {
   background: linear-gradient(135deg, rgba(156, 39, 176, 0.2), rgba(156, 39, 176, 0.3));
-  color: #9C27B0;
+  color: #9c27b0;
   border-color: rgba(156, 39, 176, 0.4);
   box-shadow: 0 4px 15px rgba(156, 39, 176, 0.3);
   animation: launchingPulse 1.5s ease-in-out infinite;
 }
 
 @keyframes launchingPulse {
-  0%, 100% { 
+  0%,
+  100% {
     box-shadow: 0 4px 15px rgba(156, 39, 176, 0.3);
     transform: scale(1);
   }
-  50% { 
+  50% {
     box-shadow: 0 6px 20px rgba(156, 39, 176, 0.5);
     transform: scale(1.02);
   }
@@ -908,7 +961,7 @@
   align-items: center;
   gap: 1.5rem;
   margin-bottom: 1.5rem;
-  box-shadow: 
+  box-shadow:
     0 10px 30px rgba(0, 0, 0, 0.2),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
   position: relative;
@@ -927,8 +980,12 @@
 }
 
 @keyframes infoCardShine {
-  0% { left: -100%; }
-  100% { left: 100%; }
+  0% {
+    left: -100%;
+  }
+  100% {
+    left: 100%;
+  }
 }
 
 .status-info-icon {
@@ -942,15 +999,20 @@
   background: rgba(255, 255, 255, 0.1);
   backdrop-filter: blur(10px);
   flex-shrink: 0;
-  box-shadow: 
+  box-shadow:
     0 8px 25px rgba(0, 0, 0, 0.2),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
   animation: iconFloat 3s ease-in-out infinite;
 }
 
 @keyframes iconFloat {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-5px); }
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
 }
 
 .status-info-content {
@@ -997,7 +1059,7 @@
 }
 
 .make-host-btn {
-  background: linear-gradient(135deg, #4CAF50, #45a049);
+  background: linear-gradient(135deg, #4caf50, #45a049);
   color: white;
   box-shadow: 0 3px 10px rgba(76, 175, 80, 0.3);
 }
@@ -1060,7 +1122,9 @@
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* Responsive Design */
@@ -1068,7 +1132,7 @@
   .lobby-content {
     max-width: 1000px;
   }
-  
+
   .players-grid {
     grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
   }
@@ -1078,24 +1142,24 @@
   .room-lobby {
     padding: 1rem;
   }
-  
+
   .lobby-header {
     flex-direction: column;
     gap: 1.5rem;
     padding: 1.5rem;
   }
-  
+
   .room-code-display {
     font-size: 2.5rem;
     letter-spacing: 0.2em;
   }
-  
+
   .room-actions {
     flex-direction: row;
     gap: 0.8rem;
     justify-content: center;
   }
-  
+
   .copy-btn,
   .copy-link-btn {
     padding: 0.8rem 1.2rem;
@@ -1109,7 +1173,7 @@
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9);
     box-shadow: 0 6px 20px rgba(0, 217, 255, 0.3);
   }
-  
+
   .copy-btn:hover,
   .copy-link-btn:hover {
     background: rgba(0, 217, 255, 0.4);
@@ -1119,62 +1183,62 @@
     box-shadow: 0 8px 25px rgba(0, 217, 255, 0.5);
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9);
   }
-  
+
   .leave-button {
     padding: 0.8rem 1.5rem;
     font-size: 0.9rem;
     min-height: 44px;
   }
-  
+
   .players-grid {
     grid-template-columns: 1fr;
     gap: 1rem;
   }
-  
+
   .player-card {
     padding: 1.5rem;
   }
-  
+
   .selected-game-card {
     flex-direction: column;
     text-align: center;
     padding: 2rem;
     gap: 2rem;
   }
-  
+
   .game-icon {
     font-size: 4rem;
   }
-  
+
   .section-title {
     font-size: 1.5rem;
   }
-  
+
   .status-info-card {
     flex-direction: column;
     text-align: center;
     padding: 1.5rem;
   }
-  
+
   .status-info-icon {
     width: 60px;
     height: 60px;
     font-size: 2.5rem;
   }
-  
+
   .start-game-button {
     padding: 1.2rem 3rem;
     font-size: 1.1rem;
     min-height: 54px;
   }
-  
+
   .change-game-btn,
   .select-game-btn {
     padding: 0.8rem 1.5rem;
     font-size: 0.9rem;
     min-height: 44px;
   }
-  
+
   .return-to-lobby-btn {
     padding: 0.7rem 1.2rem;
     font-size: 0.8rem;
@@ -1186,29 +1250,29 @@
   .room-lobby {
     padding: 0.5rem;
   }
-  
+
   .lobby-header {
     padding: 1rem;
     margin-bottom: 2rem;
   }
-  
+
   .room-code-display {
     font-size: 2rem;
     letter-spacing: 0.15em;
   }
-  
+
   .room-actions {
     flex-direction: column;
     gap: 0.6rem;
   }
-  
+
   .copy-btn,
   .copy-link-btn {
     width: 100%;
     max-width: 250px;
     margin: 0 auto;
   }
-  
+
   .leave-button {
     padding: 0.8rem 1.5rem;
     font-size: 0.9rem;
@@ -1216,29 +1280,29 @@
     max-width: 200px;
     margin: 0 auto;
   }
-  
+
   .start-game-button {
     padding: 1.2rem 3rem;
     font-size: 1.1rem;
     width: 100%;
     max-width: 300px;
   }
-  
+
   .player-card {
     padding: 1rem;
   }
-  
+
   .player-avatar {
     width: 50px;
     height: 50px;
     font-size: 1.5rem;
   }
-  
+
   .player-actions {
     flex-direction: column;
     gap: 0.5rem;
   }
-  
+
   .make-host-btn,
   .kick-player-btn {
     padding: 0.6rem 1rem;
@@ -1246,20 +1310,20 @@
     min-height: 36px;
     width: 100%;
   }
-  
+
   .selected-game-card {
     padding: 1.5rem;
     gap: 1.5rem;
   }
-  
+
   .game-details h4 {
     font-size: 1.5rem;
   }
-  
+
   .game-details p {
     font-size: 1rem;
   }
-  
+
   .change-game-btn {
     width: 100%;
     max-width: 250px;
@@ -1272,32 +1336,32 @@
   .room-lobby {
     padding: 0.5rem;
   }
-  
+
   .lobby-header {
     padding: 1rem;
     margin-bottom: 1rem;
   }
-  
+
   .room-code-display {
     font-size: 1.8rem;
   }
-  
+
   .players-grid {
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 0.8rem;
   }
-  
+
   .player-card {
     padding: 1rem;
   }
-  
+
   .selected-game-card {
     padding: 1rem;
     gap: 1rem;
   }
-  
+
   .start-game-button {
     padding: 1rem 2rem;
     font-size: 1rem;
   }
-} 
+}

@@ -27,7 +27,10 @@ export const SocketProvider = ({ children }) => {
       if (process.env.REACT_APP_SERVER_URL) {
         return process.env.REACT_APP_SERVER_URL;
       }
-      if (window.location.hostname === 'gamebuddies.io' || window.location.hostname.includes('gamebuddies-client')) {
+      if (
+        window.location.hostname === 'gamebuddies.io' ||
+        window.location.hostname.includes('gamebuddies-client')
+      ) {
         return window.location.origin;
       }
       if (window.location.hostname.includes('onrender.com')) {
@@ -48,7 +51,7 @@ export const SocketProvider = ({ children }) => {
       transports: ['websocket', 'polling'],
       timeout: 20000, // 20 seconds
       reconnection: false, // Disable automatic reconnection
-      forceNew: false // Don't force new connections
+      forceNew: false, // Don't force new connections
     });
 
     newSocket.on('connect', () => {
@@ -58,7 +61,7 @@ export const SocketProvider = ({ children }) => {
       setIsConnected(true);
       setIsConnecting(false);
       reconnectionAttemptsRef.current = 0; // Reset reconnection attempts on successful connection
-      
+
       // Clear any pending reconnection timeout
       if (reconnectionTimeoutRef.current) {
         clearTimeout(reconnectionTimeoutRef.current);
@@ -68,15 +71,19 @@ export const SocketProvider = ({ children }) => {
 
     const attemptReconnection = () => {
       if (reconnectionAttemptsRef.current >= maxReconnectionAttempts) {
-        console.log('❌ [SocketProvider] Max reconnection attempts reached. Stopping reconnection.');
+        console.log(
+          '❌ [SocketProvider] Max reconnection attempts reached. Stopping reconnection.'
+        );
         setIsConnecting(false);
         return;
       }
-      
+
       reconnectionAttemptsRef.current++;
       const delay = Math.pow(2, reconnectionAttemptsRef.current) * 1000; // Exponential backoff
-      console.log(`🔄 [SocketProvider] Reconnection attempt ${reconnectionAttemptsRef.current}/${maxReconnectionAttempts} in ${delay}ms`);
-      
+      console.log(
+        `🔄 [SocketProvider] Reconnection attempt ${reconnectionAttemptsRef.current}/${maxReconnectionAttempts} in ${delay}ms`
+      );
+
       reconnectionTimeoutRef.current = setTimeout(() => {
         if (!newSocket.connected && !isConnected) {
           console.log('🔌 [SocketProvider] Attempting reconnection...');
@@ -85,11 +92,11 @@ export const SocketProvider = ({ children }) => {
       }, delay);
     };
 
-    newSocket.on('disconnect', (reason) => {
+    newSocket.on('disconnect', reason => {
       console.log('❌ [SocketProvider] Disconnected from server. Reason:', reason);
       setIsConnected(false);
       setIsConnecting(false);
-      
+
       // Only attempt reconnection for certain disconnect reasons
       if (reason === 'io server disconnect') {
         console.log('🔄 [SocketProvider] Server initiated disconnect, attempting reconnection...');
@@ -100,11 +107,11 @@ export const SocketProvider = ({ children }) => {
       }
     });
 
-    newSocket.on('connect_error', (error) => {
+    newSocket.on('connect_error', error => {
       console.error('❌ [SocketProvider] Connection error:', error);
       setIsConnected(false);
       setIsConnecting(false);
-      
+
       // Attempt reconnection with backoff
       attemptReconnection();
     });
@@ -115,13 +122,13 @@ export const SocketProvider = ({ children }) => {
     // Cleanup on component unmount
     return () => {
       console.log('🧹 [SocketProvider] Cleaning up socket connection.');
-      
+
       // Clear any pending reconnection timeout
       if (reconnectionTimeoutRef.current) {
         clearTimeout(reconnectionTimeoutRef.current);
         reconnectionTimeoutRef.current = null;
       }
-      
+
       if (newSocket) {
         newSocket.disconnect();
       }

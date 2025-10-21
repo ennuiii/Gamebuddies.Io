@@ -13,9 +13,9 @@ const themes = {
       '--text-primary': '#ffffff',
       '--text-secondary': '#a8a8a8',
       '--neon-glow': '0 0 20px rgba(0, 217, 255, 0.8)',
-      '--card-shadow': '0 10px 30px rgba(0, 0, 0, 0.5)'
-    }
-  }
+      '--card-shadow': '0 10px 30px rgba(0, 0, 0, 0.5)',
+    },
+  },
 };
 
 const ThemeContext = createContext();
@@ -36,7 +36,7 @@ export const ThemeProvider = ({ children }) => {
     const root = document.documentElement;
     const body = document.body;
     const theme = themes[currentTheme];
-    
+
     // Apply CSS variables
     Object.entries(theme.colors).forEach(([property, value]) => {
       root.style.setProperty(property, value);
@@ -47,7 +47,7 @@ export const ThemeProvider = ({ children }) => {
     body.classList.add(`theme-${currentTheme}`);
   }, [currentTheme]);
 
-  const changeTheme = (themeKey) => {
+  const changeTheme = themeKey => {
     if (themes[themeKey]) {
       setCurrentTheme(themeKey);
       localStorage.setItem('gamebuddies-theme', themeKey);
@@ -58,12 +58,8 @@ export const ThemeProvider = ({ children }) => {
     currentTheme,
     themes,
     changeTheme,
-    currentThemeData: themes[currentTheme]
+    currentThemeData: themes[currentTheme],
   };
 
-  return (
-    <ThemeContext.Provider value={value}>
-      {children}
-    </ThemeContext.Provider>
-  );
-}; 
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+};
