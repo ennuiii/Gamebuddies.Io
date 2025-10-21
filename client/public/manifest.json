@@ -1,15 +1,32 @@
 {
   "short_name": "GameBuddies",
   "name": "GameBuddies - Multiplayer Game Platform",
+  "description": "Play amazing multiplayer games with friends online",
   "icons": [
     {
       "src": "favicon.ico",
       "sizes": "64x64 32x32 24x24 16x16",
       "type": "image/x-icon"
+    },
+    {
+      "src": "logo192.png",
+      "type": "image/png",
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "logo512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
     }
   ],
-  "start_url": ".",
+  "start_url": "/",
+  "scope": "/",
   "display": "standalone",
-  "theme_color": "#000000",
-  "background_color": "#ffffff"
+  "orientation": "portrait-primary",
+  "theme_color": "#1a1a2e",
+  "background_color": "#0f0f1e",
+  "categories": ["games", "entertainment", "social"],
+  "prefer_related_applications": false
 } 

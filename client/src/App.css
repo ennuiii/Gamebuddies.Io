@@ -147,22 +147,32 @@ button {
   .container {
     padding: 0 15px;
   }
-  
+
   /* Better touch targets for mobile */
   button {
     min-height: 48px;
     padding: 0.8rem 1.5rem;
   }
-  
+
   /* Prevent horizontal scroll on mobile */
   body {
     overflow-x: hidden;
   }
-  
+
   /* Better text rendering on mobile */
   * {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Mobile-friendly App padding */
+  .App {
+    padding-top: 60px; /* Smaller header on mobile */
+  }
+
+  /* Improve mobile scrolling */
+  html {
+    scroll-behavior: smooth;
   }
 }
 
@@ -170,15 +180,37 @@ button {
   .container {
     padding: 0 12px;
   }
-  
+
   /* Smaller touch targets for very small screens */
   button {
     min-height: 44px;
     padding: 0.7rem 1.2rem;
+    font-size: 0.95rem;
   }
-  
+
   /* Prevent zoom on double tap */
   * {
     touch-action: manipulation;
+  }
+
+  /* Extra padding for iPhone notch/safe areas */
+  .App {
+    padding-top: max(60px, env(safe-area-inset-top));
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+}
+
+/* iOS-specific improvements */
+@supports (-webkit-touch-callout: none) {
+  /* iOS Safari */
+  input, textarea {
+    font-size: 16px !important; /* Prevent zoom on focus */
+  }
+
+  /* Fix iOS Safari 100vh issue */
+  .App {
+    min-height: -webkit-fill-available;
   }
 } 
