@@ -1,3 +1,41 @@
 # Ignore the DDF directory as it's a separate repository
 DDF/
 node_modules
+
+# Environment variables (CRITICAL - never commit secrets!)
+.env
+.env.local
+.env.production
+.env.development
+.env.test
+*.env
+server/.env
+client/.env
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Test coverage
+coverage/
+.nyc_output/

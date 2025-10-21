@@ -1,4 +1,6 @@
 const crypto = require('crypto');
+const constants = require('../config/constants');
+const logger = require('./logger');
 
 class LobbyManager {
   constructor(io, db, connectionManager) {
@@ -8,9 +10,67 @@ class LobbyManager {
     this.roomStates = new Map(); // In-memory room state cache
     this.playerSessions = new Map(); // Player session tracking
     this.statusQueue = new Map(); // Pending status updates queue
-    
+
     // Initialize cleanup interval
     this.setupCleanupInterval();
+  }
+
+  /**
+   * Setup periodic cleanup of in-memory caches to prevent memory leaks
+   */
+  setupCleanupInterval() {
+    setInterval(() => {
+      this.cleanupStaleCaches();
+    }, constants.CLEANUP_INTERVAL);
+
+    logger.info('LobbyManager cleanup interval initialized', {
+      interval: constants.CLEANUP_INTERVAL,
+    });
+  }
+
+  /**
+   * Clean up stale entries from in-memory caches
+   */
+  cleanupStaleCaches() {
+    const now = Date.now();
+    let cleanedRooms = 0;
+    let cleanedSessions = 0;
+    let cleanedQueue = 0;
+
+    // Clean up stale room states (older than 1 hour)
+    for (const [roomCode, state] of this.roomStates.entries()) {
+      if (now - state.lastUpdate > constants.ROOM_STATE_CACHE_TTL) {
+        this.roomStates.delete(roomCode);
+        cleanedRooms++;
+      }
+    }
+
+    // Clean up expired player sessions (older than 30 minutes)
+    for (const [sessionId, session] of this.playerSessions.entries()) {
+      if (now - (session.lastActivity || 0) > constants.PLAYER_SESSION_TTL) {
+        this.playerSessions.delete(sessionId);
+        cleanedSessions++;
+      }
+    }
+
+    // Clean up old status queue entries (older than 1 minute)
+    for (const [key, timestamp] of this.statusQueue.entries()) {
+      if (now - timestamp > constants.STATUS_QUEUE_TTL) {
+        this.statusQueue.delete(key);
+        cleanedQueue++;
+      }
+    }
+
+    if (cleanedRooms > 0 || cleanedSessions > 0 || cleanedQueue > 0) {
+      logger.info('Cleaned up stale cache entries', {
+        roomStates: cleanedRooms,
+        playerSessions: cleanedSessions,
+        statusQueue: cleanedQueue,
+        remainingRooms: this.roomStates.size,
+        remainingSessions: this.playerSessions.size,
+        remainingQueue: this.statusQueue.size,
+      });
+    }
   }
 
   // Generate unique room code
