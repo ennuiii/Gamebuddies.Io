@@ -13,6 +13,9 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:headed": "playwright test --headed",
     "setup-db": "node scripts/setup-database.js",
     "migrate": "node scripts/migrate-role-column.js",
     "clean": "rm -rf dist"
@@ -34,6 +37,7 @@
     "winston": "^3.11.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.56.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@types/bcryptjs": "^2.4.6",
     "@types/compression": "^1.8.1",
@@ -41,10 +45,13 @@
     "@types/express": "^4.17.23",
     "@types/jest": "^30.0.0",
     "@types/node": "^24.9.1",
+    "@types/socket.io-client": "^1.4.36",
     "@types/uuid": "^10.0.0",
     "@types/winston": "^2.4.4",
     "jest": "^30.2.0",
     "nodemon": "^2.0.22",
+    "playwright": "^1.56.1",
+    "socket.io-client": "^4.8.1",
     "ts-jest": "^29.4.5",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
