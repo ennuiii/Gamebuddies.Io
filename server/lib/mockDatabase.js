@@ -22,9 +22,9 @@ function generateRoomCode() {
 
 // Helper to generate UUIDs
 function generateUUID() {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
     return v.toString(16);
   });
 }
@@ -65,7 +65,7 @@ class MockDatabaseService {
           .filter(m => m.room_id === room.id)
           .map(m => ({
             ...m,
-            user: users.get(m.user_id)
+            user: users.get(m.user_id),
           }));
 
         return {
@@ -77,7 +77,7 @@ class MockDatabaseService {
             is_host: p.role === 'host',
             is_ready: p.is_ready || false,
             is_connected: p.is_connected || false,
-          }))
+          })),
         };
       }
     }
@@ -93,7 +93,7 @@ class MockDatabaseService {
       .filter(m => m.room_id === roomId)
       .map(m => ({
         ...m,
-        user: users.get(m.user_id)
+        user: users.get(m.user_id),
       }));
 
     return {
@@ -105,7 +105,7 @@ class MockDatabaseService {
         is_host: p.role === 'host',
         is_ready: p.is_ready || false,
         is_connected: p.is_connected || false,
-      }))
+      })),
     };
   }
 
@@ -116,7 +116,7 @@ class MockDatabaseService {
     const updated = {
       ...room,
       ...updates,
-      last_activity: new Date().toISOString()
+      last_activity: new Date().toISOString(),
     };
     rooms.set(roomId, updated);
     return updated;
@@ -178,7 +178,7 @@ class MockDatabaseService {
 
     return {
       ...participant,
-      user: users.get(userId)
+      user: users.get(userId),
     };
   }
 
@@ -200,13 +200,13 @@ class MockDatabaseService {
     const updated = {
       ...participant,
       ...updates,
-      last_ping: new Date().toISOString()
+      last_ping: new Date().toISOString(),
     };
 
     roomMembers.set(participantId, updated);
     return {
       ...updated,
-      user: users.get(updated.user_id)
+      user: users.get(updated.user_id),
     };
   }
 
@@ -267,7 +267,7 @@ class MockDatabaseService {
     console.log(`✅ Mock: Auto-transferred host`);
     return {
       ...newHost,
-      user: users.get(newHost.user_id)
+      user: users.get(newHost.user_id),
     };
   }
 
@@ -278,7 +278,7 @@ class MockDatabaseService {
       user_id: userId,
       event_type: eventType,
       event_data: eventData,
-      created_at: new Date().toISOString()
+      created_at: new Date().toISOString(),
     });
   }
 
@@ -290,7 +290,7 @@ class MockDatabaseService {
       game_id: gameType,
       game_state: stateData,
       participants: [{ user_id: createdBy }],
-      started_at: new Date().toISOString()
+      started_at: new Date().toISOString(),
     };
 
     gameSessions.set(gameState.id, gameState);
@@ -330,7 +330,7 @@ class MockDatabaseService {
       total: rooms.size,
       byStatus: {},
       byAge: {},
-      byActivity: {}
+      byActivity: {},
     };
   }
 
@@ -343,7 +343,7 @@ class MockDatabaseService {
   // Mock client properties for compatibility
   get client() {
     return {
-      from: () => ({ select: () => ({ single: async () => ({ data: null, error: null }) }) })
+      from: () => ({ select: () => ({ single: async () => ({ data: null, error: null }) }) }),
     };
   }
 
@@ -351,7 +351,7 @@ class MockDatabaseService {
     return {
       from: () => ({ select: () => ({ single: async () => ({ data: null, error: null }) }) }),
       rpc: async () => ({ data: null, error: null }),
-      single: async () => ({ data: null, error: null })
+      single: async () => ({ data: null, error: null }),
     };
   }
 }
@@ -360,5 +360,5 @@ module.exports = {
   MockDatabaseService,
   supabase: null, // Mock doesn't provide real Supabase clients
   supabaseAdmin: null,
-  db: new MockDatabaseService()
+  db: new MockDatabaseService(),
 };

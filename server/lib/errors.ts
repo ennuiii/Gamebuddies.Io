@@ -59,7 +59,12 @@ export class GameBuddiesError extends Error {
   /**
    * Convert error to Socket.IO event format
    */
-  toSocketEvent(): { error: string; code: string; timestamp: string; details?: Record<string, any> } {
+  toSocketEvent(): {
+    error: string;
+    code: string;
+    timestamp: string;
+    details?: Record<string, any>;
+  } {
     return {
       error: this.message,
       code: this.code,
@@ -84,12 +89,10 @@ export class RoomNotFoundError extends GameBuddiesError {
 
 export class RoomFullError extends GameBuddiesError {
   constructor(roomCode: string, maxPlayers: number) {
-    super(
-      `Room ${roomCode} is full`,
-      constants.ERROR_CODES.ROOM_FULL,
-      constants.HTTP_CONFLICT,
-      { roomCode, maxPlayers }
-    );
+    super(`Room ${roomCode} is full`, constants.ERROR_CODES.ROOM_FULL, constants.HTTP_CONFLICT, {
+      roomCode,
+      maxPlayers,
+    });
   }
 }
 
@@ -143,11 +146,7 @@ export class InvalidPlayerNameError extends GameBuddiesError {
 
 export class UnauthorizedError extends GameBuddiesError {
   constructor(message: string = 'Unauthorized') {
-    super(
-      message,
-      constants.ERROR_CODES.UNAUTHORIZED,
-      constants.HTTP_UNAUTHORIZED
-    );
+    super(message, constants.ERROR_CODES.UNAUTHORIZED, constants.HTTP_UNAUTHORIZED);
   }
 }
 
@@ -164,21 +163,13 @@ export class ForbiddenError extends GameBuddiesError {
 
 export class ApiKeyRequiredError extends GameBuddiesError {
   constructor() {
-    super(
-      'API key required',
-      constants.ERROR_CODES.API_KEY_REQUIRED,
-      constants.HTTP_UNAUTHORIZED
-    );
+    super('API key required', constants.ERROR_CODES.API_KEY_REQUIRED, constants.HTTP_UNAUTHORIZED);
   }
 }
 
 export class InvalidApiKeyError extends GameBuddiesError {
   constructor() {
-    super(
-      'Invalid API key',
-      constants.ERROR_CODES.INVALID_API_KEY,
-      constants.HTTP_UNAUTHORIZED
-    );
+    super('Invalid API key', constants.ERROR_CODES.INVALID_API_KEY, constants.HTTP_UNAUTHORIZED);
   }
 }
 
@@ -186,9 +177,7 @@ export class InvalidApiKeyError extends GameBuddiesError {
 
 export class ValidationError extends GameBuddiesError {
   constructor(errors: any[] | string) {
-    const errorMessages = Array.isArray(errors)
-      ? errors.map((e) => e.message).join(', ')
-      : errors;
+    const errorMessages = Array.isArray(errors) ? errors.map(e => e.message).join(', ') : errors;
 
     super(
       `Validation failed: ${errorMessages}`,
@@ -229,17 +218,13 @@ export class WrongGameTypeError extends GameBuddiesError {
 
 export class DatabaseError extends GameBuddiesError {
   constructor(message: string, originalError?: Error) {
-    super(
-      'Database error',
-      constants.ERROR_CODES.DATABASE_ERROR,
-      constants.HTTP_INTERNAL_ERROR,
-      {
-        originalMessage: message,
-        ...(process.env.NODE_ENV !== 'production' && originalError && {
+    super('Database error', constants.ERROR_CODES.DATABASE_ERROR, constants.HTTP_INTERNAL_ERROR, {
+      originalMessage: message,
+      ...(process.env.NODE_ENV !== 'production' &&
+        originalError && {
           stack: originalError.stack,
         }),
-      }
-    );
+    });
   }
 }
 
@@ -249,9 +234,7 @@ export class InternalServerError extends GameBuddiesError {
       message,
       constants.ERROR_CODES.INTERNAL_ERROR,
       constants.HTTP_INTERNAL_ERROR,
-      process.env.NODE_ENV !== 'production' && originalError
-        ? { stack: originalError.stack }
-        : {}
+      process.env.NODE_ENV !== 'production' && originalError ? { stack: originalError.stack } : {}
     );
   }
 }
@@ -299,10 +282,7 @@ export function errorHandler(logger: Logger): ErrorMiddleware {
     });
 
     // Don't expose internal errors in production
-    const message =
-      process.env.NODE_ENV === 'production'
-        ? 'Internal server error'
-        : err.message;
+    const message = process.env.NODE_ENV === 'production' ? 'Internal server error' : err.message;
 
     res.status(constants.HTTP_INTERNAL_ERROR).json({
       success: false,
@@ -335,10 +315,7 @@ export function handleSocketError(socket: Socket, error: Error, logger: Logger):
     });
 
     // Don't expose internal errors
-    const message =
-      process.env.NODE_ENV === 'production'
-        ? 'Internal server error'
-        : error.message;
+    const message = process.env.NODE_ENV === 'production' ? 'Internal server error' : error.message;
 
     socket.emit('error', {
       error: message,

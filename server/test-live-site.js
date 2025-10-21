@@ -14,17 +14,19 @@ let testsFailed = 0;
 // Helper to make HTTP requests
 function httpGet(url) {
   return new Promise((resolve, reject) => {
-    https.get(url, (res) => {
-      let data = '';
-      res.on('data', (chunk) => data += chunk);
-      res.on('end', () => {
-        try {
-          resolve({ status: res.statusCode, data: JSON.parse(data), headers: res.headers });
-        } catch (e) {
-          resolve({ status: res.statusCode, data: data, headers: res.headers });
-        }
-      });
-    }).on('error', reject);
+    https
+      .get(url, res => {
+        let data = '';
+        res.on('data', chunk => (data += chunk));
+        res.on('end', () => {
+          try {
+            resolve({ status: res.statusCode, data: JSON.parse(data), headers: res.headers });
+          } catch (e) {
+            resolve({ status: res.statusCode, data: data, headers: res.headers });
+          }
+        });
+      })
+      .on('error', reject);
   });
 }
 
@@ -35,7 +37,7 @@ function waitForEvent(socket, event, timeout = 5000) {
       reject(new Error(`Timeout waiting for event: ${event}`));
     }, timeout);
 
-    socket.once(event, (data) => {
+    socket.once(event, data => {
       clearTimeout(timer);
       resolve(data);
     });
@@ -46,7 +48,7 @@ function waitForEvent(socket, event, timeout = 5000) {
 async function connectSocket(socket) {
   return new Promise((resolve, reject) => {
     socket.on('connect', () => resolve());
-    socket.on('connect_error', (error) => reject(error));
+    socket.on('connect_error', error => reject(error));
     socket.connect();
     setTimeout(() => reject(new Error('Connection timeout')), 10000);
   });
@@ -78,7 +80,9 @@ async function runTests() {
     if (result.status !== 200) throw new Error(`Status ${result.status}`);
     if (!result.data.status) throw new Error('No status field');
     console.log(`   Server version: ${result.data.version || 'unknown'}`);
-    console.log(`   Uptime: ${result.data.uptime ? Math.round(result.data.uptime) + 's' : 'unknown'}`);
+    console.log(
+      `   Uptime: ${result.data.uptime ? Math.round(result.data.uptime) + 's' : 'unknown'}`
+    );
   });
 
   // Test 2: Homepage loads
@@ -96,7 +100,7 @@ async function runTests() {
     const socket = io(LIVE_URL, {
       transports: ['websocket', 'polling'],
       autoConnect: false,
-      reconnection: false
+      reconnection: false,
     });
 
     await connectSocket(socket);
@@ -110,7 +114,7 @@ async function runTests() {
     const socket = io(LIVE_URL, {
       transports: ['websocket', 'polling'],
       autoConnect: false,
-      reconnection: false
+      reconnection: false,
     });
 
     await connectSocket(socket);
@@ -138,7 +142,7 @@ async function runTests() {
     const socket = io(LIVE_URL, {
       transports: ['websocket', 'polling'],
       autoConnect: false,
-      reconnection: false
+      reconnection: false,
     });
 
     await connectSocket(socket);
@@ -163,12 +167,12 @@ async function runTests() {
     const hostSocket = io(LIVE_URL, {
       transports: ['websocket', 'polling'],
       autoConnect: false,
-      reconnection: false
+      reconnection: false,
     });
     const playerSocket = io(LIVE_URL, {
       transports: ['websocket', 'polling'],
       autoConnect: false,
-      reconnection: false
+      reconnection: false,
     });
 
     await connectSocket(hostSocket);
@@ -205,7 +209,7 @@ async function runTests() {
     const socket = io(LIVE_URL, {
       transports: ['websocket', 'polling'],
       autoConnect: false,
-      reconnection: false
+      reconnection: false,
     });
 
     await connectSocket(socket);
@@ -241,7 +245,7 @@ async function runTests() {
 console.log(`\n🚀 Starting live site tests for ${LIVE_URL}...`);
 console.log(`⏰ ${new Date().toISOString()}\n`);
 
-runTests().catch((error) => {
+runTests().catch(error => {
   console.error('\n❌ Fatal error:', error);
   process.exit(1);
 });

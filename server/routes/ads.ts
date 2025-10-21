@@ -26,16 +26,12 @@ router.post('/impression', async (req: AuthenticatedRequest, res) => {
 
     const userId = req.user?.id || null;
 
-    await adManager.trackAdImpression(
-      (req as any).db,
-      userId,
-      {
-        type: ad_type,
-        network: ad_network,
-        placement,
-        session_id,
-      }
-    );
+    await adManager.trackAdImpression((req as any).db, userId, {
+      type: ad_type,
+      network: ad_network,
+      placement,
+      session_id,
+    });
 
     res.json({
       success: true,
@@ -128,9 +124,7 @@ router.get('/revenue', async (req: AuthenticatedRequest, res) => {
       ? new Date(startDate as string)
       : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000); // 30 days ago
 
-    const end = endDate
-      ? new Date(endDate as string)
-      : new Date();
+    const end = endDate ? new Date(endDate as string) : new Date();
 
     const stats = await adManager.getAdRevenue((req as any).db, start, end);
 
@@ -160,10 +154,7 @@ router.post('/cleanup', async (req: AuthenticatedRequest, res) => {
     // TODO: Add admin authentication check
     const { retentionDays } = req.body;
 
-    const result = await adManager.cleanupOldImpressions(
-      (req as any).db,
-      retentionDays || 90
-    );
+    const result = await adManager.cleanupOldImpressions((req as any).db, retentionDays || 90);
 
     res.json({
       success: true,

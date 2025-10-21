@@ -61,7 +61,7 @@ export interface Room {
   last_activity: string;
   metadata: Record<string, any>;
   participants?: RoomMember[];
-  players?: any[];  // Legacy support
+  players?: any[]; // Legacy support
   deleted_at?: string | null;
   deleted_by?: string | null;
 }
@@ -212,7 +212,13 @@ export interface ServerToClientEvents {
 }
 
 export interface ClientToServerEvents {
-  createRoom: (data: { playerName: string; gameType?: string; maxPlayers?: number; isPublic?: boolean; streamerMode?: boolean }) => void;
+  createRoom: (data: {
+    playerName: string;
+    gameType?: string;
+    maxPlayers?: number;
+    isPublic?: boolean;
+    streamerMode?: boolean;
+  }) => void;
   joinRoom: (data: { playerName: string; roomCode: string }) => void;
   joinSocketRoom: (data: { roomCode: string }) => void;
   selectGame: (data: { roomCode: string; gameType: string }) => void;
@@ -238,10 +244,20 @@ export interface DatabaseService {
   getRoomById(roomId: string): Promise<Room | null>;
   updateRoom(roomId: string, updates: Partial<Room>): Promise<Room>;
   getOrCreateUser(externalId: string, username: string, displayName?: string): Promise<User>;
-  addParticipant(roomId: string, userId: string, socketId: string, role?: PlayerRole): Promise<RoomMember>;
+  addParticipant(
+    roomId: string,
+    userId: string,
+    socketId: string,
+    role?: PlayerRole
+  ): Promise<RoomMember>;
   updateParticipant(participantId: string, updates: Partial<RoomMember>): Promise<RoomMember>;
   removeParticipant(roomId: string, userId: string): Promise<boolean>;
-  logEvent(roomId: string, userId: string, eventType: string, eventData?: Record<string, any>): Promise<void>;
+  logEvent(
+    roomId: string,
+    userId: string,
+    eventType: string,
+    eventData?: Record<string, any>
+  ): Promise<void>;
   cleanupInactiveRooms(options?: any): Promise<any>;
   deleteRoom(roomId: string): Promise<boolean>;
 }
@@ -345,9 +361,18 @@ export interface Constants {
 
 // ===== MIDDLEWARE TYPES =====
 
-export type Middleware = (req: AuthenticatedRequest, res: Response, next: NextFunction) => void | Promise<void>;
+export type Middleware = (
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => void | Promise<void>;
 
-export type ErrorMiddleware = (err: Error, req: AuthenticatedRequest, res: Response, next: NextFunction) => void;
+export type ErrorMiddleware = (
+  err: Error,
+  req: AuthenticatedRequest,
+  res: Response,
+  next: NextFunction
+) => void;
 
 // ===== LOGGER TYPES =====
 

@@ -2,16 +2,12 @@ const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
 
 // Initialize Supabase client with service role key
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  }
-);
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false,
+  },
+});
 
 const MIGRATION_SQL = `
 -- Ensure role column exists and has proper constraints
@@ -75,29 +71,31 @@ WHERE role IN ('creator', 'admin', 'owner');
 
 async function migrateRoleColumn() {
   console.log('🔄 Migrating room_participants role column...');
-  
+
   try {
     // Check current schema
     const { data: columns, error: schemaError } = await supabase
       .from('information_schema.columns')
       .select('column_name, data_type, column_default')
       .eq('table_name', 'room_participants');
-    
+
     if (schemaError) {
       console.log('⚠️  Could not check schema, proceeding with migration...');
     } else {
       console.log('📋 Current room_participants columns:');
       columns.forEach(col => {
-        console.log(`  - ${col.column_name}: ${col.data_type} (default: ${col.column_default || 'none'})`);
+        console.log(
+          `  - ${col.column_name}: ${col.data_type} (default: ${col.column_default || 'none'})`
+        );
       });
     }
-    
+
     // Execute migration
     console.log('🔧 Executing role column migration...');
-    
+
     // Split SQL into individual statements
     const statements = MIGRATION_SQL.split(';').filter(stmt => stmt.trim());
-    
+
     for (const statement of statements) {
       if (statement.trim()) {
         try {
@@ -121,12 +119,11 @@ async function migrateRoleColumn() {
         }
       }
     }
-    
+
     console.log('✅ Role column migration completed!');
-    
+
     // Verify migration
     await verifyMigration();
-    
   } catch (error) {
     console.error('❌ Migration failed:', error);
     console.log('\n📋 Manual Migration Instructions:');
@@ -140,7 +137,7 @@ async function migrateRoleColumn() {
 
 async function executeManualMigration() {
   console.log('🔧 Executing manual migration steps...');
-  
+
   try {
     // Check if any rooms don't have hosts
     const { data: roomsWithoutHosts, error } = await supabase
@@ -148,12 +145,12 @@ async function executeManualMigration() {
       .select('room_id, role, joined_at')
       .order('room_id', { ascending: true })
       .order('joined_at', { ascending: true });
-    
+
     if (error) {
       console.log('⚠️  Could not check for rooms without hosts:', error.message);
       return;
     }
-    
+
     // Group by room and find rooms without hosts
     const roomGroups = {};
     roomsWithoutHosts.forEach(participant => {
@@ -162,21 +159,21 @@ async function executeManualMigration() {
       }
       roomGroups[participant.room_id].push(participant);
     });
-    
+
     let fixedRooms = 0;
     for (const [roomId, participants] of Object.entries(roomGroups)) {
       const hasHost = participants.some(p => p.role === 'host');
-      
+
       if (!hasHost && participants.length > 0) {
         // Make the oldest participant the host
         const oldestParticipant = participants[0];
-        
+
         const { error: updateError } = await supabase
           .from('room_participants')
           .update({ role: 'host' })
           .eq('room_id', roomId)
           .eq('joined_at', oldestParticipant.joined_at);
-        
+
         if (!updateError) {
           fixedRooms++;
           console.log(`✅ Fixed room ${roomId} - made oldest participant host`);
@@ -185,9 +182,8 @@ async function executeManualMigration() {
         }
       }
     }
-    
+
     console.log(`✅ Fixed ${fixedRooms} rooms without hosts`);
-    
   } catch (error) {
     console.log('⚠️  Manual migration failed:', error.message);
   }
@@ -195,27 +191,28 @@ async function executeManualMigration() {
 
 async function verifyMigration() {
   console.log('🔍 Verifying migration...');
-  
+
   try {
     // Check for rooms without hosts
     const { data: stats, error } = await supabase
       .from('room_participants')
       .select('room_id, role')
       .eq('role', 'host');
-    
+
     if (error) {
       console.log('⚠️  Could not verify migration:', error.message);
       return;
     }
-    
+
     const hostCounts = {};
     stats.forEach(participant => {
       hostCounts[participant.room_id] = (hostCounts[participant.room_id] || 0) + 1;
     });
-    
-    const roomsWithMultipleHosts = Object.entries(hostCounts)
-      .filter(([roomId, count]) => count > 1);
-    
+
+    const roomsWithMultipleHosts = Object.entries(hostCounts).filter(
+      ([roomId, count]) => count > 1
+    );
+
     if (roomsWithMultipleHosts.length > 0) {
       console.log('⚠️  Found rooms with multiple hosts:');
       roomsWithMultipleHosts.forEach(([roomId, count]) => {
@@ -224,11 +221,10 @@ async function verifyMigration() {
     } else {
       console.log('✅ All rooms have exactly one host');
     }
-    
+
     // Check total host count
     const totalHosts = Object.keys(hostCounts).length;
     console.log(`📊 Migration summary: ${totalHosts} rooms with hosts`);
-    
   } catch (error) {
     console.log('⚠️  Verification failed:', error.message);
   }
@@ -238,4 +234,4 @@ if (require.main === module) {
   migrateRoleColumn();
 }
 
-module.exports = { migrateRoleColumn }; 
+module.exports = { migrateRoleColumn };

@@ -23,7 +23,8 @@ if (!fs.existsSync(logsDir)) {
 }
 
 // Determine log level based on environment
-const logLevel = process.env.LOG_LEVEL ||
+const logLevel =
+  process.env.LOG_LEVEL ||
   (process.env.NODE_ENV === 'production'
     ? constants.LOG_LEVEL_PRODUCTION
     : constants.LOG_LEVEL_DEVELOPMENT);
@@ -38,9 +39,7 @@ const devFormat = winston.format.combine(
     msg += `: ${message}`;
 
     // Add metadata if present
-    const metaStr = Object.keys(meta).length
-      ? '\n' + JSON.stringify(meta, null, 2)
-      : '';
+    const metaStr = Object.keys(meta).length ? '\n' + JSON.stringify(meta, null, 2) : '';
 
     return msg + metaStr;
   })

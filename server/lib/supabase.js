@@ -16,7 +16,7 @@ if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceKey) {
     module.exports = {
       supabase: null,
       supabaseAdmin: null,
-      db: new MockDatabaseService()
+      db: new MockDatabaseService(),
     };
     return;
   }
@@ -48,18 +48,19 @@ class DatabaseService {
   async createRoom(roomData) {
     try {
       // Generate room code using database function
-      const { data: roomCode, error: codeError } = await this.adminClient
-        .rpc('generate_room_code');
+      const { data: roomCode, error: codeError } = await this.adminClient.rpc('generate_room_code');
 
       if (codeError) throw codeError;
 
       // Create the room
       const { data: room, error: roomError } = await this.adminClient
         .from('rooms')
-        .insert([{
-          room_code: roomCode,
-          ...roomData
-        }])
+        .insert([
+          {
+            room_code: roomCode,
+            ...roomData,
+          },
+        ])
         .select()
         .single();
 
@@ -68,7 +69,7 @@ class DatabaseService {
       // Log room creation event
       await this.logEvent(room.id, roomData.host_id, 'room_created', {
         current_game: roomData.current_game,
-        created_from: roomData.metadata?.created_from || 'unknown'
+        created_from: roomData.metadata?.created_from || 'unknown',
       });
 
       return room;
@@ -82,7 +83,8 @@ class DatabaseService {
     try {
       const { data: room, error } = await this.adminClient
         .from('rooms')
-        .select(`
+        .select(
+          `
           *,
           host:users!host_id(username, display_name),
           participants:room_members(
@@ -97,7 +99,8 @@ class DatabaseService {
             joined_at,
             user:users(username, display_name)
           )
-        `)
+        `
+        )
         .eq('room_code', roomCode)
         .single();
 
@@ -113,7 +116,8 @@ class DatabaseService {
     try {
       const { data: room, error } = await this.adminClient
         .from('rooms')
-        .select(`
+        .select(
+          `
           *,
           host:users!host_id(username, display_name),
           participants:room_members(
@@ -128,7 +132,8 @@ class DatabaseService {
             joined_at,
             user:users(username, display_name)
           )
-        `)
+        `
+        )
         .eq('id', roomId)
         .single();
 
@@ -146,7 +151,7 @@ class DatabaseService {
         .from('rooms')
         .update({
           ...updates,
-          last_activity: new Date().toISOString()
+          last_activity: new Date().toISOString(),
         })
         .eq('id', roomId)
         .select()
@@ -182,7 +187,7 @@ class DatabaseService {
           .from('users')
           .update({ last_seen: new Date().toISOString() })
           .eq('id', user.id);
-        
+
         return user;
       }
 
@@ -192,7 +197,7 @@ class DatabaseService {
           .from('users')
           .insert({
             username: username,
-            display_name: displayName || username
+            display_name: displayName || username,
           })
           .select()
           .single();
@@ -203,13 +208,14 @@ class DatabaseService {
         return newUser;
       } catch (createError) {
         // If username exists, try with timestamp suffix
-        if (createError.code === '23505') { // unique constraint violation
+        if (createError.code === '23505') {
+          // unique constraint violation
           const uniqueUsername = `${username}_${Date.now()}`;
           const { data: newUser, error: retryError } = await this.adminClient
             .from('users')
             .insert({
               username: uniqueUsername,
-              display_name: displayName || username
+              display_name: displayName || username,
             })
             .select()
             .single();
@@ -221,7 +227,6 @@ class DatabaseService {
         }
         throw createError;
       }
-
     } catch (error) {
       console.error('Error in getOrCreateUser:', error);
       throw error;
@@ -233,21 +238,26 @@ class DatabaseService {
     try {
       const { data: participant, error } = await this.adminClient
         .from('room_members')
-        .upsert({
-          room_id: roomId,
-          user_id: userId,
-          role: role,
-          is_connected: true,
-          current_location: 'lobby',
-          last_ping: new Date().toISOString(),
-          socket_id: socketId
-        }, {
-          onConflict: 'room_id, user_id'
-        })
-        .select(`
+        .upsert(
+          {
+            room_id: roomId,
+            user_id: userId,
+            role: role,
+            is_connected: true,
+            current_location: 'lobby',
+            last_ping: new Date().toISOString(),
+            socket_id: socketId,
+          },
+          {
+            onConflict: 'room_id, user_id',
+          }
+        )
+        .select(
+          `
           *,
           user:users(username, display_name)
-        `)
+        `
+        )
         .single();
 
       if (error) throw error;
@@ -255,7 +265,7 @@ class DatabaseService {
       // Log join event
       await this.logEvent(roomId, userId, 'player_joined', {
         role: role,
-        socket_id: socketId
+        socket_id: socketId,
       });
 
       return participant;
@@ -290,7 +300,7 @@ class DatabaseService {
       const updateData = {
         is_connected: status === 'connected',
         last_ping: new Date().toISOString(),
-        socket_id: status === 'connected' ? socketId : null
+        socket_id: status === 'connected' ? socketId : null,
       };
 
       // Update location based on connection status
@@ -321,7 +331,9 @@ class DatabaseService {
   // Host transfer functionality
   async transferHost(roomId, currentHostUserId, newHostUserId) {
     try {
-      console.log(`🔄 Transferring host in room ${roomId} from ${currentHostUserId} to ${newHostUserId}`);
+      console.log(
+        `🔄 Transferring host in room ${roomId} from ${currentHostUserId} to ${newHostUserId}`
+      );
 
       // Start a transaction-like operation
       // First, verify current host
@@ -376,20 +388,16 @@ class DatabaseService {
       }
 
       // Update room host_id
-      await this.adminClient
-        .from('rooms')
-        .update({ host_id: newHostUserId })
-        .eq('id', roomId);
+      await this.adminClient.from('rooms').update({ host_id: newHostUserId }).eq('id', roomId);
 
       // Log the host transfer event
       await this.logEvent(roomId, currentHostUserId, 'host_transferred', {
         old_host_id: currentHostUserId,
-        new_host_id: newHostUserId
+        new_host_id: newHostUserId,
       });
 
       console.log(`✅ Host transferred successfully in room ${roomId}`);
       return true;
-
     } catch (error) {
       console.error('Error transferring host:', error);
       throw error;
@@ -398,7 +406,9 @@ class DatabaseService {
 
   async autoTransferHost(roomId, leavingHostUserId) {
     try {
-      console.log(`🔄 Auto-transferring host in room ${roomId} after host ${leavingHostUserId} left`);
+      console.log(
+        `🔄 Auto-transferring host in room ${roomId} after host ${leavingHostUserId} left`
+      );
 
       // First, demote the old host to player role (essential to prevent multiple hosts)
       const { error: demoteError } = await this.adminClient
@@ -417,10 +427,12 @@ class DatabaseService {
       // Find the next suitable host (longest-connected player)
       const { data: participants, error } = await this.adminClient
         .from('room_members')
-        .select(`
+        .select(
+          `
           *,
           user:users(username, display_name)
-        `)
+        `
+        )
         .eq('room_id', roomId)
         .eq('is_connected', true)
         .neq('user_id', leavingHostUserId)
@@ -446,21 +458,19 @@ class DatabaseService {
       if (updateError) throw updateError;
 
       // Update room host_id
-      await this.adminClient
-        .from('rooms')
-        .update({ host_id: newHost.user_id })
-        .eq('id', roomId);
+      await this.adminClient.from('rooms').update({ host_id: newHost.user_id }).eq('id', roomId);
 
       // Log the auto host transfer event
       await this.logEvent(roomId, newHost.user_id, 'host_auto_transferred', {
         old_host_id: leavingHostUserId,
         new_host_id: newHost.user_id,
-        reason: 'original_host_left'
+        reason: 'original_host_left',
       });
 
-      console.log(`✅ Auto-transferred host to ${newHost.user?.display_name || newHost.user?.username}`);
+      console.log(
+        `✅ Auto-transferred host to ${newHost.user?.display_name || newHost.user?.username}`
+      );
       return newHost;
-
     } catch (error) {
       console.error('Error auto-transferring host:', error);
       throw error;
@@ -470,14 +480,14 @@ class DatabaseService {
   // Event logging
   async logEvent(roomId, userId, eventType, eventData = {}) {
     try {
-      const { error } = await this.adminClient
-        .from('room_events')
-        .insert([{
+      const { error } = await this.adminClient.from('room_events').insert([
+        {
           room_id: roomId,
           user_id: userId,
           event_type: eventType,
-          event_data: eventData
-        }]);
+          event_data: eventData,
+        },
+      ]);
 
       if (error) throw error;
     } catch (error) {
@@ -500,12 +510,14 @@ class DatabaseService {
 
       const { data: gameState, error } = await this.adminClient
         .from('game_sessions')
-        .insert([{
-          room_id: roomId,
-          game_id: gameType,
-          game_state: stateData,
-          participants: [{ user_id: createdBy }]
-        }])
+        .insert([
+          {
+            room_id: roomId,
+            game_id: gameType,
+            game_state: stateData,
+            participants: [{ user_id: createdBy }],
+          },
+        ])
         .select()
         .single();
 
@@ -563,11 +575,11 @@ class DatabaseService {
   async cleanupInactiveRooms(options = {}) {
     try {
       const {
-        maxAgeHours = 24,        // Rooms older than 24 hours
-        maxIdleMinutes = 30,     // Rooms idle for 30 minutes
+        maxAgeHours = 24, // Rooms older than 24 hours
+        maxIdleMinutes = 30, // Rooms idle for 30 minutes
         includeAbandoned = true, // Include abandoned rooms
         includeCompleted = true, // Include completed games
-        dryRun = false          // If true, only return what would be deleted
+        dryRun = false, // If true, only return what would be deleted
       } = options;
 
       console.log('🧹 [CLEANUP DEBUG] Starting room cleanup...', {
@@ -576,23 +588,21 @@ class DatabaseService {
         includeAbandoned,
         includeCompleted,
         dryRun,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
 
       // Calculate cutoff times
-      const maxAgeDate = new Date(Date.now() - (maxAgeHours * 60 * 60 * 1000));
-      const maxIdleDate = new Date(Date.now() - (maxIdleMinutes * 60 * 1000));
+      const maxAgeDate = new Date(Date.now() - maxAgeHours * 60 * 60 * 1000);
+      const maxIdleDate = new Date(Date.now() - maxIdleMinutes * 60 * 1000);
 
       console.log('🧹 [CLEANUP DEBUG] Cutoff times:', {
         maxAgeDate: maxAgeDate.toISOString(),
         maxIdleDate: maxIdleDate.toISOString(),
-        currentTime: new Date().toISOString()
+        currentTime: new Date().toISOString(),
       });
 
       // Build query for rooms to cleanup
-      let query = this.adminClient
-        .from('rooms')
-        .select(`
+      let query = this.adminClient.from('rooms').select(`
           id,
           room_code,
           status,
@@ -611,7 +621,8 @@ class DatabaseService {
       // Get rooms matching cleanup conditions
       const { data: roomsToCleanup, error: queryError } = await this.adminClient
         .from('rooms')
-        .select(`
+        .select(
+          `
           id,
           room_code,
           status,
@@ -625,8 +636,11 @@ class DatabaseService {
             last_ping,
             user:users(username, display_name)
           )
-        `)
-        .or(`created_at.lt.${maxAgeDate.toISOString()},last_activity.lt.${maxIdleDate.toISOString()}`);
+        `
+        )
+        .or(
+          `created_at.lt.${maxAgeDate.toISOString()},last_activity.lt.${maxIdleDate.toISOString()}`
+        );
 
       if (queryError) throw queryError;
 
@@ -644,27 +658,26 @@ class DatabaseService {
         const hasConnectedPlayers = room.participants?.some(p => p.is_connected);
         const connectedPlayerCount = room.participants?.filter(p => p.is_connected).length || 0;
 
-        const shouldCleanup = (
+        const shouldCleanup =
           // Too old
-          roomAge > (maxAgeHours * 60 * 60 * 1000) ||
+          roomAge > maxAgeHours * 60 * 60 * 1000 ||
           // Too idle and no connected players
-          (roomIdle > (maxIdleMinutes * 60 * 1000) && !hasConnectedPlayers)
-        );
+          (roomIdle > maxIdleMinutes * 60 * 1000 && !hasConnectedPlayers);
 
         // Enhanced debugging for each room
         console.log(`🧹 [CLEANUP DEBUG] Room analysis: ${room.room_code}`, {
           status: room.status,
           current_game: room.current_game,
-          ageHours: Math.round(roomAge / (60 * 60 * 1000) * 100) / 100,
-          idleMinutes: Math.round(roomIdle / (60 * 1000) * 100) / 100,
+          ageHours: Math.round((roomAge / (60 * 60 * 1000)) * 100) / 100,
+          idleMinutes: Math.round((roomIdle / (60 * 1000)) * 100) / 100,
           connectedPlayers: connectedPlayerCount,
           hasConnectedPlayers,
           shouldCleanup,
           reasons: {
-            tooOld: roomAge > (maxAgeHours * 60 * 60 * 1000),
-            tooIdle: roomIdle > (maxIdleMinutes * 60 * 1000),
-            noConnectedPlayers: !hasConnectedPlayers
-          }
+            tooOld: roomAge > maxAgeHours * 60 * 60 * 1000,
+            tooIdle: roomIdle > maxIdleMinutes * 60 * 1000,
+            noConnectedPlayers: !hasConnectedPlayers,
+          },
         });
 
         // Special protection for active game rooms with connected players
@@ -676,8 +689,8 @@ class DatabaseService {
             participants: room.participants?.map(p => ({
               username: p.user?.username || p.user?.display_name,
               is_connected: p.is_connected,
-              last_ping: p.last_ping
-            }))
+              last_ping: p.last_ping,
+            })),
           });
           return false; // Don't cleanup active game rooms with connected players
         }
@@ -685,23 +698,27 @@ class DatabaseService {
         return shouldCleanup;
       });
 
-      console.log(`🔍 [CLEANUP DEBUG] Found ${roomsNeedingCleanup.length} rooms to cleanup:`, 
+      console.log(
+        `🔍 [CLEANUP DEBUG] Found ${roomsNeedingCleanup.length} rooms to cleanup:`,
         roomsNeedingCleanup.map(r => ({
           code: r.room_code,
           status: r.status,
           current_game: r.current_game,
           age: Math.round((Date.now() - new Date(r.created_at).getTime()) / (60 * 60 * 1000)) + 'h',
-          idle: Math.round((Date.now() - new Date(r.last_activity || r.created_at).getTime()) / (60 * 1000)) + 'm',
-          connected_players: r.participants?.filter(p => p.is_connected).length || 0
+          idle:
+            Math.round(
+              (Date.now() - new Date(r.last_activity || r.created_at).getTime()) / (60 * 1000)
+            ) + 'm',
+          connected_players: r.participants?.filter(p => p.is_connected).length || 0,
         }))
       );
 
       if (dryRun) {
         console.log('🧹 [CLEANUP DEBUG] Dry run mode - no rooms will be deleted');
-        return { 
-          cleaned: 0, 
+        return {
+          cleaned: 0,
           rooms: roomsNeedingCleanup.map(r => r.room_code),
-          wouldClean: roomsNeedingCleanup.length
+          wouldClean: roomsNeedingCleanup.length,
         };
       }
 
@@ -715,9 +732,9 @@ class DatabaseService {
           console.log(`🗑️ [CLEANUP DEBUG] Deleting room: ${room.room_code}`, {
             status: room.status,
             current_game: room.current_game,
-            participants: room.participants?.length || 0
+            participants: room.participants?.length || 0,
           });
-          
+
           await this.deleteRoom(room.id);
           cleanedCount++;
           cleanedRooms.push(room.room_code);
@@ -726,11 +743,11 @@ class DatabaseService {
           console.error(`❌ [CLEANUP ERROR] Failed to cleanup room ${room.room_code}:`, {
             error: error.message,
             room_id: room.id,
-            status: room.status
+            status: room.status,
           });
           failedCleanups.push({
             room_code: room.room_code,
-            error: error.message
+            error: error.message,
           });
         }
       }
@@ -740,16 +757,15 @@ class DatabaseService {
         successful: cleanedCount,
         failed: failedCleanups.length,
         cleanedRooms,
-        failedCleanups
+        failedCleanups,
       });
-      
-      return { cleaned: cleanedCount, rooms: cleanedRooms, failed: failedCleanups };
 
+      return { cleaned: cleanedCount, rooms: cleanedRooms, failed: failedCleanups };
     } catch (error) {
       console.error('❌ [CLEANUP ERROR] Error during room cleanup:', {
         error: error.message,
         stack: error.stack,
-        timestamp: new Date().toISOString()
+        timestamp: new Date().toISOString(),
       });
       throw error;
     }
@@ -758,30 +774,18 @@ class DatabaseService {
   async deleteRoom(roomId) {
     try {
       // Delete in order due to foreign key constraints
-      
+
       // 1. Delete game sessions
-      await this.adminClient
-        .from('game_sessions')
-        .delete()
-        .eq('room_id', roomId);
+      await this.adminClient.from('game_sessions').delete().eq('room_id', roomId);
 
       // 2. Delete room events
-      await this.adminClient
-        .from('room_events')
-        .delete()
-        .eq('room_id', roomId);
+      await this.adminClient.from('room_events').delete().eq('room_id', roomId);
 
       // 3. Delete room members
-      await this.adminClient
-        .from('room_members')
-        .delete()
-        .eq('room_id', roomId);
+      await this.adminClient.from('room_members').delete().eq('room_id', roomId);
 
       // 4. Delete the room itself
-      const { error } = await this.adminClient
-        .from('rooms')
-        .delete()
-        .eq('id', roomId);
+      const { error } = await this.adminClient.from('rooms').delete().eq('id', roomId);
 
       if (error) throw error;
 
@@ -801,9 +805,9 @@ class DatabaseService {
       if (error) throw error;
 
       const now = Date.now();
-      const oneHourAgo = now - (60 * 60 * 1000);
-      const oneDayAgo = now - (24 * 60 * 60 * 1000);
-      const oneWeekAgo = now - (7 * 24 * 60 * 60 * 1000);
+      const oneHourAgo = now - 60 * 60 * 1000;
+      const oneDayAgo = now - 24 * 60 * 60 * 1000;
+      const oneWeekAgo = now - 7 * 24 * 60 * 60 * 1000;
 
       const summary = {
         total: stats.length,
@@ -812,13 +816,13 @@ class DatabaseService {
           lastHour: 0,
           lastDay: 0,
           lastWeek: 0,
-          older: 0
+          older: 0,
         },
         byActivity: {
           active: 0,
           idle: 0,
-          stale: 0
-        }
+          stale: 0,
+        },
       };
 
       stats.forEach(room => {
@@ -835,9 +839,11 @@ class DatabaseService {
         // Count by activity
         const lastActivity = new Date(room.last_activity || room.created_at).getTime();
         const idleTime = now - lastActivity;
-        
-        if (idleTime < (10 * 60 * 1000)) summary.byActivity.active++; // Active in last 10 min
-        else if (idleTime < (60 * 60 * 1000)) summary.byActivity.idle++; // Idle for less than 1 hour
+
+        if (idleTime < 10 * 60 * 1000)
+          summary.byActivity.active++; // Active in last 10 min
+        else if (idleTime < 60 * 60 * 1000)
+          summary.byActivity.idle++; // Idle for less than 1 hour
         else summary.byActivity.stale++; // Stale for more than 1 hour
       });
 
@@ -851,9 +857,7 @@ class DatabaseService {
   // Get active rooms for discovery
   async getActiveRooms(filters = {}) {
     try {
-      let query = this.adminClient
-        .from('rooms')
-        .select(`
+      let query = this.adminClient.from('rooms').select(`
           *,
           host:users!host_id(username, display_name),
           members:room_members(
@@ -898,5 +902,5 @@ const db = new DatabaseService();
 module.exports = {
   supabase,
   supabaseAdmin,
-  db
-}; 
+  db,
+};

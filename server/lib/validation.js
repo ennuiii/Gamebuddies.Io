@@ -10,20 +10,17 @@ const playerNameSchema = Joi.string()
   .pattern(/^[a-zA-Z0-9_\-\s]+$/)
   .trim()
   .messages({
-    'string.pattern.base': 'Player name can only contain letters, numbers, spaces, underscores, and hyphens',
+    'string.pattern.base':
+      'Player name can only contain letters, numbers, spaces, underscores, and hyphens',
     'string.min': 'Player name must be at least 1 character',
-    'string.max': 'Player name cannot exceed 20 characters'
+    'string.max': 'Player name cannot exceed 20 characters',
   });
 
 // Room code validation
-const roomCodeSchema = Joi.string()
-  .length(6)
-  .uppercase()
-  .alphanum()
-  .messages({
-    'string.length': 'Room code must be exactly 6 characters',
-    'string.alphanum': 'Room code must contain only letters and numbers'
-  });
+const roomCodeSchema = Joi.string().length(6).uppercase().alphanum().messages({
+  'string.length': 'Room code must be exactly 6 characters',
+  'string.alphanum': 'Room code must contain only letters and numbers',
+});
 
 // Game type validation - now dynamic from database
 // Cache valid game types for 5 minutes to avoid hitting DB on every validation
@@ -35,7 +32,7 @@ async function getValidGameTypes() {
   const now = Date.now();
 
   // Return cached values if still fresh
-  if (validGameTypesCache && (now - cacheTimestamp) < CACHE_DURATION) {
+  if (validGameTypesCache && now - cacheTimestamp < CACHE_DURATION) {
     console.log('[Validation] 📦 Using cached game types:', validGameTypesCache);
     return validGameTypesCache;
   }
@@ -74,7 +71,7 @@ async function getValidGameTypes() {
 
 // Dynamic game type schema with async validation
 const gameTypeSchema = Joi.string()
-  .external(async (value) => {
+  .external(async value => {
     // Skip validation if value is undefined/null/empty (for optional fields)
     if (!value) {
       return value;
@@ -88,7 +85,7 @@ const gameTypeSchema = Joi.string()
   })
   .messages({
     'any.invalid': 'Invalid game type selected',
-    'external': 'Invalid game type selected'
+    external: 'Invalid game type selected',
   });
 
 // Validation schemas for different socket events
@@ -99,79 +96,81 @@ const schemas = {
     gameType: gameTypeSchema.optional(),
     maxPlayers: Joi.number().min(2).max(20).optional(),
     isPublic: Joi.boolean().optional(),
-    streamerMode: Joi.boolean().optional()
+    streamerMode: Joi.boolean().optional(),
   }),
 
   // Join room validation
   joinRoom: Joi.object({
     playerName: playerNameSchema.required(),
-    roomCode: roomCodeSchema.required()
+    roomCode: roomCodeSchema.required(),
   }),
 
   // Select game validation
   selectGame: Joi.object({
     roomCode: roomCodeSchema.required(),
-    gameType: gameTypeSchema.required()
+    gameType: gameTypeSchema.required(),
   }),
 
   // Start game validation
   startGame: Joi.object({
     roomCode: roomCodeSchema.required(),
-    gameSettings: Joi.object().optional()
+    gameSettings: Joi.object().optional(),
   }),
 
   // Transfer host validation
   transferHost: Joi.object({
     roomCode: roomCodeSchema.required(),
-    targetPlayerId: Joi.string().uuid().required()
+    targetPlayerId: Joi.string().uuid().required(),
   }),
 
   // Kick player validation
   kickPlayer: Joi.object({
     roomCode: roomCodeSchema.required(),
     targetPlayerId: Joi.string().uuid().required(),
-    reason: Joi.string().max(100).optional()
+    reason: Joi.string().max(100).optional(),
   }),
 
   // Change room status validation
   changeRoomStatus: Joi.object({
     roomCode: roomCodeSchema.required(),
-    status: Joi.string().valid('lobby', 'selecting_game', 'starting', 'in_game', 'ended').required()
+    status: Joi.string()
+      .valid('lobby', 'selecting_game', 'starting', 'in_game', 'ended')
+      .required(),
   }),
 
   // Leave room validation
   leaveRoom: Joi.object({
-    roomCode: roomCodeSchema.optional()
+    roomCode: roomCodeSchema.optional(),
   }),
 
   // Player ready validation
   playerReady: Joi.object({
     roomCode: roomCodeSchema.required(),
-    isReady: Joi.boolean().required()
+    isReady: Joi.boolean().required(),
   }),
 
   // Chat message validation
   sendMessage: Joi.object({
     roomCode: roomCodeSchema.required(),
     message: Joi.string().min(1).max(500).required(),
-    type: Joi.string().valid('chat', 'system', 'game').optional()
+    type: Joi.string().valid('chat', 'system', 'game').optional(),
   }),
 
   // Return to lobby validation
   returnToLobby: Joi.object({
     roomCode: roomCodeSchema.required(),
-    fromGame: gameTypeSchema.optional()
+    fromGame: gameTypeSchema.optional(),
   }),
 
   // Auto update room status validation
   autoUpdateRoomStatus: Joi.object({
-    roomCode: roomCodeSchema.required()
-  })
+    roomCode: roomCodeSchema.required(),
+  }),
 };
 
 // Validation middleware factory (now supports async validation)
 function createValidator(schemaName) {
-  return async (data) => {
+  return async data => {
     const schema = schemas[schemaName];
     if (!schema) {
       throw new Error(`No validation schema found for: ${schemaName}`);
@@ -181,23 +180,25 @@ function createValidator(schemaName) {
       // Use validateAsync to support external async validators
       const value = await schema.validateAsync(data, {
         abortEarly: false,
-        stripUnknown: true
+        stripUnknown: true,
       });
 
       return {
         isValid: true,
-        value
+        value,
       };
     } catch (error) {
-      const errors = error.details ? error.details.map(detail => ({
-        field: detail.path.join('.'),
-        message: detail.message
-      })) : [{ field: 'unknown', message: error.message }];
+      const errors = error.details
+        ? error.details.map(detail => ({
+            field: detail.path.join('.'),
+            message: detail.message,
+          }))
+        : [{ field: 'unknown', message: error.message }];
 
       return {
         isValid: false,
         errors,
-        message: errors.map(e => e.message).join(', ')
+        message: errors.map(e => e.message).join(', '),
       };
     }
   };
@@ -206,7 +207,7 @@ function createValidator(schemaName) {
 // Sanitization helpers
 const sanitize = {
   // Sanitize player name
-  playerName: (name) => {
+  playerName: name => {
     if (!name) return '';
     return name
       .trim()
@@ -215,7 +216,7 @@ const sanitize = {
   },
 
   // Sanitize room code
-  roomCode: (code) => {
+  roomCode: code => {
     if (!code) return '';
     return code
       .toUpperCase()
@@ -224,7 +225,7 @@ const sanitize = {
   },
 
   // Sanitize message
-  message: (message) => {
+  message: message => {
     if (!message) return '';
     return message
       .trim()
@@ -233,20 +234,20 @@ const sanitize = {
   },
 
   // Sanitize game settings
-  gameSettings: (settings) => {
+  gameSettings: settings => {
     if (!settings || typeof settings !== 'object') return {};
-    
+
     // Remove any potentially dangerous keys
     const dangerousKeys = ['__proto__', 'constructor', 'prototype'];
     const cleaned = {};
-    
+
     for (const [key, value] of Object.entries(settings)) {
       if (!dangerousKeys.includes(key) && typeof key === 'string') {
         // Recursively clean nested objects
         if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
           cleaned[key] = sanitize.gameSettings(value);
         } else if (Array.isArray(value)) {
-          cleaned[key] = value.map(item => 
+          cleaned[key] = value.map(item =>
             typeof item === 'object' ? sanitize.gameSettings(item) : item
           );
         } else {
@@ -254,9 +255,9 @@ const sanitize = {
         }
       }
     }
-    
+
     return cleaned;
-  }
+  },
 };
 
 // Rate limiting configurations
@@ -265,7 +266,7 @@ const rateLimits = {
   joinRoom: { max: 10, window: 60000 }, // 10 join attempts per minute
   sendMessage: { max: 30, window: 60000 }, // 30 messages per minute
   startGame: { max: 3, window: 60000 }, // 3 game starts per minute
-  default: { max: 60, window: 60000 } // 60 requests per minute default
+  default: { max: 60, window: 60000 }, // 60 requests per minute default
 };
 
 const apiRateLimiterConfig = {
@@ -273,27 +274,27 @@ const apiRateLimiterConfig = {
   statusUpdates: { windowMs: 60 * 1000, max: 180 },
   bulkUpdates: { windowMs: 60 * 1000, max: 30 },
   polling: { windowMs: 60 * 1000, max: 60 },
-  heartbeats: { windowMs: 60 * 1000, max: 300 }
+  heartbeats: { windowMs: 60 * 1000, max: 300 },
 };
 
-const createRateLimiter = (config = {}) => rateLimit({
-  windowMs: config.windowMs ?? config.window ?? 60 * 1000,
-  max: config.max ?? 60,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: {
-    success: false,
-    error: 'Too many requests',
-    code: 'RATE_LIMITED'
-  }
-});
+const createRateLimiter = (config = {}) =>
+  rateLimit({
+    windowMs: config.windowMs ?? config.window ?? 60 * 1000,
+    max: config.max ?? 60,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {
+      success: false,
+      error: 'Too many requests',
+      code: 'RATE_LIMITED',
+    },
+  });
 
 const apiRateLimiters = Object.fromEntries(
   Object.entries(apiRateLimiterConfig).map(([key, config]) => [key, createRateLimiter(config)])
 );
 
 Object.assign(rateLimits, apiRateLimiters);
-
 
 // Export validation utilities
 async function validateApiKey(req, res, next) {
@@ -303,7 +304,7 @@ async function validateApiKey(req, res, next) {
     return res.status(401).json({
       success: false,
       error: 'API key required',
-      code: 'API_KEY_REQUIRED'
+      code: 'API_KEY_REQUIRED',
     });
   }
 
@@ -319,7 +320,7 @@ async function validateApiKey(req, res, next) {
       return res.status(401).json({
         success: false,
         error: 'Invalid API key',
-        code: 'INVALID_API_KEY'
+        code: 'INVALID_API_KEY',
       });
     }
 
@@ -328,25 +329,20 @@ async function validateApiKey(req, res, next) {
     const nowIso = new Date().toISOString();
 
     try {
-      await db.adminClient
-        .from('api_keys')
-        .update({ last_used: nowIso })
-        .eq('id', keyRecord.id);
+      await db.adminClient.from('api_keys').update({ last_used: nowIso }).eq('id', keyRecord.id);
     } catch (updateError) {
       console.warn('[API AUTH] Failed to update API key usage timestamp:', updateError);
     }
 
     try {
-      await db.adminClient
-        .from('api_requests')
-        .insert({
-          api_key_id: keyRecord.id,
-          endpoint: req.path,
-          method: req.method,
-          ip_address: req.ip,
-          user_agent: req.get('User-Agent') || '',
-          created_at: nowIso
-        });
+      await db.adminClient.from('api_requests').insert({
+        api_key_id: keyRecord.id,
+        endpoint: req.path,
+        method: req.method,
+        ip_address: req.ip,
+        user_agent: req.get('User-Agent') || '',
+        created_at: nowIso,
+      });
     } catch (logError) {
       console.warn('[API AUTH] Failed to log API request:', logError);
     }
@@ -357,7 +353,7 @@ async function validateApiKey(req, res, next) {
     return res.status(500).json({
       success: false,
       error: 'API key validation failed',
-      code: 'API_KEY_VALIDATION_FAILED'
+      code: 'API_KEY_VALIDATION_FAILED',
     });
   }
 }
@@ -391,6 +387,6 @@ module.exports = {
     playerReady: createValidator('playerReady'),
     sendMessage: createValidator('sendMessage'),
 
-    autoUpdateRoomStatus: createValidator('autoUpdateRoomStatus')
-  }
+    autoUpdateRoomStatus: createValidator('autoUpdateRoomStatus'),
+  },
 };

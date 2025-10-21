@@ -4,16 +4,12 @@ const path = require('path');
 require('dotenv').config();
 
 // Initialize Supabase client with service role key
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false
-    }
-  }
-);
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false,
+  },
+});
 
 // Use the V2 schema that matches the current database
 const SQL_SCHEMA = `
@@ -228,30 +224,31 @@ ON CONFLICT (id) DO NOTHING;
 
 async function setupDatabase() {
   console.log('🚀 Setting up GameBuddies V2 database schema...');
-  
+
   try {
     console.log('📋 Executing SQL schema...');
-    
+
     // Split schema into individual statements
-    const statements = SQL_SCHEMA
-      .split(';')
+    const statements = SQL_SCHEMA.split(';')
       .map(stmt => stmt.trim())
       .filter(stmt => stmt.length > 0);
-    
+
     console.log(`📊 Found ${statements.length} SQL statements to execute`);
-    
+
     // Execute each statement
     for (let i = 0; i < statements.length; i++) {
       const statement = statements[i];
       if (statement.length > 0) {
         try {
-          console.log(`⚡ Executing statement ${i + 1}/${statements.length}: ${statement.substring(0, 50)}...`);
-          
+          console.log(
+            `⚡ Executing statement ${i + 1}/${statements.length}: ${statement.substring(0, 50)}...`
+          );
+
           // Use raw query execution for DDL statements
-          const { error } = await supabase.rpc('exec_sql', { 
-            query: statement + ';'
+          const { error } = await supabase.rpc('exec_sql', {
+            query: statement + ';',
           });
-          
+
           if (error) {
             console.warn(`⚠️  Statement ${i + 1} failed, but continuing...`, error.message);
           }
@@ -260,15 +257,14 @@ async function setupDatabase() {
         }
       }
     }
-    
+
     console.log('✅ Database schema setup completed!');
-    
+
     // Setup initial API keys
     await setupInitialAPIKeys();
-    
+
     console.log('✅ Initial API keys created!');
     console.log('🎉 Database setup complete!');
-    
   } catch (error) {
     console.error('❌ Database setup failed:', error);
     console.log('\n📋 Manual Setup Instructions:');
@@ -281,9 +277,9 @@ async function setupDatabase() {
 
 async function setupInitialAPIKeys() {
   const { v4: uuidv4 } = require('uuid');
-  
+
   console.log('🔑 Setting up initial API keys...');
-  
+
   const apiKeys = [
     {
       service_name: 'ddf',
@@ -292,41 +288,39 @@ async function setupInitialAPIKeys() {
       name: 'DDF Game API Key',
       description: 'API key for Der Dümmste Fliegt game integration',
       permissions: ['create_room', 'join_room', 'sync_state'],
-      rate_limit: 1000
+      rate_limit: 1000,
     },
     {
-      service_name: 'schooled', 
+      service_name: 'schooled',
       api_key: 'gb_schooled_' + uuidv4().replace(/-/g, ''),
       game_id: 'schooled',
       name: 'Schooled Game API Key',
       description: 'API key for Schooled game integration',
       permissions: ['create_room', 'join_room', 'sync_state'],
-      rate_limit: 1000
-    }
+      rate_limit: 1000,
+    },
   ];
-  
+
   for (const keyData of apiKeys) {
     try {
       // Hash the API key
-      const keyHash = require('crypto')
-        .createHash('sha256')
-        .update(keyData.api_key)
-        .digest('hex');
-      
-      const { error } = await supabase
-        .from('api_keys')
-        .upsert({
+      const keyHash = require('crypto').createHash('sha256').update(keyData.api_key).digest('hex');
+
+      const { error } = await supabase.from('api_keys').upsert(
+        {
           key_hash: keyHash,
           game_id: keyData.game_id,
           name: keyData.name,
           description: keyData.description,
           permissions: keyData.permissions,
           rate_limit: keyData.rate_limit,
-          is_active: true
-        }, { 
-          onConflict: 'key_hash'
-        });
-      
+          is_active: true,
+        },
+        {
+          onConflict: 'key_hash',
+        }
+      );
+
       if (error) {
         console.log(`⚠️  Could not create API key for ${keyData.service_name}:`, error.message);
       } else {
@@ -343,4 +337,4 @@ if (require.main === module) {
   setupDatabase();
 }
 
-module.exports = { setupDatabase }; 
+module.exports = { setupDatabase };

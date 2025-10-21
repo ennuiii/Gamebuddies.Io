@@ -21,17 +21,15 @@ export async function trackAdImpression(
   adData: AdData
 ): Promise<void> {
   try {
-    const { error } = await db.adminClient
-      .from('ad_impressions')
-      .insert({
-        user_id: userId,
-        ad_type: adData.type,
-        ad_placement: adData.placement || 'unknown',
-        ad_network: adData.network || 'adsense',
-        cpm_cents: adData.cpm_cents || null,
-        revenue_cents: adData.revenue_cents || null,
-        session_id: adData.session_id || null,
-      });
+    const { error } = await db.adminClient.from('ad_impressions').insert({
+      user_id: userId,
+      ad_type: adData.type,
+      ad_placement: adData.placement || 'unknown',
+      ad_network: adData.network || 'adsense',
+      cpm_cents: adData.cpm_cents || null,
+      revenue_cents: adData.revenue_cents || null,
+      session_id: adData.session_id || null,
+    });
 
     if (error) {
       throw error;
@@ -138,10 +136,7 @@ export async function getAdRevenue(
  * @param userId - User ID
  * @returns Whether the user should see ads
  */
-export async function shouldShowAds(
-  db: DatabaseService,
-  userId: string | null
-): Promise<boolean> {
+export async function shouldShowAds(db: DatabaseService, userId: string | null): Promise<boolean> {
   // Always show ads to non-logged-in users
   if (!userId) {
     return true;
@@ -185,10 +180,7 @@ export async function shouldShowAds(
  * @param isPremium - Whether the user is premium
  * @returns Ad configuration or null if ads shouldn't be shown
  */
-export function getAdConfig(
-  placement: string,
-  isPremium: boolean
-): AdResponse {
+export function getAdConfig(placement: string, isPremium: boolean): AdResponse {
   // Don't show ads to premium users
   if (isPremium) {
     return {

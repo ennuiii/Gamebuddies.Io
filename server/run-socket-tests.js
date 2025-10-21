@@ -17,7 +17,7 @@ function waitForEvent(socket, event, timeout = 5000) {
       reject(new Error(`Timeout waiting for event: ${event}`));
     }, timeout);
 
-    socket.once(event, (data) => {
+    socket.once(event, data => {
       clearTimeout(timer);
       resolve(data);
     });
@@ -28,7 +28,7 @@ function waitForEvent(socket, event, timeout = 5000) {
 async function connectSocket(socket) {
   return new Promise((resolve, reject) => {
     socket.on('connect', () => resolve());
-    socket.on('connect_error', (error) => reject(error));
+    socket.on('connect_error', error => reject(error));
     socket.connect();
     setTimeout(() => reject(new Error('Connection timeout')), 5000);
   });
@@ -302,7 +302,7 @@ async function runTests() {
 }
 
 // Run tests
-runTests().catch((error) => {
+runTests().catch(error => {
   console.error('Fatal error:', error);
   process.exit(1);
 });

@@ -6,7 +6,7 @@ class StatusSyncManager {
     this.statusQueue = new Map(); // Pending status updates
     this.heartbeats = new Map(); // Player heartbeat tracking
     this.syncInterval = null;
-    
+
     this.setupHeartbeatSystem();
     this.setupStatusSyncLoop();
   }
@@ -36,10 +36,10 @@ class StatusSyncManager {
         metadata: {
           ...metadata,
           timestamp: new Date().toISOString(),
-          source: 'location_update'
+          source: 'location_update',
         },
         retryCount: 0,
-        queuedAt: Date.now()
+        queuedAt: Date.now(),
       });
 
       // Process immediately for critical updates
@@ -48,7 +48,6 @@ class StatusSyncManager {
       }
 
       return { success: true, queued: !metadata.immediate };
-
     } catch (error) {
       console.error(`❌ [STATUS] Failed to update player location:`, error);
       throw error;
@@ -71,11 +70,10 @@ class StatusSyncManager {
         room: roomData.room,
         players: roomData.players,
         timestamp: new Date().toISOString(),
-        syncType: 'full'
+        syncType: 'full',
       });
 
       return { success: true, playersCount: roomData.players.length };
-
     } catch (error) {
       console.error(`❌ [STATUS] Failed to sync room status:`, error);
       throw error;
@@ -85,13 +83,13 @@ class StatusSyncManager {
   // Handle player heartbeat
   async handleHeartbeat(playerId, roomCode, socketId, metadata = {}) {
     const heartbeatKey = `${playerId}_${roomCode}`;
-    
+
     this.heartbeats.set(heartbeatKey, {
       playerId,
       roomCode,
       socketId,
       lastHeartbeat: Date.now(),
-      metadata
+      metadata,
     });
 
     // Update last ping in database periodically (not every heartbeat)
@@ -101,16 +99,19 @@ class StatusSyncManager {
         await this.db.adminClient
           .from('room_members')
           .update({
-            last_ping: new Date().toISOString()
+            last_ping: new Date().toISOString(),
           })
           .eq('user_id', playerId)
-          .eq('room_id', (
-            await this.db.adminClient
-              .from('rooms')
-              .select('id')
-              .eq('room_code', roomCode)
-              .single()
-          ).data?.id);
+          .eq(
+            'room_id',
+            (
+              await this.db.adminClient
+                .from('rooms')
+                .select('id')
+                .eq('room_code', roomCode)
+                .single()
+            ).data?.id
+          );
       } catch (error) {
         console.error(`❌ [STATUS] Heartbeat DB update failed:`, error);
       }
@@ -135,12 +136,14 @@ class StatusSyncManager {
     // Process disconnections
     for (const player of disconnectedPlayers) {
       try {
-        console.log(`💔 [STATUS] Player ${player.playerId} detected as disconnected (no heartbeat)`);
-        
+        console.log(
+          `💔 [STATUS] Player ${player.playerId} detected as disconnected (no heartbeat)`
+        );
+
         await this.updatePlayerLocation(player.playerId, player.roomCode, 'disconnected', {
           reason: 'Heartbeat timeout',
           lastHeartbeat: new Date(player.lastHeartbeat).toISOString(),
-          immediate: true
+          immediate: true,
         });
       } catch (error) {
         console.error(`❌ [STATUS] Failed to handle disconnection:`, error);
@@ -160,19 +163,19 @@ class StatusSyncManager {
       // Get authoritative state from database
       const { data: currentState, error } = await this.db.adminClient
         .from('room_members')
-        .select(`
+        .select(
+          `
           *,
           room:rooms(*),
           user:users(*)
-        `)
+        `
+        )
         .eq('user_id', playerId)
-        .eq('room_id', (
-          await this.db.adminClient
-            .from('rooms')
-            .select('id')
-            .eq('room_code', roomCode)
-            .single()
-        ).data?.id)
+        .eq(
+          'room_id',
+          (await this.db.adminClient.from('rooms').select('id').eq('room_code', roomCode).single())
+            .data?.id
+        )
         .single();
 
       if (error || !currentState) {
@@ -185,15 +188,15 @@ class StatusSyncManager {
       // Apply resolution
       if (resolution.updateRequired) {
         await this.lobbyManager.updatePlayerStatus(
-          playerId, 
-          roomCode, 
+          playerId,
+          roomCode,
           resolution.resolvedStatus.status,
           resolution.resolvedStatus.location,
           {
             reason: 'Conflict resolution',
             originalServer: serverStatus,
             originalClient: clientStatus,
-            resolutionStrategy: resolution.strategy
+            resolutionStrategy: resolution.strategy,
           }
         );
       }
@@ -206,12 +209,11 @@ class StatusSyncManager {
           roomCode,
           resolvedStatus: resolution.resolvedStatus,
           strategy: resolution.strategy,
-          requiresAction: resolution.requiresClientAction
+          requiresAction: resolution.requiresClientAction,
         });
       }
 
       return resolution;
-
     } catch (error) {
       console.error(`❌ [STATUS] Failed to reconcile status conflicts:`, error);
       throw error;
@@ -229,7 +231,7 @@ class StatusSyncManager {
         processedUpdates.push(updateKey);
       } catch (error) {
         console.error(`❌ [STATUS] Failed to process update ${updateKey}:`, error);
-        
+
         // Retry logic
         update.retryCount++;
         if (update.retryCount >= 3) {
@@ -246,7 +248,9 @@ class StatusSyncManager {
       console.log(`✅ [STATUS] Processed ${processedUpdates.length} status updates`);
     }
     if (failedUpdates.length > 0) {
-      console.log(`❌ [STATUS] Failed to process ${failedUpdates.length} status updates after retries`);
+      console.log(
+        `❌ [STATUS] Failed to process ${failedUpdates.length} status updates after retries`
+      );
     }
 
     return { processed: processedUpdates.length, failed: failedUpdates.length };
@@ -269,13 +273,15 @@ class StatusSyncManager {
   // Resolve status conflicts using various strategies
   resolveConflict(dbState, serverStatus, clientStatus) {
     // Strategy 1: Trust database state (most conservative)
-    if (this.isSignificantDifference(dbState, serverStatus) && 
-        this.isSignificantDifference(dbState, clientStatus)) {
+    if (
+      this.isSignificantDifference(dbState, serverStatus) &&
+      this.isSignificantDifference(dbState, clientStatus)
+    ) {
       return {
         strategy: 'trust_database',
         resolvedStatus: this.mapDbStateToStatus(dbState),
         updateRequired: false,
-        requiresClientAction: true
+        requiresClientAction: true,
       };
     }
 
@@ -285,38 +291,37 @@ class StatusSyncManager {
         strategy: 'hybrid_preference',
         resolvedStatus: {
           status: clientStatus.isConnected ? 'connected' : 'disconnected',
-          location: serverStatus.inGame ? 'game' : 'lobby'
+          location: serverStatus.inGame ? 'game' : 'lobby',
         },
         updateRequired: true,
-        requiresClientAction: false
+        requiresClientAction: false,
       };
     }
 
     // Strategy 3: Most recent update wins (timestamp-based)
     const serverTime = new Date(serverStatus.timestamp || 0).getTime();
     const clientTime = new Date(clientStatus.timestamp || 0).getTime();
-    
+
     const newerStatus = serverTime > clientTime ? serverStatus : clientStatus;
     return {
       strategy: 'most_recent',
       resolvedStatus: newerStatus,
       updateRequired: true,
-      requiresClientAction: false
+      requiresClientAction: false,
     };
   }
 
   // Check if there's a significant difference in states
   isSignificantDifference(dbState, compareState) {
     if (!compareState) return false;
-    
+
     const dbConnected = dbState.is_connected;
     const compareConnected = compareState.isConnected;
-    
+
     const dbLocation = dbState.current_location;
     const compareLocation = compareState.location;
-    
-    return (dbConnected !== compareConnected) || 
-           (dbLocation !== compareLocation);
+
+    return dbConnected !== compareConnected || dbLocation !== compareLocation;
   }
 
   // Map database state to status format
@@ -326,7 +331,7 @@ class StatusSyncManager {
       location: dbState.current_location,
       isConnected: dbState.is_connected,
       inGame: dbState.in_game,
-      timestamp: dbState.last_ping
+      timestamp: dbState.last_ping,
     };
   }
 
@@ -367,18 +372,13 @@ class StatusSyncManager {
       const chunks = this.chunkArray(players, concurrencyLimit);
 
       for (const chunk of chunks) {
-        const chunkPromises = chunk.map(async (player) => {
+        const chunkPromises = chunk.map(async player => {
           try {
-            await this.updatePlayerLocation(
-              player.playerId,
-              roomCode,
-              player.location,
-              {
-                reason: `${reason} - ${player.reason || 'No specific reason'}`,
-                bulkUpdate: true,
-                gameData: player.gameData
-              }
-            );
+            await this.updatePlayerLocation(player.playerId, roomCode, player.location, {
+              reason: `${reason} - ${player.reason || 'No specific reason'}`,
+              bulkUpdate: true,
+              gameData: player.gameData,
+            });
             results.push({ playerId: player.playerId, success: true });
           } catch (error) {
             console.error(`❌ [STATUS] Bulk update failed for player ${player.playerId}:`, error);
@@ -392,7 +392,9 @@ class StatusSyncManager {
       // Sync room status after bulk update
       await this.syncRoomStatus(roomCode);
 
-      console.log(`✅ [STATUS] Bulk update completed: ${results.length} success, ${errors.length} errors`);
+      console.log(
+        `✅ [STATUS] Bulk update completed: ${results.length} success, ${errors.length} errors`
+      );
       return {
         success: true,
         results,
@@ -400,10 +402,9 @@ class StatusSyncManager {
         summary: {
           total: players.length,
           successful: results.length,
-          failed: errors.length
-        }
+          failed: errors.length,
+        },
       };
-
     } catch (error) {
       console.error(`❌ [STATUS] Bulk status update failed:`, error);
       throw error;
@@ -427,17 +428,17 @@ class StatusSyncManager {
       // Get all players currently in game
       const { data: playersInGame } = await this.db.adminClient
         .from('room_members')
-        .select(`
+        .select(
+          `
           user_id,
           user:users(username, display_name)
-        `)
-        .eq('room_id', (
-          await this.db.adminClient
-            .from('rooms')
-            .select('id')
-            .eq('room_code', roomCode)
-            .single()
-        ).data?.id)
+        `
+        )
+        .eq(
+          'room_id',
+          (await this.db.adminClient.from('rooms').select('id').eq('room_code', roomCode).single())
+            .data?.id
+        )
         .eq('current_location', 'game')
         .eq('is_connected', true);
 
@@ -451,12 +452,12 @@ class StatusSyncManager {
         playerId: player.user_id,
         location: 'lobby',
         reason: 'Game ended',
-        gameData: gameResult
+        gameData: gameResult,
       }));
 
       const result = await this.bulkUpdatePlayerStatus(
-        roomCode, 
-        returnPlayers, 
+        roomCode,
+        returnPlayers,
         'Game ended - returning players to lobby'
       );
 
@@ -465,18 +466,20 @@ class StatusSyncManager {
 
       // Log game end event
       await this.db.logEvent(
-        (await this.db.adminClient.from('rooms').select('id').eq('room_code', roomCode).single()).data?.id,
+        (await this.db.adminClient.from('rooms').select('id').eq('room_code', roomCode).single())
+          .data?.id,
         null,
         'game_ended',
-        { 
+        {
           playersReturned: result.summary.successful,
-          gameResult 
+          gameResult,
         }
       );
 
-      console.log(`✅ [STATUS] Game end handled: ${result.summary.successful} players returned to lobby`);
+      console.log(
+        `✅ [STATUS] Game end handled: ${result.summary.successful} players returned to lobby`
+      );
       return { success: true, playersReturned: result.summary.successful };
-
     } catch (error) {
       console.error(`❌ [STATUS] Failed to handle game end:`, error);
       throw error;

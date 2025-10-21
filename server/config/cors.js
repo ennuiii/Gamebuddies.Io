@@ -8,10 +8,10 @@
 /**
  * Parse comma-separated origins from environment variable
  */
-const parseOrigins = (val) =>
+const parseOrigins = val =>
   (val || '')
     .split(',')
-    .map((s) => s.trim())
+    .map(s => s.trim())
     .filter(Boolean);
 
 /**
@@ -43,16 +43,14 @@ const allowedRenderApps = [
  * Get all allowed origins (defaults + environment + Render apps)
  */
 const envOrigins = parseOrigins(process.env.CORS_ORIGINS);
-const allowedOrigins = Array.from(
-  new Set([...defaultOrigins, ...envOrigins])
-);
+const allowedOrigins = Array.from(new Set([...defaultOrigins, ...envOrigins]));
 
 /**
  * Check if an origin is allowed
  * @param {string} origin - The origin to check
  * @returns {boolean} Whether the origin is allowed
  */
-const isAllowedOrigin = (origin) => {
+const isAllowedOrigin = origin => {
   // Allow requests with no origin (e.g., mobile apps, Postman)
   if (!origin) return true;
 

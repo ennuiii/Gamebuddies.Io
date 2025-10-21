@@ -23,11 +23,14 @@ router.get('/', async (req, res) => {
       return res.status(500).json({
         success: false,
         error: 'Failed to fetch games',
-        code: 'DATABASE_ERROR'
+        code: 'DATABASE_ERROR',
       });
     }
 
-    console.log(`[Games API] ✅ Found ${games.length} games:`, games.map(g => g.id));
+    console.log(
+      `[Games API] ✅ Found ${games.length} games:`,
+      games.map(g => g.id)
+    );
 
     // Transform data to match frontend expectations
     const transformedGames = games.map(game => ({
@@ -36,37 +39,39 @@ router.get('/', async (req, res) => {
       displayName: game.display_name,
       description: game.description || '',
       icon: game.icon || '🎮',
-      screenshot: game.thumbnail_url,  // GameCard expects 'screenshot'
+      screenshot: game.thumbnail_url, // GameCard expects 'screenshot'
       thumbnailUrl: game.thumbnail_url,
-      path: `/${game.id}`,  // GameCard expects 'path' for routing
-      available: game.is_active && !game.maintenance_mode,  // GameCard expects 'available'
+      path: `/${game.id}`, // GameCard expects 'path' for routing
+      available: game.is_active && !game.maintenance_mode, // GameCard expects 'available'
       maxPlayers: game.max_players || 10,
       minPlayers: game.min_players || 2,
       baseUrl: game.base_url,
       isExternal: game.is_external,
       supportsSpectators: game.supports_spectators,
       settingsSchema: game.settings_schema || {},
-      defaultSettings: game.default_settings || {}
+      defaultSettings: game.default_settings || {},
     }));
 
-    console.log('[Games API] 📤 Returning games:', transformedGames.map(g => ({
-      id: g.id,
-      name: g.name,
-      icon: g.icon,
-      available: g.available
-    })));
+    console.log(
+      '[Games API] 📤 Returning games:',
+      transformedGames.map(g => ({
+        id: g.id,
+        name: g.name,
+        icon: g.icon,
+        available: g.available,
+      }))
+    );
 
     res.json({
       success: true,
-      games: transformedGames
+      games: transformedGames,
     });
-
   } catch (err) {
     console.error('[Games API] Unexpected error:', err);
     res.status(500).json({
       success: false,
       error: 'Internal server error',
-      code: 'SERVER_ERROR'
+      code: 'SERVER_ERROR',
     });
   }
 });
@@ -89,7 +94,7 @@ router.get('/:gameId', async (req, res) => {
       return res.status(404).json({
         success: false,
         error: 'Game not found',
-        code: 'GAME_NOT_FOUND'
+        code: 'GAME_NOT_FOUND',
       });
     }
 
@@ -98,7 +103,7 @@ router.get('/:gameId', async (req, res) => {
         success: false,
         error: 'Game is currently unavailable',
         code: 'GAME_UNAVAILABLE',
-        maintenance: game.maintenance_mode
+        maintenance: game.maintenance_mode,
       });
     }
 
@@ -120,16 +125,15 @@ router.get('/:gameId', async (req, res) => {
         isExternal: game.is_external,
         supportsSpectators: game.supports_spectators,
         settingsSchema: game.settings_schema || {},
-        defaultSettings: game.default_settings || {}
-      }
+        defaultSettings: game.default_settings || {},
+      },
     });
-
   } catch (err) {
     console.error('[Games API] Unexpected error:', err);
     res.status(500).json({
       success: false,
       error: 'Internal server error',
-      code: 'SERVER_ERROR'
+      code: 'SERVER_ERROR',
     });
   }
 });

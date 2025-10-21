@@ -22,7 +22,13 @@ import { corsOptions } from './config/cors';
 import { errorHandler } from './lib/errors';
 import requestIdMiddleware from './middlewares/requestId';
 import { db } from './lib/supabase';
-import { AuthenticatedRequest, ServerToClientEvents, ClientToServerEvents, InterServerEvents, SocketData } from './types';
+import {
+  AuthenticatedRequest,
+  ServerToClientEvents,
+  ClientToServerEvents,
+  InterServerEvents,
+  SocketData,
+} from './types';
 
 // Import routes
 import adsRouter from './routes/ads';
@@ -51,10 +57,12 @@ app.set('trust proxy', 1);
 // ===== MIDDLEWARE =====
 
 // Security and compression
-app.use(helmet({
-  contentSecurityPolicy: false,
-  crossOriginEmbedderPolicy: false
-}));
+app.use(
+  helmet({
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false,
+  })
+);
 app.use(compression());
 
 // CORS
@@ -85,7 +93,7 @@ const io = new SocketIOServer<
   pingTimeout: constants.PING_TIMEOUT,
   pingInterval: constants.PING_INTERVAL,
   maxHttpBufferSize: constants.MAX_HTTP_BUFFER_SIZE,
-  transports: ['websocket', 'polling']
+  transports: ['websocket', 'polling'],
 });
 
 // ===== HELPER FUNCTIONS =====
@@ -143,7 +151,7 @@ async function loadGameProxiesFromDatabase(): Promise<Record<string, GameProxyCo
         path: `/${gameId}`,
         target: target,
         pathRewrite: { [`^/${gameId}`]: '' },
-        ws: envBool(`${gameIdUpper}_WS`, false)
+        ws: envBool(`${gameIdUpper}_WS`, false),
       };
 
       logger.info(`Configured ${gameId}: /${gameId} -> ${target}`);
@@ -151,7 +159,6 @@ async function loadGameProxiesFromDatabase(): Promise<Record<string, GameProxyCo
 
     logger.info(`Loaded ${Object.keys(proxies).length} game proxies from database`);
     return proxies;
-
   } catch (err) {
     logger.error('Unexpected error loading game proxies', { error: (err as Error).message });
     return {};
@@ -171,11 +178,12 @@ function isNavigationError(err: any): boolean {
     'connection was terminated',
     'socket hang up',
     'read ECONNRESET',
-    'write EPIPE'
+    'write EPIPE',
   ];
 
-  return suppressedCodes.includes(err.code) ||
-         suppressedMessages.some(msg => err.message?.includes(msg));
+  return (
+    suppressedCodes.includes(err.code) || suppressedMessages.some(msg => err.message?.includes(msg))
+  );
 }
 
 /**
@@ -185,7 +193,7 @@ function createFilteredLogger() {
   const suppress = (message: any, args?: any[]): boolean => {
     try {
       const text = [message, ...(args || [])]
-        .map((a) => (a && a.stack ? a.stack : String(a)))
+        .map(a => (a && a.stack ? a.stack : String(a)))
         .join(' ');
       return (
         text.includes('HPM WebSocket error') ||
@@ -239,7 +247,7 @@ async function setupGameProxies(): Promise<void> {
               logger.error(`Proxy error for ${gameId}`, {
                 error: err.message,
                 code: (err as any).code,
-                url: (req as Request).url
+                url: (req as Request).url,
               });
             }
 
@@ -247,11 +255,11 @@ async function setupGameProxies(): Promise<void> {
               (res as Response).status(502).json({
                 success: false,
                 error: 'Game service temporarily unavailable',
-                code: 'PROXY_ERROR'
+                code: 'PROXY_ERROR',
               });
             }
-          }
-        }
+          },
+        },
       } as any);
 
       app.use(config.path, proxy);
@@ -290,7 +298,7 @@ app.get('/api/connection-stats', async (req, res) => {
     const stats = {
       socketConnections: io.engine.clientsCount,
       rooms: io.sockets.adapter.rooms.size,
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
     };
     res.json({ success: true, data: stats });
   } catch (error) {
@@ -389,11 +397,10 @@ async function startServer(): Promise<void> {
 
     process.on('SIGTERM', () => shutdown('SIGTERM'));
     process.on('SIGINT', () => shutdown('SIGINT'));
-
   } catch (error) {
     logger.error('Failed to start server', {
       error: (error as Error).message,
-      stack: (error as Error).stack
+      stack: (error as Error).stack,
     });
     process.exit(1);
   }

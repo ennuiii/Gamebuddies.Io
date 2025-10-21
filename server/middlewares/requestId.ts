@@ -19,7 +19,7 @@ export default function requestIdMiddleware(
   next: NextFunction
 ): void {
   // Use existing request ID from header if present, otherwise generate new one
-  req.id = req.headers['x-request-id'] as string || uuidv4();
+  req.id = (req.headers['x-request-id'] as string) || uuidv4();
 
   // Add request ID to response headers for client tracking
   res.setHeader('X-Request-ID', req.id);

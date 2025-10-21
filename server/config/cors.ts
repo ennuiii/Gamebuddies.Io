@@ -13,7 +13,7 @@ import { CorsOptions } from 'cors';
 const parseOrigins = (val?: string): string[] =>
   (val || '')
     .split(',')
-    .map((s) => s.trim())
+    .map(s => s.trim())
     .filter(Boolean);
 
 /**
@@ -45,9 +45,7 @@ export const allowedRenderApps: string[] = [
  * Get all allowed origins (defaults + environment + Render apps)
  */
 const envOrigins = parseOrigins(process.env.CORS_ORIGINS);
-export const allowedOrigins: string[] = Array.from(
-  new Set([...defaultOrigins, ...envOrigins])
-);
+export const allowedOrigins: string[] = Array.from(new Set([...defaultOrigins, ...envOrigins]));
 
 /**
  * Check if an origin is allowed

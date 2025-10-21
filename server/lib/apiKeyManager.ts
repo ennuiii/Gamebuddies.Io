@@ -202,10 +202,7 @@ export async function createApiKeyRecord(
  * @param apiKey - The API key to validate
  * @returns API key record if valid, null otherwise
  */
-export async function validateApiKey(
-  db: DatabaseService,
-  apiKey: string
-): Promise<ApiKey | null> {
+export async function validateApiKey(db: DatabaseService, apiKey: string): Promise<ApiKey | null> {
   try {
     // Validate format first
     if (!isValidApiKeyFormat(apiKey)) {

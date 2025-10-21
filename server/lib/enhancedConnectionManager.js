@@ -21,7 +21,7 @@ class EnhancedConnectionManager extends ConnectionManager {
       sessionToken: null,
       connectionType: 'websocket', // websocket, api, recovered
       metadata: {},
-      ...initialData
+      ...initialData,
     };
 
     this.activeConnections.set(socketId, connection);
@@ -67,7 +67,7 @@ class EnhancedConnectionManager extends ConnectionManager {
 
     // Apply updates
     Object.assign(connection, updates, {
-      lastActivity: new Date()
+      lastActivity: new Date(),
     });
 
     console.log(`📝 [CONNECTION] Updated connection ${socketId}`);
@@ -87,13 +87,16 @@ class EnhancedConnectionManager extends ConnectionManager {
         roomCode: connection.roomCode,
         metadata: connection.metadata,
         disconnectedAt: new Date(),
-        recoverable: true
+        recoverable: true,
       });
 
       // Auto-expire recovery data after 5 minutes
-      setTimeout(() => {
-        this.connectionRecovery.delete(connection.sessionToken);
-      }, 5 * 60 * 1000);
+      setTimeout(
+        () => {
+          this.connectionRecovery.delete(connection.sessionToken);
+        },
+        5 * 60 * 1000
+      );
     }
 
     // Clean up session mappings
@@ -112,7 +115,7 @@ class EnhancedConnectionManager extends ConnectionManager {
     }
 
     this.activeConnections.delete(socketId);
-    
+
     console.log(`📉 [CONNECTION] Removed connection ${socketId} for user ${connection.userId}`);
     return connection;
   }
@@ -120,7 +123,9 @@ class EnhancedConnectionManager extends ConnectionManager {
   // Session recovery
   async recoverSession(sessionToken, newSocketId) {
     try {
-      console.log(`🔄 [CONNECTION] Attempting session recovery for token ${sessionToken.substring(0, 8)}...`);
+      console.log(
+        `🔄 [CONNECTION] Attempting session recovery for token ${sessionToken.substring(0, 8)}...`
+      );
 
       const recoveryData = this.connectionRecovery.get(sessionToken);
       if (!recoveryData || !recoveryData.recoverable) {
@@ -145,8 +150,8 @@ class EnhancedConnectionManager extends ConnectionManager {
           ...recoveryData.metadata,
           recoveredAt: new Date(),
           originalDisconnect: recoveryData.disconnectedAt,
-          recoveryDuration: sessionAge
-        }
+          recoveryDuration: sessionAge,
+        },
       });
 
       // Mark recovery as used
@@ -154,7 +159,6 @@ class EnhancedConnectionManager extends ConnectionManager {
 
       console.log(`✅ [CONNECTION] Session recovered successfully for user ${recoveryData.userId}`);
       return recoveredConnection;
-
     } catch (error) {
       console.error(`❌ [CONNECTION] Session recovery failed:`, error);
       throw error;
@@ -164,13 +168,13 @@ class EnhancedConnectionManager extends ConnectionManager {
   // Create session token for connection
   createSessionToken(userId, roomId) {
     const token = require('crypto').randomBytes(32).toString('hex');
-    
+
     // Store session info for potential recovery
     this.connectionRecovery.set(token, {
       userId,
       roomId,
       createdAt: new Date(),
-      recoverable: true
+      recoverable: true,
     });
 
     return token;
@@ -196,17 +200,19 @@ class EnhancedConnectionManager extends ConnectionManager {
       .map(socketId => this.activeConnections.get(socketId))
       .filter(Boolean);
 
-    console.log(`🔀 [CONNECTION] Handling multiple connections for user ${userId}: ${existingConnections.length} existing`);
+    console.log(
+      `🔀 [CONNECTION] Handling multiple connections for user ${userId}: ${existingConnections.length} existing`
+    );
 
     // Strategy: Allow multiple connections but mark older ones as secondary
     const strategies = {
       // Keep newest, mark others as secondary
       'newest-primary': () => {
         existingConnections.forEach(conn => {
-          this.updateConnection(conn.socketId, { 
+          this.updateConnection(conn.socketId, {
             isPrimary: false,
             supersededBy: newSocketId,
-            supersededAt: new Date()
+            supersededAt: new Date(),
           });
         });
         return { primary: newSocketId, secondary: existingConnections.map(c => c.socketId) };
@@ -214,7 +220,7 @@ class EnhancedConnectionManager extends ConnectionManager {
 
       // Keep oldest, mark new as secondary
       'oldest-primary': () => {
-        const oldestConnection = existingConnections.reduce((oldest, current) => 
+        const oldestConnection = existingConnections.reduce((oldest, current) =>
           current.connectedAt < oldest.connectedAt ? current : oldest
         );
         return { primary: oldestConnection.socketId, secondary: [newSocketId] };
@@ -223,7 +229,7 @@ class EnhancedConnectionManager extends ConnectionManager {
       // Allow all (for different devices/tabs)
       'allow-all': () => {
         return { primary: newSocketId, secondary: existingConnections.map(c => c.socketId) };
-      }
+      },
     };
 
     // Use newest-primary strategy by default
@@ -233,7 +239,7 @@ class EnhancedConnectionManager extends ConnectionManager {
       multipleConnections: true,
       strategy: 'newest-primary',
       totalConnections: existingConnections.length + 1,
-      ...result
+      ...result,
     };
   }
 
@@ -257,14 +263,16 @@ class EnhancedConnectionManager extends ConnectionManager {
     const primaryConnection = connections[0];
     const secondaryConnections = connections.slice(1);
 
-    console.log(`🔧 [CONNECTION] Consolidating ${connections.length} connections for user ${userId}`);
+    console.log(
+      `🔧 [CONNECTION] Consolidating ${connections.length} connections for user ${userId}`
+    );
 
     // Mark secondary connections for termination
     secondaryConnections.forEach(conn => {
       this.updateConnection(conn.socketId, {
         markedForTermination: true,
         terminationReason: 'Connection consolidated',
-        primaryConnection: primaryConnection.socketId
+        primaryConnection: primaryConnection.socketId,
       });
     });
 
@@ -272,7 +280,7 @@ class EnhancedConnectionManager extends ConnectionManager {
       consolidated: true,
       primaryConnection: primaryConnection.socketId,
       terminatedConnections: secondaryConnections.map(c => c.socketId),
-      consolidatedAt: new Date()
+      consolidatedAt: new Date(),
     };
   }
 
@@ -291,7 +299,7 @@ class EnhancedConnectionManager extends ConnectionManager {
           roomCode: connection.roomCode,
           metadata: connection.metadata,
           persistedAt: new Date(),
-          recoverable: true
+          recoverable: true,
         });
       }
 
@@ -320,13 +328,12 @@ class EnhancedConnectionManager extends ConnectionManager {
           ...connection.metadata,
           ...recoveryData.metadata,
           restoredAt: new Date(),
-          restoredFrom: 'persistence'
-        }
+          restoredFrom: 'persistence',
+        },
       });
 
       console.log(`🔄 [CONNECTION] Restored state for connection ${socketId}`);
       return this.activeConnections.get(socketId);
-
     } catch (error) {
       console.error(`❌ [CONNECTION] Failed to restore state for ${socketId}:`, error);
       return null;
@@ -338,9 +345,9 @@ class EnhancedConnectionManager extends ConnectionManager {
     if (!this.userSessions.has(userId)) {
       this.userSessions.set(userId, new Map());
     }
-    this.userSessions.get(userId).set(socketId, { 
-      sessionToken, 
-      addedAt: new Date() 
+    this.userSessions.get(userId).set(socketId, {
+      sessionToken,
+      addedAt: new Date(),
     });
   }
 
@@ -358,44 +365,53 @@ class EnhancedConnectionManager extends ConnectionManager {
   getEnhancedStats() {
     const baseStats = this.getStats();
     const connections = Array.from(this.activeConnections.values());
-    
+
     return {
       ...baseStats,
       sessionTokens: this.sessionTokens.size,
-      recoverableSessions: Array.from(this.connectionRecovery.values())
-        .filter(r => r.recoverable).length,
-      multiUserConnections: Array.from(this.userSessions.values())
-        .filter(sessions => sessions.size > 1).length,
+      recoverableSessions: Array.from(this.connectionRecovery.values()).filter(r => r.recoverable)
+        .length,
+      multiUserConnections: Array.from(this.userSessions.values()).filter(
+        sessions => sessions.size > 1
+      ).length,
       connectionTypes: connections.reduce((acc, conn) => {
         acc[conn.connectionType] = (acc[conn.connectionType] || 0) + 1;
         return acc;
       }, {}),
-      averageSessionAge: this.sessionTokens.size > 0 
-        ? connections
-            .filter(c => c.sessionToken)
-            .reduce((sum, c) => sum + (Date.now() - c.connectedAt.getTime()), 0) 
-            / this.sessionTokens.size / 1000
-        : 0,
+      averageSessionAge:
+        this.sessionTokens.size > 0
+          ? connections
+              .filter(c => c.sessionToken)
+              .reduce((sum, c) => sum + (Date.now() - c.connectedAt.getTime()), 0) /
+            this.sessionTokens.size /
+            1000
+          : 0,
       recoveryStats: {
         totalRecoverable: this.connectionRecovery.size,
-        oldestRecovery: Math.min(...Array.from(this.connectionRecovery.values())
-          .map(r => Date.now() - (r.disconnectedAt || r.createdAt).getTime())
-        ) / 1000,
-        newestRecovery: Math.max(...Array.from(this.connectionRecovery.values())
-          .map(r => Date.now() - (r.disconnectedAt || r.createdAt).getTime())
-        ) / 1000
-      }
+        oldestRecovery:
+          Math.min(
+            ...Array.from(this.connectionRecovery.values()).map(
+              r => Date.now() - (r.disconnectedAt || r.createdAt).getTime()
+            )
+          ) / 1000,
+        newestRecovery:
+          Math.max(
+            ...Array.from(this.connectionRecovery.values()).map(
+              r => Date.now() - (r.disconnectedAt || r.createdAt).getTime()
+            )
+          ) / 1000,
+      },
     };
   }
 
   // Enhanced cleanup with session management
   cleanupStaleConnections(maxIdleMs = 300000) {
     const staleConnections = super.cleanupStaleConnections(maxIdleMs);
-    
+
     // Clean up stale recovery data
     const now = Date.now();
     const recoveryThreshold = 24 * 60 * 60 * 1000; // 24 hours
-    
+
     for (const [token, recovery] of this.connectionRecovery.entries()) {
       const age = now - (recovery.disconnectedAt || recovery.createdAt).getTime();
       if (age > recoveryThreshold) {
@@ -410,8 +426,10 @@ class EnhancedConnectionManager extends ConnectionManager {
       }
     }
 
-    console.log(`🧹 [CONNECTION] Enhanced cleanup: ${staleConnections.length} stale connections, ${this.connectionRecovery.size} recoverable sessions`);
-    
+    console.log(
+      `🧹 [CONNECTION] Enhanced cleanup: ${staleConnections.length} stale connections, ${this.connectionRecovery.size} recoverable sessions`
+    );
+
     return staleConnections;
   }
 }

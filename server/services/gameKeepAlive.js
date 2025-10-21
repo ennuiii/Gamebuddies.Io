@@ -107,8 +107,8 @@ class GameKeepAliveService {
         method: 'GET',
         signal: controller.signal,
         headers: {
-          'User-Agent': 'GameBuddies-KeepAlive/1.0'
-        }
+          'User-Agent': 'GameBuddies-KeepAlive/1.0',
+        },
       });
 
       clearTimeout(timeoutId);
@@ -116,17 +116,23 @@ class GameKeepAliveService {
       const responseTime = Date.now() - startTime;
 
       if (response.ok) {
-        console.log(`[Keep-Alive] ✅ ${game.name} (${game.id}) - ${response.status} - ${responseTime}ms`);
+        console.log(
+          `[Keep-Alive] ✅ ${game.name} (${game.id}) - ${response.status} - ${responseTime}ms`
+        );
         return { success: true, responseTime, status: response.status };
       } else {
-        console.warn(`[Keep-Alive] ⚠️  ${game.name} (${game.id}) - ${response.status} - ${responseTime}ms`);
+        console.warn(
+          `[Keep-Alive] ⚠️  ${game.name} (${game.id}) - ${response.status} - ${responseTime}ms`
+        );
         return { success: false, responseTime, status: response.status };
       }
     } catch (error) {
       const responseTime = Date.now() - startTime;
 
       if (error.name === 'AbortError') {
-        console.error(`[Keep-Alive] ❌ ${game.name} (${game.id}) - Timeout after ${this.requestTimeout}ms`);
+        console.error(
+          `[Keep-Alive] ❌ ${game.name} (${game.id}) - Timeout after ${this.requestTimeout}ms`
+        );
       } else {
         console.error(`[Keep-Alive] ❌ ${game.name} (${game.id}) - Error: ${error.message}`);
       }
@@ -164,7 +170,9 @@ class GameKeepAliveService {
     const failed = results.filter(r => !r.success).length;
     const skipped = results.filter(r => r.skipped).length;
 
-    console.log(`[Keep-Alive] Summary: ${successful} successful, ${failed} failed, ${skipped} skipped`);
+    console.log(
+      `[Keep-Alive] Summary: ${successful} successful, ${failed} failed, ${skipped} skipped`
+    );
     console.log('[Keep-Alive] ========== PING CYCLE END ==========\n');
   }
 }

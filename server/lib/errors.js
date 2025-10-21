@@ -70,12 +70,10 @@ class RoomNotFoundError extends GameBuddiesError {
 
 class RoomFullError extends GameBuddiesError {
   constructor(roomCode, maxPlayers) {
-    super(
-      `Room ${roomCode} is full`,
-      constants.ERROR_CODES.ROOM_FULL,
-      constants.HTTP_CONFLICT,
-      { roomCode, maxPlayers }
-    );
+    super(`Room ${roomCode} is full`, constants.ERROR_CODES.ROOM_FULL, constants.HTTP_CONFLICT, {
+      roomCode,
+      maxPlayers,
+    });
   }
 }
 
@@ -129,42 +127,25 @@ class InvalidPlayerNameError extends GameBuddiesError {
 
 class UnauthorizedError extends GameBuddiesError {
   constructor(message = 'Unauthorized') {
-    super(
-      message,
-      constants.ERROR_CODES.UNAUTHORIZED,
-      constants.HTTP_UNAUTHORIZED
-    );
+    super(message, constants.ERROR_CODES.UNAUTHORIZED, constants.HTTP_UNAUTHORIZED);
   }
 }
 
 class ForbiddenError extends GameBuddiesError {
   constructor(message = 'Forbidden', action) {
-    super(
-      message,
-      constants.ERROR_CODES.FORBIDDEN,
-      constants.HTTP_FORBIDDEN,
-      { action }
-    );
+    super(message, constants.ERROR_CODES.FORBIDDEN, constants.HTTP_FORBIDDEN, { action });
   }
 }
 
 class ApiKeyRequiredError extends GameBuddiesError {
   constructor() {
-    super(
-      'API key required',
-      constants.ERROR_CODES.API_KEY_REQUIRED,
-      constants.HTTP_UNAUTHORIZED
-    );
+    super('API key required', constants.ERROR_CODES.API_KEY_REQUIRED, constants.HTTP_UNAUTHORIZED);
   }
 }
 
 class InvalidApiKeyError extends GameBuddiesError {
   constructor() {
-    super(
-      'Invalid API key',
-      constants.ERROR_CODES.INVALID_API_KEY,
-      constants.HTTP_UNAUTHORIZED
-    );
+    super('Invalid API key', constants.ERROR_CODES.INVALID_API_KEY, constants.HTTP_UNAUTHORIZED);
   }
 }
 
@@ -172,9 +153,7 @@ class InvalidApiKeyError extends GameBuddiesError {
 
 class ValidationError extends GameBuddiesError {
   constructor(errors) {
-    const errorMessages = Array.isArray(errors)
-      ? errors.map((e) => e.message).join(', ')
-      : errors;
+    const errorMessages = Array.isArray(errors) ? errors.map(e => e.message).join(', ') : errors;
 
     super(
       `Validation failed: ${errorMessages}`,
@@ -215,17 +194,12 @@ class WrongGameTypeError extends GameBuddiesError {
 
 class DatabaseError extends GameBuddiesError {
   constructor(message, originalError) {
-    super(
-      'Database error',
-      constants.ERROR_CODES.DATABASE_ERROR,
-      constants.HTTP_INTERNAL_ERROR,
-      {
-        originalMessage: message,
-        ...(process.env.NODE_ENV !== 'production' && {
-          stack: originalError?.stack,
-        }),
-      }
-    );
+    super('Database error', constants.ERROR_CODES.DATABASE_ERROR, constants.HTTP_INTERNAL_ERROR, {
+      originalMessage: message,
+      ...(process.env.NODE_ENV !== 'production' && {
+        stack: originalError?.stack,
+      }),
+    });
   }
 }
 
@@ -235,9 +209,7 @@ class InternalServerError extends GameBuddiesError {
       message,
       constants.ERROR_CODES.INTERNAL_ERROR,
       constants.HTTP_INTERNAL_ERROR,
-      process.env.NODE_ENV !== 'production' && originalError
-        ? { stack: originalError.stack }
-        : {}
+      process.env.NODE_ENV !== 'production' && originalError ? { stack: originalError.stack } : {}
     );
   }
 }
@@ -284,10 +256,7 @@ function errorHandler(logger) {
     });
 
     // Don't expose internal errors in production
-    const message =
-      process.env.NODE_ENV === 'production'
-        ? 'Internal server error'
-        : err.message;
+    const message = process.env.NODE_ENV === 'production' ? 'Internal server error' : err.message;
 
     res.status(constants.HTTP_INTERNAL_ERROR).json({
       success: false,
@@ -320,10 +289,7 @@ function handleSocketError(socket, error, logger) {
     });
 
     // Don't expose internal errors
-    const message =
-      process.env.NODE_ENV === 'production'
-        ? 'Internal server error'
-        : error.message;
+    const message = process.env.NODE_ENV === 'production' ? 'Internal server error' : error.message;
 
     socket.emit('error', {
       error: message,
