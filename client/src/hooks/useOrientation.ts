@@ -54,9 +54,9 @@ export const requestLandscapeFullscreen = async (): Promise<void> => {
     }
 
     // Lock to landscape orientation (if supported)
-    if (screen.orientation?.lock) {
+    if (window.screen.orientation?.lock) {
       try {
-        await screen.orientation.lock('landscape');
+        await window.screen.orientation.lock('landscape');
       } catch (err) {
         console.warn('Orientation lock not supported:', err);
       }

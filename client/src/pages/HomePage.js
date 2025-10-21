@@ -7,6 +7,7 @@ import GameCard from '../components/GameCard';
 import CreateRoom from '../components/CreateRoom';
 import JoinRoom from '../components/JoinRoom';
 import RoomLobby from '../components/RoomLobby';
+import LandscapeEnforcer from '../components/LandscapeEnforcer';
 import './HomePage.css';
 
 const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
@@ -540,12 +541,14 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
   // If in lobby, show the lobby component
   if (inLobby && currentRoom) {
     return (
-      <RoomLobby
-        roomCode={currentRoom.roomCode}
-        playerName={playerName}
-        isHost={currentRoom.isHost}
-        onLeave={handleLeaveLobby}
-      />
+      <LandscapeEnforcer enforceOn="always">
+        <RoomLobby
+          roomCode={currentRoom.roomCode}
+          playerName={playerName}
+          isHost={currentRoom.isHost}
+          onLeave={handleLeaveLobby}
+        />
+      </LandscapeEnforcer>
     );
   }
 

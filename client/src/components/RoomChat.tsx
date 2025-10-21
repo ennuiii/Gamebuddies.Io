@@ -10,8 +10,7 @@ const RoomChat: React.FC = () => {
   const [inputMessage, setInputMessage] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const { messages, isChatOpen, unreadCount, addMessage, setChatOpen, markAsRead } =
-    useChatStore();
+  const { messages, isChatOpen, unreadCount, addMessage, setChatOpen, markAsRead } = useChatStore();
   const { roomCode } = useLobbyStore();
   const { playerName } = useUserStore();
 
@@ -78,9 +77,7 @@ const RoomChat: React.FC = () => {
     <div className={`room-chat ${isChatOpen ? 'room-chat-open' : ''}`}>
       <button className="chat-toggle-button" onClick={toggleChat}>
         <span className="chat-icon">💬</span>
-        {!isChatOpen && unreadCount > 0 && (
-          <span className="chat-unread-badge">{unreadCount}</span>
-        )}
+        {!isChatOpen && unreadCount > 0 && <span className="chat-unread-badge">{unreadCount}</span>}
       </button>
 
       {isChatOpen && (

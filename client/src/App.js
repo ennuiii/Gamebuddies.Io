@@ -4,6 +4,7 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import { LazySocketProvider } from './contexts/LazySocketContext';
 import { NotificationProvider } from './contexts/NotificationContext'; // Import NotificationProvider
 import Notification from './components/Notification'; // Import Notification component
+import ConnectionStatus from './components/ConnectionStatus';
 import Header from './components/Header';
 import HomePage from './pages/HomePage';
 // GameBuddiesReturnHandler removed - using simpler URL-based return flow
@@ -56,6 +57,7 @@ function AppContent() {
 
   return (
     <div className="App">
+      <ConnectionStatus />
       <Header
         onNavigateHome={handleNavigateHome}
         onNavigateGames={handleNavigateGames}

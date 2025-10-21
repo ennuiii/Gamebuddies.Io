@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useSocket } from '../contexts/LazySocketContext';
 import { useNotification } from '../contexts/NotificationContext'; // Import useNotification hook
 import GamePicker from './GamePicker';
+import RoomChat from './RoomChat';
 import { useRealtimeSubscription } from '../utils/useRealtimeSubscription';
 import { getSupabaseClient } from '../utils/supabase';
 import './RoomLobby.css';
@@ -1397,6 +1398,9 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
           </small>
         </div>
       )}
+
+      {/* Room Chat */}
+      <RoomChat />
     </div>
   );
 };

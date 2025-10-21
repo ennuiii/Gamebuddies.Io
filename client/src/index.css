@@ -5,8 +5,117 @@ body {
     'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  /* Safe area insets for notched devices (iPhone X+) */
+  padding-top: env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+
+  /* Disable pull-to-refresh on mobile */
+  overscroll-behavior-y: contain;
 }
 
 code {
   font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace;
+}
+
+/* ========================================
+   MOBILE RESPONSIVENESS & TOUCH OPTIMIZATION
+   ======================================== */
+
+/* Touch-friendly tap targets (iOS minimum: 44x44px) */
+@media (max-width: 768px) {
+  button,
+  .button,
+  .btn,
+  a.button,
+  [role='button'] {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 12px 24px;
+    font-size: 16px; /* Prevents auto-zoom on iOS */
+    touch-action: manipulation; /* Removes 300ms tap delay */
+  }
+
+  input,
+  textarea,
+  select {
+    font-size: 16px; /* Prevents auto-zoom on iOS */
+    min-height: 44px;
+    padding: 10px 12px;
+  }
+
+  /* Larger click targets for links */
+  a {
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  /* Card components should be tappable */
+  .card,
+  .game-card {
+    min-height: 120px;
+    touch-action: manipulation;
+  }
+}
+
+/* Landscape mode optimizations */
+@media (max-width: 926px) and (orientation: landscape) {
+  /* Reduce padding on landscape to maximize space */
+  body {
+    padding-top: max(env(safe-area-inset-top), 8px);
+    padding-bottom: max(env(safe-area-inset-bottom), 8px);
+  }
+
+  /* Smaller buttons in landscape */
+  button,
+  .button {
+    min-height: 36px;
+    padding: 8px 16px;
+  }
+}
+
+/* Disable text selection on interactive elements */
+@media (max-width: 768px) {
+  button,
+  .button,
+  .game-card,
+  .card {
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+}
+
+/* Smooth scrolling on mobile */
+@media (max-width: 768px) {
+  html {
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  /* Prevent horizontal scroll */
+  body {
+    overflow-x: hidden;
+  }
+}
+
+/* Active/focus states for better touch feedback */
+@media (hover: none) and (pointer: coarse) {
+  button:active,
+  .button:active {
+    transform: scale(0.97);
+    opacity: 0.9;
+    transition: all 0.1s ease;
+  }
+}
+
+/* Disable pull-to-refresh in game areas */
+.game-container,
+.room-lobby,
+.game-iframe-container {
+  overscroll-behavior: none;
+  touch-action: pan-x pan-y;
 }

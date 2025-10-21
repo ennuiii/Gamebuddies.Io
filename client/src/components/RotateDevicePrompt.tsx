@@ -38,12 +38,7 @@ const RotateDevicePrompt: React.FC<RotateDevicePromptProps> = ({
                 strokeLinecap="round"
                 strokeLinejoin="round"
               />
-              <path
-                d="M21 10H16"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-              />
+              <path d="M21 10H16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
             </svg>
           </div>
         )}

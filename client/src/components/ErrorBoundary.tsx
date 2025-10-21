@@ -74,9 +74,7 @@ class ErrorBoundary extends Component<Props, State> {
           </p>
           {this.state.error && (
             <details style={{ marginTop: '1rem', textAlign: 'left', maxWidth: '600px' }}>
-              <summary
-                style={{ cursor: 'pointer', color: '#3498db', marginBottom: '0.5rem' }}
-              >
+              <summary style={{ cursor: 'pointer', color: '#3498db', marginBottom: '0.5rem' }}>
                 Error Details
               </summary>
               <pre

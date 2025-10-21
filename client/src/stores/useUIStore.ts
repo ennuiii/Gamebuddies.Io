@@ -38,8 +38,7 @@ export const useUIStore = create<UIState>(set => ({
   isSettingsModalOpen: false,
   notifications: [],
 
-  setLoading: (loading, message) =>
-    set({ isLoading: loading, loadingMessage: message || null }),
+  setLoading: (loading, message) => set({ isLoading: loading, loadingMessage: message || null }),
 
   setCreateRoomModalOpen: open => set({ isCreateRoomModalOpen: open }),
 
