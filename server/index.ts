@@ -316,6 +316,12 @@ app.use(errorHandler(logger));
 server.on('upgrade', (req, socket, head) => {
   const url = req.url || '';
 
+  // Allow Socket.IO connections to be handled by Socket.IO itself
+  if (url.startsWith('/socket.io/')) {
+    // Socket.IO will handle this upgrade automatically
+    return;
+  }
+
   // Find matching proxy
   for (const [gameId, proxyInstance] of Object.entries(proxyInstances)) {
     const config = gameProxies[gameId];
