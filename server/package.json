@@ -2,12 +2,17 @@
   "name": "gamebuddies-server",
   "version": "2.1.0",
   "description": "GameBuddies server with exclusive Supabase integration and reverse proxy",
-  "main": "index.js",
+  "main": "dist/index.js",
   "scripts": {
-    "start": "node index.js",
-    "dev": "nodemon index.js",
+    "start": "node dist/index.js",
+    "dev": "nodemon --exec ts-node --files index.ts",
+    "dev:js": "nodemon index.js",
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "type-check": "tsc --noEmit",
     "setup-db": "node scripts/setup-database.js",
-    "migrate": "node scripts/migrate-role-column.js"
+    "migrate": "node scripts/migrate-role-column.js",
+    "clean": "rm -rf dist"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.39.3",
@@ -22,9 +27,17 @@
     "joi": "^18.0.1",
     "jsonwebtoken": "^9.0.2",
     "socket.io": "^4.8.1",
-    "uuid": "^9.0.1"
+    "uuid": "^9.0.1",
+    "winston": "^3.11.0"
   },
   "devDependencies": {
-    "nodemon": "^2.0.22"
+    "@types/bcryptjs": "^2.4.6",
+    "@types/compression": "^1.8.1",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^4.17.23",
+    "@types/node": "^24.9.1",
+    "nodemon": "^2.0.22",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.9.3"
   }
 }
