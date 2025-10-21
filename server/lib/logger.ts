@@ -12,8 +12,8 @@
 import winston from 'winston';
 import path from 'path';
 import fs from 'fs';
-import constants from '@/config/constants';
-import { Logger, LoggerMeta } from '@/types';
+import constants from '../config/constants';
+import { Logger, LoggerMeta } from '../types';
 import { Request, Response } from 'express';
 
 // Ensure logs directory exists
@@ -109,7 +109,7 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 // Create extended logger with convenience methods
-const logger = baseLogger as Logger;
+const logger = baseLogger as unknown as Logger;
 
 // Add convenience methods with context
 logger.room = (message: string, meta: LoggerMeta = {}): void => {

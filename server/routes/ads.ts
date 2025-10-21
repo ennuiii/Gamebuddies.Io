@@ -5,10 +5,10 @@
  */
 
 import { Router } from 'express';
-import { AuthenticatedRequest } from '@/types';
-import adManager from '@/lib/adManager';
-import logger from '@/lib/logger';
-import { ValidationError } from '@/lib/errors';
+import { AuthenticatedRequest } from '../types';
+import adManager from '../lib/adManager';
+import logger from '../lib/logger';
+import { ValidationError } from '../lib/errors';
 
 const router = Router();
 

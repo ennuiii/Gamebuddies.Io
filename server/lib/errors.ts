@@ -5,11 +5,11 @@
  * All errors extend from GameBuddiesError base class.
  */
 
-import constants from '@/config/constants';
-import { ErrorResponse, ErrorMiddleware, Logger } from '@/types';
+import constants from '../config/constants';
+import { ErrorResponse, ErrorMiddleware, Logger } from '../types';
 import { Response, NextFunction } from 'express';
 import { Socket } from 'socket.io';
-import { AuthenticatedRequest } from '@/types';
+import { AuthenticatedRequest } from '../types';
 
 /**
  * Base error class for GameBuddies

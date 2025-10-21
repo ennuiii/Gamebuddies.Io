@@ -7,7 +7,7 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import { Response, NextFunction } from 'express';
-import { AuthenticatedRequest } from '@/types';
+import { AuthenticatedRequest } from '../types';
 
 /**
  * Middleware to add request ID to requests

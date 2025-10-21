@@ -5,7 +5,7 @@
  * All time values are in milliseconds unless otherwise specified.
  */
 
-import { Constants } from '@/types';
+import type { Constants } from '../types';
 
 const constants: Constants = {
   // ===== REQUEST LIMITS =====

@@ -152,6 +152,7 @@ export interface AuthenticatedRequest extends Request {
   id?: string;
   apiKey?: ApiKey;
   isPremium?: boolean;
+  db?: DatabaseService;
   featureLimit?: {
     feature: string;
     limit: number | null;
@@ -216,6 +217,10 @@ export interface ClientToServerEvents {
   playerReturnToLobby: (data: { roomCode: string }) => void;
   transferHost: (data: { roomCode: string; targetPlayerId: string }) => void;
   kickPlayer: (data: { roomCode: string; targetPlayerId: string; reason?: string }) => void;
+}
+
+export interface InterServerEvents {
+  ping: () => void;
 }
 
 // ===== SERVICE TYPES =====
@@ -362,4 +367,4 @@ export interface Logger {
 
 // ===== EXPORT ALL =====
 
-export * from './constants';
+// All types exported above

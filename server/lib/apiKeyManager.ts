@@ -7,9 +7,9 @@
 
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
-import constants from '@/config/constants';
+import constants from '../config/constants';
 import logger from './logger';
-import { DatabaseService, ApiKey } from '@/types';
+import { DatabaseService, ApiKey } from '../types';
 
 /**
  * Generate a new API key

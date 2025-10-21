@@ -6,7 +6,7 @@
  */
 
 import logger from './logger';
-import { DatabaseService, AdImpression, AdData, AdResponse } from '@/types';
+import { DatabaseService, AdImpression, AdData, AdResponse } from '../types';
 
 /**
  * Track an ad impression in the database
