@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "concurrently": "^7.6.0",
+    "loglevel": "^1.9.2",
     "socket.io-client": "^4.8.1"
   }
 }

@@ -1,22 +1,36 @@
 import io, { Socket } from 'socket.io-client';
+import logger from './logger';
 
 // Use the current window location for socket connection
-// This ensures it works in both development and production
 const SOCKET_URL =
   process.env.REACT_APP_SOCKET_URL ||
   (window.location.hostname === 'localhost' ? 'http://localhost:3033' : window.location.origin);
 
+export type ConnectionStatus = 'connected' | 'disconnected' | 'connecting' | 'reconnecting';
+
+interface ReconnectionState {
+  roomCode: string | null;
+  playerName: string | null;
+  shouldReconnect: boolean;
+}
+
 class SocketService {
   private socket: Socket | null = null;
   private isConnecting: boolean = false;
+  private reconnectionState: ReconnectionState = {
+    roomCode: null,
+    playerName: null,
+    shouldReconnect: false,
+  };
+  private reconnectAttempt: number = 0;
+  private maxReconnectAttempts: number = 10;
+  private connectionStatusListeners: Array<(status: ConnectionStatus) => void> = [];
 
   connect(): Socket | null {
-    // Prevent multiple simultaneous connection attempts
     if (this.socket?.connected || this.isConnecting) {
       return this.socket;
     }
 
-    // If socket exists but is disconnected, remove it
     if (this.socket) {
       this.socket.removeAllListeners();
       this.socket.close();
@@ -25,60 +39,74 @@ class SocketService {
 
     if (!this.socket) {
       this.isConnecting = true;
+      this.notifyStatusChange('connecting');
 
       this.socket = io(SOCKET_URL, {
         transports: ['websocket', 'polling'],
         autoConnect: true,
         reconnection: true,
-        reconnectionAttempts: 5,
+        reconnectionAttempts: this.maxReconnectAttempts,
         reconnectionDelay: 1000,
-        reconnectionDelayMax: 5000,
+        reconnectionDelayMax: 10000,
         timeout: 10000,
         forceNew: true,
       });
 
       this.socket.on('connect', () => {
-        console.log('Connected to server');
+        logger.socket('connect', { socketId: this.socket?.id });
         this.isConnecting = false;
+        this.reconnectAttempt = 0;
+        this.notifyStatusChange('connected');
+
+        // Auto-rejoin room if we were disconnected
+        if (
+          this.reconnectionState.shouldReconnect &&
+          this.reconnectionState.roomCode &&
+          this.reconnectionState.playerName
+        ) {
+          logger.room('auto-rejoin', this.reconnectionState.roomCode);
+          this.joinRoom(this.reconnectionState.roomCode, this.reconnectionState.playerName);
+        }
       });
 
       this.socket.on('disconnect', (reason: string) => {
-        console.log('Disconnected from server:', reason);
+        logger.socket('disconnect', { reason });
         this.isConnecting = false;
-        // Clean up socket on disconnect
-        if (this.socket) {
-          this.socket.removeAllListeners();
-          this.socket = null;
+        this.notifyStatusChange('disconnected');
+
+        // Save state for reconnection if it was an unexpected disconnect
+        if (reason === 'io server disconnect' || reason === 'transport close') {
+          this.reconnectionState.shouldReconnect = true;
         }
       });
 
       this.socket.on('error', (error: Error) => {
-        console.error('Socket error:', error);
+        logger.error('Socket error', error);
         this.isConnecting = false;
-        // Clean up socket on error
-        if (this.socket) {
-          this.socket.removeAllListeners();
-          this.socket = null;
-        }
       });
 
       this.socket.on('connect_error', (error: Error) => {
-        console.error('Connection error:', error.message);
+        logger.error('Connection error', error);
         this.isConnecting = false;
-        // Clean up socket on connection error
-        if (this.socket) {
-          this.socket.removeAllListeners();
-          this.socket = null;
-        }
       });
 
       this.socket.on('reconnect_attempt', (attemptNumber: number) => {
-        console.log('Reconnection attempt:', attemptNumber);
+        this.reconnectAttempt = attemptNumber;
+        logger.socket('reconnect_attempt', { attempt: attemptNumber });
+        this.notifyStatusChange('reconnecting');
+      });
+
+      this.socket.on('reconnect', (attemptNumber: number) => {
+        logger.socket('reconnect', { attempt: attemptNumber });
+        this.reconnectAttempt = 0;
+        this.notifyStatusChange('connected');
       });
 
       this.socket.on('reconnect_failed', () => {
-        console.error('Failed to reconnect after all attempts');
+        logger.error('Failed to reconnect after all attempts');
         this.isConnecting = false;
+        this.reconnectionState.shouldReconnect = false;
+        this.notifyStatusChange('disconnected');
       });
     }
     return this.socket;
@@ -86,32 +114,38 @@ class SocketService {
 
   disconnect(): void {
     if (this.socket) {
-      // Remove all listeners first
+      this.reconnectionState.shouldReconnect = false;
       this.socket.removeAllListeners();
-      // Then disconnect
       this.socket.disconnect();
-      // Finally, close the socket
       this.socket.close();
       this.socket = null;
       this.isConnecting = false;
+      this.notifyStatusChange('disconnected');
     }
   }
 
   joinRoom(roomCode: string, playerName: string): void {
-    // Ensure we're connected before emitting
+    // Save state for reconnection
+    this.reconnectionState = {
+      roomCode,
+      playerName,
+      shouldReconnect: true,
+    };
+
     const socket = this.connect();
     if (socket) {
-      // Wait for connection if needed
       if (socket.connected) {
+        logger.room('join', roomCode, { playerName });
         socket.emit('joinRoom', { roomCode, playerName });
       } else {
         const timeout = setTimeout(() => {
-          console.error('Timeout waiting for socket connection');
+          logger.error('Timeout waiting for socket connection');
           this.disconnect();
         }, 10000);
 
         socket.once('connect', () => {
           clearTimeout(timeout);
+          logger.room('join', roomCode, { playerName });
           socket.emit('joinRoom', { roomCode, playerName });
         });
       }
@@ -119,20 +153,37 @@ class SocketService {
   }
 
   leaveRoom(): void {
+    this.reconnectionState.shouldReconnect = false;
     if (this.socket && this.socket.connected) {
+      logger.room('leave', this.reconnectionState.roomCode || undefined);
       this.socket.emit('leaveRoom');
     }
+    this.reconnectionState = {
+      roomCode: null,
+      playerName: null,
+      shouldReconnect: false,
+    };
   }
 
   selectGame(roomCode: string, gameType: string): void {
     if (this.socket && this.socket.connected) {
+      logger.room('selectGame', roomCode, { gameType });
       this.socket.emit('selectGame', { roomCode, gameType });
     }
   }
 
   startGame(roomCode: string): void {
     if (this.socket && this.socket.connected) {
+      logger.room('startGame', roomCode);
       this.socket.emit('startGame', { roomCode });
+    }
+  }
+
+  // Chat functionality
+  sendChatMessage(roomCode: string, message: string, playerName: string): void {
+    if (this.socket && this.socket.connected) {
+      logger.socket('chatMessage', { roomCode, message });
+      this.socket.emit('chatMessage', { roomCode, message, playerName });
     }
   }
 
@@ -144,14 +195,40 @@ class SocketService {
 
   off(event: string, callback?: (...args: any[]) => void): void {
     if (this.socket) {
-      // If callback is provided, remove only that listener
       if (callback) {
         this.socket.off(event, callback);
       } else {
-        // Otherwise, remove all listeners for the event
         this.socket.off(event);
       }
     }
+  }
+
+  // Connection status management
+  onConnectionStatusChange(listener: (status: ConnectionStatus) => void): () => void {
+    this.connectionStatusListeners.push(listener);
+    // Return cleanup function
+    return () => {
+      this.connectionStatusListeners = this.connectionStatusListeners.filter(l => l !== listener);
+    };
+  }
+
+  private notifyStatusChange(status: ConnectionStatus): void {
+    this.connectionStatusListeners.forEach(listener => listener(status));
+  }
+
+  getConnectionStatus(): ConnectionStatus {
+    if (this.socket?.connected) return 'connected';
+    if (this.isConnecting) return 'connecting';
+    if (this.reconnectAttempt > 0) return 'reconnecting';
+    return 'disconnected';
+  }
+
+  isConnected(): boolean {
+    return this.socket?.connected || false;
+  }
+
+  getReconnectionState(): ReconnectionState {
+    return { ...this.reconnectionState };
   }
 }
 

@@ -209,6 +209,7 @@ export interface ServerToClientEvents {
   hostTransferred: (data: { oldHostId: string; newHostId: string }) => void;
   playerKicked: (data: { playerId: string; reason?: string }) => void;
   roomClosed: () => void;
+  chatMessage: (data: { playerName: string; message: string; timestamp: number }) => void;
 }
 
 export interface ClientToServerEvents {
@@ -227,6 +228,7 @@ export interface ClientToServerEvents {
   playerReturnToLobby: (data: { roomCode: string }) => void;
   transferHost: (data: { roomCode: string; targetPlayerId: string }) => void;
   kickPlayer: (data: { roomCode: string; targetPlayerId: string; reason?: string }) => void;
+  chatMessage: (data: { roomCode: string; message: string; playerName: string }) => void;
 }
 
 export interface InterServerEvents {

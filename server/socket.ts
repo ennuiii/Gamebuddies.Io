@@ -610,6 +610,47 @@ export function initializeSocketHandlers(
       });
 
       /**
+       * Handle chat messages
+       */
+      socket.on('chatMessage', async data => {
+        try {
+          // Validate input
+          if (!data || !data.roomCode || !data.message || !data.playerName) {
+            throw new ValidationError('Invalid chat message data');
+          }
+
+          // Sanitize message
+          const message = sanitize.playerName(data.message.substring(0, 200)); // Max 200 chars
+          const playerName = sanitize.playerName(data.playerName);
+
+          // Check rate limiting (10 messages per 10 seconds)
+          if (connectionManager.isRateLimited(socket.id, 'chatMessage', 10, 10000)) {
+            socket.emit('error', {
+              error: 'Too many messages. Please slow down.',
+              code: 'CHAT_RATE_LIMITED',
+              timestamp: new Date().toISOString(),
+            });
+            return;
+          }
+
+          logger.socket('Chat message', { roomCode: data.roomCode, playerName, message });
+
+          // Broadcast to all users in the room (including sender)
+          io.to(data.roomCode).emit('chatMessage', {
+            playerName,
+            message,
+            timestamp: Date.now(),
+          });
+        } catch (error) {
+          logger.error('Chat message failed', {
+            error: (error as Error).message,
+            data,
+          });
+          handleSocketError(socket, error as Error, logger);
+        }
+      });
+
+      /**
        * Handle disconnect
        */
       socket.on('disconnect', async () => {
