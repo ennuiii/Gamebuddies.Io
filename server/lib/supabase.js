@@ -5,7 +5,22 @@ const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseAnonKey = process.env.SUPABASE_ANON_KEY;
 const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
+// Allow running in test mode without Supabase
+const isTestMode = process.env.TEST_MODE === 'true' || process.env.NODE_ENV === 'test';
+
 if (!supabaseUrl || !supabaseAnonKey || !supabaseServiceKey) {
+  if (isTestMode) {
+    console.log('⚠️ Running in TEST MODE without Supabase - using mock database');
+    // Export mock database instead
+    const { MockDatabaseService } = require('./mockDatabase');
+    module.exports = {
+      supabase: null,
+      supabaseAdmin: null,
+      db: new MockDatabaseService()
+    };
+    return;
+  }
+
   console.error('❌ CRITICAL ERROR: Supabase configuration missing!');
   console.error('   Required environment variables:');
   console.error('   - SUPABASE_URL');

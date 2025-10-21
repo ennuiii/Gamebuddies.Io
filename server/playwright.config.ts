@@ -25,9 +25,13 @@ export default defineConfig({
   ],
 
   webServer: {
-    command: 'npm run dev',
+    command: 'TEST_MODE=true npm run dev',
     url: 'http://localhost:3033/health',
     reuseExistingServer: !process.env.CI,
     timeout: 120000,
+    env: {
+      TEST_MODE: 'true',
+      NODE_ENV: 'test',
+    },
   },
 });
