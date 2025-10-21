@@ -55,10 +55,13 @@ export interface Room {
   max_players: number;
   is_public: boolean;
   allow_spectators: boolean;
+  streamer_mode?: boolean;
   created_at: string;
   updated_at: string;
   last_activity: string;
   metadata: Record<string, any>;
+  participants?: RoomMember[];
+  players?: any[];  // Legacy support
   deleted_at?: string | null;
   deleted_by?: string | null;
 }
@@ -193,8 +196,8 @@ export interface GameBuddiesSocket extends Socket {
 
 export interface ServerToClientEvents {
   error: (error: { error: string; code: string; timestamp: string }) => void;
-  roomCreated: (data: { room: Room; roomCode: string }) => void;
-  roomJoined: (data: { room: Room; player: RoomMember }) => void;
+  roomCreated: (data: { room: Room; roomCode: string; isHost: boolean }) => void;
+  roomJoined: (data: { room: Room; player: RoomMember; roomCode: string; isHost: boolean }) => void;
   playerJoined: (player: RoomMember) => void;
   playerLeft: (data: { playerId: string; username: string }) => void;
   playerStatusChanged: (data: { playerId: string; status: any }) => void;
@@ -208,9 +211,9 @@ export interface ServerToClientEvents {
 }
 
 export interface ClientToServerEvents {
-  createRoom: (data: { playerName: string; gameType?: string; maxPlayers?: number; isPublic?: boolean }) => void;
+  createRoom: (data: { playerName: string; gameType?: string; maxPlayers?: number; isPublic?: boolean; streamerMode?: boolean }) => void;
   joinRoom: (data: { playerName: string; roomCode: string }) => void;
-  joinSocketRoom: (roomCode: string) => void;
+  joinSocketRoom: (data: { roomCode: string }) => void;
   selectGame: (data: { roomCode: string; gameType: string }) => void;
   startGame: (data: { roomCode: string; gameSettings?: any }) => void;
   leaveRoom: (data?: { roomCode?: string }) => void;
@@ -235,6 +238,7 @@ export interface DatabaseService {
   updateRoom(roomId: string, updates: Partial<Room>): Promise<Room>;
   getOrCreateUser(externalId: string, username: string, displayName?: string): Promise<User>;
   addParticipant(roomId: string, userId: string, socketId: string, role?: PlayerRole): Promise<RoomMember>;
+  updateParticipant(participantId: string, updates: Partial<RoomMember>): Promise<RoomMember>;
   removeParticipant(roomId: string, userId: string): Promise<boolean>;
   logEvent(roomId: string, userId: string, eventType: string, eventData?: Record<string, any>): Promise<void>;
   cleanupInactiveRooms(options?: any): Promise<any>;

@@ -26,12 +26,13 @@ import { AuthenticatedRequest, ServerToClientEvents, ClientToServerEvents, Inter
 
 // Import routes
 import adsRouter from './routes/ads';
+import initializeSocketHandlers from './socket';
 
 // Import legacy JavaScript modules (to be converted)
 const gameApiV2Router = require('./routes/gameApiV2');
 const gameApiV2DDFRouter = require('./routes/gameApiV2_DDFCompatibility');
 const gamesRouter = require('./routes/games');
-// const ConnectionManager = require('./lib/connectionManager');
+const ConnectionManager = require('./lib/connectionManager');
 // const LobbyManager = require('./lib/lobbyManager');
 // const StatusSyncManager = require('./lib/statusSyncManager');
 // const { validators, sanitize, rateLimits, validateApiKey } = require('./lib/validation');
@@ -341,6 +342,14 @@ async function startServer(): Promise<void> {
 
     // Initialize services
     logger.info('Initializing services...');
+
+    // Initialize connection manager
+    const connectionManager = new ConnectionManager();
+    logger.info('Connection manager initialized');
+
+    // Initialize Socket.IO handlers
+    initializeSocketHandlers(io, db, connectionManager);
+    logger.info('Socket.IO handlers initialized');
 
     // Start game keep-alive service
     gameKeepAlive.start();
