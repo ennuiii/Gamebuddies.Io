@@ -3634,12 +3634,63 @@ async function startServer() {
     // Load and setup game proxies from database
     await setupGameProxies();
 
+    // ===== GAME-SPECIFIC STATIC FILE SERVING & CATCH-ALL ROUTES =====
+    // These must come BEFORE the main catch-all route to properly serve React apps
+
+    // DDF Game
+    const ddfBuildPath = path.join(__dirname, '../../DDF/client/dist');
+    try {
+      app.use('/ddf', express.static(ddfBuildPath));
+      app.get('/ddf/*', (req, res) => {
+        res.sendFile(path.join(ddfBuildPath, 'index.html'));
+      });
+      console.log('✅ DDF routes configured');
+    } catch (err) {
+      console.warn('⚠️  DDF build not found, will use proxy fallback:', err.message);
+    }
+
+    // BingoBuddies Game
+    const bingoBuildPath = path.join(__dirname, '../../BingoBuddies/client/dist');
+    try {
+      app.use('/bingo', express.static(bingoBuildPath));
+      app.get('/bingo/*', (req, res) => {
+        res.sendFile(path.join(bingoBuildPath, 'index.html'));
+      });
+      console.log('✅ BingoBuddies routes configured');
+    } catch (err) {
+      console.warn('⚠️  BingoBuddies build not found, will use proxy fallback:', err.message);
+    }
+
+    // SUSD Game (single page app)
+    const susdBuildPath = path.join(__dirname, '../../SUSD/dist');
+    try {
+      app.use('/susd', express.static(susdBuildPath));
+      app.get('/susd/*', (req, res) => {
+        res.sendFile(path.join(susdBuildPath, 'index.html'));
+      });
+      console.log('✅ SUSD routes configured');
+    } catch (err) {
+      console.warn('⚠️  SUSD build not found, will use proxy fallback:', err.message);
+    }
+
+    // ClueScale Game
+    const clueScaleBuildPath = path.join(__dirname, '../../ClueScale/client/dist');
+    try {
+      app.use('/cluescale', express.static(clueScaleBuildPath));
+      app.get('/cluescale/*', (req, res) => {
+        res.sendFile(path.join(clueScaleBuildPath, 'index.html'));
+      });
+      console.log('✅ ClueScale routes configured');
+    } catch (err) {
+      console.warn('⚠️  ClueScale build not found, will use proxy fallback:', err.message);
+    }
+
     // Now that proxies are set up, register catch-all route
-    // This MUST come after proxies so they can intercept game URLs
+    // This MUST come after game routes and proxies so they can intercept game URLs
     app.get('*', (req, res) => {
       res.sendFile(path.join(__dirname, '../client/build/index.html'));
     });
-    console.log('✅ Catch-all route registered (after game proxies)');
+    console.log('✅ Catch-all route registered (after game routes & proxies)');
 
     // Start listening
     server.listen(PORT, () => {
