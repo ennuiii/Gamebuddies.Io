@@ -76,6 +76,11 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// Normalize direct deep links to DDF game route so they load via home
+app.get(['/ddf/game', '/ddf/game/*'], (req, res) => {
+  res.redirect(302, '/ddf/');
+});
+
 // Socket.io setup with enhanced configuration
 const io = socketIo(server, {
   cors: corsOptions,
