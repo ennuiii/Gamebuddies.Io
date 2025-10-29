@@ -197,12 +197,6 @@ async function setupGameProxies() {
   // Load proxies from database
   gameProxies = await loadGameProxiesFromDatabase();
 
-  // Ensure DDF uses local static bundle instead of proxy
-  if (gameProxies.ddf) {
-    console.log('🔄 [PROXY] Skipping DDF proxy – served by local SPA bundle');
-    delete gameProxies.ddf;
-  }
-
   // Setup each proxy
   Object.entries(gameProxies).forEach(([key, proxy]) => {
     console.log(`🔗 [PROXY] Setting up ${key.toUpperCase()} proxy: ${proxy.path} -> ${proxy.target}`);
