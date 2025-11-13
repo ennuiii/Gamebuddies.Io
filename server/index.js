@@ -3693,6 +3693,18 @@ async function startServer() {
       console.warn('⚠️  ClueScale build not found, will use proxy fallback:', err.message);
     }
 
+    // ThinkAlike Game
+    const thinkAlikeBuildPath = path.join(__dirname, '../../ThinkAlike/client/dist');
+    try {
+      app.use('/thinkalike', express.static(thinkAlikeBuildPath));
+      app.get('/thinkalike/*', (req, res) => {
+        res.sendFile(path.join(thinkAlikeBuildPath, 'index.html'));
+      });
+      console.log('✅ ThinkAlike routes configured');
+    } catch (err) {
+      console.warn('⚠️  ThinkAlike build not found, will use proxy fallback:', err.message);
+    }
+
     // Now that proxies are set up, register catch-all route
     // This MUST come after game routes and proxies so they can intercept game URLs
     app.get('*', (req, res) => {
