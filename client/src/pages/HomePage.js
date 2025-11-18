@@ -555,9 +555,7 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.5 }}
           >
-            The ultimate multiplayer gaming platform
-            <br />
-            <span className="subtitle-highlight">Connect, Play, and Dominate Together</span>
+            <span className="subtitle-highlight">Connect, Play, and Have Fun Together</span>
           </motion.p>
           
           <motion.div 
@@ -601,7 +599,6 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
             viewport={{ once: true }}
           >
             <h2 className="section-title">Quick Play Games</h2>
-            <p className="section-subtitle">Jump into these popular games instantly</p>
           </motion.div>
           
           {loading ? (
@@ -638,7 +635,6 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
             viewport={{ once: true }}
           >
             <h2 className="cta-title">Ready to Start Gaming?</h2>
-            <p className="cta-subtitle">Join thousands of players already having fun on GameBuddies.io</p>
             <motion.button
               className="cta-button large"
               onClick={handleCreateRoomClick}
