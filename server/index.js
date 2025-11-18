@@ -7,6 +7,7 @@ const path = require('path');
 const cors = require('cors');
 const compression = require('compression');
 const helmet = require('helmet');
+const cookieParser = require('cookie-parser');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 const http = require('http');
 const socketIo = require('socket.io');
@@ -68,10 +69,35 @@ const corsOptions = {
 
 // Middleware
 app.use(helmet({
-  contentSecurityPolicy: false,
-  crossOriginEmbedderPolicy: false
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // unsafe-eval needed for React dev
+      styleSrc: ["'self'", "'unsafe-inline'"], // unsafe-inline needed for styled-components
+      imgSrc: ["'self'", 'data:', 'https:', 'blob:'],
+      fontSrc: ["'self'", 'data:'],
+      connectSrc: [
+        "'self'",
+        'wss:', 'ws:', // WebSocket for Socket.io
+        'https://*.supabase.co', // Supabase real-time
+        'https://*.onrender.com', // External games
+      ],
+      frameSrc: [
+        "'self'",
+        'https://ddf-game.onrender.com',
+        'https://schoolquizgame.onrender.com',
+        'https://susd-1.onrender.com',
+        'https://bingobuddies.onrender.com',
+        'https://bumperballarenaclient.onrender.com',
+      ],
+      objectSrc: ["'none'"],
+      upgradeInsecureRequests: process.env.NODE_ENV === 'production' ? [] : null,
+    },
+  },
+  crossOriginEmbedderPolicy: false // Keep disabled for iframe compatibility
 }));
 app.use(compression());
+app.use(cookieParser()); // Parse cookies for secure session management
 app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
