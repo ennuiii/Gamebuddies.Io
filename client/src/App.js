@@ -5,7 +5,9 @@ import { LazySocketProvider } from './contexts/LazySocketContext';
 import { NotificationProvider } from './contexts/NotificationContext'; // Import NotificationProvider
 import Notification from './components/Notification'; // Import Notification component
 import Header from './components/Header';
+import Footer from './components/Footer';
 import HomePage from './pages/HomePage';
+import Legal from './pages/Legal';
 // GameBuddiesReturnHandler removed - using simpler URL-based return flow
 import DebugPanel from './components/DebugPanel';
 import './App.css';
@@ -64,34 +66,40 @@ function AppContent() {
       <Notification /> {/* Display Notification component here */}
       <DebugPanel />
       <Routes>
-        <Route 
-          path="/" 
+        <Route
+          path="/"
           element={
-            <HomePage 
+            <HomePage
               setIsInLobby={setIsInLobby}
               setLobbyLeaveFn={setLobbyLeaveFn}
             />
-          } 
+          }
         />
-        <Route 
-          path="/lobby/:roomCode" 
+        <Route
+          path="/lobby/:roomCode"
           element={
-            <HomePage 
+            <HomePage
               setIsInLobby={setIsInLobby}
               setLobbyLeaveFn={setLobbyLeaveFn}
             />
-          } 
+          }
         />
-        <Route 
-          path="/*" 
+        <Route path="/legal" element={<Legal />} />
+        <Route path="/impressum" element={<Legal />} />
+        <Route path="/privacy" element={<Legal />} />
+        <Route path="/datenschutz" element={<Legal />} />
+        <Route path="/terms" element={<Legal />} />
+        <Route
+          path="/*"
           element={
-            <HomePage 
+            <HomePage
               setIsInLobby={setIsInLobby}
               setLobbyLeaveFn={setLobbyLeaveFn}
             />
-          } 
+          }
         />
       </Routes>
+      <Footer />
     </div>
   );
 }
