@@ -652,30 +652,6 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="footer">
-        <div className="container">
-          <div className="footer-content">
-            <div className="footer-brand">
-              <h3 className="footer-title">
-                <span className="brand-text">GameBuddies</span>
-                <span className="brand-dot">.io</span>
-              </h3>
-              <p className="footer-tagline">The future of multiplayer gaming</p>
-            </div>
-            <div className="footer-stats">
-              <div className="footer-stat">
-                <span className="stat-icon">🎮</span>
-                <span className="stat-text">Connecting gamers worldwide</span>
-              </div>
-            </div>
-          </div>
-          <div className="footer-bottom">
-            <p>&copy; 2025 GameBuddies.io - All rights reserved</p>
-          </div>
-        </div>
-      </footer>
-
       {/* Modals */}
       {showCreateRoom && (
         <CreateRoom
