@@ -4,12 +4,6 @@ import './Footer.css';
 const Footer = () => {
   const currentYear = new Date().getFullYear();
 
-  const handleCookieSettings = () => {
-    // This will be implemented when we add the cookie banner
-    // For now, just alert the user
-    alert('Cookie settings will be available once the cookie consent banner is implemented.');
-  };
-
   return (
     <footer className="app-footer">
       <div className="footer-content">
@@ -26,19 +20,12 @@ const Footer = () => {
             </a>
             <span className="footer-separator">|</span>
             <a href="/legal#privacy" className="footer-link">
-              Privacy & Cookies
+              Privacy
             </a>
             <span className="footer-separator">|</span>
             <a href="/legal#terms" className="footer-link">
               Terms
             </a>
-            <span className="footer-separator">|</span>
-            <button
-              onClick={handleCookieSettings}
-              className="footer-link footer-button"
-            >
-              Cookie Settings
-            </button>
           </nav>
         </div>
 

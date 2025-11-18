@@ -111,17 +111,14 @@ const Legal = () => {
 
           <h3>2.3 Technical Data</h3>
           <ul>
-            <li><strong>IP Addresses:</strong> Logged for security and fraud prevention</li>
+            <li><strong>IP Addresses:</strong> Logged temporarily by our hosting provider (Render.com) for security and fraud prevention</li>
             <li><strong>Socket Connection IDs:</strong> For real-time communication management</li>
             <li><strong>Browser Information:</strong> Standard HTTP headers (User-Agent, etc.)</li>
           </ul>
-          <p><strong>Legal Basis:</strong> Legitimate interest (GDPR Art. 6(1)(f)) - security and service quality</p>
-
-          <h3>2.4 Preferences</h3>
-          <ul>
-            <li><strong>UI Theme:</strong> Your light/dark mode preference (stored in browser)</li>
-          </ul>
-          <p><strong>Legal Basis:</strong> Consent (GDPR Art. 6(1)(a)) - optional personalization</p>
+          <p>
+            <strong>Legal Basis:</strong> Legitimate interest (GDPR Art. 6(1)(f)) - security and service quality<br />
+            <strong>Note:</strong> IP addresses are not permanently stored by GameBuddies.io, but may be temporarily logged by infrastructure providers.
+          </p>
 
           <h2>3. How We Use Your Data</h2>
           <p>We use the collected data to:</p>
@@ -212,7 +209,7 @@ const Legal = () => {
           <h3>7.1 Right to Access (Article 15)</h3>
           <p>
             You can request a copy of all personal data we hold about you.<br />
-            <strong>How:</strong> Contact privacy@gamebuddies.io or use "Download My Data" in Settings (coming soon)
+            <strong>How:</strong> Contact privacy@gamebuddies.io
           </p>
 
           <h3>7.2 Right to Rectification (Article 16)</h3>
@@ -224,13 +221,13 @@ const Legal = () => {
           <h3>7.3 Right to Erasure / "Right to be Forgotten" (Article 17)</h3>
           <p>
             You can request deletion of your personal data.<br />
-            <strong>How:</strong> Contact privacy@gamebuddies.io or use "Delete Account" in Settings (coming soon)
+            <strong>How:</strong> Contact privacy@gamebuddies.io
           </p>
 
           <h3>7.4 Right to Data Portability (Article 20)</h3>
           <p>
             You can receive your data in a machine-readable format (JSON).<br />
-            <strong>How:</strong> Use "Download My Data" feature (coming soon)
+            <strong>How:</strong> Contact privacy@gamebuddies.io
           </p>
 
           <h3>7.5 Right to Object (Article 21)</h3>
@@ -247,8 +244,8 @@ const Legal = () => {
 
           <h3>7.7 Right to Withdraw Consent</h3>
           <p>
-            For data processed based on consent (e.g., theme preference), you can withdraw consent at any time.<br />
-            <strong>How:</strong> Use "Cookie Settings" in the footer or clear your browser storage
+            Where we process data based on your consent, you can withdraw consent at any time.<br />
+            <strong>How:</strong> Contact privacy@gamebuddies.io or clear your browser storage
           </p>
 
           <h2>8. Right to Lodge a Complaint</h2>
@@ -264,15 +261,15 @@ const Legal = () => {
             Email: poststelle@bfdi.bund.de
           </p>
 
-          <h2>9. Cookies & Browser Storage</h2>
+          <h2>9. Browser Storage</h2>
           <p>
-            We use browser storage (sessionStorage and localStorage) to provide our service.
-            Technically, we do <strong>not use traditional HTTP cookies</strong>, but EU law treats
-            browser storage similarly.
+            We use browser sessionStorage to provide our service.
+            We do <strong>not use traditional HTTP cookies or localStorage</strong>.
+            All data is session-only and cleared when you close your browser.
           </p>
 
-          <h3>9.1 Essential Storage (No Consent Required)</h3>
-          <p>These items are necessary for the service to function:</p>
+          <h3>9.1 Session Storage (No Consent Required)</h3>
+          <p>These items are strictly necessary for the service to function:</p>
           <table className="legal-table">
             <thead>
               <tr>
@@ -319,35 +316,16 @@ const Legal = () => {
               </tr>
             </tbody>
           </table>
-
-          <h3>9.2 Non-Essential Storage (Consent Required)</h3>
-          <table className="legal-table">
-            <thead>
-              <tr>
-                <th>Storage Key</th>
-                <th>Purpose</th>
-                <th>Expiration</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>gamebuddies-theme</td>
-                <td>Your UI theme preference (light/dark mode)</td>
-                <td>Permanent (until cleared)</td>
-              </tr>
-            </tbody>
-          </table>
           <p>
-            <strong>Note:</strong> The theme preference requires your consent via the cookie banner.
-            The service works fully without this preference.
+            <strong>Legal Basis:</strong> All sessionStorage items are strictly necessary for contract performance
+            (GDPR Article 6(1)(b)) and require no consent. Clearing them will prevent the service from functioning.
           </p>
 
-          <h3>9.3 Managing Storage</h3>
-          <p>You can manage browser storage through:</p>
+          <h3>9.2 Managing Storage</h3>
+          <p>You can clear sessionStorage through:</p>
           <ul>
-            <li><strong>Cookie Settings:</strong> Link in the footer (opens preference modal)</li>
-            <li><strong>Browser Settings:</strong> Clear browsing data in your browser settings</li>
-            <li><strong>Withdraw Consent:</strong> Reopen cookie banner and deselect preferences</li>
+            <li><strong>Browser Settings:</strong> Clear browsing data / site data in your browser settings</li>
+            <li><strong>Automatic Clearing:</strong> All session data is automatically cleared when you close the browser</li>
           </ul>
 
           <h2>10. Security Measures</h2>
