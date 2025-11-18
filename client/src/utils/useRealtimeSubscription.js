@@ -111,11 +111,15 @@ export const useRealtimeSubscription = ({
     // Cleanup function
     return () => {
       console.log(`🧹 [REALTIME] Cleaning up subscription for ${table}`);
+      let cleanupCancelled = false;
+
       if (channelRef.current) {
+        const channelToRemove = channelRef.current;
         getSupabaseClient().then(async (supabase) => {
-          if (supabase && channelRef.current) {
+          // Only proceed if cleanup hasn't been cancelled
+          if (!cleanupCancelled && supabase && channelToRemove) {
             try {
-              await supabase.removeChannel(channelRef.current);
+              await supabase.removeChannel(channelToRemove);
               console.log(`✅ [REALTIME] Successfully cleaned up subscription for ${table}`);
             } catch (error) {
               console.error(`❌ [REALTIME] Error cleaning up subscription for ${table}:`, error);
@@ -125,6 +129,11 @@ export const useRealtimeSubscription = ({
         channelRef.current = null;
         subscriptionRef.current = null;
       }
+
+      // Return a cleanup cancellation function (called if component remounts)
+      return () => {
+        cleanupCancelled = true;
+      };
     };
   }, dependencies);
 

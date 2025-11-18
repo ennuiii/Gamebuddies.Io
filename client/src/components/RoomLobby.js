@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSocket } from '../contexts/LazySocketContext';
 import { useNotification } from '../contexts/NotificationContext'; // Import useNotification hook
 import GamePicker from './GamePicker';
@@ -83,11 +83,11 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
     // Set initial countdown
     setDisconnectedTimers(prev => new Map(prev.set(playerId, 10)));
     
-    // Start countdown interval
+    // Start countdown interval (2s for performance - reduces re-renders by 50%)
     const intervalId = setInterval(() => {
       const elapsed = Date.now() - startTime;
       const remaining = Math.max(0, Math.ceil((countdownDuration - elapsed) / 1000));
-      
+
       setDisconnectedTimers(prev => {
         const newMap = new Map(prev);
         if (remaining > 0) {
@@ -97,13 +97,13 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
         }
         return newMap;
       });
-      
+
       // Clear interval when countdown reaches 0
       if (remaining <= 0) {
         clearInterval(intervalId);
         timerIntervalsRef.current.delete(playerId);
       }
-    }, 1000);
+    }, 2000); // Changed from 1000ms to 2000ms for better performance
     
     timerIntervalsRef.current.set(playerId, intervalId);
   };
@@ -794,20 +794,20 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
     };
   }, [socket]);
 
-  const handleGameSelect = (gameType) => {
+  const handleGameSelect = useCallback((gameType) => {
     if (socket && socketIsConnected && currentIsHost) {
       console.log('🎮 Selecting game:', gameType);
       socket.emit('selectGame', { gameType });
     }
-  };
+  }, [socket, socketIsConnected, currentIsHost]);
 
-  const handleStartGame = () => {
+  const handleStartGame = useCallback(() => {
     // Prevent multiple rapid clicks
     if (isStartingGame) {
       console.log('🚀 [START GAME DEBUG] Game start already in progress, ignoring click');
       return;
     }
-    
+
     if (socket && socketIsConnected && currentIsHost) {
       console.log('🚀 [START GAME DEBUG] Starting game:', {
         socketConnected: socket.connected, // socketIsConnected from context
@@ -819,24 +819,24 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
         isStartingGame,
         timestamp: new Date().toISOString()
       });
-      
+
       // Redundant check, socketIsConnected should cover this
       // if (!socket.connected) {
       //   console.error('❌ [START GAME DEBUG] Socket not connected, cannot start game');
       //   addNotification('Connection lost. Please refresh the page and try again.', 'error');
       //   return;
       // }
-      
+
       setIsStartingGame(true);
       addNotification('Starting game...', 'info');
       console.log('📤 [START GAME DEBUG] Emitting startGame event');
       socket.emit('startGame', { roomCode: roomCodeRef.current });
-      
+
       // Reset after a delay to allow for game start
       setTimeout(() => {
         setIsStartingGame(false);
       }, 5000);
-      
+
     } else {
       console.error('❌ [START GAME DEBUG] Cannot start game:', {
         hasSocket: !!socket,
@@ -845,41 +845,41 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
         // connectionStatus, // Removed
         isStartingGame
       });
-      
+
       if (!currentIsHost) {
         addNotification('Only the host can start the game.', 'warning');
       } else if (!socket || !socketIsConnected) {
         addNotification('Connection lost. Please refresh the page and try again.', 'error');
       }
     }
-  };
+  }, [socket, socketIsConnected, currentIsHost, isStartingGame, addNotification]);
 
-  const handleLeaveRoom = () => {
+  const handleLeaveRoom = useCallback(() => {
     if (socket && socketIsConnected) {
       socket.emit('leaveRoom', { roomCode: roomCodeRef.current });
     }
     if (onLeave) {
       onLeave();
     }
-  };
+  }, [socket, socketIsConnected, onLeave]);
 
-  const handleTransferHost = (targetPlayerId) => {
+  const handleTransferHost = useCallback((targetPlayerId) => {
     if (socket && socketIsConnected && currentIsHost) {
       console.log('👑 Transferring host to player:', targetPlayerId);
-      socket.emit('transferHost', { 
+      socket.emit('transferHost', {
         roomCode: roomCodeRef.current,
         targetUserId: targetPlayerId
       });
     }
-  };
+  }, [socket, socketIsConnected, currentIsHost]);
 
-  const handleKickPlayer = (targetPlayerId, targetPlayerName) => {
+  const handleKickPlayer = useCallback((targetPlayerId, targetPlayerName) => {
     if (socket && socketIsConnected && currentIsHost) {
       // Confirm kick action
       const confirmed = window.confirm(
         `Are you sure you want to kick ${targetPlayerName} from the room?`
       );
-      
+
       if (confirmed) {
         console.log('👢 [KICK DEBUG] Kicking player:', {
           targetPlayerId,
@@ -887,7 +887,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
           roomCode: roomCodeRef.current,
           timestamp: new Date().toISOString()
         });
-        
+
         socket.emit('kickPlayer', {
           roomCode: roomCodeRef.current,
           targetUserId: targetPlayerId
@@ -896,7 +896,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
         console.log('👢 [KICK DEBUG] Kick cancelled by host');
       }
     }
-  };
+  }, [socket, socketIsConnected, currentIsHost]);
 
   const handleGenerateInvite = async () => {
     try {
@@ -1064,6 +1064,15 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
     );
   }
 
+  // Memoize player counts to prevent recalculation on every render
+  const playerCounts = useMemo(() => {
+    const total = players.length || 0;
+    const lobbyCount = players.filter(p => (p.currentLocation === 'lobby') || (p.isConnected && !p.inGame)).length;
+    const inGameCount = players.filter(p => p.currentLocation === 'game' || p.inGame).length;
+    const disconnectedCount = players.filter(p => !p.isConnected || p.currentLocation === 'disconnected').length;
+    return { total, lobbyCount, inGameCount, disconnectedCount };
+  }, [players]);
+
   return (
     <div className="room-lobby">
       <div className="lobby-header">
@@ -1132,10 +1141,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       <div className="lobby-content">
         {/* Return progress banner */}
         {(() => {
-          const total = players.length || 0;
-          const lobbyCount = players.filter(p => (p.currentLocation === 'lobby') || (p.isConnected && !p.inGame)).length;
-          const inGameCount = players.filter(p => p.currentLocation === 'game' || p.inGame).length;
-          const disconnectedCount = players.filter(p => !p.isConnected || p.currentLocation === 'disconnected').length;
+          const { total, lobbyCount, inGameCount, disconnectedCount } = playerCounts;
           const needsBanner = (inGameCount + disconnectedCount) > 0 && total > 0;
           if (!needsBanner) return null;
           return (
