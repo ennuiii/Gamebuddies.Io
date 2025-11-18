@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import './GameCard.css';
 
-const GameCard = ({ game }) => {
+const GameCard = React.memo(({ game }) => {
   const [imageError, setImageError] = useState(false);
 
   // Check if there's a screenshot/thumbnail URL
@@ -58,6 +58,10 @@ const GameCard = ({ game }) => {
       </motion.div>
     </a>
   );
-};
+}, (prevProps, nextProps) => {
+  // Only re-render if game id or availability changes
+  return prevProps.game.id === nextProps.game.id &&
+         prevProps.game.available === nextProps.game.available;
+});
 
 export default GameCard;

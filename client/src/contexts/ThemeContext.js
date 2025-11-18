@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useMemo, useCallback } from 'react';
 
 const themes = {
   default: {
@@ -47,19 +47,19 @@ export const ThemeProvider = ({ children }) => {
     body.classList.add(`theme-${currentTheme}`);
   }, [currentTheme]);
 
-  const changeTheme = (themeKey) => {
+  const changeTheme = useCallback((themeKey) => {
     if (themes[themeKey]) {
       setCurrentTheme(themeKey);
       localStorage.setItem('gamebuddies-theme', themeKey);
     }
-  };
+  }, []);
 
-  const value = {
+  const value = useMemo(() => ({
     currentTheme,
     themes,
     changeTheme,
     currentThemeData: themes[currentTheme]
-  };
+  }), [currentTheme, changeTheme]);
 
   return (
     <ThemeContext.Provider value={value}>

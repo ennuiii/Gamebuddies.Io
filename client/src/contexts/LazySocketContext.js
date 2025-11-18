@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useRef, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import io from 'socket.io-client';
 
 const SocketContext = createContext();
@@ -162,14 +162,14 @@ export const LazySocketProvider = ({ children }) => {
     };
   }, [disconnectSocket]);
 
-  const value = {
+  const value = useMemo(() => ({
     socket,
     socketId,
     isConnected,
     isConnecting,
     connectSocket,
     disconnectSocket,
-  };
+  }), [socket, socketId, isConnected, isConnecting, connectSocket, disconnectSocket]);
 
   return <SocketContext.Provider value={value}>{children}</SocketContext.Provider>;
 };

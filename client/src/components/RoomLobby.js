@@ -1064,14 +1064,30 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
     );
   }
 
-  // Memoize player counts to prevent recalculation on every render
+  // Memoize player counts - optimized to single pass with reduce
   const playerCounts = useMemo(() => {
-    const total = players.length || 0;
-    const lobbyCount = players.filter(p => (p.currentLocation === 'lobby') || (p.isConnected && !p.inGame)).length;
-    const inGameCount = players.filter(p => p.currentLocation === 'game' || p.inGame).length;
-    const disconnectedCount = players.filter(p => !p.isConnected || p.currentLocation === 'disconnected').length;
-    return { total, lobbyCount, inGameCount, disconnectedCount };
+    return players.reduce((acc, p) => {
+      acc.total++;
+      if (p.currentLocation === 'game' || p.inGame) {
+        acc.inGameCount++;
+      } else if (!p.isConnected || p.currentLocation === 'disconnected') {
+        acc.disconnectedCount++;
+      } else {
+        acc.lobbyCount++;
+      }
+      return acc;
+    }, { total: 0, lobbyCount: 0, inGameCount: 0, disconnectedCount: 0 });
   }, [players]);
+
+  // Memoize players with status to avoid recalculating on every render
+  const playersWithStatus = useMemo(() => {
+    return players.map(player => ({
+      ...player,
+      playerStatus: getPlayerStatus(player),
+      countdownTime: disconnectedTimers.get(player.id),
+      isDisconnectedWithTimer: !player.isConnected && disconnectedTimers.get(player.id) > 0
+    }));
+  }, [players, disconnectedTimers]);
 
   return (
     <div className="room-lobby">
@@ -1211,16 +1227,13 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
             )}
           </div>
           <div className="players-grid">
-            {players
-              .filter(() => true)
+            {playersWithStatus
               .map((player) => {
-                const playerStatus = getPlayerStatus(player);
-                const countdownTime = disconnectedTimers.get(player.id);
-                const isDisconnectedWithTimer = !player.isConnected && countdownTime > 0;
-                
+                const { playerStatus, countdownTime, isDisconnectedWithTimer } = player;
+
                 return (
-                  <div 
-                    key={player.id} 
+                  <div
+                    key={player.id}
                     className={`player-card ${player.isHost ? 'host' : ''} ${playerStatus.status} ${isDisconnectedWithTimer ? 'disconnecting' : ''}`}
                   >
                     <div className="player-card-content">
