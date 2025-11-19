@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { getSupabaseClient } from '../utils/supabase';
 import './Premium.css';
 
 const Premium = () => {
@@ -87,10 +88,19 @@ const Premium = () => {
     try {
       console.log('📡 [PREMIUM CLIENT] Sending request...');
 
+      // Get JWT token for authentication
+      const supabase = await getSupabaseClient();
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session?.access_token) {
+        throw new Error('Not authenticated');
+      }
+
       const response = await fetch('/api/stripe/create-checkout-session', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
         },
         body: JSON.stringify(payload),
       });
@@ -140,10 +150,19 @@ const Premium = () => {
     console.log('⚙️  [PREMIUM] Opening customer portal');
 
     try {
+      // Get JWT token for authentication
+      const supabase = await getSupabaseClient();
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session?.access_token) {
+        throw new Error('Not authenticated');
+      }
+
       const response = await fetch('/api/stripe/customer-portal', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
         },
         body: JSON.stringify({
           userId: user.id,

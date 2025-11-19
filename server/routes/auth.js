@@ -1,5 +1,6 @@
 const express = require('express');
 const { supabaseAdmin } = require('../lib/supabase');
+const { requireAuth, requireOwnAccount } = require('../middlewares/auth');
 const router = express.Router();
 
 /**
@@ -210,12 +211,13 @@ router.post('/sync-user', async (req, res) => {
 /**
  * GET /api/users/:userId
  * Get user by ID from public.users
+ * SECURITY: Requires authentication + user can only access their own data
  */
-router.get('/users/:userId', async (req, res) => {
+router.get('/users/:userId', requireAuth, requireOwnAccount, async (req, res) => {
   try {
     const { userId } = req.params;
 
-    console.log('👤 [AUTH] Fetching user:', userId);
+    console.log('👤 [AUTH] Fetching user:', userId, '(authenticated:', req.user.id, ')');
 
     const { data: user, error } = await supabaseAdmin
       .from('users')
