@@ -19,6 +19,9 @@ const Account = () => {
   const isLifetime = user?.premium_tier === 'lifetime';
   const isMonthly = user?.premium_tier === 'monthly';
 
+  // Check if subscription is canceled but still active
+  const isCanceled = user?.subscription_canceled_at && isPremium;
+
   // Check if user was previously premium (has expiration date but is now free)
   const wasPremium = !isPremium && user?.premium_expires_at;
 
@@ -168,6 +171,7 @@ const Account = () => {
                 </h3>
                 <p className="status-description">
                   {isLifetime ? 'You have lifetime access to all premium features' :
+                   isCanceled ? 'Your subscription is canceled and will end at the next billing date' :
                    isMonthly ? 'Your subscription renews automatically each month' :
                    wasPremium ? 'Your premium subscription has ended' :
                    'Upgrade to premium for exclusive features'}
@@ -179,13 +183,22 @@ const Account = () => {
               <div className="subscription-details">
                 <div className="detail-row">
                   <span className="detail-label">Status</span>
-                  <span className="detail-value status-active">Active</span>
+                  <span className={`detail-value ${isCanceled ? 'status-canceled' : 'status-active'}`}>
+                    {isCanceled ? 'Canceled (Active until expiration)' : 'Active'}
+                  </span>
                 </div>
 
                 {isMonthly && user?.premium_expires_at && (
                   <div className="detail-row">
-                    <span className="detail-label">Next Billing Date</span>
+                    <span className="detail-label">{isCanceled ? 'Access Ends' : 'Next Billing Date'}</span>
                     <span className="detail-value">{formatDate(user.premium_expires_at)}</span>
+                  </div>
+                )}
+
+                {isCanceled && user?.subscription_canceled_at && (
+                  <div className="detail-row">
+                    <span className="detail-label">Canceled On</span>
+                    <span className="detail-value">{formatDate(user.subscription_canceled_at)}</span>
                   </div>
                 )}
 
@@ -248,7 +261,7 @@ const Account = () => {
                     {loading ? 'Loading...' : 'Manage Subscription'}
                   </button>
 
-                  {isMonthly && (
+                  {isMonthly && !isCanceled && (
                     <button
                       onClick={handleCancelSubscription}
                       className="btn btn-danger"
@@ -256,6 +269,12 @@ const Account = () => {
                     >
                       {loading ? 'Processing...' : 'Cancel Subscription'}
                     </button>
+                  )}
+
+                  {isCanceled && (
+                    <div className="cancellation-notice">
+                      <p>⚠️ Your subscription is canceled. You can reactivate it through the Stripe Customer Portal.</p>
+                    </div>
                   )}
                 </>
               )}

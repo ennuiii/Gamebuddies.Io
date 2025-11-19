@@ -499,6 +499,21 @@ router.post('/cancel-subscription', requireAuth, async (req, res) => {
 
     console.log('✅ [STRIPE] Subscription cancelled:', subscription.id);
 
+    // Update database to track cancellation
+    const { error: updateError } = await supabaseAdmin
+      .from('users')
+      .update({
+        subscription_canceled_at: new Date().toISOString()
+      })
+      .eq('id', userId);
+
+    if (updateError) {
+      console.error('⚠️  [STRIPE] Failed to update cancellation status in DB:', updateError);
+      // Don't fail the request - Stripe webhook will handle it
+    } else {
+      console.log('✅ [STRIPE] Cancellation status updated in database');
+    }
+
     res.json({
       message: 'Subscription will be cancelled at the end of the billing period',
       endsAt: new Date(subscription.current_period_end * 1000)
@@ -574,19 +589,33 @@ async function handleSubscriptionUpdate(subscription) {
     return;
   }
 
+  // Check if subscription is canceled (cancel_at_period_end = true)
+  const isCanceled = subscription.cancel_at_period_end === true;
+
+  if (isCanceled) {
+    console.log('⚠️  [STRIPE WEBHOOK] Subscription set to cancel at period end');
+  }
+
+  const updateData = {
+    stripe_subscription_id: subscription.id,
+    premium_tier: 'monthly',
+    premium_expires_at: new Date(subscription.current_period_end * 1000).toISOString(),
+    // Track cancellation status
+    subscription_canceled_at: isCanceled ? new Date().toISOString() : null
+  };
+
   const { error } = await supabaseAdmin
     .from('users')
-    .update({
-      stripe_subscription_id: subscription.id,
-      premium_tier: 'monthly',
-      premium_expires_at: new Date(subscription.current_period_end * 1000).toISOString(),
-    })
+    .update(updateData)
     .eq('id', userId);
 
   if (error) {
     console.error('❌ [STRIPE WEBHOOK] Failed to update subscription:', error);
   } else {
     console.log('✅ [STRIPE WEBHOOK] Subscription updated for user:', userId);
+    if (isCanceled) {
+      console.log('📅 [STRIPE WEBHOOK] User will retain access until:', updateData.premium_expires_at);
+    }
   }
 }
 
