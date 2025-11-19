@@ -18,9 +18,14 @@ export const AuthProvider = ({ children }) => {
       const supabase = await getSupabaseClient();
       console.log('🔐 [AUTH DEBUG] Supabase client obtained');
 
-      // Get initial session
+      // Get initial session with timeout
       console.log('🔐 [AUTH DEBUG] Calling getSession()...');
-      const sessionResult = await supabase.auth.getSession();
+      const sessionPromise = supabase.auth.getSession();
+      const timeoutPromise = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('getSession timeout after 10s')), 10000)
+      );
+
+      const sessionResult = await Promise.race([sessionPromise, timeoutPromise]);
       console.log('🔐 [AUTH DEBUG] getSession() returned:', sessionResult);
 
       const { data: { session }, error } = sessionResult;

@@ -35,6 +35,14 @@ const initializeSupabase = async () => {
       }
 
       supabaseClient = createClient(config.url, config.anonKey, {
+        auth: {
+          autoRefreshToken: true,
+          persistSession: true,
+          detectSessionInUrl: true,
+          storage: window.localStorage,
+          storageKey: 'gamebuddies-auth',
+          flowType: 'pkce'
+        },
         realtime: {
           params: {
             eventsPerSecond: 10
