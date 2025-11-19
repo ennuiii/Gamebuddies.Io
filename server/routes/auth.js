@@ -217,7 +217,12 @@ router.get('/users/:userId', requireAuth, requireOwnAccount, async (req, res) =>
   try {
     const { userId } = req.params;
 
-    console.log('👤 [AUTH] Fetching user:', userId, '(authenticated:', req.user.id, ')');
+    console.log('👤 [AUTH ENDPOINT] GET /api/users/:userId called');
+    console.log('👤 [AUTH ENDPOINT DEBUG] Request params:', { userId });
+    console.log('👤 [AUTH ENDPOINT DEBUG] Authenticated user:', req.user?.id);
+    console.log('👤 [AUTH ENDPOINT DEBUG] User match:', userId === req.user?.id);
+
+    console.log('👤 [AUTH ENDPOINT] Fetching user from database:', userId);
 
     const { data: user, error } = await supabaseAdmin
       .from('users')
@@ -226,19 +231,34 @@ router.get('/users/:userId', requireAuth, requireOwnAccount, async (req, res) =>
       .single();
 
     if (error) {
-      console.error('❌ [AUTH] Fetch user error:', error);
+      console.error('❌ [AUTH ENDPOINT] Database error:', error);
+      console.error('❌ [AUTH ENDPOINT] Error details:', {
+        message: error.message,
+        code: error.code,
+        details: error.details
+      });
       throw error;
     }
 
     if (!user) {
+      console.error('❌ [AUTH ENDPOINT] User not found in database:', userId);
       return res.status(404).json({ error: 'User not found' });
     }
 
-    console.log('✅ [AUTH] User fetched:', user.username);
+    console.log('✅ [AUTH ENDPOINT] User fetched successfully:', {
+      id: user.id,
+      username: user.username,
+      email: user.email,
+      premium_tier: user.premium_tier,
+      premium_expires_at: user.premium_expires_at,
+      subscription_canceled_at: user.subscription_canceled_at
+    });
+
     res.json({ user });
 
   } catch (error) {
-    console.error('❌ [AUTH] Get user failed:', error);
+    console.error('❌ [AUTH ENDPOINT] Get user failed:', error);
+    console.error('❌ [AUTH ENDPOINT] Error stack:', error.stack);
     res.status(500).json({
       error: 'Failed to fetch user',
       details: error.message
