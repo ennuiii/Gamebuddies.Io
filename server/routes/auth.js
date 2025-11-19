@@ -17,28 +17,44 @@ router.post('/sync-user', async (req, res) => {
       display_name
     } = req.body;
 
-    console.log('🔄 [AUTH] Syncing user:', {
+    const isEmailAuth = oauth_provider === null;
+
+    console.log('🔄 [SERVER AUTH] Received sync request:', {
       user_id: supabase_user_id,
       email,
-      provider: oauth_provider
+      provider: oauth_provider,
+      oauth_id,
+      avatar_url,
+      display_name,
+      isEmailAuth,
+      authType: isEmailAuth ? 'EMAIL' : 'OAUTH'
     });
 
     // Validate required fields
-    if (!supabase_user_id || !email || !oauth_provider) {
+    if (!supabase_user_id || !email) {
+      console.error('❌ [SERVER AUTH] Missing required fields:', {
+        hasUserId: !!supabase_user_id,
+        hasEmail: !!email
+      });
       return res.status(400).json({
-        error: 'Missing required fields: supabase_user_id, email, oauth_provider'
+        error: 'Missing required fields: supabase_user_id, email'
       });
     }
 
     // Check if user already exists by ID
-    const { data: existingUser } = await supabaseAdmin
+    console.log('🔍 [SERVER AUTH] Checking if user exists by ID...');
+    const { data: existingUser, error: existingError } = await supabaseAdmin
       .from('users')
       .select('*')
       .eq('id', supabase_user_id)
       .single();
 
+    if (existingError && existingError.code !== 'PGRST116') { // PGRST116 = no rows returned
+      console.error('❌ [SERVER AUTH] Error checking existing user:', existingError);
+    }
+
     if (existingUser) {
-      console.log('✅ [AUTH] User exists, updating:', existingUser.username);
+      console.log('✅ [SERVER AUTH] User exists, updating:', existingUser.username);
 
       // Update existing user
       const { data: updatedUser, error: updateError } = await supabaseAdmin
@@ -58,22 +74,28 @@ router.post('/sync-user', async (req, res) => {
         .single();
 
       if (updateError) {
-        console.error('❌ [AUTH] Update error:', updateError);
+        console.error('❌ [SERVER AUTH] Update error:', updateError);
         throw updateError;
       }
 
+      console.log('✅ [SERVER AUTH] User updated successfully');
       return res.json({ user: updatedUser });
     }
 
     // Check if user exists by email (migration from guest)
-    const { data: emailUser } = await supabaseAdmin
+    console.log('🔍 [SERVER AUTH] User not found by ID, checking by email for guest migration...');
+    const { data: emailUser, error: emailError } = await supabaseAdmin
       .from('users')
       .select('*')
       .eq('email', email)
       .single();
 
+    if (emailError && emailError.code !== 'PGRST116') { // PGRST116 = no rows returned
+      console.error('❌ [SERVER AUTH] Error checking user by email:', emailError);
+    }
+
     if (emailUser) {
-      console.log('📧 [AUTH] User exists with email, migrating guest to registered');
+      console.log('📧 [SERVER AUTH] User exists with email, migrating guest to registered:', emailUser.username);
 
       // Update existing guest user to registered
       const { data: migratedUser, error: migrateError } = await supabaseAdmin
@@ -93,17 +115,19 @@ router.post('/sync-user', async (req, res) => {
         .single();
 
       if (migrateError) {
-        console.error('❌ [AUTH] Migration error:', migrateError);
+        console.error('❌ [SERVER AUTH] Migration error:', migrateError);
         // If migration fails, create new user instead
       } else {
+        console.log('✅ [SERVER AUTH] User migrated successfully');
         return res.json({ user: migratedUser });
       }
     }
 
     // Create new user
+    console.log('➕ [SERVER AUTH] No existing user found, creating new user...');
     const username = generateUsername(email, oauth_provider);
 
-    console.log('➕ [AUTH] Creating new user:', username);
+    console.log('➕ [SERVER AUTH] Generated username:', username, 'for email:', email);
 
     const { data: newUser, error: createError } = await supabaseAdmin
       .from('users')
@@ -123,11 +147,18 @@ router.post('/sync-user', async (req, res) => {
       .single();
 
     if (createError) {
-      console.error('❌ [AUTH] Create error:', createError);
+      console.error('❌ [SERVER AUTH] Create error:', createError);
+      console.error('❌ [SERVER AUTH] Error details:', {
+        code: createError.code,
+        message: createError.message,
+        details: createError.details,
+        hint: createError.hint
+      });
 
       // If username conflict, try with random suffix
       if (createError.code === '23505') {
         const uniqueUsername = `${username}_${Math.random().toString(36).substr(2, 5)}`;
+        console.log('🔄 [SERVER AUTH] Username conflict detected, retrying with:', uniqueUsername);
 
         const { data: retryUser, error: retryError } = await supabaseAdmin
           .from('users')
@@ -146,23 +177,28 @@ router.post('/sync-user', async (req, res) => {
           .select()
           .single();
 
-        if (retryError) throw retryError;
+        if (retryError) {
+          console.error('❌ [SERVER AUTH] Retry failed:', retryError);
+          throw retryError;
+        }
 
-        console.log('✅ [AUTH] User created with unique username:', uniqueUsername);
+        console.log('✅ [SERVER AUTH] User created with unique username:', uniqueUsername);
         return res.json({ user: retryUser });
       }
 
       throw createError;
     }
 
-    console.log('✅ [AUTH] User created successfully:', newUser.username);
+    console.log('✅ [SERVER AUTH] User created successfully:', newUser.username);
     res.json({ user: newUser });
 
   } catch (error) {
-    console.error('❌ [AUTH] Sync user failed:', error);
+    console.error('❌ [SERVER AUTH] Sync user failed:', error);
+    console.error('❌ [SERVER AUTH] Stack trace:', error.stack);
     res.status(500).json({
       error: 'Failed to sync user',
-      details: error.message
+      details: error.message,
+      code: error.code
     });
   }
 });
@@ -209,7 +245,7 @@ router.get('/users/:userId', async (req, res) => {
  */
 function generateUsername(email, provider) {
   const emailPrefix = email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '');
-  const providerPrefix = provider.substring(0, 2).toLowerCase();
+  const providerPrefix = provider ? provider.substring(0, 2).toLowerCase() : 'em'; // 'em' for email auth
   const randomSuffix = Math.random().toString(36).substr(2, 4);
 
   return `${emailPrefix}_${providerPrefix}${randomSuffix}`;

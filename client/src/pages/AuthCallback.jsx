@@ -60,28 +60,46 @@ const AuthCallback = () => {
   const syncUser = async (user) => {
     try {
       console.log('🔄 [AUTH] Syncing user to database...');
+      console.log('🔄 [AUTH] User metadata:', {
+        id: user.id,
+        email: user.email,
+        provider: user.app_metadata.provider,
+        email_confirmed: user.email_confirmed_at,
+        created_at: user.created_at,
+        app_metadata: user.app_metadata,
+        user_metadata: user.user_metadata
+      });
 
       // Determine authentication method
       const provider = user.app_metadata.provider || 'email';
       const isEmailAuth = provider === 'email';
+
+      console.log('🔄 [AUTH] Auth type:', isEmailAuth ? 'EMAIL' : 'OAUTH', `(${provider})`);
+
+      const syncPayload = {
+        supabase_user_id: user.id,
+        email: user.email,
+        oauth_provider: isEmailAuth ? null : provider,
+        oauth_id: isEmailAuth ? null : (user.user_metadata.provider_id || user.id),
+        avatar_url: user.user_metadata.avatar_url || user.user_metadata.picture || null,
+        display_name: user.user_metadata.full_name || user.user_metadata.name || user.email.split('@')[0]
+      };
+
+      console.log('🔄 [AUTH] Sending sync payload:', syncPayload);
 
       const response = await fetch('/api/auth/sync-user', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          supabase_user_id: user.id,
-          email: user.email,
-          oauth_provider: isEmailAuth ? null : provider,
-          oauth_id: isEmailAuth ? null : (user.user_metadata.provider_id || user.id),
-          avatar_url: user.user_metadata.avatar_url || user.user_metadata.picture || null,
-          display_name: user.user_metadata.full_name || user.user_metadata.name || user.email.split('@')[0]
-        })
+        body: JSON.stringify(syncPayload)
       });
+
+      console.log('🔄 [AUTH] Sync response status:', response.status, response.statusText);
 
       if (!response.ok) {
         const errorData = await response.json();
+        console.error('❌ [AUTH] Sync failed with error:', errorData);
         throw new Error(errorData.error || 'Failed to sync user');
       }
 
@@ -90,6 +108,10 @@ const AuthCallback = () => {
 
     } catch (err) {
       console.error('❌ [AUTH] User sync failed:', err);
+      console.error('❌ [AUTH] Error details:', {
+        message: err.message,
+        stack: err.stack
+      });
       // Don't fail the whole flow if sync fails - user is still authenticated
       // We'll try to sync again on next login
     }
