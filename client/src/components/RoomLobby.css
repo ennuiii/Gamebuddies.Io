@@ -401,116 +401,76 @@
   50% { opacity: 0.6; }
 }
 
-/* Premium Player Card Styles - Thick Rotating Glowing Border */
+/* Premium Player Card Styles - THICK Glowing Border All Around */
 .player-card.premium-lifetime {
   position: relative;
-  background: transparent;
+  background: rgba(15, 15, 35, 0.95);
   border: none;
-  overflow: visible;
+  z-index: 1;
 }
 
-.player-card.premium-lifetime::before {
-  content: '';
-  position: absolute;
-  inset: -8px;
-  border-radius: 24px;
-  padding: 8px;
-  background: linear-gradient(
-    0deg,
-    #FFD700,
-    #FFA500,
-    #FF6B00,
-    #FFD700,
-    #FFA500,
-    #FF6B00,
-    #FFD700,
-    #FFA500
-  );
-  -webkit-mask:
-    linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask:
-    linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
-  mask-composite: exclude;
-  z-index: -1;
-  animation: premiumRotateBorder 3s linear infinite;
-  box-shadow:
-    0 0 40px rgba(255, 215, 0, 0.9),
-    0 0 80px rgba(255, 165, 0, 0.7),
-    inset 0 0 40px rgba(255, 215, 0, 0.5);
-}
-
+/* Create thick border frame using pseudo-element */
 .player-card.premium-lifetime::after {
   content: '';
   position: absolute;
-  inset: 0;
-  border-radius: 20px;
-  background: rgba(15, 15, 35, 0.95);
+  top: -6px;
+  left: -6px;
+  right: -6px;
+  bottom: -6px;
+  background: linear-gradient(135deg, #FFD700, #FFA500, #FF6B00, #FFD700);
+  border-radius: 26px; /* Original border-radius (20px) + border width (6px) */
   z-index: -1;
+  animation: premiumLifetimeGlow 2s ease-in-out infinite;
 }
 
 .player-card.premium-monthly {
   position: relative;
-  background: transparent;
+  background: rgba(15, 15, 35, 0.95);
   border: none;
-  overflow: visible;
+  z-index: 1;
 }
 
-.player-card.premium-monthly::before {
-  content: '';
-  position: absolute;
-  inset: -8px;
-  border-radius: 24px;
-  padding: 8px;
-  background: linear-gradient(
-    0deg,
-    #00d9ff,
-    #00ff88,
-    #00ffea,
-    #00d9ff,
-    #00ff88,
-    #00ffea,
-    #00d9ff,
-    #00ff88
-  );
-  -webkit-mask:
-    linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask:
-    linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
-  mask-composite: exclude;
-  z-index: -1;
-  animation: premiumRotateBorder 3s linear infinite;
-  box-shadow:
-    0 0 40px rgba(0, 217, 255, 0.9),
-    0 0 80px rgba(0, 255, 136, 0.7),
-    inset 0 0 40px rgba(0, 217, 255, 0.5);
-}
-
+/* Create thick border frame using pseudo-element */
 .player-card.premium-monthly::after {
   content: '';
   position: absolute;
-  inset: 0;
-  border-radius: 20px;
-  background: rgba(15, 15, 35, 0.95);
+  top: -6px;
+  left: -6px;
+  right: -6px;
+  bottom: -6px;
+  background: linear-gradient(135deg, #00d9ff, #00ff88, #00ffea, #00d9ff);
+  border-radius: 26px; /* Original border-radius (20px) + border width (6px) */
   z-index: -1;
+  animation: premiumMonthlyGlow 2s ease-in-out infinite;
 }
 
-@keyframes premiumRotateBorder {
-  0% {
-    transform: rotate(0deg);
-    filter: brightness(1) saturate(1.2);
+@keyframes premiumLifetimeGlow {
+  0%, 100% {
+    box-shadow:
+      0 0 20px rgba(255, 215, 0, 0.7),
+      0 0 40px rgba(255, 165, 0, 0.5),
+      0 0 60px rgba(255, 107, 0, 0.4);
   }
   50% {
-    filter: brightness(1.4) saturate(1.6);
+    box-shadow:
+      0 0 35px rgba(255, 215, 0, 1),
+      0 0 70px rgba(255, 165, 0, 0.8),
+      0 0 105px rgba(255, 107, 0, 0.6);
   }
-  100% {
-    transform: rotate(360deg);
-    filter: brightness(1) saturate(1.2);
+}
+
+@keyframes premiumMonthlyGlow {
+  0%, 100% {
+    box-shadow:
+      0 0 20px rgba(0, 217, 255, 0.7),
+      0 0 40px rgba(0, 255, 136, 0.5),
+      0 0 60px rgba(0, 255, 234, 0.4);
+  }
+  50% {
+    box-shadow:
+      0 0 35px rgba(0, 217, 255, 1),
+      0 0 70px rgba(0, 255, 136, 0.8),
+      0 0 105px rgba(0, 255, 234, 0.6);
   }
 }
 
