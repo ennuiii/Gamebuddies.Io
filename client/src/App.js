@@ -15,6 +15,7 @@ import PasswordReset from './pages/PasswordReset'; // Import PasswordReset
 import Premium from './pages/Premium'; // Import Premium
 import PaymentSuccess from './pages/PaymentSuccess'; // Import PaymentSuccess
 import PaymentCancel from './pages/PaymentCancel'; // Import PaymentCancel
+import Account from './pages/Account'; // Import Account
 // GameBuddiesReturnHandler removed - using simpler URL-based return flow
 import DebugPanel from './components/DebugPanel';
 import './App.css';
@@ -95,6 +96,7 @@ function AppContent() {
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/password-reset" element={<PasswordReset />} />
         <Route path="/premium" element={<Premium />} />
+        <Route path="/account" element={<Account />} />
         <Route path="/payment/success" element={<PaymentSuccess />} />
         <Route path="/payment/cancel" element={<PaymentCancel />} />
         <Route path="/legal" element={<Legal />} />

@@ -56,6 +56,24 @@
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+.user-info-button {
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: inherit;
+  font-size: inherit;
+}
+
+.user-info-button:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
+}
+
+.user-info-button:active {
+  transform: translateY(0);
+}
+
 .user-icon {
   font-size: 1.2rem;
   line-height: 1;
