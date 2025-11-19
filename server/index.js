@@ -1804,18 +1804,51 @@ io.on('connection', async (socket) => {
       const playerName = sanitize.playerName(data.playerName);
       const customLobbyName = data.customLobbyName ? sanitize.playerName(data.customLobbyName) : null;
       const streamerMode = data.streamerMode || false;
+      const supabaseUserId = data.supabaseUserId || null;
 
-      console.log(`🏠 [SUPABASE] Creating room for ${playerName}`, { customLobbyName, streamerMode });
+      console.log(`🏠 [SUPABASE] Creating room for ${playerName}`, {
+        customLobbyName,
+        streamerMode,
+        isAuthenticated: !!supabaseUserId,
+        supabaseUserId
+      });
       console.log(`🔍 [DEBUG] Socket ID: ${socket.id}`);
-      
-      // Get or create user profile
-      console.log(`👤 [DEBUG] Creating/getting user profile...`);
-      const user = await db.getOrCreateUser(
-        `${socket.id}_${playerName}`, // Unique per connection to prevent conflicts
-        playerName,
-        playerName
-      );
-      console.log(`✅ [DEBUG] User created/found:`, { id: user.id, username: user.username });
+
+      let user;
+      if (supabaseUserId) {
+        // Authenticated user - get existing user from database
+        console.log(`👤 [DEBUG] Getting authenticated user profile for Supabase ID:`, supabaseUserId);
+        const { data: existingUser, error } = await db.adminClient
+          .from('users')
+          .select('*')
+          .eq('id', supabaseUserId)
+          .single();
+
+        if (error || !existingUser) {
+          console.error(`❌ [DEBUG] Failed to find authenticated user:`, error);
+          socket.emit('error', {
+            message: 'User account not found. Please try logging in again.',
+            code: 'USER_NOT_FOUND'
+          });
+          return;
+        }
+
+        user = existingUser;
+        console.log(`✅ [DEBUG] Authenticated user found:`, {
+          id: user.id,
+          username: user.username,
+          premium_tier: user.premium_tier
+        });
+      } else {
+        // Guest user - create temporary user profile
+        console.log(`👤 [DEBUG] Creating guest user profile...`);
+        user = await db.getOrCreateUser(
+          `${socket.id}_${playerName}`, // Unique per connection to prevent conflicts
+          playerName,
+          playerName
+        );
+        console.log(`✅ [DEBUG] Guest user created:`, { id: user.id, username: user.username });
+      }
 
       // Create room in database
       console.log(`🏗️ [DEBUG] Creating room in database...`);
@@ -1958,6 +1991,14 @@ io.on('connection', async (socket) => {
       const playerName = sanitize.playerName(data.playerName);
       const customLobbyName = data.customLobbyName ? sanitize.playerName(data.customLobbyName) : null;
       const roomCode = sanitize.roomCode(data.roomCode);
+      const supabaseUserId = data.supabaseUserId || null;
+
+      console.log(`🚪 [JOIN] Join request:`, {
+        playerName,
+        roomCode,
+        isAuthenticated: !!supabaseUserId,
+        supabaseUserId
+      });
 
       // Acquire connection lock to prevent race conditions
       if (!connectionManager.acquireLock(playerName, roomCode, socket.id)) {
@@ -2079,9 +2120,10 @@ io.on('connection', async (socket) => {
       // This allows players and GMs to join ongoing games
       
       // Check for existing participant (disconnected or connected) to handle rejoining
-      const existingParticipant = room.participants?.find(p => 
-        p.user?.username === data.playerName
-      );
+      // If authenticated, match by user ID; otherwise match by username
+      const existingParticipant = supabaseUserId
+        ? room.participants?.find(p => p.user_id === supabaseUserId)
+        : room.participants?.find(p => p.user?.username === data.playerName);
       
       console.log(`🔍 [REJOINING DEBUG] Checking for existing participant:`, {
         searchingFor: data.playerName,
@@ -2161,17 +2203,44 @@ io.on('connection', async (socket) => {
         }
       } else {
         // Get or create user profile for new participants
-        console.log(`👤 [REJOINING DEBUG] Getting/creating user profile for new participant...`);
-        user = await db.getOrCreateUser(
-          `${socket.id}_${data.playerName}`, // Unique per connection to prevent conflicts
-          data.playerName,
-          data.playerName
-        );
-        console.log(`✅ [REJOINING DEBUG] User profile:`, {
-          id: user.id,
-          username: user.username,
-          external_id: user.external_id
-        });
+        if (supabaseUserId) {
+          // Authenticated user - get existing user from database
+          console.log(`👤 [REJOINING DEBUG] Getting authenticated user profile for Supabase ID:`, supabaseUserId);
+          const { data: existingUser, error } = await db.adminClient
+            .from('users')
+            .select('*')
+            .eq('id', supabaseUserId)
+            .single();
+
+          if (error || !existingUser) {
+            console.error(`❌ [REJOINING DEBUG] Failed to find authenticated user:`, error);
+            socket.emit('error', {
+              message: 'User account not found. Please try logging in again.',
+              code: 'USER_NOT_FOUND'
+            });
+            return;
+          }
+
+          user = existingUser;
+          console.log(`✅ [REJOINING DEBUG] Authenticated user found:`, {
+            id: user.id,
+            username: user.username,
+            premium_tier: user.premium_tier
+          });
+        } else {
+          // Guest user - create temporary user profile
+          console.log(`👤 [REJOINING DEBUG] Getting/creating guest user profile...`);
+          user = await db.getOrCreateUser(
+            `${socket.id}_${data.playerName}`, // Unique per connection to prevent conflicts
+            data.playerName,
+            data.playerName
+          );
+          console.log(`✅ [REJOINING DEBUG] Guest user profile:`, {
+            id: user.id,
+            username: user.username,
+            external_id: user.external_id
+          });
+        }
         
         // Check for duplicate connected participants (only for truly new participants)
         const duplicateConnectedParticipant = room.participants?.find(p => 
