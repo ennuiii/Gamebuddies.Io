@@ -30,7 +30,88 @@
 .header-right {
   display: flex;
   align-items: center;
-  gap: 1.5rem;
+  gap: 2rem;
+}
+
+.auth-section {
+  display: flex;
+  align-items: center;
+}
+
+.user-section {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.user-info {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-primary);
+  font-weight: 500;
+  padding: 0.5rem 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.user-icon {
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.user-name {
+  font-size: 0.95rem;
+  max-width: 150px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.login-link {
+  color: var(--text-primary);
+  text-decoration: none;
+  font-weight: 600;
+  padding: 0.6rem 1.5rem;
+  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+  border-radius: 10px;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(233, 69, 96, 0.3);
+}
+
+.login-link:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(233, 69, 96, 0.4);
+}
+
+.logout-button {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  padding: 0.6rem 1.2rem;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-family: inherit;
+}
+
+.logout-button:hover:not(:disabled) {
+  background: rgba(233, 69, 96, 0.2);
+  border-color: var(--primary-color);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(233, 69, 96, 0.3);
+}
+
+.logout-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.logout-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .logo {
@@ -141,19 +222,28 @@
   .logo {
     font-size: 1.5rem;
   }
-  
+
   .header-right {
     gap: 1rem;
   }
-  
+
   .nav {
     gap: 1rem;
   }
-  
+
   .nav-link {
     font-size: 0.9rem;
   }
-  
+
+  .user-name {
+    max-width: 100px;
+  }
+
+  .logout-button {
+    padding: 0.5rem 1rem;
+    font-size: 0.85rem;
+  }
+
   .settings-button {
     width: 40px;
     height: 40px;
@@ -164,8 +254,26 @@
   .nav {
     display: none;
   }
-  
+
   .header-right {
-    gap: 0;
+    gap: 0.5rem;
+  }
+
+  .user-info {
+    padding: 0.4rem 0.8rem;
+  }
+
+  .user-name {
+    display: none; /* Hide username on very small screens, keep icon */
+  }
+
+  .logout-button {
+    padding: 0.5rem 0.8rem;
+    font-size: 0.8rem;
+  }
+
+  .login-link {
+    padding: 0.5rem 1rem;
+    font-size: 0.9rem;
   }
 } 
