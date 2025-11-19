@@ -155,7 +155,7 @@ BEGIN
         NEW.raw_user_meta_data->>'provider_id',
         COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.raw_user_meta_data->>'name', final_username),
         false,
-        NEW.email_confirmed_at IS NOT NULL,
+        NEW.email_confirmed_at IS NOT NULL, -- true if email is confirmed
         NOW()
       )
       ON CONFLICT (id) DO UPDATE SET
@@ -163,7 +163,7 @@ BEGIN
         oauth_provider = EXCLUDED.oauth_provider,
         oauth_id = EXCLUDED.oauth_id,
         display_name = EXCLUDED.display_name,
-        email_verified = EXCLUDED.email_verified,
+        email_verified = NEW.email_confirmed_at IS NOT NULL, -- Update based on actual confirmation status
         last_seen = NOW();
 
       -- If we get here, insert was successful
