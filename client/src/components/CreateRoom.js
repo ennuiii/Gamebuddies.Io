@@ -4,6 +4,7 @@ import './CreateRoom.css';
 
 const CreateRoom = ({ onRoomCreated, onCancel }) => {
   const [playerName, setPlayerName] = useState('');
+  const [customLobbyName, setCustomLobbyName] = useState('');
   const [streamerMode, setStreamerMode] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState('');
@@ -24,6 +25,16 @@ const CreateRoom = ({ onRoomCreated, onCancel }) => {
 
     if (playerName.trim().length > 20) {
       setError('Name must be less than 20 characters');
+      return;
+    }
+
+    if (customLobbyName.trim() && customLobbyName.trim().length < 2) {
+      setError('Custom lobby name must be at least 2 characters long');
+      return;
+    }
+
+    if (customLobbyName.trim() && customLobbyName.trim().length > 20) {
+      setError('Custom lobby name must be less than 20 characters');
       return;
     }
 
@@ -114,9 +125,10 @@ const CreateRoom = ({ onRoomCreated, onCancel }) => {
       // Emit room creation request
       activeSocket.emit('createRoom', {
         playerName: playerName.trim(),
+        customLobbyName: customLobbyName.trim() || null,
         streamerMode: streamerMode
       });
-      console.log('📤 [CLIENT] createRoom event sent', { streamerMode });
+      console.log('📤 [CLIENT] createRoom event sent', { customLobbyName: customLobbyName.trim() || 'none', streamerMode });
 
       // Timeout fallback
       setTimeout(() => {
@@ -152,6 +164,20 @@ const CreateRoom = ({ onRoomCreated, onCancel }) => {
               disabled={isCreating}
               autoFocus
             />
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="customLobbyName">Custom Lobby Name (Optional)</label>
+            <input
+              type="text"
+              id="customLobbyName"
+              value={customLobbyName}
+              onChange={(e) => setCustomLobbyName(e.target.value)}
+              placeholder="Leave blank to use your account name"
+              maxLength={20}
+              disabled={isCreating}
+            />
+            <small>Set a different name just for this lobby</small>
           </div>
 
           <div className="form-group checkbox-group">

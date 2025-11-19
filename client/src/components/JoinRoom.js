@@ -5,6 +5,7 @@ import './JoinRoom.css';
 const JoinRoom = ({ initialRoomCode = '', initialPlayerName = '', autoJoin = false, onRoomJoined, onCancel }) => {
   const [roomCode, setRoomCode] = useState(initialRoomCode);
   const [playerName, setPlayerName] = useState(initialPlayerName || '');
+  const [customLobbyName, setCustomLobbyName] = useState('');
   const [isJoining, setIsJoining] = useState(false);
   const [error, setError] = useState('');
   const isInviteLink = !!initialRoomCode; // Track if user came via invite link
@@ -34,6 +35,16 @@ const JoinRoom = ({ initialRoomCode = '', initialPlayerName = '', autoJoin = fal
 
     if (playerName.trim().length > 20) {
       setError('Name must be less than 20 characters');
+      return;
+    }
+
+    if (customLobbyName.trim() && customLobbyName.trim().length < 2) {
+      setError('Custom lobby name must be at least 2 characters long');
+      return;
+    }
+
+    if (customLobbyName.trim() && customLobbyName.trim().length > 20) {
+      setError('Custom lobby name must be less than 20 characters');
       return;
     }
 
@@ -98,12 +109,13 @@ const JoinRoom = ({ initialRoomCode = '', initialPlayerName = '', autoJoin = fal
         
         const urlParams = new URLSearchParams(window.location.search);
         const isHostHint = urlParams.get('ishost') === 'true' || urlParams.get('role') === 'gm';
-        socket.emit('joinRoom', { 
+        socket.emit('joinRoom', {
           roomCode: roomCode.trim().toUpperCase(),
           playerName: playerName.trim(),
+          customLobbyName: customLobbyName.trim() || null,
           isHostHint
         });
-        console.log('📤 [CLIENT] joinRoom event sent');
+        console.log('📤 [CLIENT] joinRoom event sent with custom lobby name:', customLobbyName.trim() || 'none');
       });
 
       socket.on('roomJoined', (data) => {
@@ -253,6 +265,20 @@ const JoinRoom = ({ initialRoomCode = '', initialPlayerName = '', autoJoin = fal
               maxLength={20}
             />
             <small>This will be your display name in the room</small>
+          </div>
+
+          <div className="form-group">
+            <label htmlFor="customLobbyName">CUSTOM LOBBY NAME (Optional)</label>
+            <input
+              type="text"
+              id="customLobbyName"
+              value={customLobbyName}
+              onChange={(e) => setCustomLobbyName(e.target.value)}
+              placeholder="Leave blank to use your account name"
+              disabled={isJoining}
+              maxLength={20}
+            />
+            <small>Set a different name just for this lobby</small>
           </div>
 
           {error && (

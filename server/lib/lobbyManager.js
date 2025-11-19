@@ -24,7 +24,7 @@ class LobbyManager {
   }
 
   // Create a new room
-  async createRoom(hostId, gameType = 'lobby', settings = {}) {
+  async createRoom(hostId, gameType = 'lobby', settings = {}, customLobbyName = null) {
     try {
       const roomCode = this.generateRoomCode();
       
@@ -68,7 +68,8 @@ class LobbyManager {
           user_id: hostId,
           role: 'host',
           is_connected: true,
-          current_location: 'lobby'
+          current_location: 'lobby',
+          custom_lobby_name: customLobbyName
         });
 
       if (memberError) throw memberError;
@@ -101,9 +102,9 @@ class LobbyManager {
   }
 
   // Enhanced room joining with session management
-  async joinRoom(playerId, roomCode, playerName, socketId, sessionToken = null) {
+  async joinRoom(playerId, roomCode, playerName, socketId, sessionToken = null, customLobbyName = null) {
     try {
-      console.log(`🚪 [LOBBY] Player ${playerName} joining room ${roomCode}`);
+      console.log(`🚪 [LOBBY] Player ${playerName} joining room ${roomCode}${customLobbyName ? ` with custom name: ${customLobbyName}` : ''}`);
 
       // Acquire connection lock to prevent race conditions
       if (!this.connectionManager.acquireLock(playerName, roomCode, socketId)) {
@@ -137,14 +138,21 @@ class LobbyManager {
       
       if (existingParticipant) {
         // Rejoin - update connection status
+        const updateData = {
+          is_connected: true,
+          socket_id: socketId,
+          current_location: 'lobby',
+          last_ping: new Date().toISOString()
+        };
+
+        // Update custom lobby name if provided
+        if (customLobbyName !== null) {
+          updateData.custom_lobby_name = customLobbyName;
+        }
+
         await this.db.adminClient
           .from('room_members')
-          .update({
-            is_connected: true,
-            socket_id: socketId,
-            current_location: 'lobby',
-            last_ping: new Date().toISOString()
-          })
+          .update(updateData)
           .eq('id', existingParticipant.id);
 
         console.log(`🔄 [LOBBY] Player ${playerName} rejoined room ${roomCode}`);
@@ -164,7 +172,8 @@ class LobbyManager {
             role: 'player',
             is_connected: true,
             socket_id: socketId,
-            current_location: 'lobby'
+            current_location: 'lobby',
+            custom_lobby_name: customLobbyName
           });
 
         console.log(`✅ [LOBBY] Player ${playerName} joined room ${roomCode}`);
@@ -524,19 +533,35 @@ class LobbyManager {
 
     if (error || !room) return null;
 
-    const players = room.participants?.map(p => ({
-      id: p.user_id,
-      name: p.user?.display_name || p.user?.username,
-      isHost: p.role === 'host',
-      isConnected: p.is_connected,
-      inGame: p.in_game,
-      currentLocation: p.current_location,
-      lastPing: p.last_ping,
-      gameData: p.game_data,
-      // Premium features
-      premiumTier: p.user?.premium_tier || 'free',
-      avatarUrl: p.user?.avatar_url || null
-    })) || [];
+    const players = room.participants?.map(p => {
+      const player = {
+        id: p.user_id,
+        name: p.custom_lobby_name || p.user?.display_name || p.user?.username,
+        isHost: p.role === 'host',
+        isConnected: p.is_connected,
+        inGame: p.in_game,
+        currentLocation: p.current_location,
+        lastPing: p.last_ping,
+        gameData: p.game_data,
+        // Premium features
+        premiumTier: p.user?.premium_tier || 'free',
+        avatarUrl: p.user?.avatar_url || null
+      };
+
+      // Debug each player
+      console.log('🎮 [LOBBY MANAGER] Player:', {
+        name: player.name,
+        customLobbyName: p.custom_lobby_name,
+        displayName: p.user?.display_name,
+        username: p.user?.username,
+        premiumTier: player.premiumTier,
+        hasUser: !!p.user,
+        userPremiumTier: p.user?.premium_tier,
+        userAvatarUrl: p.user?.avatar_url
+      });
+
+      return player;
+    }) || [];
 
     return { room, players };
   }

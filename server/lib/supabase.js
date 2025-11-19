@@ -214,7 +214,7 @@ class DatabaseService {
   }
 
   // Participant management
-  async addParticipant(roomId, userId, socketId, role = 'player') {
+  async addParticipant(roomId, userId, socketId, role = 'player', customLobbyName = null) {
     try {
       const { data: participant, error } = await this.adminClient
         .from('room_members')
@@ -225,7 +225,8 @@ class DatabaseService {
           is_connected: true,
           current_location: 'lobby',
           last_ping: new Date().toISOString(),
-          socket_id: socketId
+          socket_id: socketId,
+          custom_lobby_name: customLobbyName
         }, {
           onConflict: 'room_id, user_id'
         })
@@ -240,7 +241,8 @@ class DatabaseService {
       // Log join event
       await this.logEvent(roomId, userId, 'player_joined', {
         role: role,
-        socket_id: socketId
+        socket_id: socketId,
+        custom_lobby_name: customLobbyName
       });
 
       return participant;
@@ -270,13 +272,18 @@ class DatabaseService {
     }
   }
 
-  async updateParticipantConnection(userId, socketId, status = 'connected') {
+  async updateParticipantConnection(userId, socketId, status = 'connected', customLobbyName = null) {
     try {
       const updateData = {
         is_connected: status === 'connected',
         last_ping: new Date().toISOString(),
         socket_id: status === 'connected' ? socketId : null
       };
+
+      // Update custom lobby name if provided
+      if (customLobbyName !== null) {
+        updateData.custom_lobby_name = customLobbyName;
+      }
 
       // Update location based on connection status
       if (status === 'disconnected') {
