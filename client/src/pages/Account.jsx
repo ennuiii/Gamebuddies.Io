@@ -18,6 +18,9 @@ const Account = () => {
   const isLifetime = user?.premium_tier === 'lifetime';
   const isMonthly = user?.premium_tier === 'monthly';
 
+  // Check if user was previously premium (has expiration date but is now free)
+  const wasPremium = !isPremium && user?.premium_expires_at;
+
   // Format date
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
@@ -147,6 +150,7 @@ const Account = () => {
                 <p className="status-description">
                   {isLifetime ? 'You have lifetime access to all premium features' :
                    isMonthly ? 'Your subscription renews automatically each month' :
+                   wasPremium ? 'Your premium subscription has ended' :
                    'Upgrade to premium for exclusive features'}
                 </p>
               </div>
@@ -173,6 +177,28 @@ const Account = () => {
                   </div>
                 )}
 
+                {user?.stripe_customer_id && (
+                  <div className="detail-row">
+                    <span className="detail-label">Customer ID</span>
+                    <span className="detail-value info-id">
+                      {user.stripe_customer_id.substring(0, 12)}...
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Show expiration date for expired subscriptions */}
+            {wasPremium && (
+              <div className="subscription-details">
+                <div className="detail-row">
+                  <span className="detail-label">Status</span>
+                  <span className="detail-value status-expired">Expired</span>
+                </div>
+                <div className="detail-row">
+                  <span className="detail-label">Subscription Ended</span>
+                  <span className="detail-value">{formatDate(user.premium_expires_at)}</span>
+                </div>
                 {user?.stripe_customer_id && (
                   <div className="detail-row">
                     <span className="detail-label">Customer ID</span>
