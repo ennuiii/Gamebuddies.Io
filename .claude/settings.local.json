@@ -1,0 +1,41 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep:*)",
+      "Bash(npm install:*)",
+      "Bash(npm run build:*)",
+      "Bash(node:*)",
+      "Bash(npm ls:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(git pull:*)",
+      "Bash(git stash:*)",
+      "Bash(git rebase:*)",
+      "Read(/C:\\GameBuddiesClaude\\DDF\\DDF/**)",
+      "Read(/C:\\GameBuddiesClaude\\DDF\\DDF\\client\\src\\components/**)",
+      "Read(/C:\\GameBuddiesClaude\\DDF\\DDF\\client\\src\\services/**)",
+      "Read(/C:\\GameBuddiesClaude\\DDF\\DDF\\client\\src\\services/**)",
+      "Read(/C:\\GameBuddiesClaude\\DDF\\DDF\\client\\src\\services/**)",
+      "Read(/C:\\GameBuddiesClaude\\DDF\\DDF\\client\\src\\services/**)",
+      "Read(/C:\\GameBuddiesClaude\\DDF\\DDF\\client\\src\\components/**)",
+      "Read(/C:\\GameBuddiesClaude\\DDF\\DDF\\client\\src/**)",
+      "Read(/C:\\GameBuddiesClaude\\DDF\\DDF\\client\\src/**)",
+      "Read(/C:\\GameBuddiesClaude\\DDF\\DDF\\client\\src/**)",
+      "Read(/C:\\GameBuddiesClaude\\DDF\\DDF\\client\\src\\components/**)",
+      "Read(/C:\\GameBuddiesClaude\\DDF\\DDF\\client\\src\\components/**)",
+      "Read(/C:\\GameBuddiesClaude\\DDF\\DDF\\client\\src\\components/**)",
+      "Read(/C:\\GameBuddiesClaude\\DDF\\DDF\\client\\src\\components/**)",
+      "Read(//c/ddf2/DDF/**)",
+      "Bash(find:*)",
+      "Bash(./node_modules/.bin/react-scripts --version)",
+      "Bash(git rm:*)",
+      "Bash(rm:*)"
+    ],
+    "deny": [],
+    "ask": [],
+    "additionalDirectories": [
+      "C:\\GameBuddiesClaude\\DDF\\DDF"
+    ]
+  }
+}

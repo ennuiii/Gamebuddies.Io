@@ -1,0 +1,240 @@
+.room-ready-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 20px;
+}
+
+.room-ready-modal {
+  background: var(--card-bg);
+  border-radius: 20px;
+  padding: 2.5rem;
+  max-width: 500px;
+  width: 100%;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  text-align: center;
+}
+
+.success-icon {
+  width: 80px;
+  height: 80px;
+  margin: 0 auto 1.5rem;
+  background: linear-gradient(135deg, #00d9ff, #00ff88);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 3rem;
+  color: white;
+  box-shadow: 0 10px 30px rgba(0, 217, 255, 0.4);
+  animation: successPulse 2s ease-in-out infinite;
+}
+
+@keyframes successPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+.room-ready-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 2.5rem;
+  font-weight: 700;
+  margin-bottom: 2rem;
+  background: linear-gradient(135deg, var(--text-primary) 0%, var(--secondary-color) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.room-details {
+  margin-bottom: 2rem;
+}
+
+.game-info {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 2rem;
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 15px;
+}
+
+.game-icon {
+  font-size: 2rem;
+}
+
+.game-name {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.room-code-section {
+  margin-bottom: 2rem;
+}
+
+.room-code-label {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.room-code-display {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+}
+
+.room-code {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 2.5rem;
+  font-weight: 900;
+  color: var(--secondary-color);
+  text-shadow: 0 0 20px rgba(0, 217, 255, 0.5);
+  letter-spacing: 0.2em;
+}
+
+.copy-button {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  padding: 0.5rem;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.copy-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: scale(1.1);
+}
+
+.share-section {
+  margin-bottom: 2rem;
+}
+
+.share-label {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.8rem;
+}
+
+.share-link-button {
+  width: 100%;
+  padding: 0.8rem 2rem;
+  background: rgba(0, 217, 255, 0.2);
+  border: 2px solid var(--secondary-color);
+  border-radius: 25px;
+  color: var(--secondary-color);
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.share-link-button:hover {
+  background: var(--secondary-color);
+  color: white;
+  box-shadow: 0 8px 30px rgba(0, 217, 255, 0.5);
+}
+
+.countdown-section {
+  margin-bottom: 2rem;
+}
+
+.countdown-text {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.8rem;
+}
+
+.countdown-bar {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.countdown-progress {
+  height: 100%;
+  background: linear-gradient(90deg, var(--secondary-color), #00ff88);
+  border-radius: 3px;
+  box-shadow: 0 0 10px rgba(0, 217, 255, 0.5);
+}
+
+.action-buttons {
+  display: flex;
+  gap: 1rem;
+}
+
+.cancel-button,
+.join-button {
+  flex: 1;
+  padding: 0.8rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border: none;
+  border-radius: 25px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.cancel-button {
+  background: transparent;
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  color: var(--text-secondary);
+}
+
+.cancel-button:hover {
+  border-color: rgba(255, 255, 255, 0.4);
+  color: var(--text-primary);
+}
+
+.join-button {
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
+  color: white;
+  box-shadow: 0 5px 20px rgba(233, 69, 96, 0.4);
+}
+
+.join-button:hover {
+  box-shadow: 0 8px 30px rgba(233, 69, 96, 0.6);
+  transform: translateY(-2px);
+}
+
+@media (max-width: 480px) {
+  .room-ready-modal {
+    padding: 2rem;
+  }
+  
+  .room-ready-title {
+    font-size: 2rem;
+  }
+  
+  .room-code {
+    font-size: 2rem;
+  }
+  
+  .success-icon {
+    width: 60px;
+    height: 60px;
+    font-size: 2.5rem;
+  }
+} 

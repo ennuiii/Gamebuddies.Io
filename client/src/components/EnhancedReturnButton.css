@@ -1,0 +1,132 @@
+.enhanced-return-button-container {
+  position: relative;
+  display: inline-block;
+}
+
+.enhanced-return-button {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  border: none;
+  outline: none;
+  user-select: none;
+  background-image: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+  box-shadow: 
+    0 4px 12px rgba(76, 175, 80, 0.3),
+    0 2px 4px rgba(0, 0, 0, 0.1);
+  transform: translateY(0);
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.enhanced-return-button:hover:not(:disabled) {
+  background-image: linear-gradient(135deg, #45a049 0%, #3d8b40 100%);
+  box-shadow: 
+    0 6px 16px rgba(76, 175, 80, 0.4),
+    0 4px 8px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+}
+
+.enhanced-return-button:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 
+    0 2px 8px rgba(76, 175, 80, 0.3),
+    0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.enhanced-return-button:disabled {
+  background-image: linear-gradient(135deg, #666 0%, #555 100%);
+  cursor: not-allowed;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.return-method-selector {
+  animation: fadeInUp 0.2s ease-out;
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.return-method-selector input[type="radio"] {
+  accent-color: #4CAF50;
+}
+
+.return-method-selector label {
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+
+.return-method-selector label:hover {
+  opacity: 0.8;
+}
+
+.return-error-message {
+  animation: fadeInUp 0.2s ease-out;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(4px);
+}
+
+.connection-status-indicator {
+  animation: pulse 2s infinite;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+  100% {
+    opacity: 1;
+  }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .enhanced-return-button {
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+  
+  .return-method-selector {
+    font-size: 11px;
+    padding: 6px;
+  }
+  
+  .return-error-message {
+    font-size: 11px;
+    padding: 6px 10px;
+    max-width: 160px;
+  }
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .return-method-selector {
+    background-color: rgba(0, 0, 0, 0.9);
+    border-color: rgba(255, 255, 255, 0.2);
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .enhanced-return-button {
+    border: 2px solid #fff;
+  }
+  
+  .return-method-selector {
+    border: 2px solid #fff;
+  }
+  
+  .return-error-message {
+    border: 2px solid #fff;
+  }
+}

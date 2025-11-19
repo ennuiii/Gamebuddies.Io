@@ -1,0 +1,42 @@
+services:
+  - type: web
+    name: gamebuddies-homepage
+    runtime: node
+    rootDirectory: gamebuddies/Gamebuddies.Io
+    buildCommand: npm run install:all && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DDF_URL
+        value: https://ddf-game.onrender.com
+      - key: SCHOOLED_URL
+        value: https://schoolquizgame.onrender.com
+      - key: SUSD_URL
+        value: https://susd-1.onrender.com
+      - key: BINGO_URL
+        value: https://bingobuddies.onrender.com
+      - key: SUPABASE_URL
+        value: https://your-project-ref.supabase.co
+      - key: SUPABASE_ANON_KEY
+        value: your-anon-key-here
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        value: your-service-role-key-here
+      - key: JWT_SECRET
+        value: your-generated-secret-here
+      - key: CORS_ORIGINS
+        value: https://gamebuddies-homepage.onrender.com
+      - key: PROXY_LOG_LEVEL
+        value: error
+      # Optional: disable WS proxying per game if they are HTTP-only
+      # - key: SCHOOLED_WS
+      #   value: "true"
+      # - key: SUSD_WS
+      #   value: "true"
+      # - key: DDF_WS
+      #   value: "false"
+      # - key: BINGO_WS
+      #   value: "false"
