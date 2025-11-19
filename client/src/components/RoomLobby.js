@@ -1231,6 +1231,15 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
               .map((player) => {
                 const { playerStatus, countdownTime, isDisconnectedWithTimer } = player;
 
+                // Debug premium tier
+                console.log('🎮 [ROOM LOBBY] Player data:', {
+                  name: player.name,
+                  premiumTier: player.premiumTier,
+                  avatarUrl: player.avatarUrl,
+                  hasPremiumTier: !!player.premiumTier,
+                  isPremium: player.premiumTier !== 'free'
+                });
+
                 return (
                   <div
                     key={player.id}

@@ -524,19 +524,32 @@ class LobbyManager {
 
     if (error || !room) return null;
 
-    const players = room.participants?.map(p => ({
-      id: p.user_id,
-      name: p.user?.display_name || p.user?.username,
-      isHost: p.role === 'host',
-      isConnected: p.is_connected,
-      inGame: p.in_game,
-      currentLocation: p.current_location,
-      lastPing: p.last_ping,
-      gameData: p.game_data,
-      // Premium features
-      premiumTier: p.user?.premium_tier || 'free',
-      avatarUrl: p.user?.avatar_url || null
-    })) || [];
+    const players = room.participants?.map(p => {
+      const player = {
+        id: p.user_id,
+        name: p.user?.display_name || p.user?.username,
+        isHost: p.role === 'host',
+        isConnected: p.is_connected,
+        inGame: p.in_game,
+        currentLocation: p.current_location,
+        lastPing: p.last_ping,
+        gameData: p.game_data,
+        // Premium features
+        premiumTier: p.user?.premium_tier || 'free',
+        avatarUrl: p.user?.avatar_url || null
+      };
+
+      // Debug each player
+      console.log('🎮 [LOBBY MANAGER] Player:', {
+        name: player.name,
+        premiumTier: player.premiumTier,
+        hasUser: !!p.user,
+        userPremiumTier: p.user?.premium_tier,
+        userAvatarUrl: p.user?.avatar_url
+      });
+
+      return player;
+    }) || [];
 
     return { room, players };
   }
