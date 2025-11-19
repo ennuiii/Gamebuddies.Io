@@ -19,7 +19,11 @@ export const AuthProvider = ({ children }) => {
       console.log('🔐 [AUTH DEBUG] Supabase client obtained');
 
       // Get initial session
-      const { data: { session }, error } = await supabase.auth.getSession();
+      console.log('🔐 [AUTH DEBUG] Calling getSession()...');
+      const sessionResult = await supabase.auth.getSession();
+      console.log('🔐 [AUTH DEBUG] getSession() returned:', sessionResult);
+
+      const { data: { session }, error } = sessionResult;
 
       if (error) {
         console.error('❌ [AUTH] Session error:', error);
@@ -68,6 +72,8 @@ export const AuthProvider = ({ children }) => {
     } catch (error) {
       console.error('❌ [AUTH] Init error:', error);
       console.error('❌ [AUTH] Init error stack:', error.stack);
+      console.error('❌ [AUTH] Init error name:', error.name);
+      console.error('❌ [AUTH] Init error message:', error.message);
       setLoading(false);
     }
   };

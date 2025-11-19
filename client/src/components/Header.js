@@ -7,8 +7,16 @@ import './Header.css';
 
 const Header = ({ onNavigateHome, onNavigateGames, isInLobby }) => {
   const navigate = useNavigate();
-  const { user, isAuthenticated, loading } = useAuth();
+  const { user, isAuthenticated, loading, session } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  console.log('🎯 [HEADER] Rendering with auth state:', {
+    loading,
+    isAuthenticated,
+    hasUser: !!user,
+    hasSession: !!session,
+    userName: user?.username || user?.display_name
+  });
 
   const handleHomeClick = (e) => {
     if (isInLobby && onNavigateHome) {
