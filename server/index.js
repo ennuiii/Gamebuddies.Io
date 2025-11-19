@@ -104,8 +104,14 @@ app.use(cors(corsOptions));
 
 // Stripe webhook endpoint needs RAW body for signature verification
 // Must be mounted BEFORE express.json() middleware
-console.log('🔌 [SERVER] Mounting Stripe webhook route at /api/stripe/webhook');
-app.use('/api/stripe/webhook', stripeRouter);
+// Only mount the webhook route here, not the entire stripeRouter
+console.log('🔌 [SERVER] Mounting Stripe webhook route at /api/stripe/webhook (RAW body)');
+app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res, next) => {
+  // Forward to the stripe router's webhook handler
+  req.url = '/webhook';  // Rewrite URL for the router
+  req.isWebhookRoute = true;  // Mark this as webhook route
+  stripeRouter(req, res, next);
+});
 
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));

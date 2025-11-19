@@ -355,8 +355,9 @@ router.get('/prices', async (req, res) => {
 /**
  * POST /api/stripe/webhook
  * Handle Stripe webhooks
+ * Note: Raw body parsing is handled in server/index.js BEFORE express.json()
  */
-router.post('/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+router.post('/webhook', async (req, res) => {
   const sig = req.headers['stripe-signature'];
 
   let event;
