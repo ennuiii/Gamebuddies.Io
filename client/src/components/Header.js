@@ -95,7 +95,11 @@ const Header = ({ onNavigateHome, onNavigateGames, isInLobby }) => {
                 <div className="auth-section">
                   {isAuthenticated && user ? (
                     <div className="user-section">
-                      <span className="user-info">
+                      <button
+                        onClick={() => navigate('/account')}
+                        className="user-info user-info-button"
+                        title="View Account Settings"
+                      >
                         {user.is_guest ? (
                           <>
                             <span className="user-icon">👤</span>
@@ -117,7 +121,7 @@ const Header = ({ onNavigateHome, onNavigateGames, isInLobby }) => {
                             )}
                           </>
                         )}
-                      </span>
+                      </button>
                       <button
                         onClick={handleLogout}
                         className="logout-button"
