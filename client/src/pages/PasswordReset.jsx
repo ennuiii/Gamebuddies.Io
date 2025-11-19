@@ -36,8 +36,14 @@ const PasswordReset = () => {
 
     try {
       const supabase = await getSupabaseClient();
+
+      // Use production URL in production, localhost in development
+      const redirectUrl = window.location.hostname === 'localhost'
+        ? `${window.location.origin}/password-reset`
+        : 'https://gamebuddies.io/password-reset';
+
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/password-reset`,
+        redirectTo: redirectUrl,
       });
 
       if (error) {

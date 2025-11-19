@@ -81,11 +81,19 @@ const LoginPage = () => {
     try {
       console.log('📧 [CLIENT] Calling Supabase signUp...');
       const supabase = await getSupabaseClient();
+
+      // Use production URL in production, localhost in development
+      const redirectUrl = window.location.hostname === 'localhost'
+        ? `${window.location.origin}/auth/callback`
+        : 'https://gamebuddies.io/auth/callback';
+
+      console.log('📧 [CLIENT] Using redirect URL:', redirectUrl);
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          emailRedirectTo: redirectUrl,
         }
       });
 
