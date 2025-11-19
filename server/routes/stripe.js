@@ -1,6 +1,7 @@
 const express = require('express');
 const stripe = require('../lib/stripe');
 const { supabaseAdmin } = require('../lib/supabase');
+const { requireAuth } = require('../middlewares/auth');
 const router = express.Router();
 
 // Configuration
@@ -148,8 +149,9 @@ fetchStripePrices()
 /**
  * POST /api/stripe/create-checkout-session
  * Create a Stripe Checkout session for payment
+ * SECURITY: Requires authentication + user can only create checkout for themselves
  */
-router.post('/create-checkout-session', async (req, res) => {
+router.post('/create-checkout-session', requireAuth, async (req, res) => {
   console.log('🚀 [STRIPE] /create-checkout-session endpoint hit!');
   console.log('📦 [STRIPE] Request body:', req.body);
   console.log('🔑 [STRIPE] Headers:', {
@@ -163,6 +165,12 @@ router.post('/create-checkout-session', async (req, res) => {
     // Validate inputs
     if (!userId) {
       return res.status(400).json({ error: 'userId is required' });
+    }
+
+    // Verify authenticated user matches the requested userId
+    if (req.user.id !== userId) {
+      console.warn(`⚠️ [STRIPE] User ${req.user.id} tried to create checkout for user ${userId}`);
+      return res.status(403).json({ error: 'Forbidden - Can only create checkout for yourself' });
     }
 
     if (!['lifetime', 'monthly'].includes(priceType)) {
@@ -410,13 +418,20 @@ router.post('/webhook', async (req, res) => {
 /**
  * POST /api/stripe/customer-portal
  * Create a customer portal session for subscription management
+ * SECURITY: Requires authentication + user can only access their own portal
  */
-router.post('/customer-portal', async (req, res) => {
+router.post('/customer-portal', requireAuth, async (req, res) => {
   try {
     const { userId } = req.body;
 
     if (!userId) {
       return res.status(400).json({ error: 'userId is required' });
+    }
+
+    // Verify authenticated user matches the requested userId
+    if (req.user.id !== userId) {
+      console.warn(`⚠️ [STRIPE] User ${req.user.id} tried to access portal for user ${userId}`);
+      return res.status(403).json({ error: 'Forbidden - Can only access your own customer portal' });
     }
 
     // Get user from database
@@ -449,13 +464,20 @@ router.post('/customer-portal', async (req, res) => {
 /**
  * POST /api/stripe/cancel-subscription
  * Cancel a user's subscription
+ * SECURITY: Requires authentication + user can only cancel their own subscription
  */
-router.post('/cancel-subscription', async (req, res) => {
+router.post('/cancel-subscription', requireAuth, async (req, res) => {
   try {
     const { userId } = req.body;
 
     if (!userId) {
       return res.status(400).json({ error: 'userId is required' });
+    }
+
+    // Verify authenticated user matches the requested userId
+    if (req.user.id !== userId) {
+      console.warn(`⚠️ [STRIPE] User ${req.user.id} tried to cancel subscription for user ${userId}`);
+      return res.status(403).json({ error: 'Forbidden - Can only cancel your own subscription' });
     }
 
     // Get user from database

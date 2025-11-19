@@ -62,10 +62,28 @@ export const AuthProvider = ({ children }) => {
     try {
       console.log('👤 [AUTH] Fetching user from database:', userId);
 
-      const response = await fetch(`/api/users/${userId}`);
+      // Get current session to extract JWT token
+      const supabase = await getSupabaseClient();
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session?.access_token) {
+        console.error('❌ [AUTH] No access token available');
+        throw new Error('No authentication token');
+      }
+
+      console.log('🔐 [AUTH] Sending authenticated request with JWT token');
+
+      const response = await fetch(`/api/users/${userId}`, {
+        headers: {
+          'Authorization': `Bearer ${session.access_token}`,
+          'Content-Type': 'application/json'
+        }
+      });
 
       if (!response.ok) {
-        throw new Error('Failed to fetch user');
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        console.error('❌ [AUTH] Fetch user failed:', response.status, errorData);
+        throw new Error(errorData.error || 'Failed to fetch user');
       }
 
       const data = await response.json();
