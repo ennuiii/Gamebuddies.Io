@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import io from 'socket.io-client';
+import { useAuth } from '../contexts/AuthContext';
 import './JoinRoom.css';
 
 const JoinRoom = ({ initialRoomCode = '', initialPlayerName = '', autoJoin = false, onRoomJoined, onCancel }) => {
@@ -9,6 +10,7 @@ const JoinRoom = ({ initialRoomCode = '', initialPlayerName = '', autoJoin = fal
   const [isJoining, setIsJoining] = useState(false);
   const [error, setError] = useState('');
   const isInviteLink = !!initialRoomCode; // Track if user came via invite link
+  const { user, session } = useAuth();
 
   const handleSubmit = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
@@ -113,9 +115,14 @@ const JoinRoom = ({ initialRoomCode = '', initialPlayerName = '', autoJoin = fal
           roomCode: roomCode.trim().toUpperCase(),
           playerName: playerName.trim(),
           customLobbyName: customLobbyName.trim() || null,
+          supabaseUserId: session?.user?.id || null, // Send auth user ID if logged in
           isHostHint
         });
-        console.log('📤 [CLIENT] joinRoom event sent with custom lobby name:', customLobbyName.trim() || 'none');
+        console.log('📤 [CLIENT] joinRoom event sent', {
+          customLobbyName: customLobbyName.trim() || 'none',
+          isAuthenticated: !!session?.user?.id,
+          supabaseUserId: session?.user?.id
+        });
       });
 
       socket.on('roomJoined', (data) => {

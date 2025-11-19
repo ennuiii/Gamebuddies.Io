@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useSocket } from '../contexts/LazySocketContext';
+import { useAuth } from '../contexts/AuthContext';
 import './CreateRoom.css';
 
 const CreateRoom = ({ onRoomCreated, onCancel }) => {
@@ -9,6 +10,7 @@ const CreateRoom = ({ onRoomCreated, onCancel }) => {
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState('');
   const { socket, isConnected, isConnecting, connectSocket } = useSocket();
+  const { user, session } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -126,9 +128,15 @@ const CreateRoom = ({ onRoomCreated, onCancel }) => {
       activeSocket.emit('createRoom', {
         playerName: playerName.trim(),
         customLobbyName: customLobbyName.trim() || null,
-        streamerMode: streamerMode
+        streamerMode: streamerMode,
+        supabaseUserId: session?.user?.id || null // Send auth user ID if logged in
       });
-      console.log('📤 [CLIENT] createRoom event sent', { customLobbyName: customLobbyName.trim() || 'none', streamerMode });
+      console.log('📤 [CLIENT] createRoom event sent', {
+        customLobbyName: customLobbyName.trim() || 'none',
+        streamerMode,
+        isAuthenticated: !!session?.user?.id,
+        supabaseUserId: session?.user?.id
+      });
 
       // Timeout fallback
       setTimeout(() => {
