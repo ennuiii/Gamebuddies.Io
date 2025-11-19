@@ -1,4 +1,23 @@
-[DEPRECATED] Return-to-GameBuddies flow was removed. This document may reference obsolete endpoints and events.\r\n\r\n/**
+/**
+ * =====================================================
+ * ⚠️ IMPORTANT SECURITY UPDATE
+ * =====================================================
+ *
+ * This file is OUTDATED and uses insecure URL parameter authentication.
+ *
+ * NEW SECURE METHOD: Use session token authentication
+ * See GAME_AUTHENTICATION_API.md for the secure implementation
+ *
+ * Key changes:
+ * - Games receive session token in URL (?session=TOKEN)
+ * - Call /api/game/session/:token to get authenticated player data
+ * - Premium status and custom names verified server-side (cannot be faked)
+ *
+ * [DEPRECATED] Return-to-GameBuddies flow was removed. This document may reference obsolete endpoints and events.
+ * =====================================================
+ */
+
+/**
  * =====================================================
  * GAMEBUDDIES INTEGRATION EXAMPLE
  * =====================================================
