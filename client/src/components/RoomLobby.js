@@ -1020,6 +1020,31 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
     return { status: 'lobby', label: 'In Lobby', color: '#4caf50', icon: '🟢' };
   };
 
+  // Memoize player counts - optimized to single pass with reduce
+  const playerCounts = useMemo(() => {
+    return players.reduce((acc, p) => {
+      acc.total++;
+      if (p.currentLocation === 'game' || p.inGame) {
+        acc.inGameCount++;
+      } else if (!p.isConnected || p.currentLocation === 'disconnected') {
+        acc.disconnectedCount++;
+      } else {
+        acc.lobbyCount++;
+      }
+      return acc;
+    }, { total: 0, lobbyCount: 0, inGameCount: 0, disconnectedCount: 0 });
+  }, [players]);
+
+  // Memoize players with status to avoid recalculating on every render
+  const playersWithStatus = useMemo(() => {
+    return players.map(player => ({
+      ...player,
+      playerStatus: getPlayerStatus(player),
+      countdownTime: disconnectedTimers.get(player.id),
+      isDisconnectedWithTimer: !player.isConnected && disconnectedTimers.get(player.id) > 0
+    }));
+  }, [players, disconnectedTimers]);
+
   // Loading state
   if (isLoading || !socketIsConnected) { // Also show loading if socket is not connected yet
     return (
@@ -1063,31 +1088,6 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       </div>
     );
   }
-
-  // Memoize player counts - optimized to single pass with reduce
-  const playerCounts = useMemo(() => {
-    return players.reduce((acc, p) => {
-      acc.total++;
-      if (p.currentLocation === 'game' || p.inGame) {
-        acc.inGameCount++;
-      } else if (!p.isConnected || p.currentLocation === 'disconnected') {
-        acc.disconnectedCount++;
-      } else {
-        acc.lobbyCount++;
-      }
-      return acc;
-    }, { total: 0, lobbyCount: 0, inGameCount: 0, disconnectedCount: 0 });
-  }, [players]);
-
-  // Memoize players with status to avoid recalculating on every render
-  const playersWithStatus = useMemo(() => {
-    return players.map(player => ({
-      ...player,
-      playerStatus: getPlayerStatus(player),
-      countdownTime: disconnectedTimers.get(player.id),
-      isDisconnectedWithTimer: !player.isConnected && disconnectedTimers.get(player.id) > 0
-    }));
-  }, [players, disconnectedTimers]);
 
   return (
     <div className="room-lobby">

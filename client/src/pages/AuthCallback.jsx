@@ -61,6 +61,10 @@ const AuthCallback = () => {
     try {
       console.log('🔄 [AUTH] Syncing user to database...');
 
+      // Determine authentication method
+      const provider = user.app_metadata.provider || 'email';
+      const isEmailAuth = provider === 'email';
+
       const response = await fetch('/api/auth/sync-user', {
         method: 'POST',
         headers: {
@@ -69,9 +73,9 @@ const AuthCallback = () => {
         body: JSON.stringify({
           supabase_user_id: user.id,
           email: user.email,
-          oauth_provider: user.app_metadata.provider,
-          oauth_id: user.user_metadata.provider_id || user.id,
-          avatar_url: user.user_metadata.avatar_url || user.user_metadata.picture,
+          oauth_provider: isEmailAuth ? null : provider,
+          oauth_id: isEmailAuth ? null : (user.user_metadata.provider_id || user.id),
+          avatar_url: user.user_metadata.avatar_url || user.user_metadata.picture || null,
           display_name: user.user_metadata.full_name || user.user_metadata.name || user.email.split('@')[0]
         })
       });

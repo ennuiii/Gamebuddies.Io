@@ -7,16 +7,22 @@ Diese Anleitung zeigt dir **Schritt für Schritt**, wie du OAuth Authentication 
 ## 📋 ÜBERSICHT
 
 Du hast jetzt:
-- ✅ Login Page (`/login`)
+- ✅ Login Page (`/login`) mit Email/Password und OAuth
+- ✅ Password Reset Page (`/password-reset`)
 - ✅ OAuth Callback Handler (`/auth/callback`)
 - ✅ Auth Context für Session Management
 - ✅ Server Endpoints für User Sync
 
+**Authentication Methoden:**
+- 📧 **Email/Password** (klassische Registrierung)
+- 🔐 **OAuth Providers:** Discord, Google, Twitch, Microsoft, GitHub
+
 **Was noch fehlt:**
 1. Database Migration ausführen
-2. OAuth Apps erstellen (Discord, Google, GitHub)
-3. Supabase Dashboard konfigurieren
-4. Testen!
+2. Email Auth konfigurieren (SMTP für Production)
+3. OAuth Apps erstellen (Discord, Google, Twitch, Microsoft, GitHub)
+4. Supabase Dashboard konfigurieren
+5. Testen!
 
 ---
 
@@ -98,16 +104,94 @@ Du solltest die neuen Felder sehen: `email`, `oauth_provider`, `oauth_id`, `prem
 
 ---
 
-## 🔐 SCHRITT 2: DISCORD OAUTH SETUP
+## 📧 SCHRITT 2: EMAIL/PASSWORD AUTHENTICATION SETUP
 
-### 2.1 Erstelle Discord Application
+Email/Password Authentication ist **bereits aktiviert** in Supabase! Du musst nur die Email-Einstellungen konfigurieren.
+
+### 2.1 Supabase Email Configuration
+
+1. Öffne Supabase Dashboard
+2. Gehe zu **Authentication** → **Email Templates**
+3. Du findest Templates für:
+   - **Confirm Signup** (Email-Verifizierung)
+   - **Invite User**
+   - **Magic Link**
+   - **Change Email Address**
+   - **Reset Password**
+
+### 2.2 Email-Verifizierung konfigurieren
+
+1. Gehe zu **Authentication** → **Settings**
+2. Scrolle zu **"Email Auth"**
+3. Stelle sicher dass folgende Optionen aktiviert sind:
+   - ✅ **Enable Email Signups** (erlaubt Registrierung)
+   - ✅ **Enable Email Confirmations** (sendet Verifizierungs-Email)
+4. **Email Confirmation Redirect**: `https://dein-domain.com/auth/callback`
+
+### 2.3 Email Template anpassen (optional)
+
+Du kannst die Email-Templates anpassen unter **Authentication** → **Email Templates**:
+
+**Confirm Signup Template:**
+```html
+<h2>Confirm your signup</h2>
+
+<p>Follow this link to confirm your user:</p>
+<p><a href="{{ .ConfirmationURL }}">Confirm your mail</a></p>
+```
+
+**Reset Password Template:**
+```html
+<h2>Reset Password</h2>
+
+<p>Follow this link to reset the password for your user:</p>
+<p><a href="{{ .ConfirmationURL }}">Reset Password</a></p>
+```
+
+### 2.4 SMTP Configuration (Production)
+
+**Wichtig:** In Production solltest du einen eigenen SMTP Server verwenden!
+
+1. Gehe zu **Project Settings** → **Auth**
+2. Scrolle zu **SMTP Settings**
+3. Konfiguriere:
+   - **SMTP Host**: (z.B. `smtp.sendgrid.net`)
+   - **SMTP Port**: `587` oder `465`
+   - **SMTP User**: (dein SMTP Username)
+   - **SMTP Password**: (dein SMTP Passwort)
+   - **Sender Email**: (z.B. `noreply@gamebuddies.io`)
+   - **Sender Name**: `GameBuddies.io`
+
+**Empfohlene SMTP Provider:**
+- **SendGrid** (12,000 emails/month kostenlos)
+- **Mailgun** (5,000 emails/month kostenlos)
+- **Amazon SES** (sehr günstig)
+- **Postmark** (100 emails/month kostenlos)
+
+### 2.5 Testing Email Auth
+
+1. Starte deine App: `npm run dev` (server) und `npm start` (client)
+2. Gehe zu `http://localhost:3000/login`
+3. Klicke auf **"Email / Password"** Tab
+4. Klicke auf **"Sign Up"**
+5. Registriere einen Test-Account
+6. Check deine Email für Verifizierungs-Link
+7. Nach Verifizierung kannst du dich einloggen
+
+**Hinweis:** Im Development Mode sendet Supabase Emails über den integrierten Service. In Production **musst** du SMTP konfigurieren!
+
+---
+
+## 🔐 SCHRITT 3: DISCORD OAUTH SETUP
+
+### 3.1 Erstelle Discord Application
 
 1. Gehe zu: https://discord.com/developers/applications
 2. Klicke **"New Application"**
 3. Name: `GameBuddies` (oder was du willst)
 4. Klicke **"Create"**
 
-### 2.2 Konfiguriere OAuth2
+### 3.2 Konfiguriere OAuth2
 
 1. In der linken Sidebar → **OAuth2**
 2. Scrolle zu **"Redirects"**
@@ -125,14 +209,14 @@ Du solltest die neuen Felder sehen: `email`, `oauth_provider`, `oauth_id`, `prem
 
 6. Klicke **"Save Changes"**
 
-### 2.3 Kopiere Credentials
+### 3.3 Kopiere Credentials
 
 1. Gehe zurück zu **"OAuth2"** → **"General"**
 2. Kopiere **Client ID**
 3. Klicke **"Reset Secret"** → Kopiere **Client Secret**
 4. **WICHTIG:** Speichere beide sicher!
 
-### 2.4 Supabase Dashboard Konfiguration
+### 3.4 Supabase Dashboard Konfiguration
 
 1. Öffne Supabase Dashboard
 2. Gehe zu **Authentication** → **Providers**
@@ -146,7 +230,7 @@ Du solltest die neuen Felder sehen: `email`, `oauth_provider`, `oauth_id`, `prem
 
 ---
 
-## 📧 SCHRITT 3: GOOGLE OAUTH SETUP
+## 📧 SCHRITT 4: GOOGLE OAUTH SETUP
 
 ### 3.1 Erstelle Google Cloud Project
 
@@ -197,7 +281,7 @@ Du solltest die neuen Felder sehen: `email`, `oauth_provider`, `oauth_id`, `prem
 
 ---
 
-## 🎮 SCHRITT 4: TWITCH OAUTH SETUP
+## 🎮 SCHRITT 5: TWITCH OAUTH SETUP
 
 ### 4.1 Erstelle Twitch Application
 
@@ -278,7 +362,7 @@ Du solltest die neuen Felder sehen: `email`, `oauth_provider`, `oauth_id`, `prem
 
 ---
 
-## 🐙 SCHRITT 6: GITHUB OAUTH SETUP (Optional)
+## 🐙 SCHRITT 7: GITHUB OAUTH SETUP (Optional)
 
 ### 6.1 Erstelle GitHub OAuth App
 
@@ -423,7 +507,7 @@ BACKEND_URL=https://api.gamebuddies.io
 
 ---
 
-## 🚀 SCHRITT 9: PRODUCTION DEPLOYMENT
+## 🚀 SCHRITT 10: PRODUCTION DEPLOYMENT
 
 ### 7.1 Update Redirect URLs
 
