@@ -104,6 +104,7 @@ app.use(cors(corsOptions));
 
 // Stripe webhook endpoint needs RAW body for signature verification
 // Must be mounted BEFORE express.json() middleware
+console.log('🔌 [SERVER] Mounting Stripe webhook route at /api/stripe/webhook');
 app.use('/api/stripe/webhook', stripeRouter);
 
 app.use(express.json({ limit: '10mb' }));
@@ -1754,6 +1755,7 @@ app.use(gameApiV2DDFRouter(io, db, connectionManager, lobbyManager, statusSyncMa
 app.use('/api/games', gamesRouter);
 app.use('/api/auth', authRouter); // Auth endpoints
 app.use('/api', authRouter); // Mount /users endpoint at /api/users
+console.log('🔌 [SERVER] Mounting Stripe API routes at /api/stripe');
 app.use('/api/stripe', stripeRouter); // Stripe payment endpoints
 
 // Clean up stale connections periodically

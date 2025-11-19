@@ -13,41 +13,79 @@ const Premium = () => {
   const isMonthly = user?.premium_tier === 'monthly';
 
   const handleUpgrade = async (priceType) => {
+    console.log('🚀 [PREMIUM CLIENT] handleUpgrade called with:', priceType);
+    console.log('🔐 [PREMIUM CLIENT] Auth status:', { isAuthenticated, hasUser: !!user, userId: user?.id });
+
     if (!isAuthenticated) {
-      // Redirect to login if not authenticated
+      console.warn('⚠️ [PREMIUM CLIENT] User not authenticated, redirecting to login');
       navigate('/login');
       return;
     }
 
-    if (loadingTier) return; // Prevent double clicks
+    if (loadingTier) {
+      console.warn('⚠️ [PREMIUM CLIENT] Already processing a payment, ignoring click');
+      return;
+    }
 
     setLoadingTier(priceType);
-    console.log('💳 [PREMIUM] Creating checkout session:', { priceType, userId: user.id });
+
+    const payload = {
+      userId: user.id,
+      priceType,
+    };
+
+    console.log('💳 [PREMIUM CLIENT] Creating checkout session');
+    console.log('📦 [PREMIUM CLIENT] Payload:', payload);
+    console.log('🌐 [PREMIUM CLIENT] Fetch URL:', '/api/stripe/create-checkout-session');
+    console.log('🌐 [PREMIUM CLIENT] Current origin:', window.location.origin);
 
     try {
+      console.log('📡 [PREMIUM CLIENT] Sending request...');
+
       const response = await fetch('/api/stripe/create-checkout-session', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          userId: user.id,
-          priceType,
-        }),
+        body: JSON.stringify(payload),
       });
 
-      const data = await response.json();
+      console.log('📡 [PREMIUM CLIENT] Response received:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+        headers: {
+          contentType: response.headers.get('content-type')
+        }
+      });
+
+      // Try to parse response even if not ok
+      let data;
+      const contentType = response.headers.get('content-type');
+      if (contentType && contentType.includes('application/json')) {
+        data = await response.json();
+        console.log('📦 [PREMIUM CLIENT] Response data:', data);
+      } else {
+        const text = await response.text();
+        console.error('❌ [PREMIUM CLIENT] Non-JSON response:', text);
+        throw new Error('API endpoint not found');
+      }
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to create checkout session');
       }
 
-      console.log('✅ [PREMIUM] Redirecting to Stripe Checkout:', data.url);
+      console.log('✅ [PREMIUM CLIENT] Checkout session created successfully!');
+      console.log('🔗 [PREMIUM CLIENT] Stripe URL:', data.url);
+      console.log('🔗 [PREMIUM CLIENT] Session ID:', data.sessionId);
 
       // Redirect to Stripe Checkout
       window.location.href = data.url;
     } catch (error) {
-      console.error('❌ [PREMIUM] Checkout error:', error);
+      console.error('❌ [PREMIUM CLIENT] Checkout error:');
+      console.error('  Error name:', error.name);
+      console.error('  Error message:', error.message);
+      console.error('  Error stack:', error.stack);
       alert(`Payment error: ${error.message}`);
       setLoadingTier(null);
     }

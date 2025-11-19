@@ -9,17 +9,40 @@ const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
 const PRICE_LIFETIME = process.env.STRIPE_PRICE_LIFETIME;
 const PRICE_MONTHLY = process.env.STRIPE_PRICE_MONTHLY;
 
+// Debug: Log Stripe configuration on startup
+console.log('🔧 [STRIPE CONFIG] Initializing Stripe routes with:', {
+  CLIENT_URL,
+  hasWebhookSecret: !!STRIPE_WEBHOOK_SECRET,
+  hasLifetimePrice: !!PRICE_LIFETIME,
+  hasMonthlyPrice: !!PRICE_MONTHLY,
+  stripeInitialized: !!stripe
+});
+
+if (!PRICE_LIFETIME || !PRICE_MONTHLY) {
+  console.warn('⚠️ [STRIPE CONFIG] Missing price IDs! Payments will fail.');
+  console.warn('  STRIPE_PRICE_LIFETIME:', PRICE_LIFETIME || 'NOT SET');
+  console.warn('  STRIPE_PRICE_MONTHLY:', PRICE_MONTHLY || 'NOT SET');
+}
+
 /**
  * POST /api/stripe/create-checkout-session
  * Create a Stripe Checkout session for payment
  */
 router.post('/create-checkout-session', async (req, res) => {
+  console.log('🚀 [STRIPE] /create-checkout-session endpoint hit!');
+  console.log('📦 [STRIPE] Request body:', req.body);
+  console.log('🔑 [STRIPE] Headers:', {
+    contentType: req.headers['content-type'],
+    origin: req.headers.origin
+  });
+
   try {
     const { userId, priceType } = req.body;
 
     console.log('💳 [STRIPE] Creating checkout session:', {
       userId,
-      priceType
+      priceType,
+      availablePrices: { PRICE_LIFETIME, PRICE_MONTHLY }
     });
 
     // Validate inputs
@@ -112,9 +135,16 @@ router.post('/create-checkout-session', async (req, res) => {
       };
     }
 
+    console.log('🔨 [STRIPE] Creating session with config:', sessionConfig);
+
     const session = await stripe.checkout.sessions.create(sessionConfig);
 
-    console.log('✅ [STRIPE] Checkout session created:', session.id);
+    console.log('✅ [STRIPE] Checkout session created successfully!', {
+      sessionId: session.id,
+      url: session.url,
+      customer: session.customer,
+      mode: session.mode
+    });
 
     res.json({
       sessionId: session.id,
@@ -122,7 +152,11 @@ router.post('/create-checkout-session', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ [STRIPE] Checkout session error:', error);
+    console.error('❌ [STRIPE] Checkout session error:');
+    console.error('  Error type:', error.type);
+    console.error('  Error message:', error.message);
+    console.error('  Error code:', error.code);
+    console.error('  Full error:', error);
     res.status(500).json({
       error: 'Failed to create checkout session',
       details: error.message
