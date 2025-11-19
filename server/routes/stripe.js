@@ -6,21 +6,159 @@ const router = express.Router();
 // Configuration
 const CLIENT_URL = process.env.CLIENT_URL || 'http://localhost:3000';
 const STRIPE_WEBHOOK_SECRET = process.env.STRIPE_WEBHOOK_SECRET;
-const PRICE_LIFETIME = process.env.STRIPE_PRICE_LIFETIME;
-const PRICE_MONTHLY = process.env.STRIPE_PRICE_MONTHLY;
+
+// Cache for Stripe prices (fetched dynamically from Stripe API)
+let priceCache = {
+  lifetime: null,
+  monthly: null,
+  lastFetched: null,
+  CACHE_DURATION: 60 * 60 * 1000, // 1 hour
+};
+
+/**
+ * Fetch prices from Stripe API dynamically
+ * Looks for products with specific names or metadata
+ */
+async function fetchStripePrices() {
+  console.log('💰 [STRIPE PRICES] Fetching prices from Stripe API...');
+
+  try {
+    // Check if cache is still valid
+    const now = Date.now();
+    if (priceCache.lifetime && priceCache.monthly &&
+        priceCache.lastFetched &&
+        (now - priceCache.lastFetched) < priceCache.CACHE_DURATION) {
+      console.log('✅ [STRIPE PRICES] Using cached prices');
+      return {
+        lifetime: priceCache.lifetime,
+        monthly: priceCache.monthly
+      };
+    }
+
+    // Fetch all active prices with product data expanded
+    const prices = await stripe.prices.list({
+      active: true,
+      expand: ['data.product'],
+      limit: 100
+    });
+
+    console.log(`📋 [STRIPE PRICES] Found ${prices.data.length} active prices`);
+
+    let lifetimePrice = null;
+    let monthlyPrice = null;
+
+    // Search through prices to identify lifetime and monthly
+    for (const price of prices.data) {
+      const product = price.product;
+
+      // Skip if product is not expanded or is deleted
+      if (!product || typeof product === 'string') continue;
+
+      const productName = product.name?.toLowerCase() || '';
+      const productMetadata = product.metadata || {};
+      const priceMetadata = price.metadata || {};
+
+      console.log(`  💳 Checking price: ${price.id}`, {
+        productName: product.name,
+        type: price.type,
+        recurring: price.recurring?.interval,
+        metadata: { ...productMetadata, ...priceMetadata }
+      });
+
+      // Identify lifetime price (one-time payment)
+      if (price.type === 'one_time' &&
+          (productName.includes('lifetime') ||
+           productName.includes('premium') ||
+           productMetadata.tier === 'lifetime' ||
+           priceMetadata.tier === 'lifetime')) {
+        lifetimePrice = price.id;
+        console.log(`  ⭐ Found LIFETIME price: ${price.id} - ${product.name} (${price.unit_amount / 100} ${price.currency})`);
+      }
+
+      // Identify monthly price (recurring monthly subscription)
+      if (price.type === 'recurring' &&
+          price.recurring?.interval === 'month' &&
+          (productName.includes('monthly') ||
+           productName.includes('pro') ||
+           productName.includes('subscription') ||
+           productMetadata.tier === 'monthly' ||
+           priceMetadata.tier === 'monthly')) {
+        monthlyPrice = price.id;
+        console.log(`  💎 Found MONTHLY price: ${price.id} - ${product.name} (${price.unit_amount / 100} ${price.currency}/month)`);
+      }
+    }
+
+    if (!lifetimePrice || !monthlyPrice) {
+      console.error('❌ [STRIPE PRICES] Could not find all required prices!');
+      console.error('  Lifetime price found:', !!lifetimePrice);
+      console.error('  Monthly price found:', !!monthlyPrice);
+      console.error('');
+      console.error('💡 TIP: Make sure your Stripe products have:');
+      console.error('  1. Lifetime: One-time payment with "lifetime" or "premium" in name');
+      console.error('  2. Monthly: Recurring monthly with "monthly", "pro", or "subscription" in name');
+      console.error('  OR add metadata { tier: "lifetime" } or { tier: "monthly" } to products/prices');
+    }
+
+    // Update cache
+    priceCache.lifetime = lifetimePrice;
+    priceCache.monthly = monthlyPrice;
+    priceCache.lastFetched = now;
+
+    console.log('✅ [STRIPE PRICES] Prices cached successfully');
+
+    return {
+      lifetime: lifetimePrice,
+      monthly: monthlyPrice
+    };
+
+  } catch (error) {
+    console.error('❌ [STRIPE PRICES] Error fetching prices:', error.message);
+
+    // Return cached prices even if expired (better than nothing)
+    if (priceCache.lifetime && priceCache.monthly) {
+      console.warn('⚠️ [STRIPE PRICES] Using stale cache due to API error');
+      return {
+        lifetime: priceCache.lifetime,
+        monthly: priceCache.monthly
+      };
+    }
+
+    throw error;
+  }
+}
+
+// Fetch prices on startup
+console.log('🔧 [STRIPE CONFIG] Initializing Stripe routes');
+console.log('🔧 [STRIPE CONFIG] CLIENT_URL:', CLIENT_URL);
+console.log('🔧 [STRIPE CONFIG] Webhook secret configured:', !!STRIPE_WEBHOOK_SECRET);
+console.log('🔧 [STRIPE CONFIG] Fetching prices from Stripe API...');
+
+fetchStripePrices()
+  .then(prices => {
+    console.log('✅ [STRIPE CONFIG] Initialization complete:', {
+      lifetimePriceId: prices.lifetime,
+      monthlyPriceId: prices.monthly
+    });
+  })
+  .catch(error => {
+    console.error('❌ [STRIPE CONFIG] Failed to fetch prices on startup:', error.message);
+    console.error('   Prices will be fetched on first payment request');
+  });
 
 /**
  * POST /api/stripe/create-checkout-session
  * Create a Stripe Checkout session for payment
  */
 router.post('/create-checkout-session', async (req, res) => {
+  console.log('🚀 [STRIPE] /create-checkout-session endpoint hit!');
+  console.log('📦 [STRIPE] Request body:', req.body);
+  console.log('🔑 [STRIPE] Headers:', {
+    contentType: req.headers['content-type'],
+    origin: req.headers.origin
+  });
+
   try {
     const { userId, priceType } = req.body;
-
-    console.log('💳 [STRIPE] Creating checkout session:', {
-      userId,
-      priceType
-    });
 
     // Validate inputs
     if (!userId) {
@@ -30,6 +168,30 @@ router.post('/create-checkout-session', async (req, res) => {
     if (!['lifetime', 'monthly'].includes(priceType)) {
       return res.status(400).json({ error: 'priceType must be "lifetime" or "monthly"' });
     }
+
+    // Fetch prices dynamically from Stripe API
+    console.log('💰 [STRIPE] Fetching current prices from API...');
+    const prices = await fetchStripePrices();
+
+    console.log('💳 [STRIPE] Creating checkout session:', {
+      userId,
+      priceType,
+      availablePrices: prices
+    });
+
+    // Select price ID based on type
+    const priceId = priceType === 'lifetime' ? prices.lifetime : prices.monthly;
+
+    if (!priceId) {
+      console.error('❌ [STRIPE] Price ID not found for:', priceType);
+      console.error('   Available prices:', prices);
+      return res.status(500).json({
+        error: 'Payment configuration error',
+        details: 'Could not find price for the selected tier. Please contact support.'
+      });
+    }
+
+    console.log(`✅ [STRIPE] Using price ID: ${priceId} for ${priceType}`);
 
     // Get user from database
     const { data: user, error: userError } = await supabaseAdmin
@@ -50,14 +212,6 @@ router.post('/create-checkout-session', async (req, res) => {
 
     if (user.premium_tier === 'monthly' && priceType === 'monthly') {
       return res.status(400).json({ error: 'User already has an active monthly subscription' });
-    }
-
-    // Select price ID based on type
-    const priceId = priceType === 'lifetime' ? PRICE_LIFETIME : PRICE_MONTHLY;
-
-    if (!priceId) {
-      console.error('❌ [STRIPE] Price ID not configured for:', priceType);
-      return res.status(500).json({ error: 'Payment configuration error' });
     }
 
     // Get or create Stripe customer
@@ -112,9 +266,16 @@ router.post('/create-checkout-session', async (req, res) => {
       };
     }
 
+    console.log('🔨 [STRIPE] Creating session with config:', sessionConfig);
+
     const session = await stripe.checkout.sessions.create(sessionConfig);
 
-    console.log('✅ [STRIPE] Checkout session created:', session.id);
+    console.log('✅ [STRIPE] Checkout session created successfully!', {
+      sessionId: session.id,
+      url: session.url,
+      customer: session.customer,
+      mode: session.mode
+    });
 
     res.json({
       sessionId: session.id,
@@ -122,9 +283,70 @@ router.post('/create-checkout-session', async (req, res) => {
     });
 
   } catch (error) {
-    console.error('❌ [STRIPE] Checkout session error:', error);
+    console.error('❌ [STRIPE] Checkout session error:');
+    console.error('  Error type:', error.type);
+    console.error('  Error message:', error.message);
+    console.error('  Error code:', error.code);
+    console.error('  Full error:', error);
     res.status(500).json({
       error: 'Failed to create checkout session',
+      details: error.message
+    });
+  }
+});
+
+/**
+ * GET /api/stripe/prices
+ * Get current Stripe prices with product details
+ */
+router.get('/prices', async (req, res) => {
+  console.log('💰 [STRIPE] GET /prices endpoint hit');
+
+  try {
+    const prices = await fetchStripePrices();
+
+    if (!prices.lifetime || !prices.monthly) {
+      console.warn('⚠️ [STRIPE] Some prices are missing');
+      return res.status(500).json({
+        error: 'Pricing configuration incomplete',
+        details: 'Could not find all required prices'
+      });
+    }
+
+    // Fetch full price details from Stripe
+    const [lifetimeDetails, monthlyDetails] = await Promise.all([
+      stripe.prices.retrieve(prices.lifetime, { expand: ['product'] }),
+      stripe.prices.retrieve(prices.monthly, { expand: ['product'] })
+    ]);
+
+    console.log('✅ [STRIPE] Returning price details to client');
+
+    res.json({
+      lifetime: {
+        id: lifetimeDetails.id,
+        amount: lifetimeDetails.unit_amount,
+        currency: lifetimeDetails.currency,
+        product: {
+          name: lifetimeDetails.product.name,
+          description: lifetimeDetails.product.description
+        }
+      },
+      monthly: {
+        id: monthlyDetails.id,
+        amount: monthlyDetails.unit_amount,
+        currency: monthlyDetails.currency,
+        interval: monthlyDetails.recurring?.interval,
+        product: {
+          name: monthlyDetails.product.name,
+          description: monthlyDetails.product.description
+        }
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ [STRIPE] Error fetching prices:', error.message);
+    res.status(500).json({
+      error: 'Failed to fetch prices',
       details: error.message
     });
   }

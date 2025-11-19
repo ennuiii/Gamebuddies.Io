@@ -522,6 +522,17 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
         </div>
       </div>
 
+      {/* Beta Testing Disclaimer */}
+      <div className="beta-disclaimer">
+        <div className="beta-disclaimer-content">
+          <span className="beta-badge">⚠️ BETA</span>
+          <span className="beta-text">
+            GameBuddies.io is currently in <strong>beta testing</strong>. Some features may not work as expected.
+            We're actively developing and improving the platform. Thanks for your patience! 🚀
+          </span>
+        </div>
+      </div>
+
       {/* Hero Section */}
       <section className="hero">
         <motion.div 

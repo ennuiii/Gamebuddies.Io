@@ -3,6 +3,7 @@ const gameApiV2Router = require('./routes/gameApiV2');
 const gameApiV2DDFRouter = require('./routes/gameApiV2_DDFCompatibility');
 const gamesRouter = require('./routes/games');
 const authRouter = require('./routes/auth');
+const stripeRouter = require('./routes/stripe');
 const express = require('express');
 const path = require('path');
 const cors = require('cors');
@@ -100,6 +101,12 @@ app.use(helmet({
 app.use(compression());
 app.use(cookieParser()); // Parse cookies for secure session management
 app.use(cors(corsOptions));
+
+// Stripe webhook endpoint needs RAW body for signature verification
+// Must be mounted BEFORE express.json() middleware
+console.log('🔌 [SERVER] Mounting Stripe webhook route at /api/stripe/webhook');
+app.use('/api/stripe/webhook', stripeRouter);
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
@@ -1748,6 +1755,8 @@ app.use(gameApiV2DDFRouter(io, db, connectionManager, lobbyManager, statusSyncMa
 app.use('/api/games', gamesRouter);
 app.use('/api/auth', authRouter); // Auth endpoints
 app.use('/api', authRouter); // Mount /users endpoint at /api/users
+console.log('🔌 [SERVER] Mounting Stripe API routes at /api/stripe');
+app.use('/api/stripe', stripeRouter); // Stripe payment endpoints
 
 // Clean up stale connections periodically
 setInterval(() => {
