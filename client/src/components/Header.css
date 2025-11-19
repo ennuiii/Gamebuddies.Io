@@ -69,6 +69,27 @@
   white-space: nowrap;
 }
 
+.premium-badge {
+  background: linear-gradient(135deg, #00d9ff, #0099cc);
+  color: white;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.2rem 0.5rem;
+  border-radius: 5px;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 8px rgba(0, 217, 255, 0.4);
+  animation: premiumGlow 2s ease-in-out infinite;
+}
+
+@keyframes premiumGlow {
+  0%, 100% {
+    box-shadow: 0 2px 8px rgba(0, 217, 255, 0.4);
+  }
+  50% {
+    box-shadow: 0 2px 15px rgba(0, 217, 255, 0.6);
+  }
+}
+
 .login-link {
   color: var(--text-primary);
   text-decoration: none;
