@@ -401,172 +401,94 @@
   50% { opacity: 0.6; }
 }
 
-/* Premium Player Card Styles - SICK ANIMATED EFFECTS */
+/* Premium Player Card Styles - Clean Glowing Border */
 .player-card.premium-lifetime {
-  border: 3px solid transparent;
-  background:
-    linear-gradient(rgba(15, 15, 35, 0.95), rgba(15, 15, 35, 0.95)) padding-box,
-    linear-gradient(135deg, #FFD700, #FFA500, #FF6B00, #FFD700) border-box;
   position: relative;
-  overflow: visible;
-  box-shadow:
-    0 0 40px rgba(255, 215, 0, 0.6),
-    0 0 80px rgba(255, 165, 0, 0.4),
-    inset 0 0 30px rgba(255, 215, 0, 0.1);
-  animation: premiumLifetimePulse 2s ease-in-out infinite;
+  background: rgba(15, 15, 35, 0.95);
+  border: none;
 }
 
-/* Rotating gradient border effect for lifetime */
 .player-card.premium-lifetime::before {
   content: '';
   position: absolute;
-  inset: -4px;
+  inset: -3px;
   border-radius: 20px;
-  padding: 4px;
   background: conic-gradient(
-    from 0deg,
-    #FFD700,
-    #FFA500,
-    #FF6B00,
-    #FFD700,
-    #FFA500,
-    #FFD700
+    from var(--angle),
+    #FFD700 0deg,
+    #FFA500 60deg,
+    #FF6B00 120deg,
+    #FFD700 180deg,
+    #FFA500 240deg,
+    #FF6B00 300deg,
+    #FFD700 360deg
   );
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  animation: premiumRotate 3s linear infinite;
   z-index: -1;
-  opacity: 0.8;
+  animation: premiumRotateBorder 3s linear infinite;
+  filter: blur(2px);
 }
 
-/* Shimmer effect for lifetime */
 .player-card.premium-lifetime::after {
   content: '';
   position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background: linear-gradient(
-    45deg,
-    transparent 30%,
-    rgba(255, 215, 0, 0.3) 50%,
-    transparent 70%
-  );
-  animation: premiumShimmer 3s linear infinite;
-  z-index: 1;
-  pointer-events: none;
-}
-
-@keyframes premiumLifetimePulse {
-  0%, 100% {
-    box-shadow:
-      0 0 40px rgba(255, 215, 0, 0.6),
-      0 0 80px rgba(255, 165, 0, 0.4),
-      inset 0 0 30px rgba(255, 215, 0, 0.1);
-    transform: scale(1);
-  }
-  50% {
-    box-shadow:
-      0 0 60px rgba(255, 215, 0, 0.8),
-      0 0 120px rgba(255, 165, 0, 0.6),
-      inset 0 0 40px rgba(255, 215, 0, 0.2);
-    transform: scale(1.02);
-  }
+  inset: 0;
+  border-radius: 20px;
+  background: rgba(15, 15, 35, 0.95);
+  z-index: -1;
 }
 
 .player-card.premium-monthly {
-  border: 3px solid transparent;
-  background:
-    linear-gradient(rgba(15, 15, 35, 0.95), rgba(15, 15, 35, 0.95)) padding-box,
-    linear-gradient(135deg, #00d9ff, #00ff88, #00d9ff) border-box;
   position: relative;
-  overflow: visible;
-  box-shadow:
-    0 0 40px rgba(0, 217, 255, 0.6),
-    0 0 80px rgba(0, 255, 136, 0.4),
-    inset 0 0 30px rgba(0, 217, 255, 0.1);
-  animation: premiumMonthlyPulse 2s ease-in-out infinite;
+  background: rgba(15, 15, 35, 0.95);
+  border: none;
 }
 
-/* Rotating gradient border effect for monthly */
 .player-card.premium-monthly::before {
   content: '';
   position: absolute;
-  inset: -4px;
+  inset: -3px;
   border-radius: 20px;
-  padding: 4px;
   background: conic-gradient(
-    from 0deg,
-    #00d9ff,
-    #00ff88,
-    #00ffea,
-    #00d9ff,
-    #00ff88,
-    #00d9ff
+    from var(--angle),
+    #00d9ff 0deg,
+    #00ff88 60deg,
+    #00ffea 120deg,
+    #00d9ff 180deg,
+    #00ff88 240deg,
+    #00ffea 300deg,
+    #00d9ff 360deg
   );
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  animation: premiumRotate 3s linear infinite;
   z-index: -1;
-  opacity: 0.8;
+  animation: premiumRotateBorder 3s linear infinite;
+  filter: blur(2px);
 }
 
-/* Shimmer effect for monthly */
 .player-card.premium-monthly::after {
   content: '';
   position: absolute;
-  top: -50%;
-  left: -50%;
-  width: 200%;
-  height: 200%;
-  background: linear-gradient(
-    45deg,
-    transparent 30%,
-    rgba(0, 217, 255, 0.3) 50%,
-    transparent 70%
-  );
-  animation: premiumShimmer 3s linear infinite;
-  z-index: 1;
-  pointer-events: none;
+  inset: 0;
+  border-radius: 20px;
+  background: rgba(15, 15, 35, 0.95);
+  z-index: -1;
 }
 
-@keyframes premiumMonthlyPulse {
-  0%, 100% {
-    box-shadow:
-      0 0 40px rgba(0, 217, 255, 0.6),
-      0 0 80px rgba(0, 255, 136, 0.4),
-      inset 0 0 30px rgba(0, 217, 255, 0.1);
-    transform: scale(1);
+@property --angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
+@keyframes premiumRotateBorder {
+  0% {
+    --angle: 0deg;
+    filter: blur(2px) drop-shadow(0 0 20px currentColor);
   }
   50% {
-    box-shadow:
-      0 0 60px rgba(0, 217, 255, 0.8),
-      0 0 120px rgba(0, 255, 136, 0.6),
-      inset 0 0 40px rgba(0, 217, 255, 0.2);
-    transform: scale(1.02);
-  }
-}
-
-/* Rotating gradient animation */
-@keyframes premiumRotate {
-  0% {
-    transform: rotate(0deg);
+    filter: blur(3px) drop-shadow(0 0 30px currentColor);
   }
   100% {
-    transform: rotate(360deg);
-  }
-}
-
-/* Shimmer sweep animation */
-@keyframes premiumShimmer {
-  0% {
-    transform: translateX(-100%) translateY(-100%) rotate(45deg);
-  }
-  100% {
-    transform: translateX(100%) translateY(100%) rotate(45deg);
+    --angle: 360deg;
+    filter: blur(2px) drop-shadow(0 0 20px currentColor);
   }
 }
 
