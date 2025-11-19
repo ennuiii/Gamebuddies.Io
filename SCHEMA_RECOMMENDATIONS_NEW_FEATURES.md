@@ -1,5 +1,28 @@
 # Recommended New Tables & Fields for GameBuddies
 
+## 🚀 QUICK START
+
+**To add all recommended features, run this in Supabase SQL Editor:**
+
+```bash
+# Copy and paste the contents of:
+MIGRATION_ADD_HIGH_VALUE_FEATURES.sql
+```
+
+This single migration adds:
+- ✅ Player Statistics & Match History
+- ✅ Achievements System (11 starter achievements included!)
+- ✅ Social Features (Friends & Invites)
+- ✅ Notifications System
+- ✅ Moderation Tools
+- ✅ Subscription History
+- ✅ User Customization Fields
+- ✅ Helper Functions
+
+**Total:** 10 new tables + 8 new user fields + 2 helper functions
+
+---
+
 ## 🎯 High-Value Additions
 
 Based on your platform's features and user needs, here are tables/fields that would add significant value:
