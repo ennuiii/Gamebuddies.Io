@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import './Premium.css';
@@ -7,10 +7,55 @@ const Premium = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated } = useAuth();
   const [loadingTier, setLoadingTier] = useState(null);
+  const [prices, setPrices] = useState(null);
+  const [loadingPrices, setLoadingPrices] = useState(true);
 
   const isPremium = user?.premium_tier === 'lifetime' || user?.premium_tier === 'monthly';
   const isLifetime = user?.premium_tier === 'lifetime';
   const isMonthly = user?.premium_tier === 'monthly';
+
+  // Fetch prices from Stripe API on component mount
+  useEffect(() => {
+    const fetchPrices = async () => {
+      console.log('💰 [PREMIUM] Fetching prices from Stripe...');
+      try {
+        const response = await fetch('/api/stripe/prices');
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.error || 'Failed to fetch prices');
+        }
+
+        console.log('💰 [PREMIUM] Prices fetched:', data);
+
+        // Format prices (Stripe returns cents, convert to euros)
+        setPrices({
+          monthly: {
+            amount: (data.monthly.amount / 100).toFixed(2),
+            currency: data.monthly.currency.toUpperCase(),
+            name: data.monthly.product.name
+          },
+          lifetime: {
+            amount: (data.lifetime.amount / 100).toFixed(2),
+            currency: data.lifetime.currency.toUpperCase(),
+            name: data.lifetime.product.name
+          }
+        });
+
+        setLoadingPrices(false);
+      } catch (error) {
+        console.error('❌ [PREMIUM] Failed to fetch prices:', error);
+        // Fallback to default prices if API fails
+        setPrices({
+          monthly: { amount: '4.99', currency: 'EUR', name: 'Monthly Premium' },
+          lifetime: { amount: '29.99', currency: 'EUR', name: 'Lifetime Premium' }
+        });
+        setLoadingPrices(false);
+      }
+    };
+
+    fetchPrices();
+  }, []);
 
   const handleUpgrade = async (priceType) => {
     console.log('🚀 [PREMIUM CLIENT] handleUpgrade called with:', priceType);
@@ -181,10 +226,16 @@ const Premium = () => {
           {!isPremium && <div className="recommended-badge">Most Popular</div>}
 
           <div className="tier-header">
-            <h2>Monthly Premium</h2>
+            <h2>{prices?.monthly?.name || 'Monthly Premium'}</h2>
             <div className="price">
-              <span className="amount">€4.99</span>
-              <span className="period">/ month</span>
+              {loadingPrices ? (
+                <span className="amount">Loading...</span>
+              ) : (
+                <>
+                  <span className="amount">€{prices?.monthly?.amount || '4.99'}</span>
+                  <span className="period">/ month</span>
+                </>
+              )}
             </div>
           </div>
 
@@ -228,12 +279,22 @@ const Premium = () => {
           <div className="best-value-badge">Best Value</div>
 
           <div className="tier-header">
-            <h2>Lifetime Premium</h2>
+            <h2>{prices?.lifetime?.name || 'Lifetime Premium'}</h2>
             <div className="price">
-              <span className="amount">€29.99</span>
-              <span className="period">one-time</span>
+              {loadingPrices ? (
+                <span className="amount">Loading...</span>
+              ) : (
+                <>
+                  <span className="amount">€{prices?.lifetime?.amount || '29.99'}</span>
+                  <span className="period">one-time</span>
+                </>
+              )}
             </div>
-            <div className="savings">Save €30+ over 6 months</div>
+            {!loadingPrices && prices && (
+              <div className="savings">
+                Save €{((prices.monthly.amount * 6) - prices.lifetime.amount).toFixed(2)}+ over 6 months
+              </div>
+            )}
           </div>
 
           <ul className="features">
