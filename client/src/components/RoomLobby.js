@@ -325,10 +325,21 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
           isHost: p.isHost,
           isConnected: p.isConnected,
           inGame: p.inGame,
-          currentLocation: p.currentLocation
+          currentLocation: p.currentLocation,
+          premiumTier: p.premiumTier,
+          avatarUrl: p.avatarUrl
         })) || [],
         timestamp: new Date().toISOString()
       });
+
+      // Debug raw player data to see what server sends
+      console.log('🔍 [PREMIUM DEBUG] Raw player data from server:', data.players?.map(p => ({
+        id: p.id,
+        name: p.name,
+        premiumTier: p.premiumTier,
+        avatarUrl: p.avatarUrl,
+        allFields: Object.keys(p)
+      })));
       
       // Map players with full status information
       const mappedPlayers = data.players?.map(p => ({
@@ -338,8 +349,17 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
         isConnected: p.isConnected !== undefined ? p.isConnected : true,
         inGame: p.inGame || false,
         currentLocation: p.currentLocation || (p.isConnected ? 'lobby' : 'disconnected'),
-        lastPing: p.lastPing
+        lastPing: p.lastPing,
+        premiumTier: p.premiumTier || 'free',
+        avatarUrl: p.avatarUrl
       })) || [];
+
+      console.log('🎯 [PREMIUM DEBUG] Mapped players with premium data:', mappedPlayers.map(p => ({
+        name: p.name,
+        premiumTier: p.premiumTier,
+        hasPremiumTier: !!p.premiumTier,
+        isPremium: p.premiumTier && p.premiumTier !== 'free'
+      })));
       
       setPlayers(mappedPlayers);
       setRoomData(data.room);
@@ -374,6 +394,17 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
 
     const handlePlayerJoined = (data) => {
       console.log('👋 Player joined:', data.player.name);
+      console.log('🔍 [PREMIUM DEBUG] Player joined with data:', {
+        playerName: data.player.name,
+        premiumTier: data.player.premiumTier,
+        avatarUrl: data.player.avatarUrl,
+        allPlayerFields: Object.keys(data.player),
+        allPlayers: data.players?.map(p => ({
+          name: p.name,
+          premiumTier: p.premiumTier,
+          avatarUrl: p.avatarUrl
+        }))
+      });
       const updatedPlayers = data.players || [];
       setPlayers(updatedPlayers);
       setRoomData(data.room);
@@ -1235,9 +1266,14 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
                 console.log('🎮 [ROOM LOBBY] Player data:', {
                   name: player.name,
                   premiumTier: player.premiumTier,
+                  premiumTierType: typeof player.premiumTier,
                   avatarUrl: player.avatarUrl,
                   hasPremiumTier: !!player.premiumTier,
-                  isPremium: player.premiumTier !== 'free'
+                  isPremium: player.premiumTier !== 'free',
+                  isLifetime: player.premiumTier === 'lifetime',
+                  isMonthly: player.premiumTier === 'monthly',
+                  willShowLifetimeBadge: player.premiumTier === 'lifetime',
+                  willShowMonthlyBadge: player.premiumTier === 'monthly'
                 });
 
                 return (
