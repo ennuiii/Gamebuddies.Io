@@ -3,11 +3,14 @@ import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-route
 import { ThemeProvider } from './contexts/ThemeContext';
 import { LazySocketProvider } from './contexts/LazySocketContext';
 import { NotificationProvider } from './contexts/NotificationContext'; // Import NotificationProvider
+import { AuthProvider } from './contexts/AuthContext'; // Import AuthProvider
 import Notification from './components/Notification'; // Import Notification component
 import Header from './components/Header';
 import Footer from './components/Footer';
 import HomePage from './pages/HomePage';
 import Legal from './pages/Legal';
+import LoginPage from './pages/LoginPage'; // Import LoginPage
+import AuthCallback from './pages/AuthCallback'; // Import AuthCallback
 // GameBuddiesReturnHandler removed - using simpler URL-based return flow
 import DebugPanel from './components/DebugPanel';
 import './App.css';
@@ -84,6 +87,8 @@ function AppContent() {
             />
           }
         />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/legal" element={<Legal />} />
         <Route path="/impressum" element={<Legal />} />
         <Route path="/privacy" element={<Legal />} />
@@ -107,13 +112,15 @@ function AppContent() {
 function App() {
   return (
     <ThemeProvider>
-      <LazySocketProvider>
-        <NotificationProvider> {/* Wrap with NotificationProvider */}
-          <Router>
-            <AppContent />
-          </Router>
-        </NotificationProvider>
-      </LazySocketProvider>
+      <AuthProvider> {/* Wrap with AuthProvider */}
+        <LazySocketProvider>
+          <NotificationProvider> {/* Wrap with NotificationProvider */}
+            <Router>
+              <AppContent />
+            </Router>
+          </NotificationProvider>
+        </LazySocketProvider>
+      </AuthProvider>
     </ThemeProvider>
   );
 }

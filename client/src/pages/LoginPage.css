@@ -1,0 +1,230 @@
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 20px;
+}
+
+.login-container {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: 20px;
+  padding: 40px;
+  max-width: 450px;
+  width: 100%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.login-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.login-header h1 {
+  font-size: 2rem;
+  margin: 0 0 10px 0;
+  color: #333;
+  font-weight: 700;
+}
+
+.login-subtitle {
+  color: #666;
+  font-size: 1.1rem;
+  margin: 0;
+}
+
+.login-error {
+  background: #fee;
+  border: 1px solid #fcc;
+  color: #c33;
+  padding: 12px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+.login-options {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.auth-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 14px 20px;
+  border: none;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 100%;
+  font-family: inherit;
+}
+
+.auth-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.auth-button:active {
+  transform: translateY(0);
+}
+
+.button-icon {
+  display: flex;
+  align-items: center;
+  font-size: 1.2rem;
+}
+
+.button-text {
+  flex: 1;
+  text-align: center;
+}
+
+/* Guest Button */
+.guest-button {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: 2px solid transparent;
+}
+
+.guest-button:hover {
+  background: linear-gradient(135deg, #5568d3 0%, #6a4190 100%);
+}
+
+/* Discord Button */
+.discord-button {
+  background: #5865F2;
+  color: white;
+}
+
+.discord-button:hover {
+  background: #4752c4;
+}
+
+/* Google Button */
+.google-button {
+  background: white;
+  color: #333;
+  border: 2px solid #ddd;
+}
+
+.google-button:hover {
+  background: #f8f8f8;
+  border-color: #ccc;
+}
+
+/* GitHub Button */
+.github-button {
+  background: #24292e;
+  color: white;
+}
+
+.github-button:hover {
+  background: #1b1f23;
+}
+
+.divider {
+  display: flex;
+  align-items: center;
+  text-align: center;
+  margin: 20px 0;
+  color: #999;
+  font-size: 0.9rem;
+}
+
+.divider::before,
+.divider::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px solid #ddd;
+}
+
+.divider span {
+  padding: 0 15px;
+}
+
+.login-benefits {
+  margin-top: 30px;
+  padding-top: 20px;
+  border-top: 1px solid #eee;
+}
+
+.benefits-title {
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 15px 0;
+  text-align: center;
+}
+
+.benefits-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  color: #666;
+  font-size: 0.95rem;
+}
+
+.benefits-list li {
+  padding: 8px 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.login-footer {
+  margin-top: 30px;
+  text-align: center;
+  font-size: 0.85rem;
+  color: #999;
+}
+
+.login-footer a {
+  color: #667eea;
+  text-decoration: none;
+}
+
+.login-footer a:hover {
+  text-decoration: underline;
+}
+
+.loading {
+  text-align: center;
+  padding: 40px;
+  color: #333;
+  font-size: 1.1rem;
+}
+
+/* Responsive */
+@media (max-width: 600px) {
+  .login-container {
+    padding: 30px 20px;
+  }
+
+  .login-header h1 {
+    font-size: 1.6rem;
+  }
+
+  .auth-button {
+    padding: 12px 16px;
+    font-size: 0.95rem;
+  }
+}
