@@ -1929,12 +1929,14 @@ io.on('connection', async (socket) => {
           ...room,
           players: [{
             id: user.id,
-            name: playerName,
+            name: customLobbyName || user.display_name || playerName,
             isHost: true,
             isConnected: true,
             inGame: false,
             currentLocation: 'lobby',
             lastPing: new Date().toISOString(),
+            premiumTier: user.premium_tier || 'free',
+            avatarUrl: user.avatar_url,
             socketId: socket.id
           }]
         }
@@ -2342,6 +2344,8 @@ io.on('connection', async (socket) => {
           inGame: p.in_game,
           currentLocation: p.current_location || (p.is_connected ? 'lobby' : 'disconnected'),
           lastPing: p.last_ping,
+          premiumTier: p.user?.premium_tier || 'free',
+          avatarUrl: p.user?.avatar_url,
           socketId: null // Socket IDs are tracked in activeConnections, not stored in DB
       })) || [];
 
@@ -2352,8 +2356,10 @@ io.on('connection', async (socket) => {
       const joinEventData = {
         player: {
           id: user.id,
-          name: data.playerName,
+          name: customLobbyName || user.display_name || data.playerName,
           isHost: isHost,
+          premiumTier: user.premium_tier || 'free',
+          avatarUrl: user.avatar_url,
           socketId: socket.id
         },
         players: players,
