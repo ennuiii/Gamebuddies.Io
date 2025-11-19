@@ -401,6 +401,75 @@
   50% { opacity: 0.6; }
 }
 
+/* Premium Player Card Styles */
+.player-card.premium-lifetime {
+  border: 2px solid transparent;
+  background:
+    linear-gradient(rgba(15, 15, 35, 0.95), rgba(15, 15, 35, 0.95)) padding-box,
+    linear-gradient(135deg, #FFD700, #FFA500, #FFD700) border-box;
+  position: relative;
+}
+
+.player-card.premium-lifetime::after {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(255, 165, 0, 0.2));
+  border-radius: 20px;
+  z-index: -1;
+  animation: premiumLifetimeCardGlow 3s ease-in-out infinite;
+}
+
+@keyframes premiumLifetimeCardGlow {
+  0%, 100% {
+    box-shadow: 0 0 30px rgba(255, 215, 0, 0.3),
+                inset 0 0 20px rgba(255, 215, 0, 0.05);
+    opacity: 0.5;
+  }
+  50% {
+    box-shadow: 0 0 50px rgba(255, 215, 0, 0.5),
+                inset 0 0 30px rgba(255, 215, 0, 0.1);
+    opacity: 0.8;
+  }
+}
+
+.player-card.premium-monthly {
+  border: 2px solid transparent;
+  background:
+    linear-gradient(rgba(15, 15, 35, 0.95), rgba(15, 15, 35, 0.95)) padding-box,
+    linear-gradient(135deg, #00d9ff, #00ff88, #00d9ff) border-box;
+  position: relative;
+}
+
+.player-card.premium-monthly::after {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(135deg, rgba(0, 217, 255, 0.15), rgba(0, 255, 136, 0.15));
+  border-radius: 20px;
+  z-index: -1;
+  animation: premiumMonthlyCardGlow 3s ease-in-out infinite;
+}
+
+@keyframes premiumMonthlyCardGlow {
+  0%, 100% {
+    box-shadow: 0 0 30px rgba(0, 217, 255, 0.25),
+                inset 0 0 20px rgba(0, 217, 255, 0.05);
+    opacity: 0.5;
+  }
+  50% {
+    box-shadow: 0 0 50px rgba(0, 217, 255, 0.4),
+                inset 0 0 30px rgba(0, 217, 255, 0.08);
+    opacity: 0.8;
+  }
+}
+
 .player-avatar {
   width: 60px;
   height: 60px;
@@ -522,22 +591,9 @@
   }
 }
 
-/* Premium Indicator on Avatar */
+/* Premium Indicator on Avatar - Hidden (using card border instead) */
 .premium-indicator {
-  position: absolute;
-  bottom: -5px;
-  right: -5px;
-  background: rgba(0, 0, 0, 0.9);
-  border-radius: 50%;
-  width: 25px;
-  height: 25px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  border: 2px solid;
-  z-index: 10;
-  animation: premiumIndicatorGlow 2s ease-in-out infinite;
+  display: none;
 }
 
 .premium-indicator:has(content) {

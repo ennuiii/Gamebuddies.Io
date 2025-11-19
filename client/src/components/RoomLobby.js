@@ -1279,7 +1279,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
                 return (
                   <div
                     key={player.id}
-                    className={`player-card ${player.isHost ? 'host' : ''} ${playerStatus.status} ${isDisconnectedWithTimer ? 'disconnecting' : ''}`}
+                    className={`player-card ${player.isHost ? 'host' : ''} ${playerStatus.status} ${isDisconnectedWithTimer ? 'disconnecting' : ''} ${player.premiumTier === 'lifetime' ? 'premium-lifetime' : player.premiumTier === 'monthly' ? 'premium-monthly' : ''}`}
                   >
                     <div className="player-card-content">
                       <div className="player-avatar">
