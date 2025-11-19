@@ -404,44 +404,56 @@
 /* Premium Player Card Styles - THICK Glowing Border All Around */
 .player-card.premium-lifetime {
   position: relative;
-  background: rgba(15, 15, 35, 0.95);
+  background: linear-gradient(135deg, #FFD700, #FFA500, #FF6B00, #FFD700);
+  padding: 6px; /* Border thickness */
   border: none;
-  z-index: 1;
+  animation: premiumLifetimeGlow 2s ease-in-out infinite;
 }
 
-/* Create thick border frame using pseudo-element */
-.player-card.premium-lifetime::after {
+/* Inner content background */
+.player-card.premium-lifetime::before {
   content: '';
   position: absolute;
-  top: -6px;
-  left: -6px;
-  right: -6px;
-  bottom: -6px;
-  background: linear-gradient(135deg, #FFD700, #FFA500, #FF6B00, #FFD700);
-  border-radius: 26px; /* Original border-radius (20px) + border width (6px) */
-  z-index: -1;
-  animation: premiumLifetimeGlow 2s ease-in-out infinite;
+  top: 6px;
+  left: 6px;
+  right: 6px;
+  bottom: 6px;
+  background: rgba(15, 15, 35, 1); /* Fully opaque */
+  border-radius: 14px; /* Original border-radius (20px) - border width (6px) */
+  z-index: 0;
+}
+
+/* Ensure content is above the background layer */
+.player-card.premium-lifetime > * {
+  position: relative;
+  z-index: 1;
 }
 
 .player-card.premium-monthly {
   position: relative;
-  background: rgba(15, 15, 35, 0.95);
+  background: linear-gradient(135deg, #00d9ff, #00ff88, #00ffea, #00d9ff);
+  padding: 6px; /* Border thickness */
   border: none;
-  z-index: 1;
+  animation: premiumMonthlyGlow 2s ease-in-out infinite;
 }
 
-/* Create thick border frame using pseudo-element */
-.player-card.premium-monthly::after {
+/* Inner content background */
+.player-card.premium-monthly::before {
   content: '';
   position: absolute;
-  top: -6px;
-  left: -6px;
-  right: -6px;
-  bottom: -6px;
-  background: linear-gradient(135deg, #00d9ff, #00ff88, #00ffea, #00d9ff);
-  border-radius: 26px; /* Original border-radius (20px) + border width (6px) */
-  z-index: -1;
-  animation: premiumMonthlyGlow 2s ease-in-out infinite;
+  top: 6px;
+  left: 6px;
+  right: 6px;
+  bottom: 6px;
+  background: rgba(15, 15, 35, 1); /* Fully opaque */
+  border-radius: 14px; /* Original border-radius (20px) - border width (6px) */
+  z-index: 0;
+}
+
+/* Ensure content is above the background layer */
+.player-card.premium-monthly > * {
+  position: relative;
+  z-index: 1;
 }
 
 @keyframes premiumLifetimeGlow {
