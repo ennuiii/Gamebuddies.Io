@@ -1,10 +1,14 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { useAuth } from '../contexts/AuthContext';
+import { getSupabaseClient } from '../utils/supabase';
 import './Header.css';
 
 const Header = ({ onNavigateHome, onNavigateGames, isInLobby }) => {
   const navigate = useNavigate();
+  const { user, isAuthenticated, loading } = useAuth();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   const handleHomeClick = (e) => {
     if (isInLobby && onNavigateHome) {
@@ -36,6 +40,31 @@ const Header = ({ onNavigateHome, onNavigateGames, isInLobby }) => {
     }
   };
 
+  const handleLogout = async () => {
+    if (isLoggingOut) return;
+
+    setIsLoggingOut(true);
+    console.log('🚪 [HEADER] Logging out...');
+
+    try {
+      const supabase = await getSupabaseClient();
+      const { error } = await supabase.auth.signOut();
+
+      if (error) {
+        console.error('❌ [HEADER] Logout error:', error);
+        alert('Failed to log out. Please try again.');
+      } else {
+        console.log('✅ [HEADER] Logged out successfully');
+        navigate('/');
+      }
+    } catch (err) {
+      console.error('❌ [HEADER] Logout exception:', err);
+      alert('An error occurred during logout.');
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
+
   return (
     <>
       <motion.header 
@@ -51,15 +80,52 @@ const Header = ({ onNavigateHome, onNavigateGames, isInLobby }) => {
               <span className="logo-text accent">Buddies</span>
               <span className="logo-dot">.io</span>
             </Link>
-            
-            <nav className="nav">
-              <Link to="/" className="nav-link" onClick={handleHomeClick}>
-                Home
-              </Link>
-              <button className="nav-link nav-button" onClick={handleGamesClick}>
-                Games
-              </button>
-            </nav>
+
+            <div className="header-right">
+              <nav className="nav">
+                <Link to="/" className="nav-link" onClick={handleHomeClick}>
+                  Home
+                </Link>
+                <button className="nav-link nav-button" onClick={handleGamesClick}>
+                  Games
+                </button>
+              </nav>
+
+              {!loading && (
+                <div className="auth-section">
+                  {isAuthenticated && user ? (
+                    <div className="user-section">
+                      <span className="user-info">
+                        {user.is_guest ? (
+                          <>
+                            <span className="user-icon">👤</span>
+                            <span className="user-name">Guest</span>
+                          </>
+                        ) : (
+                          <>
+                            <span className="user-icon">🎮</span>
+                            <span className="user-name">
+                              {user.display_name || user.username || user.email?.split('@')[0]}
+                            </span>
+                          </>
+                        )}
+                      </span>
+                      <button
+                        onClick={handleLogout}
+                        className="logout-button"
+                        disabled={isLoggingOut}
+                      >
+                        {isLoggingOut ? 'Logging out...' : 'Logout'}
+                      </button>
+                    </div>
+                  ) : (
+                    <Link to="/login" className="login-link">
+                      Login
+                    </Link>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </motion.header>
