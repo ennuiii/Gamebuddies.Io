@@ -6,14 +6,26 @@ import './Account.css';
 
 const Account = () => {
   const navigate = useNavigate();
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, loading: authLoading, session } = useAuth();
   const [loading, setLoading] = useState(false);
+
+  console.log('📄 [ACCOUNT PAGE] Rendering with auth state:', {
+    isAuthenticated,
+    hasUser: !!user,
+    authLoading,
+    hasSession: !!session,
+    userId: user?.id,
+    username: user?.username
+  });
 
   // Redirect to login if not authenticated
   if (!isAuthenticated) {
+    console.log('📄 [ACCOUNT PAGE] Not authenticated, redirecting to login...');
     navigate('/login');
     return null;
   }
+
+  console.log('📄 [ACCOUNT PAGE] Authenticated, rendering account page');
 
   const isPremium = user?.premium_tier === 'lifetime' || user?.premium_tier === 'monthly';
   const isLifetime = user?.premium_tier === 'lifetime';
