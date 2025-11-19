@@ -110,6 +110,35 @@ const LoginPage = () => {
           </button>
 
           <button
+            onClick={() => handleOAuthLogin('twitch')}
+            className="auth-button twitch-button"
+          >
+            <span className="button-icon">
+              <svg width="20" height="20" viewBox="0 0 256 268" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M17.4579 0L0 46.5579V232.757H63.9826V267.690H98.9144L133.689 232.757H186.358L256 163.118V0H17.4579ZM40.7166 23.2598H232.741V151.232L186.358 197.613H128.470L93.6951 232.757V197.613H40.7166V23.2598Z" fill="currentColor"/>
+                <path d="M104.724 139.287H128.470V69.8172H104.724V139.287Z" fill="currentColor"/>
+                <path d="M168.705 139.287H192.451V69.8172H168.705V139.287Z" fill="currentColor"/>
+              </svg>
+            </span>
+            <span className="button-text">Login with Twitch</span>
+          </button>
+
+          <button
+            onClick={() => handleOAuthLogin('azure')}
+            className="auth-button microsoft-button"
+          >
+            <span className="button-icon">
+              <svg width="20" height="20" viewBox="0 0 23 23" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M0 0H10.9091V10.9091H0V0Z" fill="#F25022"/>
+                <path d="M12.0909 0H23V10.9091H12.0909V0Z" fill="#7FBA00"/>
+                <path d="M0 12.0909H10.9091V23H0V12.0909Z" fill="#00A4EF"/>
+                <path d="M12.0909 12.0909H23V23H12.0909V12.0909Z" fill="#FFB900"/>
+              </svg>
+            </span>
+            <span className="button-text">Login with Microsoft</span>
+          </button>
+
+          <button
             onClick={() => handleOAuthLogin('github')}
             className="auth-button github-button"
           >

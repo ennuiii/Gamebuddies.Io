@@ -132,6 +132,26 @@
   border-color: #ccc;
 }
 
+/* Twitch Button */
+.twitch-button {
+  background: #9146FF;
+  color: white;
+}
+
+.twitch-button:hover {
+  background: #772ce8;
+}
+
+/* Microsoft Button */
+.microsoft-button {
+  background: #2F2F2F;
+  color: white;
+}
+
+.microsoft-button:hover {
+  background: #1a1a1a;
+}
+
 /* GitHub Button */
 .github-button {
   background: #24292e;

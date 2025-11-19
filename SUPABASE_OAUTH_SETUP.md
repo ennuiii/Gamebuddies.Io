@@ -197,9 +197,90 @@ Du solltest die neuen Felder sehen: `email`, `oauth_provider`, `oauth_id`, `prem
 
 ---
 
-## 🐙 SCHRITT 4: GITHUB OAUTH SETUP (Optional)
+## 🎮 SCHRITT 4: TWITCH OAUTH SETUP
 
-### 4.1 Erstelle GitHub OAuth App
+### 4.1 Erstelle Twitch Application
+
+1. Gehe zu: https://dev.twitch.tv/console/apps
+2. Klicke **"Register Your Application"**
+3. Fülle aus:
+   - **Name**: GameBuddies
+   - **OAuth Redirect URLs**:
+     ```
+     https://<your-project-ref>.supabase.co/auth/v1/callback
+     http://localhost:3000/auth/callback
+     ```
+   - **Category**: Website Integration
+4. Klicke **"Create"**
+
+### 4.2 Kopiere Credentials
+
+1. Nach Erstellung → Klicke **"Manage"**
+2. Kopiere **Client ID**
+3. Klicke **"New Secret"** → Kopiere **Client Secret**
+4. **WICHTIG:** Speichere beide sicher!
+
+### 4.3 Supabase Dashboard Konfiguration
+
+1. Öffne Supabase Dashboard
+2. Gehe zu **Authentication** → **Providers**
+3. Scrolle zu **Twitch**
+4. Schalte **"Enable Sign in with Twitch"** ein
+5. Paste:
+   - **Client ID**: (von Twitch)
+   - **Client Secret**: (von Twitch)
+6. Klicke **"Save"**
+
+---
+
+## 🔷 SCHRITT 5: MICROSOFT (AZURE) OAUTH SETUP
+
+### 5.1 Erstelle Azure Application
+
+1. Gehe zu: https://portal.azure.com/
+2. Suche nach **"Azure Active Directory"** oder **"Microsoft Entra ID"**
+3. Klicke **"App registrations"** → **"New registration"**
+4. Fülle aus:
+   - **Name**: GameBuddies
+   - **Supported account types**: Accounts in any organizational directory and personal Microsoft accounts
+   - **Redirect URI**: Web →
+     ```
+     https://<your-project-ref>.supabase.co/auth/v1/callback
+     ```
+5. Klicke **"Register"**
+
+### 5.2 Erstelle Client Secret
+
+1. Nach Erstellung → **"Certificates & secrets"** (linke Sidebar)
+2. **"Client secrets"** → **"New client secret"**
+3. Description: `GameBuddies Secret`
+4. Expires: 24 months (oder länger)
+5. Klicke **"Add"**
+6. **Kopiere den Secret Value SOFORT** (wird nur einmal angezeigt!)
+
+### 5.3 Kopiere Application ID
+
+1. Gehe zu **"Overview"** (linke Sidebar)
+2. Kopiere **Application (client) ID**
+3. Kopiere **Directory (tenant) ID** (optional)
+
+### 5.4 Supabase Dashboard Konfiguration
+
+1. Öffne Supabase Dashboard
+2. Gehe zu **Authentication** → **Providers**
+3. Scrolle zu **Azure**
+4. Schalte **"Enable Sign in with Azure"** ein
+5. Paste:
+   - **Client ID**: (Application ID von Azure)
+   - **Client Secret**: (Secret Value von Azure)
+   - **Tenant** (optional): `common` (für alle Microsoft Accounts) oder deine Tenant ID
+6. Klicke **"Save"**
+
+---
+
+## 🐙 SCHRITT 6: GITHUB OAUTH SETUP (Optional)
+
+### 6.1 Erstelle GitHub OAuth App
 
 1. Gehe zu: https://github.com/settings/developers
 2. Klicke **"New OAuth App"**
@@ -212,14 +293,14 @@ Du solltest die neuen Felder sehen: `email`, `oauth_provider`, `oauth_id`, `prem
      ```
 4. Klicke **"Register application"**
 
-### 4.2 Generate Client Secret
+### 6.2 Generate Client Secret
 
 1. Nach Erstellung → Klicke **"Generate a new client secret"**
 2. **Kopiere:**
    - Client ID
    - Client secrets
 
-### 4.3 Supabase Dashboard Konfiguration
+### 6.3 Supabase Dashboard Konfiguration
 
 1. Öffne Supabase Dashboard
 2. Gehe zu **Authentication** → **Providers**
@@ -232,9 +313,9 @@ Du solltest die neuen Felder sehen: `email`, `oauth_provider`, `oauth_id`, `prem
 
 ---
 
-## 🧪 SCHRITT 5: TESTEN
+## 🧪 SCHRITT 7: TESTEN
 
-### 5.1 Lokales Testing
+### 7.1 Lokales Testing
 
 1. **Starte Server:**
    ```bash
@@ -259,7 +340,7 @@ Du solltest die neuen Felder sehen: `email`, `oauth_provider`, `oauth_id`, `prem
    - Nach Auth → Zurück zu `http://localhost:3000/auth/callback`
    - Dann zu `http://localhost:3000/`
 
-### 5.2 Debug Checklist
+### 7.2 Debug Checklist
 
 **Falls Login nicht funktioniert:**
 
@@ -293,7 +374,7 @@ Du solltest die neuen Felder sehen: `email`, `oauth_provider`, `oauth_id`, `prem
 
 ---
 
-## 🔒 SCHRITT 6: SECURITY (WICHTIG!)
+## 🔒 SCHRITT 8: SECURITY (WICHTIG!)
 
 ### 6.1 Row Level Security (RLS)
 
@@ -342,7 +423,7 @@ BACKEND_URL=https://api.gamebuddies.io
 
 ---
 
-## 🚀 SCHRITT 7: PRODUCTION DEPLOYMENT
+## 🚀 SCHRITT 9: PRODUCTION DEPLOYMENT
 
 ### 7.1 Update Redirect URLs
 
