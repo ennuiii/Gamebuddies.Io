@@ -532,7 +532,10 @@ class LobbyManager {
       inGame: p.in_game,
       currentLocation: p.current_location,
       lastPing: p.last_ping,
-      gameData: p.game_data
+      gameData: p.game_data,
+      // Premium features
+      premiumTier: p.user?.premium_tier || 'free',
+      avatarUrl: p.user?.avatar_url || null
     })) || [];
 
     return { room, players };

@@ -1238,13 +1238,34 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
                   >
                     <div className="player-card-content">
                       <div className="player-avatar">
-                        {player.name.charAt(0).toUpperCase()}
+                        {player.avatarUrl ? (
+                          <img src={player.avatarUrl} alt={player.name} className="avatar-image" />
+                        ) : (
+                          player.name.charAt(0).toUpperCase()
+                        )}
+                        {/* Premium indicator on avatar */}
+                        {player.premiumTier && player.premiumTier !== 'free' && (
+                          <div className="premium-indicator" title={`${player.premiumTier === 'lifetime' ? 'Lifetime' : 'Pro'} Member`}>
+                            {player.premiumTier === 'lifetime' ? '⭐' : '💎'}
+                          </div>
+                        )}
                       </div>
                       <div className="player-info">
                         <span className="player-name">{player.name}</span>
                         <div className="player-badges">
                           {player.isHost && <span className="host-badge">Host</span>}
-                          <span 
+                          {/* Premium badges */}
+                          {player.premiumTier === 'lifetime' && (
+                            <span className="premium-badge lifetime" title="Lifetime Premium Member">
+                              ⭐ PREMIUM
+                            </span>
+                          )}
+                          {player.premiumTier === 'monthly' && (
+                            <span className="premium-badge monthly" title="Premium Member">
+                              💎 PRO
+                            </span>
+                          )}
+                          <span
                             className="status-badge"
                             style={{ backgroundColor: playerStatus.color }}
                             title={`${player.name} is ${playerStatus.label.toLowerCase()}`}
