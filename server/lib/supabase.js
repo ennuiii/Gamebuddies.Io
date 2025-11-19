@@ -81,7 +81,7 @@ class DatabaseService {
             last_ping,
             joined_at,
             custom_lobby_name,
-            user:users(username, display_name, premium_tier, avatar_url, subscription_status)
+            user:users(username, display_name, premium_tier, avatar_url)
           )
         `)
         .eq('room_code', roomCode)
@@ -113,7 +113,7 @@ class DatabaseService {
             last_ping,
             joined_at,
             custom_lobby_name,
-            user:users(username, display_name, premium_tier, avatar_url, subscription_status)
+            user:users(username, display_name, premium_tier, avatar_url)
           )
         `)
         .eq('id', roomId)
