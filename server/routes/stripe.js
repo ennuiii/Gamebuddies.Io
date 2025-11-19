@@ -570,6 +570,7 @@ async function handleSubscriptionUpdate(subscription) {
 
 /**
  * Handle subscription deleted
+ * Note: Keep premium_expires_at for historical record of when subscription ended
  */
 async function handleSubscriptionDeleted(subscription) {
   console.log('🗑️  [STRIPE WEBHOOK] Subscription deleted:', subscription.id);
@@ -581,19 +582,28 @@ async function handleSubscriptionDeleted(subscription) {
     return;
   }
 
+  // Get the actual end date from the subscription
+  const expirationDate = subscription.current_period_end
+    ? new Date(subscription.current_period_end * 1000).toISOString()
+    : new Date().toISOString();
+
+  console.log(`📅 [STRIPE WEBHOOK] Subscription ended at: ${expirationDate}`);
+
   const { error } = await supabaseAdmin
     .from('users')
     .update({
       stripe_subscription_id: null,
       premium_tier: 'free',
-      premium_expires_at: null,
+      // Keep the expiration date for historical record
+      // This shows when the subscription ended
+      premium_expires_at: expirationDate,
     })
     .eq('id', userId);
 
   if (error) {
     console.error('❌ [STRIPE WEBHOOK] Failed to remove premium:', error);
   } else {
-    console.log('✅ [STRIPE WEBHOOK] Premium removed for user:', userId);
+    console.log(`✅ [STRIPE WEBHOOK] Premium removed for user: ${userId}, expired at: ${expirationDate}`);
   }
 }
 
