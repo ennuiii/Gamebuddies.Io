@@ -58,6 +58,8 @@ const LoginPage = () => {
     setAuthError('');
     setAuthSuccess('');
 
+    console.log('📧 [CLIENT] Starting email sign up...', { email });
+
     // Validation
     if (!email || !password || !confirmPassword) {
       setAuthError('Please fill in all fields.');
@@ -77,6 +79,7 @@ const LoginPage = () => {
     setIsSubmitting(true);
 
     try {
+      console.log('📧 [CLIENT] Calling Supabase signUp...');
       const supabase = await getSupabaseClient();
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -86,16 +89,25 @@ const LoginPage = () => {
         }
       });
 
+      console.log('📧 [CLIENT] Supabase signUp response:', {
+        success: !error,
+        hasUser: !!data?.user,
+        userId: data?.user?.id,
+        error: error?.message
+      });
+
       if (error) {
+        console.error('❌ [CLIENT] Sign up error:', error);
         setAuthError(error.message);
       } else {
+        console.log('✅ [CLIENT] Sign up successful, waiting for email verification');
         setAuthSuccess('Registration successful! Please check your email to verify your account.');
         setEmail('');
         setPassword('');
         setConfirmPassword('');
       }
     } catch (err) {
-      console.error('Sign up error:', err);
+      console.error('❌ [CLIENT] Sign up exception:', err);
       setAuthError('An error occurred. Please try again.');
     } finally {
       setIsSubmitting(false);
@@ -107,6 +119,8 @@ const LoginPage = () => {
     setAuthError('');
     setAuthSuccess('');
 
+    console.log('🔑 [CLIENT] Starting email sign in...', { email });
+
     // Validation
     if (!email || !password) {
       setAuthError('Please enter your email and password.');
@@ -116,20 +130,31 @@ const LoginPage = () => {
     setIsSubmitting(true);
 
     try {
+      console.log('🔑 [CLIENT] Calling Supabase signInWithPassword...');
       const supabase = await getSupabaseClient();
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
       });
 
+      console.log('🔑 [CLIENT] Supabase signInWithPassword response:', {
+        success: !error,
+        hasUser: !!data?.user,
+        userId: data?.user?.id,
+        hasSession: !!data?.session,
+        error: error?.message
+      });
+
       if (error) {
+        console.error('❌ [CLIENT] Sign in error:', error);
         setAuthError(error.message);
       } else {
+        console.log('✅ [CLIENT] Sign in successful, redirecting to home...');
         // Auth context will handle the redirect
         navigate('/');
       }
     } catch (err) {
-      console.error('Sign in error:', err);
+      console.error('❌ [CLIENT] Sign in exception:', err);
       setAuthError('An error occurred. Please try again.');
     } finally {
       setIsSubmitting(false);
