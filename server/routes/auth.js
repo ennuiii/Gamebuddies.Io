@@ -11,6 +11,7 @@ router.post('/sync-user', async (req, res) => {
     const {
       supabase_user_id,
       email,
+      email_confirmed_at,
       oauth_provider,
       oauth_id,
       avatar_url,
@@ -18,10 +19,13 @@ router.post('/sync-user', async (req, res) => {
     } = req.body;
 
     const isEmailAuth = oauth_provider === null;
+    const isEmailVerified = !!email_confirmed_at; // true if email_confirmed_at exists
 
     console.log('🔄 [SERVER AUTH] Received sync request:', {
       user_id: supabase_user_id,
       email,
+      email_confirmed_at,
+      email_verified: isEmailVerified,
       provider: oauth_provider,
       oauth_id,
       avatar_url,
@@ -67,7 +71,7 @@ router.post('/sync-user', async (req, res) => {
           display_name: display_name || existingUser.display_name,
           last_seen: new Date().toISOString(),
           is_guest: false,
-          email_verified: true
+          email_verified: isEmailVerified
         })
         .eq('id', supabase_user_id)
         .select()
@@ -108,7 +112,7 @@ router.post('/sync-user', async (req, res) => {
           display_name: display_name || emailUser.display_name,
           last_seen: new Date().toISOString(),
           is_guest: false,
-          email_verified: true
+          email_verified: isEmailVerified
         })
         .eq('email', email)
         .select()
@@ -140,7 +144,7 @@ router.post('/sync-user', async (req, res) => {
         avatar_url,
         display_name: display_name || username,
         is_guest: false,
-        email_verified: true,
+        email_verified: isEmailVerified,
         last_seen: new Date().toISOString()
       })
       .select()
@@ -171,7 +175,7 @@ router.post('/sync-user', async (req, res) => {
             avatar_url,
             display_name: display_name || uniqueUsername,
             is_guest: false,
-            email_verified: true,
+            email_verified: isEmailVerified,
             last_seen: new Date().toISOString()
           })
           .select()

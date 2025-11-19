@@ -79,6 +79,7 @@ const AuthCallback = () => {
       const syncPayload = {
         supabase_user_id: user.id,
         email: user.email,
+        email_confirmed_at: user.email_confirmed_at,
         oauth_provider: isEmailAuth ? null : provider,
         oauth_id: isEmailAuth ? null : (user.user_metadata.provider_id || user.id),
         avatar_url: user.user_metadata.avatar_url || user.user_metadata.picture || null,
