@@ -497,10 +497,12 @@ app.get('/api/game/rooms/:roomCode/validate', validateApiKey, async (req, res) =
         ?.filter(p => p.is_connected === true)
         .map(p => ({
           id: p.user_id,
-          name: p.user?.display_name || p.user?.username,
+          name: p.custom_lobby_name || p.user?.display_name || p.user?.username,
           role: p.role,
           isReady: p.is_ready,
-          status: p.is_connected ? 'connected' : 'disconnected'
+          status: p.is_connected ? 'connected' : 'disconnected',
+          premiumTier: p.user?.premium_tier || 'free',
+          avatarUrl: p.user?.avatar_url
         })),
       gameState: gameState ? {
         id: gameState.id,
@@ -1020,12 +1022,14 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
     // Build consolidated players snapshot once for broadcast and status sync
     const allPlayers = updatedRoom.participants?.map(p => ({
       id: p.user_id,
-      name: p.user?.display_name || p.user?.username,
+      name: p.custom_lobby_name || p.user?.display_name || p.user?.username,
       isHost: p.role === 'host',
       isConnected: p.is_connected,
       inGame: p.in_game,
       currentLocation: p.current_location || (p.is_connected ? 'lobby' : 'disconnected'), // Provide default
       lastPing: p.last_ping,
+      premiumTier: p.user?.premium_tier || 'free',
+      avatarUrl: p.user?.avatar_url,
       socketId: null
     })) || [];
 
@@ -1368,7 +1372,7 @@ app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async 
     if (io) {
       const allPlayers = updatedRoom.participants?.map(p => ({
         id: p.user_id,
-        name: p.user?.display_name || p.user?.username,
+        name: p.custom_lobby_name || p.user?.display_name || p.user?.username,
         isHost: p.role === 'host',
         isConnected: p.is_connected,
         inGame: p.in_game,
@@ -2332,7 +2336,7 @@ io.on('connection', async (socket) => {
       // Prepare player list - include ALL participants with their status
               const players = updatedRoom.participants?.map(p => ({
           id: p.user_id,
-          name: p.user?.display_name || p.user?.username,
+          name: p.custom_lobby_name || p.user?.display_name || p.user?.username,
           isHost: p.role === 'host',
           isConnected: p.is_connected,
           inGame: p.in_game,
@@ -2722,7 +2726,7 @@ io.on('connection', async (socket) => {
         // Include ALL participants with their complete status (not just connected ones)
         const allPlayers = updatedRoom.participants?.map(p => ({
           id: p.user_id,
-          name: p.user?.display_name || p.user?.username,
+          name: p.custom_lobby_name || p.user?.display_name || p.user?.username,
           isHost: p.role === 'host',
           isConnected: p.is_connected,
           inGame: p.in_game,
@@ -2863,11 +2867,11 @@ io.on('connection', async (socket) => {
 
       // Get updated room data
       const updatedRoom = await db.getRoomByCode(data.roomCode);
-      
+
       // Include ALL participants with their complete status (not just connected ones)
       const allPlayers = updatedRoom.participants?.map(p => ({
         id: p.user_id,
-        name: p.user?.display_name || p.user?.username,
+        name: p.custom_lobby_name || p.user?.display_name || p.user?.username,
         isHost: p.role === 'host',
         isConnected: p.is_connected,
         inGame: p.in_game,
@@ -3009,11 +3013,11 @@ io.on('connection', async (socket) => {
 
       // Get updated room data with complete player information
       const updatedRoom = await db.getRoomByCode(data.roomCode);
-      
+
       // Include ALL participants with their complete status (not just connected ones)
       const allPlayers = updatedRoom.participants?.map(p => ({
         id: p.user_id,
-        name: p.user?.display_name || p.user?.username,
+        name: p.custom_lobby_name || p.user?.display_name || p.user?.username,
         isHost: p.role === 'host',
         isConnected: p.is_connected,
         inGame: p.in_game,
@@ -3299,7 +3303,7 @@ io.on('connection', async (socket) => {
           const updatedRoom = await db.getRoomById(connection.roomId);
           const allPlayers = updatedRoom?.participants?.map(p => ({
             id: p.user_id,
-            name: p.user?.display_name || p.user?.username,
+            name: p.custom_lobby_name || p.user?.display_name || p.user?.username,
             isHost: p.role === 'host',
             isConnected: p.is_connected,
             inGame: p.in_game,
