@@ -2611,9 +2611,11 @@ io.on('connection', async (socket) => {
               game_type: room.current_game,
               streamer_mode: true,
               metadata: {
-                player_name: participant.user?.display_name || participant.user?.username,
+                player_name: participant.custom_lobby_name || participant.user?.display_name || participant.user?.username,
                 is_host: participant.role === 'host',
-                total_players: participants.length
+                total_players: participants.length,
+                premium_tier: participant.user?.premium_tier || 'free',
+                avatar_url: participant.user?.avatar_url
               }
             });
 
@@ -2624,19 +2626,24 @@ io.on('connection', async (socket) => {
       }
 
       participants.forEach(p => {
-        const encodedName = encodeURIComponent(p.user?.display_name || p.user?.username);
+        const playerName = p.custom_lobby_name || p.user?.display_name || p.user?.username;
+        const encodedName = encodeURIComponent(playerName);
+        const premiumTier = p.user?.premium_tier || 'free';
+        const avatarUrl = p.user?.avatar_url ? encodeURIComponent(p.user.avatar_url) : '';
 
         let gameUrl;
         if (isStreamerMode) {
           // Streamer mode: Use session token (room code hidden from URL)
           const sessionToken = sessionTokens[p.user_id];
           const roleParam = p.role === 'host' ? '&role=gm' : '';
-          gameUrl = `${gameProxy.path}?session=${sessionToken}&players=${participants.length}&name=${encodedName}&playerId=${p.user_id}${roleParam}`;
+          const premiumParams = `&gbPremiumTier=${premiumTier}${avatarUrl ? `&gbAvatarUrl=${avatarUrl}` : ''}`;
+          gameUrl = `${gameProxy.path}?session=${sessionToken}&players=${participants.length}&name=${encodedName}&playerId=${p.user_id}${roleParam}${premiumParams}`;
 
           console.log(`🔐 [STREAMER MODE] Game URL for ${p.user?.username} (room code hidden)`);
         } else {
           // Normal mode: Use room code (backward compatible)
-          const baseUrl = `${gameProxy.path}?room=${room.room_code}&players=${participants.length}&name=${encodedName}&playerId=${p.user_id}&gbRoomCode=${room.room_code}&gbIsHost=${p.role === 'host'}&gbPlayerName=${encodedName}`;
+          const premiumParams = `&gbPremiumTier=${premiumTier}${avatarUrl ? `&gbAvatarUrl=${avatarUrl}` : ''}`;
+          const baseUrl = `${gameProxy.path}?room=${room.room_code}&players=${participants.length}&name=${encodedName}&playerId=${p.user_id}&gbRoomCode=${room.room_code}&gbIsHost=${p.role === 'host'}&gbPlayerName=${encodedName}${premiumParams}`;
           gameUrl = p.role === 'host' ? `${baseUrl}&role=gm` : baseUrl;
 
           console.log(`📝 [NORMAL MODE] Game URL for ${p.user?.username} with room code: ${room.room_code}`);
