@@ -31,22 +31,22 @@
 1. In Stripe Dashboard, go to: **Product catalog → Add product**
 
 **Product 1 - Lifetime Premium:**
-- Name: `Lifetime Premium`
+- Name: `Lifetime Premium` (or include "lifetime" or "premium" in the name)
 - Description: `One-time payment for lifetime premium access`
 - Price: `€29.99` (or `29.99 EUR`)
 - Billing: `One time`
 - Click "Save product"
-- Copy the **Price ID** (starts with `price_...`)
-- Add to `.env`: `STRIPE_PRICE_LIFETIME=price_YOUR_ID_HERE`
+- ✅ **Done!** No need to copy price IDs - they're auto-detected!
 
 **Product 2 - Monthly Pro:**
-- Name: `Monthly Pro`
+- Name: `Monthly Pro` (or include "monthly", "pro", or "subscription" in the name)
 - Description: `Monthly subscription for premium features`
 - Price: `€4.99` (or `4.99 EUR`)
 - Billing: `Recurring - Monthly`
 - Click "Save product"
-- Copy the **Price ID** (starts with `price_...`)
-- Add to `.env`: `STRIPE_PRICE_MONTHLY=price_YOUR_ID_HERE`
+- ✅ **Done!** The system will find it automatically!
+
+> **💡 How it works:** Prices are automatically fetched from Stripe API based on product names and payment types. No manual configuration needed!
 
 ### Step 5: Restart Your Server
 ```bash
