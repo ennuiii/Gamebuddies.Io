@@ -401,31 +401,35 @@
   50% { opacity: 0.6; }
 }
 
-/* Premium Player Card Styles - Clean Glowing Border */
+/* Premium Player Card Styles - Thick Rotating Glowing Border */
 .player-card.premium-lifetime {
   position: relative;
   background: rgba(15, 15, 35, 0.95);
   border: none;
+  overflow: visible;
 }
 
 .player-card.premium-lifetime::before {
   content: '';
   position: absolute;
-  inset: -3px;
-  border-radius: 20px;
+  inset: -6px;
+  border-radius: 24px;
   background: conic-gradient(
-    from var(--angle),
-    #FFD700 0deg,
-    #FFA500 60deg,
-    #FF6B00 120deg,
-    #FFD700 180deg,
-    #FFA500 240deg,
-    #FF6B00 300deg,
-    #FFD700 360deg
+    from 0deg,
+    #FFD700,
+    #FFA500,
+    #FF6B00,
+    #FFD700,
+    #FFA500,
+    #FF6B00,
+    #FFD700
   );
   z-index: -1;
   animation: premiumRotateBorder 3s linear infinite;
-  filter: blur(2px);
+  box-shadow:
+    0 0 30px rgba(255, 215, 0, 0.8),
+    0 0 60px rgba(255, 165, 0, 0.6),
+    0 0 90px rgba(255, 107, 0, 0.4);
 }
 
 .player-card.premium-lifetime::after {
@@ -441,26 +445,30 @@
   position: relative;
   background: rgba(15, 15, 35, 0.95);
   border: none;
+  overflow: visible;
 }
 
 .player-card.premium-monthly::before {
   content: '';
   position: absolute;
-  inset: -3px;
-  border-radius: 20px;
+  inset: -6px;
+  border-radius: 24px;
   background: conic-gradient(
-    from var(--angle),
-    #00d9ff 0deg,
-    #00ff88 60deg,
-    #00ffea 120deg,
-    #00d9ff 180deg,
-    #00ff88 240deg,
-    #00ffea 300deg,
-    #00d9ff 360deg
+    from 0deg,
+    #00d9ff,
+    #00ff88,
+    #00ffea,
+    #00d9ff,
+    #00ff88,
+    #00ffea,
+    #00d9ff
   );
   z-index: -1;
   animation: premiumRotateBorder 3s linear infinite;
-  filter: blur(2px);
+  box-shadow:
+    0 0 30px rgba(0, 217, 255, 0.8),
+    0 0 60px rgba(0, 255, 136, 0.6),
+    0 0 90px rgba(0, 255, 234, 0.4);
 }
 
 .player-card.premium-monthly::after {
@@ -472,23 +480,17 @@
   z-index: -1;
 }
 
-@property --angle {
-  syntax: '<angle>';
-  initial-value: 0deg;
-  inherits: false;
-}
-
 @keyframes premiumRotateBorder {
   0% {
-    --angle: 0deg;
-    filter: blur(2px) drop-shadow(0 0 20px currentColor);
+    transform: rotate(0deg);
+    filter: brightness(1) saturate(1);
   }
   50% {
-    filter: blur(3px) drop-shadow(0 0 30px currentColor);
+    filter: brightness(1.3) saturate(1.5);
   }
   100% {
-    --angle: 360deg;
-    filter: blur(2px) drop-shadow(0 0 20px currentColor);
+    transform: rotate(360deg);
+    filter: brightness(1) saturate(1);
   }
 }
 
