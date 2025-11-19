@@ -4,39 +4,32 @@ import { useAuth } from '../contexts/AuthContext';
 import './CreateRoom.css';
 
 const CreateRoom = ({ onRoomCreated, onCancel }) => {
-  const [playerName, setPlayerName] = useState('');
-  const [customLobbyName, setCustomLobbyName] = useState('');
+  const [displayName, setDisplayName] = useState('');
   const [streamerMode, setStreamerMode] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState('');
   const { socket, isConnected, isConnecting, connectSocket } = useSocket();
   const { user, session } = useAuth();
 
+  const isAuthenticated = !!session?.user;
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (!playerName.trim()) {
+
+    // For guests, display name is required
+    // For authenticated users, display name is optional (falls back to username)
+    if (!isAuthenticated && !displayName.trim()) {
       setError('Please enter your name');
       return;
     }
 
-    if (playerName.trim().length < 2) {
+    if (displayName.trim() && displayName.trim().length < 2) {
       setError('Name must be at least 2 characters long');
       return;
     }
 
-    if (playerName.trim().length > 20) {
+    if (displayName.trim() && displayName.trim().length > 20) {
       setError('Name must be less than 20 characters');
-      return;
-    }
-
-    if (customLobbyName.trim() && customLobbyName.trim().length < 2) {
-      setError('Custom lobby name must be at least 2 characters long');
-      return;
-    }
-
-    if (customLobbyName.trim() && customLobbyName.trim().length > 20) {
-      setError('Custom lobby name must be less than 20 characters');
       return;
     }
 
@@ -44,7 +37,15 @@ const CreateRoom = ({ onRoomCreated, onCancel }) => {
     setError('');
 
     try {
-      console.log('🏠 Creating room for:', playerName.trim());
+      // Determine playerName and customLobbyName based on auth status
+      const playerName = isAuthenticated
+        ? (user?.username || user?.display_name || 'User')
+        : displayName.trim();
+      const customLobbyName = isAuthenticated && displayName.trim()
+        ? displayName.trim()
+        : null;
+
+      console.log('🏠 Creating room:', { playerName, customLobbyName, isAuthenticated });
       
       // Connect to socket lazily - only when creating room
       const activeSocket = socket || connectSocket();
@@ -126,15 +127,16 @@ const CreateRoom = ({ onRoomCreated, onCancel }) => {
 
       // Emit room creation request
       activeSocket.emit('createRoom', {
-        playerName: playerName.trim(),
-        customLobbyName: customLobbyName.trim() || null,
-        streamerMode: streamerMode,
+        playerName,
+        customLobbyName,
+        streamerMode,
         supabaseUserId: session?.user?.id || null // Send auth user ID if logged in
       });
       console.log('📤 [CLIENT] createRoom event sent', {
-        customLobbyName: customLobbyName.trim() || 'none',
+        playerName,
+        customLobbyName,
         streamerMode,
-        isAuthenticated: !!session?.user?.id,
+        isAuthenticated,
         supabaseUserId: session?.user?.id
       });
 
@@ -161,31 +163,26 @@ const CreateRoom = ({ onRoomCreated, onCancel }) => {
         
         <form onSubmit={handleSubmit} className="create-room-form">
           <div className="form-group">
-            <label htmlFor="name">Your Name</label>
+            <label htmlFor="displayName">
+              {isAuthenticated ? 'Display Name (Optional)' : 'Your Name'}
+            </label>
             <input
               type="text"
-              id="name"
-              value={playerName}
-              onChange={(e) => setPlayerName(e.target.value)}
-              placeholder="Enter your name"
+              id="displayName"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              placeholder={
+                isAuthenticated
+                  ? `Leave blank to use ${user?.username || 'your account name'}`
+                  : 'Enter your name'
+              }
               maxLength={20}
               disabled={isCreating}
               autoFocus
             />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="customLobbyName">Custom Lobby Name (Optional)</label>
-            <input
-              type="text"
-              id="customLobbyName"
-              value={customLobbyName}
-              onChange={(e) => setCustomLobbyName(e.target.value)}
-              placeholder="Leave blank to use your account name"
-              maxLength={20}
-              disabled={isCreating}
-            />
-            <small>Set a different name just for this lobby</small>
+            {isAuthenticated && (
+              <small>Customize how your name appears in this lobby</small>
+            )}
           </div>
 
           <div className="form-group checkbox-group">

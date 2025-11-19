@@ -5,12 +5,13 @@ import './JoinRoom.css';
 
 const JoinRoom = ({ initialRoomCode = '', initialPlayerName = '', autoJoin = false, onRoomJoined, onCancel }) => {
   const [roomCode, setRoomCode] = useState(initialRoomCode);
-  const [playerName, setPlayerName] = useState(initialPlayerName || '');
-  const [customLobbyName, setCustomLobbyName] = useState('');
+  const [displayName, setDisplayName] = useState(initialPlayerName || '');
   const [isJoining, setIsJoining] = useState(false);
   const [error, setError] = useState('');
   const isInviteLink = !!initialRoomCode; // Track if user came via invite link
   const { user, session } = useAuth();
+
+  const isAuthenticated = !!session?.user;
 
   const handleSubmit = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
@@ -20,42 +21,44 @@ const JoinRoom = ({ initialRoomCode = '', initialPlayerName = '', autoJoin = fal
       return;
     }
 
-    if (!playerName.trim()) {
-      setError('Please enter your name');
-      return;
-    }
-
     if (roomCode.trim().length !== 6) {
       setError('Room code must be 6 characters long');
       return;
     }
 
-    if (playerName.trim().length < 2) {
+    // For guests, display name is required
+    // For authenticated users, display name is optional (falls back to username)
+    if (!isAuthenticated && !displayName.trim()) {
+      setError('Please enter your name');
+      return;
+    }
+
+    if (displayName.trim() && displayName.trim().length < 2) {
       setError('Name must be at least 2 characters long');
       return;
     }
 
-    if (playerName.trim().length > 20) {
+    if (displayName.trim() && displayName.trim().length > 20) {
       setError('Name must be less than 20 characters');
-      return;
-    }
-
-    if (customLobbyName.trim() && customLobbyName.trim().length < 2) {
-      setError('Custom lobby name must be at least 2 characters long');
-      return;
-    }
-
-    if (customLobbyName.trim() && customLobbyName.trim().length > 20) {
-      setError('Custom lobby name must be less than 20 characters');
       return;
     }
 
     setIsJoining(true);
     setError('');
 
+    // Determine playerName and customLobbyName based on auth status
+    const playerName = isAuthenticated
+      ? (user?.username || user?.display_name || 'User')
+      : displayName.trim();
+    const customLobbyName = isAuthenticated && displayName.trim()
+      ? displayName.trim()
+      : null;
+
     console.log('🚪 [JOIN DEBUG] Starting room join process:', {
       roomCode: roomCode.trim().toUpperCase(),
-      playerName: playerName.trim(),
+      playerName,
+      customLobbyName,
+      isAuthenticated,
       timestamp: new Date().toISOString(),
       isInitialRoomCode: !!initialRoomCode,
       currentURL: window.location.href
@@ -105,7 +108,7 @@ const JoinRoom = ({ initialRoomCode = '', initialPlayerName = '', autoJoin = fal
         console.log('✅ [CLIENT] Connected to server, joining room...');
         console.log('🔍 [CLIENT DEBUG] Socket ID:', socket.id);
         console.log('🔍 [CLIENT DEBUG] Room code:', roomCode.trim().toUpperCase());
-        console.log('🔍 [CLIENT DEBUG] Player name:', playerName.trim());
+        console.log('🔍 [CLIENT DEBUG] Player name:', playerName);
         console.log('🔍 [CLIENT DEBUG] Server URL:', serverUrl);
         console.log('🚪 [JOIN DEBUG] Connected, sending joinRoom event');
         
@@ -113,14 +116,15 @@ const JoinRoom = ({ initialRoomCode = '', initialPlayerName = '', autoJoin = fal
         const isHostHint = urlParams.get('ishost') === 'true' || urlParams.get('role') === 'gm';
         socket.emit('joinRoom', {
           roomCode: roomCode.trim().toUpperCase(),
-          playerName: playerName.trim(),
-          customLobbyName: customLobbyName.trim() || null,
+          playerName,
+          customLobbyName,
           supabaseUserId: session?.user?.id || null, // Send auth user ID if logged in
           isHostHint
         });
         console.log('📤 [CLIENT] joinRoom event sent', {
-          customLobbyName: customLobbyName.trim() || 'none',
-          isAuthenticated: !!session?.user?.id,
+          playerName,
+          customLobbyName,
+          isAuthenticated,
           supabaseUserId: session?.user?.id
         });
       });
@@ -138,7 +142,7 @@ const JoinRoom = ({ initialRoomCode = '', initialPlayerName = '', autoJoin = fal
         if (onRoomJoined) {
           onRoomJoined({
             roomCode: data.roomCode,
-            playerName: playerName.trim(),
+            playerName,
             isHost: !!data.isHost,
             players: data.players,
             room: data.room
@@ -261,31 +265,27 @@ const JoinRoom = ({ initialRoomCode = '', initialPlayerName = '', autoJoin = fal
           )}
 
           <div className="form-group">
-            <label htmlFor="playerName">YOUR NAME</label>
+            <label htmlFor="displayName">
+              {isAuthenticated ? 'DISPLAY NAME (Optional)' : 'YOUR NAME'}
+            </label>
             <input
               type="text"
-              id="playerName"
-              value={playerName}
-              onChange={(e) => setPlayerName(e.target.value)}
-              placeholder="Enter your name"
+              id="displayName"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              placeholder={
+                isAuthenticated
+                  ? `Leave blank to use ${user?.username || 'your account name'}`
+                  : 'Enter your name'
+              }
               disabled={isJoining}
               maxLength={20}
             />
-            <small>This will be your display name in the room</small>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="customLobbyName">CUSTOM LOBBY NAME (Optional)</label>
-            <input
-              type="text"
-              id="customLobbyName"
-              value={customLobbyName}
-              onChange={(e) => setCustomLobbyName(e.target.value)}
-              placeholder="Leave blank to use your account name"
-              disabled={isJoining}
-              maxLength={20}
-            />
-            <small>Set a different name just for this lobby</small>
+            {isAuthenticated ? (
+              <small>Customize how your name appears in this lobby</small>
+            ) : (
+              <small>This will be your display name in the room</small>
+            )}
           </div>
 
           {error && (
