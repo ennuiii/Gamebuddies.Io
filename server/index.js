@@ -1934,11 +1934,13 @@ io.on('connection', async (socket) => {
       const playerName = sanitize.playerName(data.playerName);
       const customLobbyName = data.customLobbyName ? sanitize.playerName(data.customLobbyName) : null;
       const streamerMode = data.streamerMode || false;
+      const isPublic = data.isPublic !== undefined ? data.isPublic : true; // Default to public if not specified
       const supabaseUserId = data.supabaseUserId || null;
 
       console.log(`🏠 [SUPABASE] Creating room for ${playerName}`, {
         customLobbyName,
         streamerMode,
+        isPublic,
         isAuthenticated: !!supabaseUserId,
         supabaseUserId
       });
@@ -1986,7 +1988,7 @@ io.on('connection', async (socket) => {
         host_id: user.id,
         current_game: null, // Will be updated when game is selected
         status: 'lobby',
-        is_public: true,
+        is_public: isPublic,
         max_players: 10,
         streamer_mode: streamerMode,
         game_settings: {},
@@ -2082,6 +2084,84 @@ io.on('connection', async (socket) => {
         debug: {
           error_message: error.message
         }
+      });
+    }
+  });
+
+  // Handle getting public rooms for browsing
+  socket.on('getPublicRooms', async (data) => {
+    try {
+      console.log('🔍 [PUBLIC ROOMS] Fetching public rooms...', data);
+      const { gameType } = data || {};
+
+      // Query database for public rooms with host info and member counts
+      let query = db.adminClient
+        .from('rooms')
+        .select(`
+          id,
+          room_code,
+          status,
+          current_game,
+          max_players,
+          created_at,
+          metadata,
+          host:users!host_id(id, username, display_name, avatar_url, premium_tier),
+          members:room_members!inner(
+            id,
+            is_connected,
+            role,
+            custom_lobby_name,
+            user:users(id, username, display_name, avatar_url, premium_tier)
+          )
+        `)
+        .eq('is_public', true)
+        .in('status', ['lobby', 'in_game'])
+        .gte('last_activity', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()); // Only rooms active in last 24 hours
+
+      // Filter by game type if specified
+      if (gameType && gameType !== 'all') {
+        query = query.eq('current_game', gameType);
+      }
+
+      const { data: rooms, error } = await query
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (error) {
+        console.error('❌ [PUBLIC ROOMS] Database error:', error);
+        throw error;
+      }
+
+      // Process and format room data
+      const formattedRooms = (rooms || []).map(room => {
+        const connectedMembers = room.members?.filter(m => m.is_connected) || [];
+        const hostMember = connectedMembers.find(m => m.role === 'host');
+
+        return {
+          id: room.id,
+          roomCode: room.room_code,
+          status: room.status,
+          currentGame: room.current_game,
+          maxPlayers: room.max_players,
+          playerCount: connectedMembers.length,
+          hostName: hostMember?.custom_lobby_name ||
+                    room.host?.display_name ||
+                    room.host?.username ||
+                    'Unknown',
+          hostPremiumTier: room.host?.premium_tier || 'free',
+          createdAt: room.created_at,
+          customLobbyName: room.metadata?.customLobbyName || null
+        };
+      });
+
+      console.log(`✅ [PUBLIC ROOMS] Found ${formattedRooms.length} public rooms`);
+      socket.emit('publicRoomsList', { rooms: formattedRooms });
+
+    } catch (error) {
+      console.error('❌ [PUBLIC ROOMS] Error:', error);
+      socket.emit('error', {
+        message: 'Failed to load public rooms. Please try again.',
+        code: 'PUBLIC_ROOMS_ERROR'
       });
     }
   });

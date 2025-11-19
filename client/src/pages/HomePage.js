@@ -6,6 +6,7 @@ import { useSocket } from '../contexts/LazySocketContext';
 import GameCard from '../components/GameCard';
 import CreateRoom from '../components/CreateRoom';
 import JoinRoom from '../components/JoinRoom';
+import BrowseRooms from '../components/BrowseRooms';
 import RoomLobby from '../components/RoomLobby';
 import './HomePage.css';
 
@@ -19,6 +20,7 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
   const [loading, setLoading] = useState(true);
   const [showCreateRoom, setShowCreateRoom] = useState(false);
   const [showJoinRoom, setShowJoinRoom] = useState(false);
+  const [showBrowseRooms, setShowBrowseRooms] = useState(false);
   const [currentRoom, setCurrentRoom] = useState(null);
   const [playerName, setPlayerName] = useState('');
   const [inLobby, setInLobby] = useState(false);
@@ -63,6 +65,10 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
 
   const handleJoinRoomClick = useCallback(() => {
     setShowJoinRoom(true);
+  }, []);
+
+  const handleBrowseRoomsClick = useCallback(() => {
+    setShowBrowseRooms(true);
   }, []);
 
   const getStoredSessionInfo = useCallback(() => {
@@ -181,10 +187,21 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
   const handleCloseModals = useCallback(() => {
     setShowCreateRoom(false);
     setShowJoinRoom(false);
+    setShowBrowseRooms(false);
     setJoinRoomCode('');
     setPrefillName('');
     setAutoJoin(false);
   }, []);
+
+  const handleRoomSelected = useCallback((room) => {
+    // When a room is selected from browse, open the join modal with pre-filled room code
+    setShowBrowseRooms(false);
+    setJoinRoomCode(room.roomCode);
+    const { name: storedName } = getStoredSessionInfo();
+    setPrefillName(storedName);
+    setAutoJoin(Boolean(storedName));
+    setShowJoinRoom(true);
+  }, [getStoredSessionInfo]);
 
   const handleSessionRecovery = useCallback(async (roomCode, sessionToken, nameHint = '') => {
     if (!sessionToken) {
@@ -569,7 +586,7 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
             <span className="subtitle-highlight">Connect, Play, and Have Fun Together</span>
           </motion.p>
           
-          <motion.div 
+          <motion.div
             className="hero-buttons"
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
@@ -594,6 +611,16 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
             >
               <span className="button-text">Join Room</span>
               <span className="button-icon">🎯</span>
+            </motion.button>
+            <motion.button
+              className="cta-button secondary"
+              onClick={handleBrowseRoomsClick}
+              whileHover={{ scale: 1.05, y: -3 }}
+              whileTap={{ scale: 0.95 }}
+              transition={{ type: "spring", stiffness: 300 }}
+            >
+              <span className="button-text">Browse Rooms</span>
+              <span className="button-icon">🌍</span>
             </motion.button>
           </motion.div>
         </motion.div>
@@ -673,6 +700,13 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
           initialPlayerName={prefillName}
           autoJoin={autoJoin}
           onRoomJoined={handleJoinRoom}
+          onCancel={handleCloseModals}
+        />
+      )}
+
+      {showBrowseRooms && (
+        <BrowseRooms
+          onRoomSelected={handleRoomSelected}
           onCancel={handleCloseModals}
         />
       )}

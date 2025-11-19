@@ -6,6 +6,7 @@ import './CreateRoom.css';
 const CreateRoom = ({ onRoomCreated, onCancel }) => {
   const [displayName, setDisplayName] = useState('');
   const [streamerMode, setStreamerMode] = useState(false);
+  const [isPublic, setIsPublic] = useState(true);
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState('');
   const { socket, isConnected, isConnecting, connectSocket } = useSocket();
@@ -130,12 +131,14 @@ const CreateRoom = ({ onRoomCreated, onCancel }) => {
         playerName,
         customLobbyName,
         streamerMode,
+        isPublic,
         supabaseUserId: session?.user?.id || null // Send auth user ID if logged in
       });
       console.log('📤 [CLIENT] createRoom event sent', {
         playerName,
         customLobbyName,
         streamerMode,
+        isPublic,
         isAuthenticated,
         supabaseUserId: session?.user?.id
       });
@@ -183,6 +186,21 @@ const CreateRoom = ({ onRoomCreated, onCancel }) => {
             {isAuthenticated && (
               <small>Customize how your name appears in this lobby</small>
             )}
+          </div>
+
+          <div className="form-group checkbox-group">
+            <label className="checkbox-label">
+              <input
+                type="checkbox"
+                checked={isPublic}
+                onChange={(e) => setIsPublic(e.target.checked)}
+                disabled={isCreating}
+              />
+              <span className="checkbox-text">
+                🌍 Public Room
+                <small>Let other players discover and join your room</small>
+              </span>
+            </label>
           </div>
 
           <div className="form-group checkbox-group">
