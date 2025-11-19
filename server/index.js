@@ -1802,9 +1802,10 @@ io.on('connection', async (socket) => {
       
       // Sanitize input
       const playerName = sanitize.playerName(data.playerName);
+      const customLobbyName = data.customLobbyName ? sanitize.playerName(data.customLobbyName) : null;
       const streamerMode = data.streamerMode || false;
 
-      console.log(`🏠 [SUPABASE] Creating room for ${playerName}`, { streamerMode });
+      console.log(`🏠 [SUPABASE] Creating room for ${playerName}`, { customLobbyName, streamerMode });
       console.log(`🔍 [DEBUG] Socket ID: ${socket.id}`);
       
       // Get or create user profile
@@ -1839,10 +1840,11 @@ io.on('connection', async (socket) => {
 
       // Add creator as participant
       console.log(`👥 [DEBUG] Adding creator as participant...`);
-      const participant = await db.addParticipant(room.id, user.id, socket.id, 'host');
-      console.log(`✅ [DEBUG] Participant added:`, { 
-        participant_id: participant.id, 
-        role: participant.role
+      const participant = await db.addParticipant(room.id, user.id, socket.id, 'host', customLobbyName);
+      console.log(`✅ [DEBUG] Participant added:`, {
+        participant_id: participant.id,
+        role: participant.role,
+        custom_lobby_name: customLobbyName
       });
 
       // If client indicates they are the host and no host currently exists, promote them
@@ -1954,8 +1956,9 @@ io.on('connection', async (socket) => {
       
       // Sanitize input
       const playerName = sanitize.playerName(data.playerName);
+      const customLobbyName = data.customLobbyName ? sanitize.playerName(data.customLobbyName) : null;
       const roomCode = sanitize.roomCode(data.roomCode);
-      
+
       // Acquire connection lock to prevent race conditions
       if (!connectionManager.acquireLock(playerName, roomCode, socket.id)) {
         socket.emit('error', { 
@@ -2135,8 +2138,8 @@ io.on('connection', async (socket) => {
           });
         
         // Update connection status for existing participant (set to connected with new socket)
-        await db.updateParticipantConnection(existingParticipant.user_id, socket.id, 'connected');
-        console.log(`✅ [REJOINING DEBUG] Updated existing participant connection status to connected`);
+        await db.updateParticipantConnection(existingParticipant.user_id, socket.id, 'connected', customLobbyName);
+        console.log(`✅ [REJOINING DEBUG] Updated existing participant connection status to connected with custom lobby name:`, customLobbyName);
         
         // Auto-update room status if this reconnecting user is the host
         if (existingParticipant.role === 'host') {
@@ -2203,8 +2206,8 @@ io.on('connection', async (socket) => {
         
         // Determine role: original room creator becomes host, others are players
         userRole = isOriginalCreator ? 'host' : 'player';
-        console.log(`👥 [REJOINING DEBUG] Adding new participant with role: ${userRole}`);
-        await db.addParticipant(room.id, user.id, socket.id, userRole);
+        console.log(`👥 [REJOINING DEBUG] Adding new participant with role: ${userRole}${customLobbyName ? `, custom name: ${customLobbyName}` : ''}`);
+        await db.addParticipant(room.id, user.id, socket.id, userRole, customLobbyName);
         
         // If joining an in_game room, mark new player as NOT in_game and in 'lobby' location
         if (room.status === 'in_game') {
