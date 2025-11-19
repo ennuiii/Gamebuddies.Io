@@ -306,7 +306,7 @@ const JoinRoom = ({ initialRoomCode = '', initialPlayerName = '', autoJoin = fal
             <button
               type="submit"
               className="join-button"
-              disabled={isJoining || !roomCode.trim() || !playerName.trim()}
+              disabled={isJoining || !roomCode.trim() || (!isAuthenticated && !displayName.trim())}
             >
               {isJoining ? 'JOINING ROOM...' : 'JOIN ROOM'}
             </button>
