@@ -755,16 +755,14 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
 
     const handleProfileUpdated = (data) => {
       console.log('👤 [PROFILE] Profile updated event received:', data);
-      const { userId, displayName, avatarUrl, avatarStyle, avatarSeed, avatarOptions } = data;
+      const { userId, avatarStyle, avatarSeed, avatarOptions } = data;
 
-      // Update player in the list
+      // Update player avatar in the list (only avatar changes, not name)
       setPlayers(prevPlayers =>
         prevPlayers.map(player => {
           if (player.id === userId) {
             return {
               ...player,
-              name: displayName || player.name,
-              avatarUrl: avatarUrl,
               avatarStyle: avatarStyle || player.avatarStyle,
               avatarSeed: avatarSeed || player.avatarSeed,
               avatarOptions: avatarOptions || player.avatarOptions

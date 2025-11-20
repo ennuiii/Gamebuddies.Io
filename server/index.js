@@ -3444,14 +3444,17 @@ io.on('connection', async (socket) => {
   // Handle profile updates (avatar, display name changes from lobby)
   socket.on('profile_updated', async (data) => {
     try {
-      const { roomCode, userId, displayName, avatarUrl } = data;
+      const { roomCode, userId, displayName, avatarUrl, avatarStyle, avatarSeed, avatarOptions } = data;
       console.log(`👤 [PROFILE] Profile update received for user ${userId} in room ${roomCode}`);
 
       // Broadcast to all users in the room
       io.to(roomCode).emit('profileUpdated', {
         userId,
         displayName,
-        avatarUrl
+        avatarUrl,
+        avatarStyle,
+        avatarSeed,
+        avatarOptions
       });
 
       console.log(`👤 [PROFILE] Broadcasted profile update to room ${roomCode}`);
