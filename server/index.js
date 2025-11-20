@@ -2105,8 +2105,9 @@ io.on('connection', async (socket) => {
           max_players,
           created_at,
           metadata,
+          streamer_mode,
           host:users!host_id(id, username, display_name, avatar_url, premium_tier),
-          members:room_members!inner(
+          members:room_members(
             id,
             is_connected,
             role,
@@ -2115,8 +2116,7 @@ io.on('connection', async (socket) => {
           )
         `)
         .eq('is_public', true)
-        .in('status', ['lobby', 'in_game'])
-        .gte('last_activity', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()); // Only rooms active in last 24 hours
+        .in('status', ['lobby', 'in_game']);
 
       // Filter by game type if specified
       if (gameType && gameType !== 'all') {
@@ -2132,30 +2132,8 @@ io.on('connection', async (socket) => {
         throw error;
       }
 
-      // Process and format room data
-      const formattedRooms = (rooms || []).map(room => {
-        const connectedMembers = room.members?.filter(m => m.is_connected) || [];
-        const hostMember = connectedMembers.find(m => m.role === 'host');
-
-        return {
-          id: room.id,
-          roomCode: room.room_code,
-          status: room.status,
-          currentGame: room.current_game,
-          maxPlayers: room.max_players,
-          playerCount: connectedMembers.length,
-          hostName: hostMember?.custom_lobby_name ||
-                    room.host?.display_name ||
-                    room.host?.username ||
-                    'Unknown',
-          hostPremiumTier: room.host?.premium_tier || 'free',
-          createdAt: room.created_at,
-          customLobbyName: room.metadata?.customLobbyName || null
-        };
-      });
-
-      console.log(`✅ [PUBLIC ROOMS] Found ${formattedRooms.length} public rooms`);
-      socket.emit('publicRoomsList', { rooms: formattedRooms });
+      console.log(`✅ [PUBLIC ROOMS] Found ${(rooms || []).length} public rooms`);
+      socket.emit('publicRoomsList', { rooms: rooms || [] });
 
     } catch (error) {
       console.error('❌ [PUBLIC ROOMS] Error:', error);
