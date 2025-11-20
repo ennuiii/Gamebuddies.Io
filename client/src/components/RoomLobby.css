@@ -259,10 +259,47 @@
   border-color: var(--secondary-color);
   color: white;
   transform: translateY(-3px);
-  box-shadow: 
+  box-shadow:
     0 10px 25px rgba(0, 217, 255, 0.4),
     0 0 0 1px rgba(0, 217, 255, 0.1);
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+/* Discord voice chat button */
+.discord-btn {
+  padding: 0.8rem 1.5rem;
+  background: rgba(88, 101, 242, 0.15);
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(88, 101, 242, 0.4);
+  border-radius: 12px;
+  color: #5865F2;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  position: relative;
+  overflow: hidden;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  box-shadow: 0 4px 15px rgba(88, 101, 242, 0.2);
+  text-decoration: none;
+}
+
+.discord-btn:hover {
+  background: rgba(88, 101, 242, 0.3);
+  border-color: #5865F2;
+  color: white;
+  transform: translateY(-3px);
+  box-shadow:
+    0 10px 25px rgba(88, 101, 242, 0.4),
+    0 0 0 1px rgba(88, 101, 242, 0.1);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+}
+
+.discord-btn svg {
+  flex-shrink: 0;
 }
 
 .lobby-content {

@@ -10,6 +10,22 @@ export const AuthProvider = ({ children }) => {
 
   useEffect(() => {
     initAuth();
+
+    // Handle session cleanup when browser closes (if "Remember Me" was unchecked)
+    const handleBeforeUnload = () => {
+      const isTemporarySession = sessionStorage.getItem('gamebuddies-session-temp');
+      if (isTemporarySession) {
+        // Clear the auth data from localStorage
+        localStorage.removeItem('gamebuddies-auth');
+        console.log('🔒 [AUTH] Cleared temporary session on browser close');
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
   }, []);
 
   const initAuth = async () => {

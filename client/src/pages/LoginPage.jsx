@@ -19,6 +19,7 @@ const LoginPage = () => {
   const [authError, setAuthError] = useState('');
   const [authSuccess, setAuthSuccess] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true); // Default to remember
 
   useEffect(() => {
     // Redirect if already authenticated
@@ -158,6 +159,15 @@ const LoginPage = () => {
         setAuthError(error.message);
       } else {
         console.log('✅ [CLIENT] Sign in successful, redirecting to home...');
+
+        // If "Remember Me" is unchecked, set a flag to clear session on browser close
+        if (!rememberMe) {
+          sessionStorage.setItem('gamebuddies-session-temp', 'true');
+          console.log('🔒 [CLIENT] Session marked as temporary (will clear on browser close)');
+        } else {
+          sessionStorage.removeItem('gamebuddies-session-temp');
+        }
+
         // Auth context will handle the redirect
         navigate('/');
       }
@@ -347,6 +357,21 @@ const LoginPage = () => {
                       required
                       disabled={isSubmitting}
                     />
+                  </div>
+                )}
+
+                {!isSignUp && (
+                  <div className="remember-me-group">
+                    <label className="remember-me-label">
+                      <input
+                        type="checkbox"
+                        checked={rememberMe}
+                        onChange={(e) => setRememberMe(e.target.checked)}
+                        disabled={isSubmitting}
+                      />
+                      <span className="checkbox-custom"></span>
+                      <span className="remember-me-text">Remember me</span>
+                    </label>
                   </div>
                 )}
 

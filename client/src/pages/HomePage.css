@@ -460,6 +460,19 @@
   box-shadow: 0 16px 48px rgba(0, 217, 255, 0.3);
 }
 
+/* Discord button styling */
+.cta-button.discord {
+  background: rgba(88, 101, 242, 0.1);
+  color: #5865F2;
+  border: 1px solid rgba(88, 101, 242, 0.3);
+}
+
+.cta-button.discord:hover {
+  background: rgba(88, 101, 242, 0.2);
+  color: white;
+  box-shadow: 0 16px 48px rgba(88, 101, 242, 0.3);
+}
+
 /* Sections */
 .section-header {
   text-align: center;
