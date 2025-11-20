@@ -35,43 +35,36 @@ export const AuthProvider = ({ children }) => {
         }
       );
 
-      // Get initial session with timeout
+      // Get initial session - no timeout, let it complete naturally
+      // The auth listener will handle the result
       console.log('🔐 [AUTH DEBUG] Calling getSession()...');
-      const sessionPromise = supabase.auth.getSession();
-      const timeoutPromise = new Promise((resolve) =>
-        setTimeout(() => {
-          console.warn('⚠️ [AUTH] getSession timeout after 10s - continuing with no session');
-          resolve({ data: { session: null }, error: null });
-        }, 10000)
-      );
 
-      const sessionResult = await Promise.race([sessionPromise, timeoutPromise]);
-      console.log('🔐 [AUTH DEBUG] getSession() returned:', sessionResult);
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
 
-      const { data: { session }, error } = sessionResult;
+        if (error) {
+          console.error('❌ [AUTH] Session error:', error);
+        } else {
+          console.log('🔐 [AUTH] Session loaded:', session ? 'authenticated' : 'guest');
+          console.log('🔐 [AUTH DEBUG] Session details:', {
+            hasSession: !!session,
+            hasUser: !!session?.user,
+            userId: session?.user?.id,
+            hasAccessToken: !!session?.access_token,
+            tokenLength: session?.access_token?.length
+          });
 
-      if (error) {
-        console.error('❌ [AUTH] Session error:', error);
-        setLoading(false);
-        return () => subscription.unsubscribe();
-      }
+          setSession(session);
 
-      console.log('🔐 [AUTH] Session loaded:', session ? 'authenticated' : 'guest');
-      console.log('🔐 [AUTH DEBUG] Session details:', {
-        hasSession: !!session,
-        hasUser: !!session?.user,
-        userId: session?.user?.id,
-        hasAccessToken: !!session?.access_token,
-        tokenLength: session?.access_token?.length
-      });
-
-      setSession(session);
-
-      if (session) {
-        console.log('🔐 [AUTH DEBUG] Session found, fetching user data for:', session.user.id);
-        await fetchUser(session.user.id);
-      } else {
-        console.log('🔐 [AUTH DEBUG] No session - user is guest');
+          if (session) {
+            console.log('🔐 [AUTH DEBUG] Session found, fetching user data for:', session.user.id);
+            await fetchUser(session.user.id);
+          } else {
+            console.log('🔐 [AUTH DEBUG] No session - user is guest');
+          }
+        }
+      } catch (sessionError) {
+        console.error('❌ [AUTH] getSession failed:', sessionError);
       }
 
       setLoading(false);
