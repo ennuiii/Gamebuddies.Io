@@ -37,7 +37,7 @@ export const AuthProvider = ({ children }) => {
             });
             // Set cached session immediately so user appears logged in
             setSession(parsed);
-            await fetchUser(parsed.user.id);
+            await fetchUser(parsed.user.id, parsed.access_token);
           }
         } catch (e) {
           console.warn('🔐 [AUTH] Failed to parse cached session:', e);
@@ -54,7 +54,7 @@ export const AuthProvider = ({ children }) => {
           setSession(session);
 
           if (session) {
-            await fetchUser(session.user.id);
+            await fetchUser(session.user.id, session.access_token);
           } else {
             setUser(null);
           }
@@ -90,7 +90,7 @@ export const AuthProvider = ({ children }) => {
           // Update session if different from cached
           setSession(validatedSession);
           if (validatedSession) {
-            fetchUser(validatedSession.user.id);
+            fetchUser(validatedSession.user.id, validatedSession.access_token);
           } else {
             setUser(null);
           }
@@ -115,36 +115,32 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const fetchUser = async (userId) => {
+  const fetchUser = async (userId, accessToken) => {
     try {
       console.log('👤 [AUTH] Fetching user from database:', userId);
 
-      // Get current session to extract JWT token
-      const supabase = await getSupabaseClient();
-      const { data: { session } } = await supabase.auth.getSession();
-
-      console.log('👤 [AUTH DEBUG] Session check for fetchUser:', {
-        hasSession: !!session,
-        hasAccessToken: !!session?.access_token,
-        tokenPreview: session?.access_token?.substring(0, 20) + '...'
-      });
-
-      if (!session?.access_token) {
-        console.error('❌ [AUTH] No access token available');
+      // Use the passed access token directly - don't call getSession() again as it can hang
+      if (!accessToken) {
+        console.error('❌ [AUTH] No access token provided to fetchUser');
         throw new Error('No authentication token');
       }
+
+      console.log('👤 [AUTH DEBUG] Using provided access token:', {
+        hasAccessToken: true,
+        tokenPreview: accessToken.substring(0, 20) + '...'
+      });
 
       console.log('🔐 [AUTH] Sending authenticated request with JWT token');
       const url = `/api/users/${userId}`;
       console.log('🔐 [AUTH DEBUG] Request URL:', url);
       console.log('🔐 [AUTH DEBUG] Request headers:', {
-        'Authorization': 'Bearer ' + session.access_token.substring(0, 20) + '...',
+        'Authorization': 'Bearer ' + accessToken.substring(0, 20) + '...',
         'Content-Type': 'application/json'
       });
 
       const response = await fetch(url, {
         headers: {
-          'Authorization': `Bearer ${session.access_token}`,
+          'Authorization': `Bearer ${accessToken}`,
           'Content-Type': 'application/json'
         }
       });
@@ -200,7 +196,7 @@ export const AuthProvider = ({ children }) => {
 
   const refreshUser = useCallback(async () => {
     if (session) {
-      await fetchUser(session.user.id);
+      await fetchUser(session.user.id, session.access_token);
     }
   }, [session]);
 
