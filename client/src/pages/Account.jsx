@@ -2,12 +2,16 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getSupabaseClient } from '../utils/supabase';
+import AvatarCustomizer from '../components/AvatarCustomizer';
+import { getDiceBearUrl } from '../components/Avatar';
 import './Account.css';
 
 const Account = () => {
   const navigate = useNavigate();
-  const { user, isAuthenticated, loading: authLoading, session } = useAuth();
+  const { user, isAuthenticated, loading: authLoading, session, refreshUser } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [avatarLoading, setAvatarLoading] = useState(false);
+  const [showAvatarCustomizer, setShowAvatarCustomizer] = useState(false);
 
   console.log('📄 [ACCOUNT PAGE] Rendering with auth state:', {
     isAuthenticated,
@@ -139,6 +143,52 @@ const Account = () => {
     }
   };
 
+  // Handle saving avatar preferences
+  const handleSaveAvatar = async (avatarData) => {
+    console.log('🎨 [ACCOUNT] Saving avatar preferences:', avatarData);
+    setAvatarLoading(true);
+
+    try {
+      const supabase = await getSupabaseClient();
+      const { data: { session } } = await supabase.auth.getSession();
+
+      if (!session?.access_token) {
+        throw new Error('Not authenticated');
+      }
+
+      const response = await fetch('/api/users/avatar', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          ...avatarData
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to save avatar');
+      }
+
+      console.log('✅ [ACCOUNT] Avatar saved successfully');
+      setShowAvatarCustomizer(false);
+
+      // Refresh user data to get updated avatar
+      if (refreshUser) {
+        await refreshUser();
+      }
+    } catch (error) {
+      console.error('❌ [ACCOUNT] Avatar save error:', error);
+      alert(`Error: ${error.message}`);
+    } finally {
+      setAvatarLoading(false);
+    }
+  };
+
   return (
     <div className="account-page">
       <div className="account-container">
@@ -165,6 +215,55 @@ const Account = () => {
             </div>
           </div>
         </div>
+
+        {/* Avatar Customization - Premium Only */}
+        {isPremium && (
+          <div className="account-section avatar-section">
+            <h2>Custom Avatar</h2>
+            <p className="section-description">
+              Customize your avatar to display in game lobbies
+            </p>
+
+            {showAvatarCustomizer ? (
+              <AvatarCustomizer
+                currentStyle={user?.avatar_style}
+                currentSeed={user?.avatar_seed}
+                currentOptions={user?.avatar_options || {}}
+                username={user?.username || user?.display_name}
+                onSave={handleSaveAvatar}
+                onCancel={() => setShowAvatarCustomizer(false)}
+                loading={avatarLoading}
+              />
+            ) : (
+              <div className="current-avatar">
+                <div className="avatar-display">
+                  {user?.avatar_style ? (
+                    <img
+                      src={getDiceBearUrl(
+                        user.avatar_style,
+                        user.avatar_seed || user.username || user.display_name,
+                        user.avatar_options || {},
+                        120
+                      )}
+                      alt="Your avatar"
+                      className="avatar-large"
+                    />
+                  ) : (
+                    <div className="avatar-placeholder">
+                      <span>{(user?.username || user?.display_name || '?').charAt(0).toUpperCase()}</span>
+                    </div>
+                  )}
+                </div>
+                <button
+                  onClick={() => setShowAvatarCustomizer(true)}
+                  className="btn btn-secondary"
+                >
+                  {user?.avatar_style ? 'Change Avatar' : 'Create Avatar'}
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Subscription Status */}
         <div className="account-section subscription-section">

@@ -4,6 +4,7 @@ import { useNotification } from '../contexts/NotificationContext'; // Import use
 import GamePicker from './GamePicker';
 import { useRealtimeSubscription } from '../utils/useRealtimeSubscription';
 import { getSupabaseClient } from '../utils/supabase';
+import { getDiceBearUrl } from './Avatar';
 import './RoomLobby.css';
 
 const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
@@ -1283,7 +1284,19 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
                   >
                     <div className="player-card-content">
                       <div className="player-avatar">
-                        {player.avatarUrl ? (
+                        {/* DiceBear custom avatar for premium users */}
+                        {player.avatarStyle && (player.premiumTier === 'lifetime' || player.premiumTier === 'monthly') ? (
+                          <img
+                            src={getDiceBearUrl(
+                              player.avatarStyle,
+                              player.avatarSeed || player.name,
+                              player.avatarOptions || {},
+                              80
+                            )}
+                            alt={player.name}
+                            className="avatar-image dicebear-avatar"
+                          />
+                        ) : player.avatarUrl ? (
                           <img src={player.avatarUrl} alt={player.name} className="avatar-image" />
                         ) : (
                           player.name.charAt(0).toUpperCase()

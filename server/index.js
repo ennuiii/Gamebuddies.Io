@@ -502,7 +502,10 @@ app.get('/api/game/rooms/:roomCode/validate', validateApiKey, async (req, res) =
           isReady: p.is_ready,
           status: p.is_connected ? 'connected' : 'disconnected',
           premiumTier: p.user?.premium_tier || 'free',
-          avatarUrl: p.user?.avatar_url
+          avatarUrl: p.user?.avatar_url,
+          avatarStyle: p.user?.avatar_style,
+          avatarSeed: p.user?.avatar_seed,
+          avatarOptions: p.user?.avatar_options
         })),
       gameState: gameState ? {
         id: gameState.id,
@@ -547,7 +550,7 @@ app.get('/api/game/session/:token', async (req, res) => {
             role,
             is_connected,
             custom_lobby_name,
-            user:users(username, display_name, premium_tier, avatar_url)
+            user:users(username, display_name, premium_tier, avatar_url, avatar_style, avatar_seed, avatar_options)
           )
         )
       `)
@@ -614,6 +617,9 @@ app.get('/api/game/session/:token', async (req, res) => {
         customLobbyName: participant.custom_lobby_name,
         premiumTier: participant.user?.premium_tier || 'free',
         avatarUrl: participant.user?.avatar_url,
+        avatarStyle: participant.user?.avatar_style,
+        avatarSeed: participant.user?.avatar_seed,
+        avatarOptions: participant.user?.avatar_options,
         isHost: participant.role === 'host',
         role: participant.role
       },
@@ -634,7 +640,10 @@ app.get('/api/game/session/:token', async (req, res) => {
           role: p.role,
           isHost: p.role === 'host',
           premiumTier: p.user?.premium_tier || 'free',
-          avatarUrl: p.user?.avatar_url
+          avatarUrl: p.user?.avatar_url,
+          avatarStyle: p.user?.avatar_style,
+          avatarSeed: p.user?.avatar_seed,
+          avatarOptions: p.user?.avatar_options
         })) || []
     });
 
@@ -1156,6 +1165,9 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
       lastPing: p.last_ping,
       premiumTier: p.user?.premium_tier || 'free',
       avatarUrl: p.user?.avatar_url,
+      avatarStyle: p.user?.avatar_style,
+      avatarSeed: p.user?.avatar_seed,
+      avatarOptions: p.user?.avatar_options,
       socketId: null
     })) || [];
 
@@ -2065,6 +2077,9 @@ io.on('connection', async (socket) => {
             lastPing: new Date().toISOString(),
             premiumTier: user.premium_tier || 'free',
             avatarUrl: user.avatar_url,
+            avatarStyle: user.avatar_style,
+            avatarSeed: user.avatar_seed,
+            avatarOptions: user.avatar_options,
             socketId: socket.id
           }]
         }
@@ -2106,7 +2121,7 @@ io.on('connection', async (socket) => {
           created_at,
           metadata,
           streamer_mode,
-          host:users!host_id(id, username, display_name, avatar_url, premium_tier),
+          host:users!host_id(id, username, display_name, avatar_url, premium_tier, avatar_style, avatar_seed, avatar_options),
           members:room_members(
             id,
             is_connected,
@@ -2536,6 +2551,9 @@ io.on('connection', async (socket) => {
           lastPing: p.last_ping,
           premiumTier: p.user?.premium_tier || 'free',
           avatarUrl: p.user?.avatar_url,
+          avatarStyle: p.user?.avatar_style,
+          avatarSeed: p.user?.avatar_seed,
+          avatarOptions: p.user?.avatar_options,
           socketId: null // Socket IDs are tracked in activeConnections, not stored in DB
       })) || [];
 
@@ -2804,7 +2822,10 @@ io.on('connection', async (socket) => {
               is_host: participant.role === 'host',
               total_players: participants.length,
               premium_tier: participant.user?.premium_tier || 'free',
-              avatar_url: participant.user?.avatar_url
+              avatar_url: participant.user?.avatar_url,
+              avatar_style: participant.user?.avatar_style,
+              avatar_seed: participant.user?.avatar_seed,
+              avatar_options: participant.user?.avatar_options
             }
           });
 
