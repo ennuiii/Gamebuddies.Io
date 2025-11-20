@@ -1284,7 +1284,10 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
                   isLifetime: player.premiumTier === 'lifetime',
                   isMonthly: player.premiumTier === 'monthly',
                   willShowLifetimeBadge: player.premiumTier === 'lifetime',
-                  willShowMonthlyBadge: player.premiumTier === 'monthly'
+                  willShowMonthlyBadge: player.premiumTier === 'monthly',
+                  avatarStyle: player.avatarStyle,
+                  avatarSeed: player.avatarSeed,
+                  willShowAvatar: player.avatarStyle && (player.premiumTier === 'lifetime' || player.premiumTier === 'monthly')
                 });
 
                 return (
