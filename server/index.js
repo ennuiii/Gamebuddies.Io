@@ -3798,10 +3798,7 @@ app.get('/api/game-sessions/:token', async (req, res) => {
     // Look up session token
     const { data: session, error: sessionError } = await db.adminClient
       .from('game_sessions')
-      .select(`
-        *,
-        room:rooms(id, room_code, status, streamer_mode, host_id)
-      `)
+      .select('*')
       .eq('session_token', token)
       .gt('expires_at', now)
       .single();
