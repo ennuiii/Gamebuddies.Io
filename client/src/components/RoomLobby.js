@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSocket } from '../contexts/LazySocketContext';
 import { useNotification } from '../contexts/NotificationContext'; // Import useNotification hook
+import { useAuth } from '../contexts/AuthContext';
 import GamePicker from './GamePicker';
+import ProfileSettingsModal from './ProfileSettingsModal';
 import { useRealtimeSubscription } from '../utils/useRealtimeSubscription';
 import { getSupabaseClient } from '../utils/supabase';
 import { getDiceBearUrl } from './Avatar';
@@ -10,6 +12,7 @@ import './RoomLobby.css';
 const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
   const { socket, socketId, isConnected: socketIsConnected, connectSocket } = useSocket();
   const { addNotification } = useNotification(); // Get addNotification function
+  const { user, isAuthenticated } = useAuth();
   const [players, setPlayers] = useState([]);
   const [selectedGame, setSelectedGame] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -21,6 +24,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
   const [isStartingGame, setIsStartingGame] = useState(false);
   const [disconnectedTimers, setDisconnectedTimers] = useState(new Map()); // Track disconnect timers
   const [showRoomCode, setShowRoomCode] = useState(false); // For streamer mode: toggle room code visibility
+  const [showProfileSettings, setShowProfileSettings] = useState(false); // Profile settings modal
   
   const selectedGameInfo = ({
     ddf: {
@@ -749,6 +753,25 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       }
     };
 
+    const handleProfileUpdated = (data) => {
+      console.log('👤 [PROFILE] Profile updated event received:', data);
+      const { userId, displayName, avatarUrl } = data;
+
+      // Update player in the list
+      setPlayers(prevPlayers =>
+        prevPlayers.map(player => {
+          if (player.id === userId) {
+            return {
+              ...player,
+              name: displayName || player.name,
+              avatarUrl: avatarUrl
+            };
+          }
+          return player;
+        })
+      );
+    };
+
     const handleKickFailed = (data) => {
       console.log('👢 [KICK DEBUG] Kick failed event received:', {
         data,
@@ -776,6 +799,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
     socket.on('roomStatusChanged', handleRoomStatusChanged);
     socket.on('playerKicked', handlePlayerKicked);
     socket.on('kickFailed', handleKickFailed);
+    socket.on('profileUpdated', handleProfileUpdated);
     socket.on('error', handleError);
 
     // Cleanup function
@@ -805,6 +829,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
         socket.off('roomStatusChanged', handleRoomStatusChanged);
         socket.off('playerKicked', handlePlayerKicked);
         socket.off('kickFailed', handleKickFailed);
+        socket.off('profileUpdated', handleProfileUpdated);
         socket.off('error', handleError);
         
         // Emit leaveRoom only if the socket is still connected
@@ -1134,10 +1159,21 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
   return (
     <div className="room-lobby">
       <div className="lobby-header">
-        <button onClick={handleLeaveRoom} className="leave-button">
-          Leave Room
-        </button>
-        
+        <div className="header-left-actions">
+          <button onClick={handleLeaveRoom} className="leave-button">
+            Leave Room
+          </button>
+          {isAuthenticated && (
+            <button
+              onClick={() => setShowProfileSettings(true)}
+              className="profile-settings-btn"
+              title="Profile Settings"
+            >
+              ⚙️ Profile
+            </button>
+          )}
+        </div>
+
         <div className="room-info-header">
           {/* In streamer mode, hide room code for everyone (show asterisks) */}
           {roomData?.streamer_mode ? (
@@ -1193,8 +1229,15 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
           </div>
         </div>
         
-        <div style={{ width: '120px' }}></div> {/* Spacer for layout balance */}
+        <div style={{ width: '180px' }}></div> {/* Spacer for layout balance */}
       </div>
+
+      {/* Profile Settings Modal */}
+      <ProfileSettingsModal
+        isOpen={showProfileSettings}
+        onClose={() => setShowProfileSettings(false)}
+        roomCode={roomCode}
+      />
 
       <div className="lobby-content">
         {/* Return progress banner */}
@@ -1310,7 +1353,12 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
                             className="avatar-image dicebear-avatar"
                           />
                         ) : player.avatarUrl ? (
-                          <img src={player.avatarUrl} alt={player.name} className="avatar-image" />
+                          // Check if avatar is a URL or an emoji
+                          player.avatarUrl.startsWith('http') ? (
+                            <img src={player.avatarUrl} alt={player.name} className="avatar-image" />
+                          ) : (
+                            <span className="avatar-emoji">{player.avatarUrl}</span>
+                          )
                         ) : (
                           player.name.charAt(0).toUpperCase()
                         )}

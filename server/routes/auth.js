@@ -391,6 +391,62 @@ router.put('/users/avatar', requireAuth, async (req, res) => {
 });
 
 /**
+ * PATCH /api/users/:userId/profile
+ * Update user profile (display_name, avatar_url)
+ * SECURITY: Requires authentication + user can only update their own data
+ */
+router.patch('/users/:userId/profile', requireAuth, requireOwnAccount, async (req, res) => {
+  try {
+    const { userId } = req.params;
+    const { display_name, avatar_url } = req.body;
+
+    console.log('✏️ [AUTH ENDPOINT] PATCH /api/users/:userId/profile called');
+    console.log('✏️ [AUTH ENDPOINT] Updating profile for:', userId);
+    console.log('✏️ [AUTH ENDPOINT] New values:', { display_name, avatar_url });
+
+    // Build update object with only provided fields
+    const updateData = {
+      updated_at: new Date().toISOString()
+    };
+
+    if (display_name !== undefined) {
+      updateData.display_name = display_name.trim();
+    }
+
+    if (avatar_url !== undefined) {
+      updateData.avatar_url = avatar_url;
+    }
+
+    const { data: updatedUser, error } = await supabaseAdmin
+      .from('users')
+      .update(updateData)
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (error) {
+      console.error('❌ [AUTH ENDPOINT] Update profile error:', error);
+      throw error;
+    }
+
+    console.log('✅ [AUTH ENDPOINT] Profile updated successfully:', {
+      id: updatedUser.id,
+      display_name: updatedUser.display_name,
+      avatar_url: updatedUser.avatar_url
+    });
+
+    res.json({ user: updatedUser });
+
+  } catch (error) {
+    console.error('❌ [AUTH ENDPOINT] Update profile failed:', error);
+    res.status(500).json({
+      error: 'Failed to update profile',
+      details: error.message
+    });
+  }
+});
+
+/**
  * Helper: Generate username from email and provider
  */
 function generateUsername(email, provider) {

@@ -3441,6 +3441,25 @@ io.on('connection', async (socket) => {
     }
   });
 
+  // Handle profile updates (avatar, display name changes from lobby)
+  socket.on('profile_updated', async (data) => {
+    try {
+      const { roomCode, userId, displayName, avatarUrl } = data;
+      console.log(`👤 [PROFILE] Profile update received for user ${userId} in room ${roomCode}`);
+
+      // Broadcast to all users in the room
+      io.to(roomCode).emit('profileUpdated', {
+        userId,
+        displayName,
+        avatarUrl
+      });
+
+      console.log(`👤 [PROFILE] Broadcasted profile update to room ${roomCode}`);
+    } catch (error) {
+      console.error('❌ Error broadcasting profile update:', error);
+    }
+  });
+
   // Handle disconnection
   socket.on('disconnect', async () => {
     try {
