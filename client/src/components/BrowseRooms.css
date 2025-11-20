@@ -104,6 +104,11 @@
   outline: none;
 }
 
+.browse-filters select option {
+  background: #1a1a2e;
+  color: white;
+}
+
 .refresh-button {
   padding: 0.75rem 1.5rem;
   background: rgba(0, 217, 255, 0.15);
@@ -267,6 +272,19 @@
 
 .detail-icon {
   font-size: 1.2rem;
+}
+
+.host-premium-badge {
+  margin-left: 0.3rem;
+  font-size: 0.9rem;
+}
+
+.host-premium-badge.lifetime {
+  color: #FFD700;
+}
+
+.host-premium-badge.monthly {
+  color: #00BFFF;
 }
 
 .room-actions {

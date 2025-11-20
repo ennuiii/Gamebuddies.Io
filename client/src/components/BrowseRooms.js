@@ -77,21 +77,36 @@ const BrowseRooms = ({ onRoomSelected, onCancel }) => {
     return `${connectedPlayers}/${room.max_players}`;
   };
 
-  const getHostName = (room) => {
-    // Find the host from members array and use their custom_lobby_name
+  const getHostInfo = (room) => {
+    // Find the host from members array
     const hostMember = room.members?.find(m => m.role === 'host');
+
+    // Get the name
+    let name = 'Unknown';
     if (hostMember?.custom_lobby_name) {
-      return hostMember.custom_lobby_name;
+      name = hostMember.custom_lobby_name;
+    } else if (hostMember?.user?.display_name) {
+      name = hostMember.user.display_name;
+    } else if (hostMember?.user?.username) {
+      name = hostMember.user.username;
+    } else if (room.host?.display_name || room.host?.username) {
+      name = room.host?.display_name || room.host?.username;
     }
-    // Fallback to host user info if no custom name
-    if (hostMember?.user?.display_name) {
-      return hostMember.user.display_name;
+
+    // Get premium tier
+    const premiumTier = hostMember?.user?.premium_tier || room.host?.premium_tier || 'free';
+
+    return { name, premiumTier };
+  };
+
+  const getPremiumBadge = (premiumTier) => {
+    if (premiumTier === 'lifetime') {
+      return <span className="host-premium-badge lifetime" title="Lifetime Premium">⭐</span>;
     }
-    if (hostMember?.user?.username) {
-      return hostMember.user.username;
+    if (premiumTier === 'monthly') {
+      return <span className="host-premium-badge monthly" title="Pro Member">💎</span>;
     }
-    // Final fallback to room host info
-    return room.host?.display_name || room.host?.username || 'Unknown';
+    return null;
   };
 
   return (
@@ -160,7 +175,7 @@ const BrowseRooms = ({ onRoomSelected, onCancel }) => {
                   <div className="detail-item">
                     <span className="detail-icon">👤</span>
                     <span className="detail-text">
-                      Host: {getHostName(room)}
+                      Host: {getHostInfo(room).name} {getPremiumBadge(getHostInfo(room).premiumTier)}
                     </span>
                   </div>
 

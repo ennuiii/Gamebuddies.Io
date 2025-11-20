@@ -2127,7 +2127,7 @@ io.on('connection', async (socket) => {
             is_connected,
             role,
             custom_lobby_name,
-            user:users(id, username, display_name, avatar_url, premium_tier)
+            user:users(id, username, display_name, avatar_url, premium_tier, avatar_style, avatar_seed, avatar_options)
           )
         `)
         .eq('is_public', true)
@@ -2568,6 +2568,9 @@ io.on('connection', async (socket) => {
           isHost: isHost,
           premiumTier: user.premium_tier || 'free',
           avatarUrl: user.avatar_url,
+          avatarStyle: user.avatar_style,
+          avatarSeed: user.avatar_seed,
+          avatarOptions: user.avatar_options,
           socketId: socket.id
         },
         players: players,
