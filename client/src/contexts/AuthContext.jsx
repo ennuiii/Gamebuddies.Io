@@ -151,6 +151,16 @@ export const AuthProvider = ({ children }) => {
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
         console.error('❌ [AUTH] Fetch user failed:', response.status, errorData);
+
+        // If unauthorized (401), clear invalid session and treat as guest
+        if (response.status === 401) {
+          console.warn('🔐 [AUTH] Token invalid/expired, clearing session...');
+          localStorage.removeItem('gamebuddies-auth');
+          setSession(null);
+          setUser(null);
+          return; // Don't throw, just treat as logged out
+        }
+
         throw new Error(errorData.error || 'Failed to fetch user');
       }
 
