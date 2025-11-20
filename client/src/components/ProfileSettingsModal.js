@@ -57,7 +57,15 @@ const ProfileSettingsModal = ({ isOpen, onClose, roomCode }) => {
   useEffect(() => {
     if (!user) return;
 
-    const currentAvatarUrl = getAvatarUrl();
+    // Calculate current avatar URL inline to avoid reference error
+    let currentAvatarUrl = '';
+    if (selectedAvatar === 'custom') {
+      currentAvatarUrl = customAvatarUrl;
+    } else {
+      const preset = PRESET_AVATARS.find(p => p.id === selectedAvatar);
+      currentAvatarUrl = preset ? preset.emoji : '';
+    }
+
     const hasNameChange = displayName !== (user.display_name || user.username || '');
     const hasAvatarChange = currentAvatarUrl !== (user.avatar_url || '');
 
