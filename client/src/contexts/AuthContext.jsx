@@ -202,21 +202,27 @@ export const AuthProvider = ({ children }) => {
   const signOut = useCallback(async () => {
     try {
       console.log('🚪 [AUTH] Signing out...');
-      const supabase = await getSupabaseClient();
 
+      // Clear local state immediately for instant UI feedback
+      setUser(null);
+      setSession(null);
+
+      // Clear localStorage directly (in case supabase call hangs)
+      localStorage.removeItem('gamebuddies-auth');
+
+      // Then call Supabase signOut
+      const supabase = await getSupabaseClient();
       const { error } = await supabase.auth.signOut();
 
       if (error) {
         console.error('❌ [AUTH] Sign out error:', error);
-        throw error;
+        // Don't throw - user is already logged out locally
       }
 
-      setUser(null);
-      setSession(null);
       console.log('✅ [AUTH] Signed out successfully');
     } catch (error) {
       console.error('❌ [AUTH] Sign out failed:', error);
-      throw error;
+      // User is still logged out locally even if Supabase fails
     }
   }, []);
 
