@@ -77,6 +77,23 @@ const BrowseRooms = ({ onRoomSelected, onCancel }) => {
     return `${connectedPlayers}/${room.max_players}`;
   };
 
+  const getHostName = (room) => {
+    // Find the host from members array and use their custom_lobby_name
+    const hostMember = room.members?.find(m => m.role === 'host');
+    if (hostMember?.custom_lobby_name) {
+      return hostMember.custom_lobby_name;
+    }
+    // Fallback to host user info if no custom name
+    if (hostMember?.user?.display_name) {
+      return hostMember.user.display_name;
+    }
+    if (hostMember?.user?.username) {
+      return hostMember.user.username;
+    }
+    // Final fallback to room host info
+    return room.host?.display_name || room.host?.username || 'Unknown';
+  };
+
   return (
     <div className="browse-rooms-overlay">
       <div className="browse-rooms-modal">
@@ -143,7 +160,7 @@ const BrowseRooms = ({ onRoomSelected, onCancel }) => {
                   <div className="detail-item">
                     <span className="detail-icon">👤</span>
                     <span className="detail-text">
-                      Host: {room.host?.display_name || room.host?.username || 'Unknown'}
+                      Host: {getHostName(room)}
                     </span>
                   </div>
 
