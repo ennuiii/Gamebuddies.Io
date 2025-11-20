@@ -420,7 +420,7 @@
   right: -6px;
   bottom: -6px;
   background: conic-gradient(
-    from var(--border-angle, 0deg),
+    from var(--angle),
     #FFD700 0deg,
     #FFA500 60deg,
     #FF6B00 120deg,
@@ -430,7 +430,7 @@
   );
   border-radius: 26px;
   z-index: -1;
-  animation: rotateBorderLifetime 3s linear infinite;
+  animation: spinGradient 3s linear infinite;
 }
 
 /* Glow effect that follows the snake */
@@ -442,7 +442,7 @@
   right: -6px;
   bottom: -6px;
   background: conic-gradient(
-    from var(--border-angle, 0deg),
+    from var(--angle),
     rgba(255, 215, 0, 0.8) 0deg,
     rgba(255, 165, 0, 0.6) 60deg,
     rgba(255, 107, 0, 0.4) 120deg,
@@ -453,7 +453,7 @@
   border-radius: 26px;
   z-index: -2;
   filter: blur(15px);
-  animation: rotateBorderLifetime 3s linear infinite;
+  animation: spinGradient 3s linear infinite;
 }
 
 /* Ensure content is above the background layer */
@@ -480,7 +480,7 @@
   right: -6px;
   bottom: -6px;
   background: conic-gradient(
-    from var(--border-angle, 0deg),
+    from var(--angle),
     #00d9ff 0deg,
     #00ff88 60deg,
     #00ffea 120deg,
@@ -490,7 +490,7 @@
   );
   border-radius: 26px;
   z-index: -1;
-  animation: rotateBorderMonthly 3s linear infinite;
+  animation: spinGradient 3s linear infinite;
 }
 
 /* Glow effect that follows the snake */
@@ -502,7 +502,7 @@
   right: -6px;
   bottom: -6px;
   background: conic-gradient(
-    from var(--border-angle, 0deg),
+    from var(--angle),
     rgba(0, 217, 255, 0.8) 0deg,
     rgba(0, 255, 136, 0.6) 60deg,
     rgba(0, 255, 234, 0.4) 120deg,
@@ -513,7 +513,7 @@
   border-radius: 26px;
   z-index: -2;
   filter: blur(15px);
-  animation: rotateBorderMonthly 3s linear infinite;
+  animation: spinGradient 3s linear infinite;
 }
 
 /* Ensure content is above the background layer */
@@ -522,33 +522,20 @@
   z-index: 1;
 }
 
-@keyframes rotateBorderLifetime {
-  0% {
-    --border-angle: 0deg;
-    transform: rotate(0deg);
-  }
-  100% {
-    --border-angle: 360deg;
-    transform: rotate(360deg);
-  }
-}
-
-@keyframes rotateBorderMonthly {
-  0% {
-    --border-angle: 0deg;
-    transform: rotate(0deg);
-  }
-  100% {
-    --border-angle: 360deg;
-    transform: rotate(360deg);
-  }
-}
-
 /* Register custom property for animation */
-@property --border-angle {
+@property --angle {
   syntax: '<angle>';
   initial-value: 0deg;
   inherits: false;
+}
+
+@keyframes spinGradient {
+  from {
+    --angle: 0deg;
+  }
+  to {
+    --angle: 360deg;
+  }
 }
 
 .player-avatar {
