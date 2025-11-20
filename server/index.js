@@ -3784,6 +3784,12 @@ app.post('/api/invites/resolve', async (req, res) => {
 app.get('/api/game-sessions/:token', async (req, res) => {
   try {
     const { token } = req.params;
+    const now = new Date().toISOString();
+
+    console.log('🔍 [SESSION LOOKUP] Incoming request:', {
+      token: token ? token.substring(0, 8) + '...' : 'null',
+      timestamp: now
+    });
 
     if (!token) {
       return res.status(400).json({ error: 'Session token is required' });
@@ -3797,13 +3803,26 @@ app.get('/api/game-sessions/:token', async (req, res) => {
         room:rooms(id, room_code, status, streamer_mode, host_id)
       `)
       .eq('session_token', token)
-      .gt('expires_at', new Date().toISOString())
+      .gt('expires_at', now)
       .single();
 
     if (sessionError || !session) {
-      console.log('❌ Session not found or expired:', token.substring(0, 8) + '...');
+      console.log('❌ [SESSION LOOKUP] Not found or expired:', {
+        token: token.substring(0, 8) + '...',
+        error: sessionError?.message || 'No session returned',
+        errorCode: sessionError?.code,
+        currentTime: now
+      });
       return res.status(404).json({ error: 'Session not found or expired' });
     }
+
+    console.log('✅ [SESSION LOOKUP] Found session:', {
+      token: token.substring(0, 8) + '...',
+      roomCode: session.room_code,
+      expiresAt: session.expires_at,
+      createdAt: session.created_at,
+      playerId: session.player_id
+    });
 
     // Fetch player name if playerId is available
     let playerName = null;
