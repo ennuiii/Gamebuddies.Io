@@ -2,12 +2,11 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
-import { getSupabaseClient } from '../utils/supabase';
 import './Header.css';
 
 const Header = ({ onNavigateHome, onNavigateGames, isInLobby }) => {
   const navigate = useNavigate();
-  const { user, isAuthenticated, loading, session } = useAuth();
+  const { user, isAuthenticated, loading, session, signOut } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   console.log('🎯 [HEADER] Rendering with auth state:', {
@@ -56,16 +55,13 @@ const Header = ({ onNavigateHome, onNavigateGames, isInLobby }) => {
     console.log('🚪 [HEADER] Logging out...');
 
     try {
-      const supabase = await getSupabaseClient();
-      const { error } = await supabase.auth.signOut();
+      await signOut();
+      console.log('✅ [HEADER] Logged out successfully');
 
-      if (error) {
-        console.error('❌ [HEADER] Logout error:', error);
-        alert('Failed to log out. Please try again.');
-      } else {
-        console.log('✅ [HEADER] Logged out successfully');
-        navigate('/');
-      }
+      // Clear the temporary session flag if it exists
+      sessionStorage.removeItem('gamebuddies-session-temp');
+
+      navigate('/');
     } catch (err) {
       console.error('❌ [HEADER] Logout exception:', err);
       alert('An error occurred during logout.');
