@@ -13,15 +13,24 @@ export const AuthProvider = ({ children }) => {
   }, []);
 
   const initAuth = async () => {
+    const startTime = Date.now();
     try {
-      console.log('🔐 [AUTH] Initializing auth...');
+      console.log('🔐 [AUTH] Initializing auth...', { timestamp: new Date().toISOString() });
+
+      const clientStartTime = Date.now();
       const supabase = await getSupabaseClient();
-      console.log('🔐 [AUTH DEBUG] Supabase client obtained');
+      console.log('🔐 [AUTH DEBUG] Supabase client obtained', {
+        took: `${Date.now() - clientStartTime}ms`,
+        timestamp: new Date().toISOString()
+      });
 
       // Set up auth state listener FIRST - this is critical for handling login redirects
       const { data: { subscription } } = supabase.auth.onAuthStateChange(
         async (event, session) => {
-          console.log('🔐 [AUTH] State changed:', event, session ? 'authenticated' : 'guest');
+          console.log('🔐 [AUTH] State changed:', event, session ? 'authenticated' : 'guest', {
+            timestamp: new Date().toISOString(),
+            userId: session?.user?.id
+          });
           setSession(session);
 
           if (session) {
@@ -34,24 +43,31 @@ export const AuthProvider = ({ children }) => {
           setLoading(false);
         }
       );
+      console.log('🔐 [AUTH DEBUG] Auth state listener set up');
 
       // Get initial session - no timeout, let it complete naturally
       // The auth listener will handle the result
-      console.log('🔐 [AUTH DEBUG] Calling getSession()...');
+      console.log('🔐 [AUTH DEBUG] Calling getSession()...', { timestamp: new Date().toISOString() });
 
+      const sessionStartTime = Date.now();
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
+        const sessionDuration = Date.now() - sessionStartTime;
 
         if (error) {
-          console.error('❌ [AUTH] Session error:', error);
+          console.error('❌ [AUTH] Session error:', error, { took: `${sessionDuration}ms` });
         } else {
-          console.log('🔐 [AUTH] Session loaded:', session ? 'authenticated' : 'guest');
+          console.log('🔐 [AUTH] Session loaded:', session ? 'authenticated' : 'guest', {
+            took: `${sessionDuration}ms`,
+            timestamp: new Date().toISOString()
+          });
           console.log('🔐 [AUTH DEBUG] Session details:', {
             hasSession: !!session,
             hasUser: !!session?.user,
             userId: session?.user?.id,
             hasAccessToken: !!session?.access_token,
-            tokenLength: session?.access_token?.length
+            tokenLength: session?.access_token?.length,
+            expiresAt: session?.expires_at ? new Date(session.expires_at * 1000).toISOString() : null
           });
 
           setSession(session);
@@ -64,17 +80,24 @@ export const AuthProvider = ({ children }) => {
           }
         }
       } catch (sessionError) {
-        console.error('❌ [AUTH] getSession failed:', sessionError);
+        console.error('❌ [AUTH] getSession failed:', sessionError, {
+          took: `${Date.now() - sessionStartTime}ms`
+        });
       }
 
       setLoading(false);
-      console.log('🔐 [AUTH DEBUG] Auth initialization complete');
+      console.log('🔐 [AUTH DEBUG] Auth initialization complete', {
+        totalTime: `${Date.now() - startTime}ms`,
+        timestamp: new Date().toISOString()
+      });
 
       return () => {
         subscription.unsubscribe();
       };
     } catch (error) {
-      console.error('❌ [AUTH] Init error:', error);
+      console.error('❌ [AUTH] Init error:', error, {
+        took: `${Date.now() - startTime}ms`
+      });
       console.error('❌ [AUTH] Init error stack:', error.stack);
       console.error('❌ [AUTH] Init error name:', error.name);
       console.error('❌ [AUTH] Init error message:', error.message);

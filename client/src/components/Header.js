@@ -15,7 +15,8 @@ const Header = ({ onNavigateHome, onNavigateGames, isInLobby }) => {
     isAuthenticated,
     hasUser: !!user,
     hasSession: !!session,
-    userName: user?.username || user?.display_name
+    userName: user?.username || user?.display_name,
+    timestamp: new Date().toISOString()
   });
 
   const handleHomeClick = (e) => {
@@ -99,52 +100,50 @@ const Header = ({ onNavigateHome, onNavigateGames, isInLobby }) => {
                 </button>
               </nav>
 
-              {!loading && (
-                <div className="auth-section">
-                  {isAuthenticated && user ? (
-                    <div className="user-section">
-                      <button
-                        onClick={() => navigate('/account')}
-                        className="user-info user-info-button"
-                        title="View Account Settings"
-                      >
-                        {user.is_guest ? (
-                          <>
-                            <span className="user-icon">👤</span>
-                            <span className="user-name">Guest</span>
-                          </>
-                        ) : (
-                          <>
-                            <span className="user-icon">
-                              {user.premium_tier === 'lifetime' ? '⭐' :
-                               user.premium_tier === 'monthly' ? '💎' : '🎮'}
+              <div className="auth-section">
+                {isAuthenticated && user ? (
+                  <div className="user-section">
+                    <button
+                      onClick={() => navigate('/account')}
+                      className="user-info user-info-button"
+                      title="View Account Settings"
+                    >
+                      {user.is_guest ? (
+                        <>
+                          <span className="user-icon">👤</span>
+                          <span className="user-name">Guest</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="user-icon">
+                            {user.premium_tier === 'lifetime' ? '⭐' :
+                             user.premium_tier === 'monthly' ? '💎' : '🎮'}
+                          </span>
+                          <span className="user-name">
+                            {user.display_name || user.username || user.email?.split('@')[0]}
+                          </span>
+                          {(user.premium_tier === 'lifetime' || user.premium_tier === 'monthly') && (
+                            <span className="premium-badge">
+                              {user.premium_tier === 'lifetime' ? 'PREMIUM' : 'PRO'}
                             </span>
-                            <span className="user-name">
-                              {user.display_name || user.username || user.email?.split('@')[0]}
-                            </span>
-                            {(user.premium_tier === 'lifetime' || user.premium_tier === 'monthly') && (
-                              <span className="premium-badge">
-                                {user.premium_tier === 'lifetime' ? 'PREMIUM' : 'PRO'}
-                              </span>
-                            )}
-                          </>
-                        )}
-                      </button>
-                      <button
-                        onClick={handleLogout}
-                        className="logout-button"
-                        disabled={isLoggingOut}
-                      >
-                        {isLoggingOut ? 'Logging out...' : 'Logout'}
-                      </button>
-                    </div>
-                  ) : (
-                    <Link to="/login" className="login-link">
-                      Login
-                    </Link>
-                  )}
-                </div>
-              )}
+                          )}
+                        </>
+                      )}
+                    </button>
+                    <button
+                      onClick={handleLogout}
+                      className="logout-button"
+                      disabled={isLoggingOut}
+                    >
+                      {isLoggingOut ? 'Logging out...' : 'Logout'}
+                    </button>
+                  </div>
+                ) : (
+                  <Link to="/login" className="login-link">
+                    {loading ? 'Loading...' : 'Login'}
+                  </Link>
+                )}
+              </div>
             </div>
           </div>
         </div>

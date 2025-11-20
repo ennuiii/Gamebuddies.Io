@@ -2,14 +2,24 @@ import { createClient } from '@supabase/supabase-js';
 
 // Function to get Supabase config from server
 const getSupabaseConfig = async () => {
+  const startTime = Date.now();
   try {
+    console.log('🔧 [SUPABASE] Fetching config from server...', { timestamp: new Date().toISOString() });
     const response = await fetch('/api/supabase-config');
     if (!response.ok) {
       throw new Error('Failed to fetch Supabase config');
     }
-    return await response.json();
+    const config = await response.json();
+    console.log('🔧 [SUPABASE] Config fetched successfully', {
+      took: `${Date.now() - startTime}ms`,
+      hasUrl: !!config?.url,
+      hasKey: !!config?.anonKey
+    });
+    return config;
   } catch (error) {
-    console.error('❌ Failed to get Supabase config from server:', error);
+    console.error('❌ Failed to get Supabase config from server:', error, {
+      took: `${Date.now() - startTime}ms`
+    });
     return null;
   }
 };
