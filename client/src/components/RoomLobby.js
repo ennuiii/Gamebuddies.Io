@@ -201,7 +201,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
           in_game,
           current_location,
           last_ping,
-          user:users(username, display_name)
+          user:users(username, display_name, premium_tier, avatar_url, avatar_style, avatar_seed, avatar_options)
         `)
         .eq('room_id', roomIdRef.current);
 
@@ -214,7 +214,12 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
         isConnected: member.is_connected,
         inGame: member.in_game,
         currentLocation: member.current_location,
-        lastPing: member.last_ping
+        lastPing: member.last_ping,
+        premiumTier: member.user?.premium_tier || 'free',
+        avatarUrl: member.user?.avatar_url,
+        avatarStyle: member.user?.avatar_style,
+        avatarSeed: member.user?.avatar_seed,
+        avatarOptions: member.user?.avatar_options
       })) || [];
 
       setPlayers(mappedPlayers);
@@ -352,12 +357,17 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
         currentLocation: p.currentLocation || (p.isConnected ? 'lobby' : 'disconnected'),
         lastPing: p.lastPing,
         premiumTier: p.premiumTier || 'free',
-        avatarUrl: p.avatarUrl
+        avatarUrl: p.avatarUrl,
+        avatarStyle: p.avatarStyle,
+        avatarSeed: p.avatarSeed,
+        avatarOptions: p.avatarOptions
       })) || [];
 
-      console.log('🎯 [PREMIUM DEBUG] Mapped players with premium data:', mappedPlayers.map(p => ({
+      console.log('🎯 [PREMIUM DEBUG] Mapped players with premium/avatar data:', mappedPlayers.map(p => ({
         name: p.name,
         premiumTier: p.premiumTier,
+        avatarStyle: p.avatarStyle,
+        avatarSeed: p.avatarSeed,
         hasPremiumTier: !!p.premiumTier,
         isPremium: p.premiumTier && p.premiumTier !== 'free'
       })));
@@ -1274,7 +1284,10 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
                   isLifetime: player.premiumTier === 'lifetime',
                   isMonthly: player.premiumTier === 'monthly',
                   willShowLifetimeBadge: player.premiumTier === 'lifetime',
-                  willShowMonthlyBadge: player.premiumTier === 'monthly'
+                  willShowMonthlyBadge: player.premiumTier === 'monthly',
+                  avatarStyle: player.avatarStyle,
+                  avatarSeed: player.avatarSeed,
+                  willShowAvatar: player.avatarStyle && (player.premiumTier === 'lifetime' || player.premiumTier === 'monthly')
                 });
 
                 return (
