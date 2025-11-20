@@ -465,6 +465,68 @@
   color: #1ae5ff;
 }
 
+/* Remember Me Checkbox */
+.remember-me-group {
+  margin: 1rem 0;
+}
+
+.remember-me-label {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  cursor: pointer;
+  user-select: none;
+}
+
+.remember-me-label input[type="checkbox"] {
+  position: absolute;
+  opacity: 0;
+  cursor: pointer;
+  height: 0;
+  width: 0;
+}
+
+.checkbox-custom {
+  position: relative;
+  width: 20px;
+  height: 20px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.remember-me-label input[type="checkbox"]:checked ~ .checkbox-custom {
+  background: var(--secondary-color);
+  border-color: var(--secondary-color);
+}
+
+.checkbox-custom::after {
+  content: '';
+  position: absolute;
+  display: none;
+  left: 6px;
+  top: 2px;
+  width: 5px;
+  height: 10px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.remember-me-label input[type="checkbox"]:checked ~ .checkbox-custom::after {
+  display: block;
+}
+
+.remember-me-label:hover .checkbox-custom {
+  border-color: var(--secondary-color);
+}
+
+.remember-me-text {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
 /* Responsive */
 @media (max-width: 600px) {
   .login-container {
