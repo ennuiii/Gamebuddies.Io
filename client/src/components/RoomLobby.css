@@ -401,26 +401,59 @@
   50% { opacity: 0.6; }
 }
 
-/* Premium Player Card Styles - THICK Glowing Border All Around */
+/* Premium Player Card Styles - Animated Snake Border Effect */
 .player-card.premium-lifetime {
   position: relative;
-  background: linear-gradient(135deg, #FFD700, #FFA500, #FF6B00, #FFD700);
   padding: 6px; /* Border thickness */
   border: none;
-  animation: premiumLifetimeGlow 2s ease-in-out infinite;
+  border-radius: 20px;
+  background: rgba(15, 15, 35, 1);
+  overflow: visible;
 }
 
-/* Inner content background */
+/* Rotating border effect container */
 .player-card.premium-lifetime::before {
   content: '';
   position: absolute;
-  top: 6px;
-  left: 6px;
-  right: 6px;
-  bottom: 6px;
-  background: rgba(15, 15, 35, 1); /* Fully opaque */
-  border-radius: 14px; /* Original border-radius (20px) - border width (6px) */
-  z-index: 0;
+  top: -6px;
+  left: -6px;
+  right: -6px;
+  bottom: -6px;
+  background: conic-gradient(
+    from var(--border-angle, 0deg),
+    #FFD700 0deg,
+    #FFA500 60deg,
+    #FF6B00 120deg,
+    transparent 180deg,
+    transparent 300deg,
+    #FFD700 360deg
+  );
+  border-radius: 26px;
+  z-index: -1;
+  animation: rotateBorderLifetime 3s linear infinite;
+}
+
+/* Glow effect that follows the snake */
+.player-card.premium-lifetime::after {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  right: -6px;
+  bottom: -6px;
+  background: conic-gradient(
+    from var(--border-angle, 0deg),
+    rgba(255, 215, 0, 0.8) 0deg,
+    rgba(255, 165, 0, 0.6) 60deg,
+    rgba(255, 107, 0, 0.4) 120deg,
+    transparent 180deg,
+    transparent 300deg,
+    rgba(255, 215, 0, 0.8) 360deg
+  );
+  border-radius: 26px;
+  z-index: -2;
+  filter: blur(15px);
+  animation: rotateBorderLifetime 3s linear infinite;
 }
 
 /* Ensure content is above the background layer */
@@ -431,23 +464,56 @@
 
 .player-card.premium-monthly {
   position: relative;
-  background: linear-gradient(135deg, #00d9ff, #00ff88, #00ffea, #00d9ff);
   padding: 6px; /* Border thickness */
   border: none;
-  animation: premiumMonthlyGlow 2s ease-in-out infinite;
+  border-radius: 20px;
+  background: rgba(15, 15, 35, 1);
+  overflow: visible;
 }
 
-/* Inner content background */
+/* Rotating border effect container */
 .player-card.premium-monthly::before {
   content: '';
   position: absolute;
-  top: 6px;
-  left: 6px;
-  right: 6px;
-  bottom: 6px;
-  background: rgba(15, 15, 35, 1); /* Fully opaque */
-  border-radius: 14px; /* Original border-radius (20px) - border width (6px) */
-  z-index: 0;
+  top: -6px;
+  left: -6px;
+  right: -6px;
+  bottom: -6px;
+  background: conic-gradient(
+    from var(--border-angle, 0deg),
+    #00d9ff 0deg,
+    #00ff88 60deg,
+    #00ffea 120deg,
+    transparent 180deg,
+    transparent 300deg,
+    #00d9ff 360deg
+  );
+  border-radius: 26px;
+  z-index: -1;
+  animation: rotateBorderMonthly 3s linear infinite;
+}
+
+/* Glow effect that follows the snake */
+.player-card.premium-monthly::after {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  right: -6px;
+  bottom: -6px;
+  background: conic-gradient(
+    from var(--border-angle, 0deg),
+    rgba(0, 217, 255, 0.8) 0deg,
+    rgba(0, 255, 136, 0.6) 60deg,
+    rgba(0, 255, 234, 0.4) 120deg,
+    transparent 180deg,
+    transparent 300deg,
+    rgba(0, 217, 255, 0.8) 360deg
+  );
+  border-radius: 26px;
+  z-index: -2;
+  filter: blur(15px);
+  animation: rotateBorderMonthly 3s linear infinite;
 }
 
 /* Ensure content is above the background layer */
@@ -456,34 +522,33 @@
   z-index: 1;
 }
 
-@keyframes premiumLifetimeGlow {
-  0%, 100% {
-    box-shadow:
-      0 0 20px rgba(255, 215, 0, 0.7),
-      0 0 40px rgba(255, 165, 0, 0.5),
-      0 0 60px rgba(255, 107, 0, 0.4);
+@keyframes rotateBorderLifetime {
+  0% {
+    --border-angle: 0deg;
+    transform: rotate(0deg);
   }
-  50% {
-    box-shadow:
-      0 0 35px rgba(255, 215, 0, 1),
-      0 0 70px rgba(255, 165, 0, 0.8),
-      0 0 105px rgba(255, 107, 0, 0.6);
+  100% {
+    --border-angle: 360deg;
+    transform: rotate(360deg);
   }
 }
 
-@keyframes premiumMonthlyGlow {
-  0%, 100% {
-    box-shadow:
-      0 0 20px rgba(0, 217, 255, 0.7),
-      0 0 40px rgba(0, 255, 136, 0.5),
-      0 0 60px rgba(0, 255, 234, 0.4);
+@keyframes rotateBorderMonthly {
+  0% {
+    --border-angle: 0deg;
+    transform: rotate(0deg);
   }
-  50% {
-    box-shadow:
-      0 0 35px rgba(0, 217, 255, 1),
-      0 0 70px rgba(0, 255, 136, 0.8),
-      0 0 105px rgba(0, 255, 234, 0.6);
+  100% {
+    --border-angle: 360deg;
+    transform: rotate(360deg);
   }
+}
+
+/* Register custom property for animation */
+@property --border-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
 }
 
 .player-avatar {
