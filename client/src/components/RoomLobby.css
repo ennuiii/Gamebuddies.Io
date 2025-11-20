@@ -649,6 +649,12 @@
   object-fit: cover;
 }
 
+/* DiceBear custom avatars */
+.dicebear-avatar {
+  background: rgba(255, 255, 255, 0.1);
+  padding: 2px;
+}
+
 .status-badge {
   display: inline-flex;
   align-items: center;

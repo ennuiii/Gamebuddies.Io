@@ -267,6 +267,87 @@ router.get('/users/:userId', requireAuth, requireOwnAccount, async (req, res) =>
 });
 
 /**
+ * PUT /api/users/avatar
+ * Update user's avatar preferences (premium feature)
+ * SECURITY: Requires authentication
+ */
+router.put('/users/avatar', requireAuth, async (req, res) => {
+  try {
+    const { userId, avatar_style, avatar_seed, avatar_options } = req.body;
+
+    console.log('🎨 [AUTH ENDPOINT] PUT /api/users/avatar called');
+    console.log('🎨 [AUTH ENDPOINT DEBUG] Request body:', {
+      userId,
+      avatar_style,
+      avatar_seed,
+      avatar_options
+    });
+
+    // Verify user is updating their own avatar
+    if (userId !== req.user?.id) {
+      console.error('❌ [AUTH ENDPOINT] User ID mismatch:', {
+        requested: userId,
+        authenticated: req.user?.id
+      });
+      return res.status(403).json({ error: 'Cannot update another user\'s avatar' });
+    }
+
+    // Check if user is premium
+    const { data: user, error: userError } = await supabaseAdmin
+      .from('users')
+      .select('premium_tier')
+      .eq('id', userId)
+      .single();
+
+    if (userError) {
+      console.error('❌ [AUTH ENDPOINT] Error fetching user:', userError);
+      throw userError;
+    }
+
+    if (!user || (user.premium_tier !== 'lifetime' && user.premium_tier !== 'monthly')) {
+      console.error('❌ [AUTH ENDPOINT] User is not premium:', {
+        userId,
+        premium_tier: user?.premium_tier
+      });
+      return res.status(403).json({ error: 'Custom avatars are a premium feature' });
+    }
+
+    // Update avatar settings
+    const { data: updatedUser, error: updateError } = await supabaseAdmin
+      .from('users')
+      .update({
+        avatar_style: avatar_style || 'pixel-art',
+        avatar_seed: avatar_seed || null,
+        avatar_options: avatar_options || {}
+      })
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error('❌ [AUTH ENDPOINT] Update error:', updateError);
+      throw updateError;
+    }
+
+    console.log('✅ [AUTH ENDPOINT] Avatar updated successfully:', {
+      userId,
+      avatar_style: updatedUser.avatar_style,
+      avatar_seed: updatedUser.avatar_seed
+    });
+
+    res.json({ user: updatedUser });
+
+  } catch (error) {
+    console.error('❌ [AUTH ENDPOINT] Update avatar failed:', error);
+    console.error('❌ [AUTH ENDPOINT] Error stack:', error.stack);
+    res.status(500).json({
+      error: 'Failed to update avatar',
+      details: error.message
+    });
+  }
+});
+
+/**
  * Helper: Generate username from email and provider
  */
 function generateUsername(email, provider) {
