@@ -2824,7 +2824,7 @@ io.on('connection', async (socket) => {
         const sessionToken = crypto.randomBytes(32).toString('hex');
 
         // Insert session token into database
-        await db.adminClient
+        const { error: sessionInsertError } = await db.adminClient
           .from('game_sessions')
           .insert({
             session_token: sessionToken,
@@ -2833,6 +2833,7 @@ io.on('connection', async (socket) => {
             player_id: participant.user_id,
             game_type: room.current_game,
             streamer_mode: isStreamerMode,
+            expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hour expiration
             metadata: {
               player_name: participant.custom_lobby_name || participant.user?.display_name || participant.user?.username,
               is_host: participant.role === 'host',
@@ -2844,6 +2845,10 @@ io.on('connection', async (socket) => {
               avatar_options: participant.user?.avatar_options
             }
           });
+
+        if (sessionInsertError) {
+          console.error(`❌ [SECURE SESSION] Failed to insert session for ${participant.user?.username}:`, sessionInsertError);
+        }
 
         sessionTokens[participant.user_id] = sessionToken;
 
