@@ -25,11 +25,45 @@ subscription_canceled_at TIMESTAMP       -- When user canceled (still active unt
 
 ## API Endpoints
 
-### Get User with Premium Status
+### Get Current User (Recommended for External Games)
+
+**Endpoint:** `GET /api/auth/me`
+
+**Authentication:** Required (Bearer token)
+
+**Use Case:** When you have a token but don't know the userId. Perfect for external games.
+
+**Request:**
+```
+GET /api/auth/me
+Authorization: Bearer <access_token>
+```
+
+**Response:**
+```json
+{
+  "user": {
+    "id": "uuid",
+    "username": "string",
+    "email": "string",
+    "display_name": "string",
+    "avatar_url": "string",
+    "premium_tier": "free" | "monthly" | "lifetime",
+    "premium_expires_at": "ISO timestamp" | null,
+    "subscription_canceled_at": "ISO timestamp" | null,
+    "avatar_style": "string",
+    "avatar_seed": "string",
+    "avatar_options": {},
+    "created_at": "ISO timestamp"
+  }
+}
+```
+
+### Get User by ID
 
 **Endpoint:** `GET /api/users/:userId`
 
-**Authentication:** Required (Bearer token)
+**Authentication:** Required (Bearer token) + Must be own account
 
 **Response:**
 ```json
