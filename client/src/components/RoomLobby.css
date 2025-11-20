@@ -99,9 +99,38 @@
   background: rgba(233, 69, 96, 0.2);
   border-color: var(--primary-color);
   color: white;
-  box-shadow: 
+  box-shadow:
     0 8px 25px rgba(233, 69, 96, 0.4),
     0 0 0 1px rgba(233, 69, 96, 0.1);
+  transform: translateY(-2px);
+}
+
+.header-left-actions {
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.profile-settings-btn {
+  padding: 0.75rem 1.25rem;
+  background: rgba(0, 217, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(0, 217, 255, 0.3);
+  border-radius: 12px;
+  color: var(--secondary-color);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.profile-settings-btn:hover {
+  background: rgba(0, 217, 255, 0.2);
+  border-color: var(--secondary-color);
+  color: white;
+  box-shadow: 0 4px 15px rgba(0, 217, 255, 0.3);
   transform: translateY(-2px);
 }
 
@@ -647,6 +676,11 @@
   height: 100%;
   border-radius: 50%;
   object-fit: cover;
+}
+
+.avatar-emoji {
+  font-size: 1.5rem;
+  line-height: 1;
 }
 
 /* DiceBear custom avatars */
