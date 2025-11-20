@@ -884,6 +884,88 @@ class DatabaseService {
       return [];
     }
   }
+
+  // Cleanup stale players and rooms
+  async cleanupStaleData() {
+    try {
+      const now = new Date();
+      const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
+
+      console.log('🧹 [CLEANUP] Running stale data cleanup...');
+
+      // Mark players as disconnected if no ping for 5 minutes
+      const { data: stalePlayers, error: staleError } = await this.adminClient
+        .from('room_members')
+        .update({
+          is_connected: false,
+          current_location: 'disconnected'
+        })
+        .eq('is_connected', true)
+        .lt('last_ping', fiveMinutesAgo.toISOString())
+        .select('user_id, room_id');
+
+      if (staleError) {
+        console.error('❌ [CLEANUP] Error marking stale players:', staleError);
+      } else if (stalePlayers && stalePlayers.length > 0) {
+        console.log(`🧹 [CLEANUP] Marked ${stalePlayers.length} stale players as disconnected`);
+      }
+
+      // Find rooms with no connected players and mark as abandoned
+      const { data: emptyRooms, error: emptyError } = await this.adminClient
+        .from('rooms')
+        .select(`
+          id,
+          room_code,
+          status,
+          room_members!inner(is_connected)
+        `)
+        .in('status', ['lobby', 'in_game']);
+
+      if (emptyError) {
+        console.error('❌ [CLEANUP] Error finding empty rooms:', emptyError);
+      } else if (emptyRooms) {
+        // Check each room for connected members
+        for (const room of emptyRooms) {
+          const connectedCount = room.room_members?.filter(m => m.is_connected).length || 0;
+          if (connectedCount === 0) {
+            await this.adminClient
+              .from('rooms')
+              .update({ status: 'abandoned' })
+              .eq('id', room.id);
+            console.log(`🏚️ [CLEANUP] Room ${room.room_code} marked as abandoned - no connected players`);
+          }
+        }
+      }
+
+      // Also check rooms that have NO members at all
+      const { data: orphanRooms, error: orphanError } = await this.adminClient
+        .from('rooms')
+        .select(`
+          id,
+          room_code,
+          room_members(id)
+        `)
+        .in('status', ['lobby', 'in_game']);
+
+      if (!orphanError && orphanRooms) {
+        for (const room of orphanRooms) {
+          if (!room.room_members || room.room_members.length === 0) {
+            await this.adminClient
+              .from('rooms')
+              .update({ status: 'abandoned' })
+              .eq('id', room.id);
+            console.log(`🏚️ [CLEANUP] Room ${room.room_code} marked as abandoned - no members`);
+          }
+        }
+      }
+
+      console.log('✅ [CLEANUP] Stale data cleanup completed');
+      return { success: true };
+    } catch (error) {
+      console.error('❌ [CLEANUP] Cleanup failed:', error);
+      return { success: false, error };
+    }
+  }
 }
 
 // Export instances

@@ -2127,6 +2127,7 @@ io.on('connection', async (socket) => {
             is_connected,
             role,
             custom_lobby_name,
+            last_ping,
             user:users(id, username, display_name, avatar_url, premium_tier, avatar_style, avatar_seed, avatar_options)
           )
         `)
@@ -2147,13 +2148,25 @@ io.on('connection', async (socket) => {
         throw error;
       }
 
-      // Filter to only rooms with at least one connected member
+      // Filter to only rooms with at least one recently active connected member
+      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
       const activeRooms = (rooms || []).filter(room => {
         const connectedMembers = room.members?.filter(m => m.is_connected) || [];
-        return connectedMembers.length > 0;
+        // Also check that at least one member has pinged recently
+        const recentlyActiveMembers = room.members?.filter(m =>
+          m.is_connected && new Date(m.last_ping) > fiveMinutesAgo
+        ) || [];
+        return connectedMembers.length > 0 && recentlyActiveMembers.length > 0;
       });
 
       console.log(`✅ [PUBLIC ROOMS] Found ${activeRooms.length} active public rooms (filtered from ${(rooms || []).length})`);
+
+      // Log filtered rooms for debugging
+      if (rooms && rooms.length > activeRooms.length) {
+        const filtered = rooms.filter(r => !activeRooms.includes(r));
+        console.log(`🧹 [PUBLIC ROOMS] Filtered out ${filtered.length} stale rooms:`,
+          filtered.map(r => r.room_code).join(', '));
+      }
       socket.emit('publicRoomsList', { rooms: activeRooms });
 
     } catch (error) {
@@ -2970,11 +2983,12 @@ io.on('connection', async (socket) => {
         roomVersion: Date.now()
       });
 
-        // If no connected players left, mark room as returning (closest equivalent to abandoned)
+        // If no connected players left, mark room as abandoned
         const connectedPlayers = allPlayers.filter(p => p.isConnected);
         if (connectedPlayers.length === 0) {
+          console.log(`🏚️ [CLEANUP] Room ${data.roomCode} marked as abandoned - no connected players`);
           await db.updateRoom(connection.roomId, {
-            status: 'returning'
+            status: 'abandoned'
           });
         }
       }
@@ -4071,6 +4085,17 @@ async function startServer() {
       console.log(`🗄️ Storage: SUPABASE (Persistent)`);
       console.log(`🎮 Game proxies configured: ${Object.keys(gameProxies).join(',')}`);
       console.log(`✅ Supabase configured - using persistent database storage`);
+
+      // Run initial cleanup on startup
+      db.cleanupStaleData().then(() => {
+        console.log('✅ Initial stale data cleanup completed');
+      });
+
+      // Start periodic cleanup interval (every 2 minutes)
+      setInterval(async () => {
+        await db.cleanupStaleData();
+      }, 2 * 60 * 1000); // 2 minutes
+      console.log('🕐 Periodic cleanup interval started (every 2 minutes)');
       console.log(`🔇 WebSocket navigation errors suppressed for clean logs`);
 
       // Start game keep-alive service (prevents Render.com free tier spin-down)

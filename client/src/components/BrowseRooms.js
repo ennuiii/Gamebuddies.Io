@@ -7,7 +7,24 @@ const BrowseRooms = ({ onRoomSelected, onCancel }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedGame, setSelectedGame] = useState('all');
+  const [games, setGames] = useState([]);
   const { socket, connectSocket } = useSocket();
+
+  // Fetch available games from API
+  useEffect(() => {
+    const fetchGames = async () => {
+      try {
+        const response = await fetch('/api/games');
+        const data = await response.json();
+        if (data.success && data.games) {
+          setGames(data.games);
+        }
+      } catch (err) {
+        console.error('Failed to fetch games:', err);
+      }
+    };
+    fetchGames();
+  }, []);
 
   useEffect(() => {
     loadPublicRooms();
@@ -125,9 +142,11 @@ const BrowseRooms = ({ onRoomSelected, onCancel }) => {
               onChange={(e) => setSelectedGame(e.target.value)}
             >
               <option value="all">All Games</option>
-              <option value="ddf">Der dümmste fliegt</option>
-              <option value="schooled">Schooled</option>
-              <option value="susd">SUS'D</option>
+              {games.map(game => (
+                <option key={game.id} value={game.id}>
+                  {game.icon} {game.name}
+                </option>
+              ))}
             </select>
           </label>
           <button className="refresh-button" onClick={loadPublicRooms}>
