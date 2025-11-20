@@ -3,7 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import { useSocket } from '../contexts/LazySocketContext';
 import { useNotification } from '../contexts/NotificationContext';
-import { getSupabaseClient } from '../utils/supabase';
 import { useNavigate } from 'react-router-dom';
 import AvatarCustomizer from './AvatarCustomizer';
 import { getDiceBearUrl } from './Avatar';
@@ -15,84 +14,21 @@ const ProfileSettingsModal = ({ isOpen, onClose, roomCode }) => {
   const { addNotification } = useNotification();
   const navigate = useNavigate();
 
-  const [displayName, setDisplayName] = useState('');
   const [showAvatarCustomizer, setShowAvatarCustomizer] = useState(false);
   const [avatarLoading, setAvatarLoading] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [hasNameChange, setHasNameChange] = useState(false);
 
-  // Initialize form with user data
+  // Reset state when modal opens
   useEffect(() => {
-    if (user && isOpen) {
-      setDisplayName(user.display_name || user.username || '');
+    if (isOpen) {
       setShowAvatarCustomizer(false);
     }
-  }, [user, isOpen]);
-
-  // Track name changes
-  useEffect(() => {
-    if (!user) return;
-    const nameChanged = displayName !== (user.display_name || user.username || '');
-    setHasNameChange(nameChanged);
-  }, [displayName, user]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
   const handleOverlayClick = (e) => {
     if (e.target === e.currentTarget) {
       onClose();
-    }
-  };
-
-  // Handle saving display name
-  const handleSaveDisplayName = async () => {
-    if (!hasNameChange || !user) return;
-
-    setIsLoading(true);
-    try {
-      const supabase = await getSupabaseClient();
-      const { data: { session: currentSession } } = await supabase.auth.getSession();
-
-      if (!currentSession?.access_token) {
-        throw new Error('Not authenticated');
-      }
-
-      const response = await fetch(`/api/users/${user.id}/profile`, {
-        method: 'PATCH',
-        headers: {
-          'Authorization': `Bearer ${currentSession.access_token}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          display_name: displayName.trim()
-        })
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to update profile');
-      }
-
-      // Refresh user data in auth context
-      await refreshUser();
-
-      // Notify lobby of profile change via socket
-      if (socket && roomCode) {
-        socket.emit('profile_updated', {
-          roomCode,
-          userId: user.id,
-          displayName: displayName.trim(),
-          avatarUrl: user.avatar_url
-        });
-      }
-
-      addNotification('Display name updated!', 'success');
-      setHasNameChange(false);
-    } catch (error) {
-      console.error('Failed to update display name:', error);
-      addNotification(error.message || 'Failed to update display name', 'error');
-    } finally {
-      setIsLoading(false);
     }
   };
 
@@ -136,17 +72,10 @@ const ProfileSettingsModal = ({ isOpen, onClose, roomCode }) => {
 
       // Notify lobby of avatar change via socket
       if (socket && roomCode) {
-        const newAvatarUrl = getDiceBearUrl(
-          avatarData.avatar_style,
-          avatarData.avatar_seed || user.username || user.display_name,
-          avatarData.avatar_options || {},
-          80
-        );
         socket.emit('profile_updated', {
           roomCode,
           userId: user.id,
           displayName: user.display_name || user.username,
-          avatarUrl: newAvatarUrl,
           avatarStyle: avatarData.avatar_style,
           avatarSeed: avatarData.avatar_seed,
           avatarOptions: avatarData.avatar_options
@@ -178,7 +107,8 @@ const ProfileSettingsModal = ({ isOpen, onClose, roomCode }) => {
       );
     }
     // Default to first letter of display name
-    return <span className="avatar-preview-initial">{(displayName || 'U')[0].toUpperCase()}</span>;
+    const name = user?.display_name || user?.username || 'U';
+    return <span className="avatar-preview-initial">{name[0].toUpperCase()}</span>;
   };
 
   return (
@@ -198,7 +128,7 @@ const ProfileSettingsModal = ({ isOpen, onClose, roomCode }) => {
           transition={{ duration: 0.3 }}
         >
           <div className="profile-settings-header">
-            <h2 className="profile-settings-title">Profile Settings</h2>
+            <h2 className="profile-settings-title">Avatar Settings</h2>
             <button className="close-button" onClick={onClose}>
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -221,57 +151,32 @@ const ProfileSettingsModal = ({ isOpen, onClose, roomCode }) => {
                 />
               </div>
             ) : (
-              <>
-                {/* Current Avatar Preview */}
-                <div className="avatar-preview-section">
-                  <div className="avatar-preview-container">
-                    {getCurrentAvatarDisplay()}
-                  </div>
-                  <div className="avatar-preview-info">
-                    <span className="preview-label">Current Avatar</span>
-                    {isPremium ? (
-                      <button
-                        className="change-avatar-btn"
-                        onClick={() => setShowAvatarCustomizer(true)}
-                      >
-                        {user?.avatar_style ? 'Change Avatar' : 'Create Avatar'}
-                      </button>
-                    ) : (
-                      <button
-                        className="upgrade-avatar-btn"
-                        onClick={() => {
-                          onClose();
-                          navigate('/premium');
-                        }}
-                      >
-                        Upgrade for Custom Avatar
-                      </button>
-                    )}
-                  </div>
+              <div className="avatar-preview-section">
+                <div className="avatar-preview-container">
+                  {getCurrentAvatarDisplay()}
                 </div>
-
-                {/* Display Name */}
-                <div className="setting-section">
-                  <label className="setting-label">Display Name</label>
-                  <input
-                    type="text"
-                    className="profile-input"
-                    value={displayName}
-                    onChange={(e) => setDisplayName(e.target.value)}
-                    placeholder="Enter display name"
-                    maxLength={30}
-                  />
-                  {hasNameChange && (
+                <div className="avatar-preview-info">
+                  <span className="preview-label">Current Avatar</span>
+                  {isPremium ? (
                     <button
-                      className="save-name-btn"
-                      onClick={handleSaveDisplayName}
-                      disabled={isLoading}
+                      className="change-avatar-btn"
+                      onClick={() => setShowAvatarCustomizer(true)}
                     >
-                      {isLoading ? 'Saving...' : 'Save Name'}
+                      {user?.avatar_style ? 'Change Avatar' : 'Create Avatar'}
+                    </button>
+                  ) : (
+                    <button
+                      className="upgrade-avatar-btn"
+                      onClick={() => {
+                        onClose();
+                        navigate('/premium');
+                      }}
+                    >
+                      Upgrade for Custom Avatar
                     </button>
                   )}
                 </div>
-              </>
+              </div>
             )}
           </div>
 
