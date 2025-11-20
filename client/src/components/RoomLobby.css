@@ -404,56 +404,38 @@
 /* Premium Player Card Styles - Animated Snake Border Effect */
 .player-card.premium-lifetime {
   position: relative;
-  padding: 6px; /* Border thickness */
-  border: none;
   border-radius: 20px;
   background: rgba(15, 15, 35, 1);
-  overflow: visible;
+  isolation: isolate;
+  box-shadow:
+    0 0 20px rgba(255, 215, 0, 0.4),
+    0 0 40px rgba(255, 165, 0, 0.2);
 }
 
-/* Rotating border effect container */
+/* Animated border gradient */
 .player-card.premium-lifetime::before {
   content: '';
   position: absolute;
-  top: -6px;
-  left: -6px;
-  right: -6px;
-  bottom: -6px;
+  top: -4px;
+  left: -4px;
+  right: -4px;
+  bottom: -4px;
+  border-radius: 24px;
   background: conic-gradient(
-    from var(--angle),
+    from var(--angle, 0deg),
     #FFD700 0deg,
-    #FFA500 60deg,
-    #FF6B00 120deg,
-    transparent 180deg,
-    transparent 300deg,
+    #FFA500 30deg,
+    #FF6B00 60deg,
+    #FF6B00 90deg,
+    transparent 135deg,
+    transparent 225deg,
+    #FFD700 270deg,
+    #FFA500 300deg,
+    #FF6B00 330deg,
     #FFD700 360deg
   );
-  border-radius: 26px;
   z-index: -1;
-  animation: spinGradient 3s linear infinite;
-}
-
-/* Glow effect that follows the snake */
-.player-card.premium-lifetime::after {
-  content: '';
-  position: absolute;
-  top: -6px;
-  left: -6px;
-  right: -6px;
-  bottom: -6px;
-  background: conic-gradient(
-    from var(--angle),
-    rgba(255, 215, 0, 0.8) 0deg,
-    rgba(255, 165, 0, 0.6) 60deg,
-    rgba(255, 107, 0, 0.4) 120deg,
-    transparent 180deg,
-    transparent 300deg,
-    rgba(255, 215, 0, 0.8) 360deg
-  );
-  border-radius: 26px;
-  z-index: -2;
-  filter: blur(15px);
-  animation: spinGradient 3s linear infinite;
+  animation: spinBorder 4s linear infinite;
 }
 
 /* Ensure content is above the background layer */
@@ -464,56 +446,38 @@
 
 .player-card.premium-monthly {
   position: relative;
-  padding: 6px; /* Border thickness */
-  border: none;
   border-radius: 20px;
   background: rgba(15, 15, 35, 1);
-  overflow: visible;
+  isolation: isolate;
+  box-shadow:
+    0 0 20px rgba(0, 217, 255, 0.4),
+    0 0 40px rgba(0, 255, 136, 0.2);
 }
 
-/* Rotating border effect container */
+/* Animated border gradient */
 .player-card.premium-monthly::before {
   content: '';
   position: absolute;
-  top: -6px;
-  left: -6px;
-  right: -6px;
-  bottom: -6px;
+  top: -4px;
+  left: -4px;
+  right: -4px;
+  bottom: -4px;
+  border-radius: 24px;
   background: conic-gradient(
-    from var(--angle),
+    from var(--angle, 0deg),
     #00d9ff 0deg,
-    #00ff88 60deg,
-    #00ffea 120deg,
-    transparent 180deg,
-    transparent 300deg,
+    #00ff88 30deg,
+    #00ffea 60deg,
+    #00ffea 90deg,
+    transparent 135deg,
+    transparent 225deg,
+    #00d9ff 270deg,
+    #00ff88 300deg,
+    #00ffea 330deg,
     #00d9ff 360deg
   );
-  border-radius: 26px;
   z-index: -1;
-  animation: spinGradient 3s linear infinite;
-}
-
-/* Glow effect that follows the snake */
-.player-card.premium-monthly::after {
-  content: '';
-  position: absolute;
-  top: -6px;
-  left: -6px;
-  right: -6px;
-  bottom: -6px;
-  background: conic-gradient(
-    from var(--angle),
-    rgba(0, 217, 255, 0.8) 0deg,
-    rgba(0, 255, 136, 0.6) 60deg,
-    rgba(0, 255, 234, 0.4) 120deg,
-    transparent 180deg,
-    transparent 300deg,
-    rgba(0, 217, 255, 0.8) 360deg
-  );
-  border-radius: 26px;
-  z-index: -2;
-  filter: blur(15px);
-  animation: spinGradient 3s linear infinite;
+  animation: spinBorder 4s linear infinite;
 }
 
 /* Ensure content is above the background layer */
@@ -529,7 +493,7 @@
   inherits: false;
 }
 
-@keyframes spinGradient {
+@keyframes spinBorder {
   from {
     --angle: 0deg;
   }
