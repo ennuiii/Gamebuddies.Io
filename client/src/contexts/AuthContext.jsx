@@ -18,11 +18,31 @@ export const AuthProvider = ({ children }) => {
       const supabase = await getSupabaseClient();
       console.log('🔐 [AUTH DEBUG] Supabase client obtained');
 
+      // Set up auth state listener FIRST - this is critical for handling login redirects
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(
+        async (event, session) => {
+          console.log('🔐 [AUTH] State changed:', event, session ? 'authenticated' : 'guest');
+          setSession(session);
+
+          if (session) {
+            await fetchUser(session.user.id);
+          } else {
+            setUser(null);
+          }
+
+          // Mark loading as false after any auth state change
+          setLoading(false);
+        }
+      );
+
       // Get initial session with timeout
       console.log('🔐 [AUTH DEBUG] Calling getSession()...');
       const sessionPromise = supabase.auth.getSession();
-      const timeoutPromise = new Promise((_, reject) =>
-        setTimeout(() => reject(new Error('getSession timeout after 10s')), 10000)
+      const timeoutPromise = new Promise((resolve) =>
+        setTimeout(() => {
+          console.warn('⚠️ [AUTH] getSession timeout after 10s - continuing with no session');
+          resolve({ data: { session: null }, error: null });
+        }, 10000)
       );
 
       const sessionResult = await Promise.race([sessionPromise, timeoutPromise]);
@@ -33,7 +53,7 @@ export const AuthProvider = ({ children }) => {
       if (error) {
         console.error('❌ [AUTH] Session error:', error);
         setLoading(false);
-        return;
+        return () => subscription.unsubscribe();
       }
 
       console.log('🔐 [AUTH] Session loaded:', session ? 'authenticated' : 'guest');
@@ -56,20 +76,6 @@ export const AuthProvider = ({ children }) => {
 
       setLoading(false);
       console.log('🔐 [AUTH DEBUG] Auth initialization complete');
-
-      // Listen for auth state changes
-      const { data: { subscription } } = supabase.auth.onAuthStateChange(
-        async (event, session) => {
-          console.log('🔐 [AUTH] State changed:', event, session ? 'authenticated' : 'guest');
-          setSession(session);
-
-          if (session) {
-            await fetchUser(session.user.id);
-          } else {
-            setUser(null);
-          }
-        }
-      );
 
       return () => {
         subscription.unsubscribe();
