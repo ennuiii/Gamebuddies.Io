@@ -4,6 +4,49 @@ const { requireAuth, requireOwnAccount } = require('../middlewares/auth');
 const router = express.Router();
 
 /**
+ * GET /api/auth/me
+ * Get current authenticated user's data from token
+ * Use this endpoint when you have a token but not the userId
+ */
+router.get('/me', requireAuth, async (req, res) => {
+  try {
+    console.log('👤 [AUTH ENDPOINT] GET /api/auth/me called');
+    console.log('👤 [AUTH ENDPOINT DEBUG] Authenticated user:', req.user?.id);
+
+    const userId = req.user.id;
+
+    // Fetch user from database
+    const { data: user, error } = await supabaseAdmin
+      .from('users')
+      .select('id, username, email, display_name, avatar_url, premium_tier, premium_expires_at, subscription_canceled_at, avatar_style, avatar_seed, avatar_options, created_at')
+      .eq('id', userId)
+      .single();
+
+    if (error || !user) {
+      console.error('❌ [AUTH ENDPOINT] User not found:', error);
+      return res.status(404).json({
+        error: 'User not found',
+        code: 'USER_NOT_FOUND'
+      });
+    }
+
+    console.log('✅ [AUTH ENDPOINT] User data returned:', {
+      id: user.id,
+      username: user.username,
+      premium_tier: user.premium_tier
+    });
+
+    res.json({ user });
+  } catch (error) {
+    console.error('❌ [AUTH ENDPOINT] Error in /me:', error);
+    res.status(500).json({
+      error: 'Internal server error',
+      details: error.message
+    });
+  }
+});
+
+/**
  * POST /api/auth/sync-user
  * Sync Supabase auth.users to public.users table
  */
