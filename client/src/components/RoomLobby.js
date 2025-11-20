@@ -755,7 +755,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
 
     const handleProfileUpdated = (data) => {
       console.log('👤 [PROFILE] Profile updated event received:', data);
-      const { userId, displayName, avatarUrl } = data;
+      const { userId, displayName, avatarUrl, avatarStyle, avatarSeed, avatarOptions } = data;
 
       // Update player in the list
       setPlayers(prevPlayers =>
@@ -764,7 +764,10 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
             return {
               ...player,
               name: displayName || player.name,
-              avatarUrl: avatarUrl
+              avatarUrl: avatarUrl,
+              avatarStyle: avatarStyle || player.avatarStyle,
+              avatarSeed: avatarSeed || player.avatarSeed,
+              avatarOptions: avatarOptions || player.avatarOptions
             };
           }
           return player;
