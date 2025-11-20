@@ -149,12 +149,22 @@ const Account = () => {
     setAvatarLoading(true);
 
     try {
-      const supabase = await getSupabaseClient();
-      const { data: { session } } = await supabase.auth.getSession();
+      // Use session from context to avoid hanging getSession() call
+      console.log('🎨 [ACCOUNT DEBUG] Using session from context:', {
+        hasSession: !!session,
+        hasToken: !!session?.access_token
+      });
 
       if (!session?.access_token) {
         throw new Error('Not authenticated');
       }
+
+      const requestBody = {
+        userId: user.id,
+        ...avatarData
+      };
+      console.log('🎨 [ACCOUNT DEBUG] Making fetch request to /api/users/avatar');
+      console.log('🎨 [ACCOUNT DEBUG] Request body:', requestBody);
 
       const response = await fetch('/api/users/avatar', {
         method: 'PUT',
@@ -162,13 +172,17 @@ const Account = () => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`
         },
-        body: JSON.stringify({
-          userId: user.id,
-          ...avatarData
-        }),
+        body: JSON.stringify(requestBody),
+      });
+
+      console.log('🎨 [ACCOUNT DEBUG] Response received:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
       });
 
       const data = await response.json();
+      console.log('🎨 [ACCOUNT DEBUG] Response data:', data);
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to save avatar');
@@ -179,10 +193,13 @@ const Account = () => {
 
       // Refresh user data to get updated avatar
       if (refreshUser) {
+        console.log('🎨 [ACCOUNT DEBUG] Refreshing user data...');
         await refreshUser();
+        console.log('🎨 [ACCOUNT DEBUG] User data refreshed');
       }
     } catch (error) {
       console.error('❌ [ACCOUNT] Avatar save error:', error);
+      console.error('❌ [ACCOUNT] Error stack:', error.stack);
       alert(`Error: ${error.message}`);
     } finally {
       setAvatarLoading(false);
