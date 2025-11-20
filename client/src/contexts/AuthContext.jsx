@@ -24,7 +24,27 @@ export const AuthProvider = ({ children }) => {
         timestamp: new Date().toISOString()
       });
 
-      // Set up auth state listener FIRST - this is critical for handling login redirects
+      // Try to get cached session from localStorage first (instant)
+      const storageKey = 'gamebuddies-auth';
+      const cachedData = localStorage.getItem(storageKey);
+      if (cachedData) {
+        try {
+          const parsed = JSON.parse(cachedData);
+          if (parsed?.access_token && parsed?.user) {
+            console.log('🔐 [AUTH] Found cached session in localStorage', {
+              userId: parsed.user.id,
+              expiresAt: parsed.expires_at ? new Date(parsed.expires_at * 1000).toISOString() : null
+            });
+            // Set cached session immediately so user appears logged in
+            setSession(parsed);
+            await fetchUser(parsed.user.id);
+          }
+        } catch (e) {
+          console.warn('🔐 [AUTH] Failed to parse cached session:', e);
+        }
+      }
+
+      // Set up auth state listener
       const { data: { subscription } } = supabase.auth.onAuthStateChange(
         async (event, session) => {
           console.log('🔐 [AUTH] State changed:', event, session ? 'authenticated' : 'guest', {
@@ -39,56 +59,46 @@ export const AuthProvider = ({ children }) => {
             setUser(null);
           }
 
-          // Mark loading as false after any auth state change
           setLoading(false);
         }
       );
       console.log('🔐 [AUTH DEBUG] Auth state listener set up');
 
-      // Get initial session - no timeout, let it complete naturally
-      // The auth listener will handle the result
-      console.log('🔐 [AUTH DEBUG] Calling getSession()...', { timestamp: new Date().toISOString() });
+      // Mark loading as false now - we've loaded what we can from cache
+      setLoading(false);
+      console.log('🔐 [AUTH DEBUG] Initial load complete', {
+        took: `${Date.now() - startTime}ms`,
+        hasSession: !!session
+      });
+
+      // Now call getSession() in background to validate/refresh token
+      // This won't block the UI
+      console.log('🔐 [AUTH DEBUG] Calling getSession() for validation...', { timestamp: new Date().toISOString() });
 
       const sessionStartTime = Date.now();
-      try {
-        const { data: { session }, error } = await supabase.auth.getSession();
+      supabase.auth.getSession().then(({ data: { session: validatedSession }, error }) => {
         const sessionDuration = Date.now() - sessionStartTime;
 
         if (error) {
-          console.error('❌ [AUTH] Session error:', error, { took: `${sessionDuration}ms` });
+          console.error('❌ [AUTH] Session validation error:', error, { took: `${sessionDuration}ms` });
         } else {
-          console.log('🔐 [AUTH] Session loaded:', session ? 'authenticated' : 'guest', {
+          console.log('🔐 [AUTH] Session validated:', validatedSession ? 'authenticated' : 'guest', {
             took: `${sessionDuration}ms`,
             timestamp: new Date().toISOString()
           });
-          console.log('🔐 [AUTH DEBUG] Session details:', {
-            hasSession: !!session,
-            hasUser: !!session?.user,
-            userId: session?.user?.id,
-            hasAccessToken: !!session?.access_token,
-            tokenLength: session?.access_token?.length,
-            expiresAt: session?.expires_at ? new Date(session.expires_at * 1000).toISOString() : null
-          });
 
-          setSession(session);
-
-          if (session) {
-            console.log('🔐 [AUTH DEBUG] Session found, fetching user data for:', session.user.id);
-            await fetchUser(session.user.id);
+          // Update session if different from cached
+          setSession(validatedSession);
+          if (validatedSession) {
+            fetchUser(validatedSession.user.id);
           } else {
-            console.log('🔐 [AUTH DEBUG] No session - user is guest');
+            setUser(null);
           }
         }
-      } catch (sessionError) {
+      }).catch(sessionError => {
         console.error('❌ [AUTH] getSession failed:', sessionError, {
           took: `${Date.now() - sessionStartTime}ms`
         });
-      }
-
-      setLoading(false);
-      console.log('🔐 [AUTH DEBUG] Auth initialization complete', {
-        totalTime: `${Date.now() - startTime}ms`,
-        timestamp: new Date().toISOString()
       });
 
       return () => {
