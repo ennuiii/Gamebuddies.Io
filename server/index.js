@@ -2132,12 +2132,9 @@ io.on('connection', async (socket) => {
         throw error;
       }
 
-      // Filter to only rooms with at least one recently active connected member
-      const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+      // Filter to only rooms with at least one connected member
       const activeRooms = (rooms || []).filter(room => {
-        const connectedMembers = room.members?.filter(m =>
-          m.is_connected && m.last_ping && m.last_ping > thirtyMinutesAgo
-        ) || [];
+        const connectedMembers = room.members?.filter(m => m.is_connected) || [];
         return connectedMembers.length > 0;
       });
 
