@@ -522,6 +522,132 @@ app.get('/api/game/rooms/:roomCode/validate', validateApiKey, async (req, res) =
   }
 });
 
+// Session verification endpoint - NO API key required (session token is the auth)
+// Games call this to get authenticated player data
+app.get('/api/game/session/:token', async (req, res) => {
+  try {
+    const { token } = req.params;
+
+    console.log(`🔐 [API] Verifying game session token: ${token.substring(0, 8)}...`);
+
+    // Get session data from database
+    const { data: session, error } = await db.adminClient
+      .from('game_sessions')
+      .select(`
+        *,
+        room:rooms!room_id(
+          id,
+          room_code,
+          current_game,
+          status,
+          settings,
+          max_players,
+          participants:room_members(
+            user_id,
+            role,
+            is_connected,
+            custom_lobby_name,
+            user:users(username, display_name, premium_tier, avatar_url)
+          )
+        )
+      `)
+      .eq('session_token', token)
+      .single();
+
+    if (error || !session) {
+      console.log(`❌ [API] Session token not found: ${token.substring(0, 8)}...`);
+      return res.status(401).json({
+        valid: false,
+        error: 'Invalid session token',
+        code: 'INVALID_TOKEN'
+      });
+    }
+
+    // Check if session is expired
+    const now = new Date();
+    const expiresAt = new Date(session.expires_at);
+    if (now > expiresAt) {
+      console.log(`❌ [API] Session token expired: ${token.substring(0, 8)}...`);
+      return res.status(401).json({
+        valid: false,
+        error: 'Session expired',
+        code: 'SESSION_EXPIRED',
+        expiredAt: session.expires_at
+      });
+    }
+
+    // Update last_accessed timestamp
+    await db.adminClient
+      .from('game_sessions')
+      .update({ last_accessed: new Date().toISOString() })
+      .eq('session_token', token);
+
+    // Find the player's participant data
+    const participant = session.room?.participants?.find(p => p.user_id === session.player_id);
+
+    if (!participant) {
+      console.log(`❌ [API] Player not found in room for session: ${token.substring(0, 8)}...`);
+      return res.status(404).json({
+        valid: false,
+        error: 'Player not found in room',
+        code: 'PLAYER_NOT_FOUND'
+      });
+    }
+
+    console.log(`✅ [API] Session verified for player: ${participant.user?.username}`);
+
+    // Return authenticated player data
+    res.json({
+      valid: true,
+      session: {
+        id: session.id,
+        createdAt: session.created_at,
+        expiresAt: session.expires_at,
+        gameType: session.game_type,
+        streamerMode: session.streamer_mode
+      },
+      player: {
+        id: session.player_id,
+        name: participant.custom_lobby_name || participant.user?.display_name || participant.user?.username,
+        username: participant.user?.username,
+        displayName: participant.user?.display_name,
+        customLobbyName: participant.custom_lobby_name,
+        premiumTier: participant.user?.premium_tier || 'free',
+        avatarUrl: participant.user?.avatar_url,
+        isHost: participant.role === 'host',
+        role: participant.role
+      },
+      room: {
+        id: session.room?.id,
+        code: session.streamer_mode ? null : session.room_code, // Hide room code in streamer mode
+        gameType: session.room?.current_game,
+        status: session.room?.status,
+        maxPlayers: session.room?.max_players,
+        settings: session.room?.settings,
+        currentPlayers: session.room?.participants?.filter(p => p.is_connected === true).length || 0
+      },
+      participants: session.room?.participants
+        ?.filter(p => p.is_connected === true)
+        .map(p => ({
+          id: p.user_id,
+          name: p.custom_lobby_name || p.user?.display_name || p.user?.username,
+          role: p.role,
+          isHost: p.role === 'host',
+          premiumTier: p.user?.premium_tier || 'free',
+          avatarUrl: p.user?.avatar_url
+        })) || []
+    });
+
+  } catch (error) {
+    console.error('❌ [API] Session verification error:', error);
+    res.status(500).json({
+      valid: false,
+      error: 'Server error',
+      code: 'SERVER_ERROR'
+    });
+  }
+});
+
 // Player join/register endpoint
 app.post('/api/game/rooms/:roomCode/join', validateApiKey, async (req, res) => {
   try {
@@ -1808,11 +1934,13 @@ io.on('connection', async (socket) => {
       const playerName = sanitize.playerName(data.playerName);
       const customLobbyName = data.customLobbyName ? sanitize.playerName(data.customLobbyName) : null;
       const streamerMode = data.streamerMode || false;
+      const isPublic = data.isPublic !== undefined ? data.isPublic : true; // Default to public if not specified
       const supabaseUserId = data.supabaseUserId || null;
 
       console.log(`🏠 [SUPABASE] Creating room for ${playerName}`, {
         customLobbyName,
         streamerMode,
+        isPublic,
         isAuthenticated: !!supabaseUserId,
         supabaseUserId
       });
@@ -1860,7 +1988,7 @@ io.on('connection', async (socket) => {
         host_id: user.id,
         current_game: null, // Will be updated when game is selected
         status: 'lobby',
-        is_public: true,
+        is_public: isPublic,
         max_players: 10,
         streamer_mode: streamerMode,
         game_settings: {},
@@ -1956,6 +2084,84 @@ io.on('connection', async (socket) => {
         debug: {
           error_message: error.message
         }
+      });
+    }
+  });
+
+  // Handle getting public rooms for browsing
+  socket.on('getPublicRooms', async (data) => {
+    try {
+      console.log('🔍 [PUBLIC ROOMS] Fetching public rooms...', data);
+      const { gameType } = data || {};
+
+      // Query database for public rooms with host info and member counts
+      let query = db.adminClient
+        .from('rooms')
+        .select(`
+          id,
+          room_code,
+          status,
+          current_game,
+          max_players,
+          created_at,
+          metadata,
+          host:users!host_id(id, username, display_name, avatar_url, premium_tier),
+          members:room_members!inner(
+            id,
+            is_connected,
+            role,
+            custom_lobby_name,
+            user:users(id, username, display_name, avatar_url, premium_tier)
+          )
+        `)
+        .eq('is_public', true)
+        .in('status', ['lobby', 'in_game'])
+        .gte('last_activity', new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()); // Only rooms active in last 24 hours
+
+      // Filter by game type if specified
+      if (gameType && gameType !== 'all') {
+        query = query.eq('current_game', gameType);
+      }
+
+      const { data: rooms, error } = await query
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (error) {
+        console.error('❌ [PUBLIC ROOMS] Database error:', error);
+        throw error;
+      }
+
+      // Process and format room data
+      const formattedRooms = (rooms || []).map(room => {
+        const connectedMembers = room.members?.filter(m => m.is_connected) || [];
+        const hostMember = connectedMembers.find(m => m.role === 'host');
+
+        return {
+          id: room.id,
+          roomCode: room.room_code,
+          status: room.status,
+          currentGame: room.current_game,
+          maxPlayers: room.max_players,
+          playerCount: connectedMembers.length,
+          hostName: hostMember?.custom_lobby_name ||
+                    room.host?.display_name ||
+                    room.host?.username ||
+                    'Unknown',
+          hostPremiumTier: room.host?.premium_tier || 'free',
+          createdAt: room.created_at,
+          customLobbyName: room.metadata?.customLobbyName || null
+        };
+      });
+
+      console.log(`✅ [PUBLIC ROOMS] Found ${formattedRooms.length} public rooms`);
+      socket.emit('publicRoomsList', { rooms: formattedRooms });
+
+    } catch (error) {
+      console.error('❌ [PUBLIC ROOMS] Error:', error);
+      socket.emit('error', {
+        message: 'Failed to load public rooms. Please try again.',
+        code: 'PUBLIC_ROOMS_ERROR'
       });
     }
   });
@@ -2592,55 +2798,46 @@ io.on('connection', async (socket) => {
       // Check if room is in streamer mode
       const isStreamerMode = room.streamer_mode || false;
 
-      // Generate session tokens for streamer mode rooms
+      // ALWAYS generate secure session tokens for ALL players (not just streamer mode)
+      const crypto = require('crypto');
       const sessionTokens = {};
-      if (isStreamerMode) {
-        const crypto = require('crypto');
 
-        for (const participant of participants) {
-          const sessionToken = crypto.randomBytes(32).toString('hex');
+      for (const participant of participants) {
+        const sessionToken = crypto.randomBytes(32).toString('hex');
 
-          // Insert session token into database
-          await db.adminClient
-            .from('game_sessions')
-            .insert({
-              session_token: sessionToken,
-              room_id: room.id,
-              room_code: room.room_code,
-              player_id: participant.user_id,
-              game_type: room.current_game,
-              streamer_mode: true,
-              metadata: {
-                player_name: participant.user?.display_name || participant.user?.username,
-                is_host: participant.role === 'host',
-                total_players: participants.length
-              }
-            });
+        // Insert session token into database
+        await db.adminClient
+          .from('game_sessions')
+          .insert({
+            session_token: sessionToken,
+            room_id: room.id,
+            room_code: room.room_code,
+            player_id: participant.user_id,
+            game_type: room.current_game,
+            streamer_mode: isStreamerMode,
+            metadata: {
+              player_name: participant.custom_lobby_name || participant.user?.display_name || participant.user?.username,
+              is_host: participant.role === 'host',
+              total_players: participants.length,
+              premium_tier: participant.user?.premium_tier || 'free',
+              avatar_url: participant.user?.avatar_url
+            }
+          });
 
-          sessionTokens[participant.user_id] = sessionToken;
+        sessionTokens[participant.user_id] = sessionToken;
 
-          console.log(`🔐 [STREAMER MODE] Generated session token for ${participant.user?.username}:`, sessionToken.substring(0, 8) + '...');
-        }
+        console.log(`🔐 [SECURE SESSION] Generated session token for ${participant.user?.username}:`, sessionToken.substring(0, 8) + '...');
       }
 
       participants.forEach(p => {
-        const encodedName = encodeURIComponent(p.user?.display_name || p.user?.username);
+        // SECURE: Only pass session token - games must call API to get player data
+        const sessionToken = sessionTokens[p.user_id];
+        const roleParam = p.role === 'host' ? '&role=gm' : '';
 
-        let gameUrl;
-        if (isStreamerMode) {
-          // Streamer mode: Use session token (room code hidden from URL)
-          const sessionToken = sessionTokens[p.user_id];
-          const roleParam = p.role === 'host' ? '&role=gm' : '';
-          gameUrl = `${gameProxy.path}?session=${sessionToken}&players=${participants.length}&name=${encodedName}&playerId=${p.user_id}${roleParam}`;
+        // Simple secure URL - only session token + role
+        const gameUrl = `${gameProxy.path}?session=${sessionToken}${roleParam}`;
 
-          console.log(`🔐 [STREAMER MODE] Game URL for ${p.user?.username} (room code hidden)`);
-        } else {
-          // Normal mode: Use room code (backward compatible)
-          const baseUrl = `${gameProxy.path}?room=${room.room_code}&players=${participants.length}&name=${encodedName}&playerId=${p.user_id}&gbRoomCode=${room.room_code}&gbIsHost=${p.role === 'host'}&gbPlayerName=${encodedName}`;
-          gameUrl = p.role === 'host' ? `${baseUrl}&role=gm` : baseUrl;
-
-          console.log(`📝 [NORMAL MODE] Game URL for ${p.user?.username} with room code: ${room.room_code}`);
-        }
+        console.log(`🔐 [SECURE URL] Game URL for ${p.user?.username} - session-based authentication`);
         
         const delay = p.role === 'host' ? 0 : 2000; // 2 second delay for players
         
