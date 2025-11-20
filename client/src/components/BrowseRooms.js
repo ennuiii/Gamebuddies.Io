@@ -56,9 +56,9 @@ const BrowseRooms = ({ onRoomSelected, onCancel }) => {
     }
   };
 
-  const handleJoinRoom = (roomCode) => {
+  const handleJoinRoom = (room) => {
     if (onRoomSelected) {
-      onRoomSelected(roomCode);
+      onRoomSelected({ roomCode: room.room_code });
     }
   };
 
@@ -165,7 +165,7 @@ const BrowseRooms = ({ onRoomSelected, onCancel }) => {
                 <div className="room-actions">
                   <button
                     className="join-room-button"
-                    onClick={() => handleJoinRoom(room.room_code)}
+                    onClick={() => handleJoinRoom(room)}
                     disabled={room.status === 'in_game'}
                   >
                     {room.status === 'in_game' ? 'Game in Progress' : 'Join Room'}
