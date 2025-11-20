@@ -2132,8 +2132,14 @@ io.on('connection', async (socket) => {
         throw error;
       }
 
-      console.log(`✅ [PUBLIC ROOMS] Found ${(rooms || []).length} public rooms`);
-      socket.emit('publicRoomsList', { rooms: rooms || [] });
+      // Filter to only rooms with at least one connected member
+      const activeRooms = (rooms || []).filter(room => {
+        const connectedMembers = room.members?.filter(m => m.is_connected) || [];
+        return connectedMembers.length > 0;
+      });
+
+      console.log(`✅ [PUBLIC ROOMS] Found ${activeRooms.length} active public rooms (filtered from ${(rooms || []).length})`);
+      socket.emit('publicRoomsList', { rooms: activeRooms });
 
     } catch (error) {
       console.error('❌ [PUBLIC ROOMS] Error:', error);
@@ -3514,6 +3520,27 @@ io.on('connection', async (socket) => {
             room: updatedRoom,
             roomVersion: Date.now()
           });
+
+          // Check if room is now empty (no connected players) and mark as abandoned
+          const connectedPlayers = updatedRoom?.participants?.filter(p => p.is_connected) || [];
+          if (connectedPlayers.length === 0) {
+            console.log(`🗑️ [ROOM CLEANUP] Room ${room.room_code} has no connected players - marking as abandoned`);
+
+            // Mark room as abandoned
+            const { error: updateError } = await db.adminClient
+              .from('rooms')
+              .update({
+                status: 'abandoned',
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', room.id);
+
+            if (updateError) {
+              console.error(`❌ [ROOM CLEANUP] Failed to mark room ${room.room_code} as abandoned:`, updateError);
+            } else {
+              console.log(`✅ [ROOM CLEANUP] Room ${room.room_code} marked as abandoned`);
+            }
+          }
         }
       }
 
