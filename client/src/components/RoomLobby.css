@@ -568,6 +568,13 @@
   }
 }
 
+.player-card-content {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  width: 100%;
+}
+
 .player-avatar {
   width: 100px;
   height: 100px;
@@ -580,6 +587,7 @@
   font-weight: 700;
   color: white;
   position: relative;
+  flex-shrink: 0; /* Prevent avatar shrinking */
 }
 
 .player-avatar .avatar-initial {
@@ -615,14 +623,18 @@
 
 .player-info {
   flex: 1;
+  min-width: 0; /* Allow text truncation if needed */
 }
 
 .player-name {
   display: block;
   font-weight: 700;
   font-size: 1.3rem;
-  margin-bottom: 0.8rem;
+  margin-bottom: 0.5rem;
   color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .player-badges {
