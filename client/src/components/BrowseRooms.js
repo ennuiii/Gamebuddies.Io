@@ -97,7 +97,8 @@ const BrowseRooms = ({ onRoomSelected, onCancel }) => {
   // Define getHostInfo function
   const getHostInfo = (room) => {
     const hostMember = room.members?.find(m => m.user_id === room.host_id); // Get the member details for the host
-    const name = hostMember?.user?.display_name || 
+    const name = hostMember?.custom_lobby_name || // Prioritize custom lobby name
+                 hostMember?.user?.display_name || 
                  hostMember?.user?.username || 
                  room.host?.display_name || 
                  room.host?.username || 
