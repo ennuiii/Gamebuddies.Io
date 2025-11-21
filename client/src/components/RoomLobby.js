@@ -754,12 +754,19 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
     };
 
     const handleProfileUpdated = (data) => {
-      console.log('👤 [PROFILE] Profile updated event received:', data);
+      console.log('👤 [PROFILE DEBUG] Profile updated event received:', data);
       const { userId, avatarStyle, avatarSeed, avatarOptions } = data;
 
-      // Update player avatar in the list (only avatar changes, not name)
-      setPlayers(prevPlayers =>
-        prevPlayers.map(player => {
+      setPlayers(prevPlayers => {
+        const targetPlayer = prevPlayers.find(p => p.id === userId);
+        if (!targetPlayer) {
+          console.warn('👤 [PROFILE DEBUG] Target player not found in list:', userId);
+          return prevPlayers;
+        }
+
+        console.log('👤 [PROFILE DEBUG] Updating player:', targetPlayer.name, 'Old options:', targetPlayer.avatarOptions, 'New options:', avatarOptions);
+
+        return prevPlayers.map(player => {
           if (player.id === userId) {
             return {
               ...player,
@@ -769,8 +776,8 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
             };
           }
           return player;
-        })
-      );
+        });
+      });
     };
 
     const handleKickFailed = (data) => {
