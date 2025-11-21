@@ -757,6 +757,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       console.log('👤 [PROFILE DEBUG] Profile updated event received:', data);
       const { userId, avatarStyle, avatarSeed, avatarOptions } = data;
 
+      // 1. Optimistic Update
       setPlayers(prevPlayers => {
         const targetPlayer = prevPlayers.find(p => p.id === userId);
         if (!targetPlayer) {
@@ -778,6 +779,11 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
           return player;
         });
       });
+
+      // 2. Authoritative Fetch (Backup)
+      // Since the DB is updated by the time this event fires, fetching fresh list ensures consistency
+      console.log('👤 [PROFILE DEBUG] Fetching fresh player list to confirm update...');
+      fetchUpdatedPlayerList();
     };
 
     const handleKickFailed = (data) => {
