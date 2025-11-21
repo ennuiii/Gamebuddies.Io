@@ -49,6 +49,7 @@ const ProfileSettingsModal = ({ isOpen, onClose, roomCode, isPremium: propIsPrem
         userId: user.id,
         ...avatarData
       };
+      console.log('🎨 [PROFILE MODAL] Request body:', requestBody);
 
       const response = await fetch('/api/users/avatar', {
         method: 'PUT',
@@ -59,7 +60,9 @@ const ProfileSettingsModal = ({ isOpen, onClose, roomCode, isPremium: propIsPrem
         body: JSON.stringify(requestBody),
       });
 
+      console.log('🎨 [PROFILE MODAL] Response status:', response.status);
       const data = await response.json();
+      console.log('🎨 [PROFILE MODAL] Response data:', data);
 
       if (!response.ok) {
         throw new Error(data.error || 'Failed to save avatar');
@@ -70,11 +73,14 @@ const ProfileSettingsModal = ({ isOpen, onClose, roomCode, isPremium: propIsPrem
 
       // Refresh user data to get updated avatar
       if (refreshUser) {
+        console.log('🎨 [PROFILE MODAL] Refreshing user data...');
         await refreshUser();
+        console.log('🎨 [PROFILE MODAL] User data refreshed');
       }
 
       // Notify lobby of avatar change via socket
       if (socket && roomCode) {
+        console.log('🎨 [PROFILE MODAL] Emitting profile_updated to socket');
         socket.emit('profile_updated', {
           roomCode,
           userId: user.id,
