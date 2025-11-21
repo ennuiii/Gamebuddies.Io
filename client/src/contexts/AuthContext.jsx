@@ -185,13 +185,13 @@ export const AuthProvider = ({ children }) => {
       console.log('✅ [AUTH] User data loaded:', {
         id: data.user.id,
         username: data.user.username,
-        premium: data.user.premium_tier,
+        premium: data.user.premium_tier, // This is the raw value from DB
         premiumExpires: data.user.premium_expires_at,
         subscriptionCanceled: data.user.subscription_canceled_at
       });
 
       setUser(data.user);
-      console.log('✅ [AUTH DEBUG] User state updated successfully');
+      console.log('✅ [AUTH DEBUG] User state updated successfully. Premium Tier:', data.user.premium_tier);
     } catch (error) {
       console.error('❌ [AUTH] Failed to fetch user:', error);
       console.error('❌ [AUTH] Error details:', error.message);
@@ -241,7 +241,8 @@ export const AuthProvider = ({ children }) => {
     refreshUser,
     isAuthenticated: !!session,
     isGuest: !session,
-    isPremium: user?.premium_tier !== 'free' && user?.premium_tier !== null,
+    // Robust check: must have a user, must have a tier, and tier must not be 'free'
+    isPremium: !!(user && user.premium_tier && user.premium_tier !== 'free'),
     supabaseUser: session?.user || null
   };
 

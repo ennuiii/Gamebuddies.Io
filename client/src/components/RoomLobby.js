@@ -6,7 +6,7 @@ import GamePicker from './GamePicker';
 import ProfileSettingsModal from './ProfileSettingsModal';
 import { useRealtimeSubscription } from '../utils/useRealtimeSubscription';
 import { getSupabaseClient } from '../utils/supabase';
-import { getDiceBearUrl } from './Avatar';
+import Avatar from './Avatar';
 import './RoomLobby.css';
 
 const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
@@ -1353,28 +1353,15 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
                   >
                     <div className="player-card-content">
                       <div className="player-avatar">
-                        {/* DiceBear custom avatar for premium users */}
-                        {player.avatarStyle && (player.premiumTier === 'lifetime' || player.premiumTier === 'monthly') ? (
-                          <img
-                            src={getDiceBearUrl(
-                              player.avatarStyle,
-                              player.avatarSeed || player.name,
-                              player.avatarOptions || {},
-                              80
-                            )}
-                            alt={player.name}
-                            className="avatar-image dicebear-avatar"
-                          />
-                        ) : player.avatarUrl ? (
-                          // Check if avatar is a URL or an emoji
-                          player.avatarUrl.startsWith('http') ? (
-                            <img src={player.avatarUrl} alt={player.name} className="avatar-image" />
-                          ) : (
-                            <span className="avatar-emoji">{player.avatarUrl}</span>
-                          )
-                        ) : (
-                          player.name.charAt(0).toUpperCase()
-                        )}
+                        <Avatar
+                          avatarStyle={player.avatarStyle}
+                          avatarSeed={player.avatarSeed}
+                          avatarOptions={player.avatarOptions}
+                          name={player.name}
+                          size={80}
+                          isPremium={player.premiumTier !== 'free'}
+                          className="avatar-image"
+                        />
                         {/* Premium indicator on avatar */}
                         {player.premiumTier && player.premiumTier !== 'free' && (
                           <div className="premium-indicator" title={`${player.premiumTier === 'lifetime' ? 'Lifetime' : 'Pro'} Member`}>
