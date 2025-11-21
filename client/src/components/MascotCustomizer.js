@@ -34,23 +34,22 @@ const MascotCustomizer = ({
       console.warn('❌ [MASCOT DEBUG] Selection blocked: Item is premium but user is not.');
       return;
     }
-    if (loading) return; // Prevent multiple clicks while saving
-
+    
     const newConfig = { avatarId: item.id };
     setConfig(newConfig);
-    
-    // Auto-save immediately
-    console.log('🎨 [MASCOT DEBUG] Auto-saving selection:', newConfig);
-    onSave({
-      avatar_style: 'custom-mascot',
-      avatar_seed: 'custom',
-      avatar_options: newConfig
-    });
   };
 
   const handleUpgrade = () => {
     navigate('/premium');
     if (onCancel) onCancel();
+  };
+
+  const handleSave = () => {
+    onSave({
+      avatar_style: 'custom-mascot',
+      avatar_seed: 'custom',
+      avatar_options: config
+    });
   };
 
   return (
@@ -59,9 +58,7 @@ const MascotCustomizer = ({
         <div className="mascot-preview-wrapper">
           <MascotAvatar config={config} size={200} />
         </div>
-        <p className="mascot-helper-text">
-          {loading ? 'Saving changes...' : 'Select your avatar'}
-        </p>
+        <p className="mascot-helper-text">Select your avatar</p>
         {!isPremium && (
           <button type="button" className="btn-text-only" onClick={handleUpgrade} style={{fontSize: '0.8rem', marginTop: '0.5rem', textDecoration: 'underline', color: 'var(--primary)'}}>
             Unlock all avatars with Premium
@@ -85,7 +82,7 @@ const MascotCustomizer = ({
                   className={`mascot-option-btn ${isSelected ? 'selected' : ''} ${isLocked ? 'locked' : ''}`}
                   onClick={() => handleSelect(item)}
                   title={isLocked ? `${item.name} (Premium)` : item.name}
-                  disabled={isLocked || loading}
+                  disabled={isLocked}
                 >
                   <div className="img-wrapper">
                     <img src={item.src} alt={item.name} />
@@ -111,12 +108,20 @@ const MascotCustomizer = ({
           <button
             type="button"
             onClick={onCancel}
-            className="btn btn-primary"
+            className="btn btn-outline"
             disabled={loading}
           >
-            Done
+            Cancel
           </button>
         )}
+        <button
+          type="button"
+          onClick={handleSave}
+          className="btn btn-primary"
+          disabled={loading}
+        >
+          {loading ? 'Saving...' : 'Save & Done'}
+        </button>
       </div>
     </div>
   );
