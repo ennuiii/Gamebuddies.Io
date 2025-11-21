@@ -12,7 +12,7 @@ import './RoomLobby.css';
 const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
   const { socket, socketId, isConnected: socketIsConnected, connectSocket } = useSocket();
   const { addNotification } = useNotification(); // Get addNotification function
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, isPremium } = useAuth(); // Get isPremium from context
   const [players, setPlayers] = useState([]);
   const [selectedGame, setSelectedGame] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -1250,6 +1250,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
         isOpen={showProfileSettings}
         onClose={() => setShowProfileSettings(false)}
         roomCode={roomCode}
+        isPremium={isPremium}
       />
 
       <div className="lobby-content">

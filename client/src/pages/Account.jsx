@@ -8,7 +8,8 @@ import './Account.css';
 
 const Account = () => {
   const navigate = useNavigate();
-  const { user, isAuthenticated, loading: authLoading, session, refreshUser } = useAuth();
+  // Get isPremium from AuthContext directly - it handles 'pro' tiers correctly
+  const { user, isAuthenticated, loading: authLoading, session, refreshUser, isPremium } = useAuth();
   const [loading, setLoading] = useState(false);
   const [avatarLoading, setAvatarLoading] = useState(false);
   const [showAvatarCustomizer, setShowAvatarCustomizer] = useState(false);
@@ -19,7 +20,9 @@ const Account = () => {
     authLoading,
     hasSession: !!session,
     userId: user?.id,
-    username: user?.username
+    username: user?.username,
+    isPremium, // Debug
+    tier: user?.premium_tier // Debug
   });
 
   // Redirect to login if not authenticated
@@ -31,7 +34,7 @@ const Account = () => {
 
   console.log('📄 [ACCOUNT PAGE] Authenticated, rendering account page');
 
-  const isPremium = user?.premium_tier === 'lifetime' || user?.premium_tier === 'monthly';
+  // Helper flags for UI
   const isLifetime = user?.premium_tier === 'lifetime';
   const isMonthly = user?.premium_tier === 'monthly';
 
@@ -250,6 +253,7 @@ const Account = () => {
                 onSave={handleSaveAvatar}
                 onCancel={() => setShowAvatarCustomizer(false)}
                 loading={avatarLoading}
+                isPremium={isPremium}
               />
             ) : (
               <div className="current-avatar">

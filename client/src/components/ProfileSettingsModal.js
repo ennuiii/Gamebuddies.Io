@@ -8,8 +8,11 @@ import AvatarCustomizer from './AvatarCustomizer';
 import Avatar, { getDiceBearUrl } from './Avatar';
 import './ProfileSettingsModal.css';
 
-const ProfileSettingsModal = ({ isOpen, onClose, roomCode }) => {
-  const { user, session, refreshUser, isPremium } = useAuth();
+const ProfileSettingsModal = ({ isOpen, onClose, roomCode, isPremium: propIsPremium }) => {
+  const { user, session, refreshUser, isPremium: authIsPremium } = useAuth();
+  // Use prop if provided, otherwise use context value
+  const isPremium = propIsPremium !== undefined ? propIsPremium : authIsPremium;
+  
   const { socket } = useSocket();
   const { addNotification } = useNotification();
   const navigate = useNavigate();
