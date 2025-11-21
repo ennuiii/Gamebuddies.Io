@@ -1,5 +1,6 @@
 -- Migration: Add role column and fix guest status
 -- Created at: 2025-11-21
+-- Updated to use dynamic SQL for role updates to prevent "column does not exist" parse errors
 
 -- 1. Add role column to users table if it doesn't exist
 DO $$
@@ -17,9 +18,11 @@ BEGIN
 END $$;
 
 -- 2. Update specific user to admin
-UPDATE public.users 
-SET role = 'admin' 
-WHERE username = 'ennuigw2' OR email = 'ennui.gw2@gmail.com';
+-- Using dynamic SQL to defer parsing, avoiding error if column was just added in the same batch
+DO $$
+BEGIN
+    EXECUTE 'UPDATE public.users SET role = ''admin'' WHERE username = ''ennuigw2'' OR email = ''ennui.gw2@gmail.com''';
+END $$;
 
 -- 3. Fix is_guest logic
 -- Users with email OR oauth_provider are NOT guests
