@@ -800,7 +800,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
     socket.on('roomStatusChanged', handleRoomStatusChanged);
     socket.on('playerKicked', handlePlayerKicked);
     socket.on('kickFailed', handleKickFailed);
-    socket.on('profileUpdated', handleProfileUpdated);
+    socket.on('profile_updated', handleProfileUpdated); // Fixed event name
     socket.on('error', handleError);
 
     // Cleanup function
@@ -830,7 +830,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
         socket.off('roomStatusChanged', handleRoomStatusChanged);
         socket.off('playerKicked', handlePlayerKicked);
         socket.off('kickFailed', handleKickFailed);
-        socket.off('profileUpdated', handleProfileUpdated);
+        socket.off('profile_updated', handleProfileUpdated); // Fixed event name
         socket.off('error', handleError);
         
         // Emit leaveRoom only if the socket is still connected
