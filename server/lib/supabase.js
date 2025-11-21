@@ -148,7 +148,7 @@ class DatabaseService {
   }
 
   // User management
-  async getOrCreateUser(externalId, username, displayName) {
+  async getOrCreateUser(externalId, username, displayName, additionalFields = {}) {
     try {
       // Always check by username first (since users table uses username as unique)
       let { data: user, error } = await this.adminClient
@@ -179,7 +179,8 @@ class DatabaseService {
           .from('users')
           .insert({
             username: username,
-            display_name: displayName || username
+            display_name: displayName || username,
+            ...additionalFields
           })
           .select()
           .single();
@@ -196,7 +197,8 @@ class DatabaseService {
             .from('users')
             .insert({
               username: uniqueUsername,
-              display_name: displayName || username
+              display_name: displayName || username,
+              ...additionalFields
             })
             .select()
             .single();

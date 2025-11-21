@@ -292,16 +292,18 @@ const Account = () => {
           <div className="status-card">
             <div className="status-header">
               <div className="status-icon">
-                {isLifetime ? '⭐' : isMonthly ? '💎' : '🎮'}
+                {user?.role === 'admin' ? '💻' : isLifetime ? '⭐' : isMonthly ? '💎' : '🎮'}
               </div>
               <div className="status-info">
                 <h3>
-                  {isLifetime ? 'Lifetime Premium' :
+                  {user?.role === 'admin' ? 'Administrator' :
+                   isLifetime ? 'Lifetime Premium' :
                    isMonthly ? 'Monthly Premium' :
                    'Free Plan'}
                 </h3>
                 <p className="status-description">
-                  {isLifetime ? 'You have lifetime access to all premium features' :
+                  {user?.role === 'admin' ? 'You have full administrative access to the platform' :
+                   isLifetime ? 'You have lifetime access to all premium features' :
                    isCanceled ? 'Your subscription is canceled and will end at the next billing date' :
                    isMonthly ? 'Your subscription renews automatically each month' :
                    wasPremium ? 'Your premium subscription has ended' :

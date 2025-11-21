@@ -1377,9 +1377,9 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
                           className="avatar-image"
                         />
                         {/* Premium indicator on avatar */}
-                        {player.premiumTier && player.premiumTier !== 'free' && (
-                          <div className="premium-indicator" title={`${player.premiumTier === 'lifetime' ? 'Lifetime' : 'Pro'} Member`}>
-                            {player.premiumTier === 'lifetime' ? '⭐' : '💎'}
+                        {(player.role === 'admin' || (player.premiumTier && player.premiumTier !== 'free')) && (
+                          <div className="premium-indicator" title={player.role === 'admin' ? 'Administrator' : `${player.premiumTier === 'lifetime' ? 'Lifetime' : 'Pro'} Member`}>
+                            {player.role === 'admin' ? '💻' : player.premiumTier === 'lifetime' ? '⭐' : '💎'}
                           </div>
                         )}
                       </div>
@@ -1388,15 +1388,23 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
                         <div className="player-badges">
                           {player.isHost && <span className="host-badge">Host</span>}
                           {/* Premium badges */}
-                          {player.premiumTier === 'lifetime' && (
-                            <span className="premium-badge lifetime" title="Lifetime Premium Member">
-                              ⭐ PREMIUM
+                          {player.role === 'admin' ? (
+                            <span className="premium-badge lifetime" title="Administrator">
+                              💻 ADMIN
                             </span>
-                          )}
-                          {player.premiumTier === 'monthly' && (
-                            <span className="premium-badge monthly" title="Premium Member">
-                              💎 PRO
-                            </span>
+                          ) : (
+                            <>
+                              {player.premiumTier === 'lifetime' && (
+                                <span className="premium-badge lifetime" title="Lifetime Premium Member">
+                                  ⭐ PREMIUM
+                                </span>
+                              )}
+                              {player.premiumTier === 'monthly' && (
+                                <span className="premium-badge monthly" title="Premium Member">
+                                  💎 PRO
+                                </span>
+                              )}
+                            </>
                           )}
                           <span
                             className="status-badge"

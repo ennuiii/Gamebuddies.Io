@@ -30,7 +30,10 @@ CREATE TABLE IF NOT EXISTS users (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     last_seen TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
     is_guest BOOLEAN DEFAULT false,
-    metadata JSONB DEFAULT '{}'
+    metadata JSONB DEFAULT '{}',
+    email TEXT UNIQUE,
+    oauth_provider TEXT,
+    role VARCHAR(20) DEFAULT 'user' CHECK (role IN ('user', 'admin', 'moderator'))
 );
 
 -- Rooms table  

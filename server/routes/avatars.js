@@ -1,6 +1,7 @@
 const express = require('express');
 const fs = require('fs');
 const path = require('path');
+const { supabaseAdmin } = require('../lib/supabase');
 
 const router = express.Router();
 
@@ -9,11 +10,37 @@ const AVATARS_DIR = path.join(__dirname, '../public/avatars');
 /**
  * @route GET /api/avatars
  * @desc Get list of all available avatars (free and premium)
- * @access Public
+ * @access Public (Hidden avatars require Admin role)
  */
-router.get('/', (req, res) => {
+router.get('/', async (req, res) => {
   try {
     const avatars = [];
+    let isAdmin = false;
+
+    // Check for authentication to see if user is admin
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      try {
+        const token = authHeader.substring(7);
+        const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
+        
+        if (user && !error) {
+          // Check role in public.users
+          const { data: publicUser, error: publicError } = await supabaseAdmin
+            .from('users')
+            .select('role')
+            .eq('id', user.id)
+            .single();
+          
+          if (publicUser && publicUser.role === 'admin') {
+            isAdmin = true;
+          }
+        }
+      } catch (authError) {
+        console.warn('Error checking admin status:', authError.message);
+        // Continue as non-admin
+      }
+    }
 
     // Helper to scan directory
     const scanDir = (type, isPremium) => {
@@ -30,7 +57,8 @@ router.get('/', (req, res) => {
               id: id,
               name: name,
               src: `/avatars/${type}/${file}`,
-              premium: isPremium
+              premium: isPremium,
+              hidden: type === 'hidden'
             });
           }
         });
@@ -39,6 +67,10 @@ router.get('/', (req, res) => {
 
     scanDir('free', false);
     scanDir('premium', true);
+    
+    if (isAdmin) {
+      scanDir('hidden', false);
+    }
 
     res.json({ success: true, avatars });
   } catch (error) {

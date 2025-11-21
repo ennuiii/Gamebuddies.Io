@@ -94,29 +94,24 @@ const BrowseRooms = ({ onRoomSelected, onCancel }) => {
     return `${connectedPlayers}/${room.max_players}`;
   };
 
-  const getHostInfo = (room) => {
-    // Find the host from members array
-    const hostMember = room.members?.find(m => m.role === 'host');
+    // Get name
+    const name = hostMember?.user?.display_name || 
+                 hostMember?.user?.username || 
+                 room.host?.display_name || 
+                 room.host?.username || 
+                 'Unknown Host';
 
-    // Get the name
-    let name = 'Unknown';
-    if (hostMember?.custom_lobby_name) {
-      name = hostMember.custom_lobby_name;
-    } else if (hostMember?.user?.display_name) {
-      name = hostMember.user.display_name;
-    } else if (hostMember?.user?.username) {
-      name = hostMember.user.username;
-    } else if (room.host?.display_name || room.host?.username) {
-      name = room.host?.display_name || room.host?.username;
-    }
-
-    // Get premium tier
+    // Get premium tier and role
     const premiumTier = hostMember?.user?.premium_tier || room.host?.premium_tier || 'free';
+    const role = hostMember?.user?.role || room.host?.role || 'user';
 
-    return { name, premiumTier };
+    return { name, premiumTier, role };
   };
 
-  const getPremiumBadge = (premiumTier) => {
+  const getPremiumBadge = (premiumTier, role) => {
+    if (role === 'admin') {
+      return <span className="host-premium-badge lifetime" title="Administrator">💻</span>;
+    }
     if (premiumTier === 'lifetime') {
       return <span className="host-premium-badge lifetime" title="Lifetime Premium">⭐</span>;
     }
@@ -194,7 +189,7 @@ const BrowseRooms = ({ onRoomSelected, onCancel }) => {
                   <div className="detail-item">
                     <span className="detail-icon">👤</span>
                     <span className="detail-text">
-                      Host: {getHostInfo(room).name} {getPremiumBadge(getHostInfo(room).premiumTier)}
+                      Host: {getHostInfo(room).name} {getPremiumBadge(getHostInfo(room).premiumTier, getHostInfo(room).role)}
                     </span>
                   </div>
 

@@ -1994,7 +1994,8 @@ io.on('connection', async (socket) => {
         user = await db.getOrCreateUser(
           `${socket.id}_${playerName}`, // Unique per connection to prevent conflicts
           playerName,
-          playerName
+          playerName,
+          { is_guest: true }
         );
         console.log(`✅ [DEBUG] Guest user created:`, { id: user.id, username: user.username });
       }

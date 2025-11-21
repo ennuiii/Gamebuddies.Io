@@ -10,7 +10,7 @@ const resolveAvatarUrl = (style, seed, options) => {
   if (style === 'custom-mascot' && options?.avatarId) {
     const id = options.avatarId;
     const extensions = ['.png', '.jpg', '.jpeg', '.svg', '.gif'];
-    const types = ['premium', 'free'];
+    const types = ['premium', 'free', 'hidden'];
     const baseDir = path.join(__dirname, '../public/avatars');
 
     for (const type of types) {
@@ -51,7 +51,7 @@ router.get('/me', requireAuth, async (req, res) => {
     // Fetch user from database
     const { data: user, error } = await supabaseAdmin
       .from('users')
-      .select('id, username, email, display_name, avatar_url, premium_tier, premium_expires_at, subscription_canceled_at, avatar_style, avatar_seed, avatar_options, created_at')
+      .select('id, username, email, display_name, avatar_url, premium_tier, premium_expires_at, subscription_canceled_at, avatar_style, avatar_seed, avatar_options, created_at, role, is_guest')
       .eq('id', userId)
       .single();
 
@@ -368,16 +368,25 @@ router.put('/users/avatar', requireAuth, async (req, res) => {
       return res.status(403).json({ error: 'Cannot update another user\'s avatar' });
     }
 
-    // Check if user is premium
+    // Check if user is premium and get role
     const { data: user, error: userError } = await supabaseAdmin
       .from('users')
-      .select('premium_tier')
+      .select('premium_tier, role')
       .eq('id', userId)
       .single();
 
     if (userError) {
       console.error('❌ [AUTH ENDPOINT] Error fetching user:', userError);
       throw userError;
+    }
+
+    // Calculate new Avatar URL
+    const newAvatarUrl = resolveAvatarUrl(avatar_style, avatar_seed, avatar_options);
+
+    // Check if user is trying to use a hidden avatar without admin role
+    if (newAvatarUrl && newAvatarUrl.includes('/avatars/hidden/') && user.role !== 'admin') {
+      console.warn(`⚠️ [AUTH] User ${userId} tried to use hidden avatar without admin role`);
+      return res.status(403).json({ error: 'This avatar is restricted to administrators' });
     }
 
     if (!user || (user.premium_tier !== 'lifetime' && user.premium_tier !== 'monthly')) {
@@ -395,9 +404,6 @@ router.put('/users/avatar', requireAuth, async (req, res) => {
       // console.error('❌ [AUTH ENDPOINT] User is not premium:', { ... });
       // return res.status(403).json({ error: 'Custom avatars are a premium feature' });
     }
-
-    // Calculate new Avatar URL
-    const newAvatarUrl = resolveAvatarUrl(avatar_style, avatar_seed, avatar_options);
 
     // Update avatar settings
     const { data: updatedUser, error: updateError } = await supabaseAdmin

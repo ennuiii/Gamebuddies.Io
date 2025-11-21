@@ -118,11 +118,13 @@ const Header = ({ onNavigateHome, onNavigateGames, isInLobby }) => {
                           <span className="user-name">
                             {user.display_name || user.username || user.email?.split('@')[0]}
                           </span>
-                          {(user.premium_tier === 'lifetime' || user.premium_tier === 'monthly') && (
-                            <span className="premium-badge">
-                              {user.premium_tier === 'lifetime' ? 'PREMIUM' : 'PRO'}
-                            </span>
-                          )}
+              {user.role === 'admin' ? (
+                <span className="premium-badge lifetime">💻 ADMIN</span>
+              ) : user.premium_tier === 'lifetime' ? (
+                <span className="premium-badge lifetime">PREMIUM</span>
+              ) : (
+                <span className="premium-badge monthly">PRO</span>
+              )}
                         </>
                       )}
                     </button>
