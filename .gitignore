@@ -46,3 +46,13 @@ server/scripts/veo_ad_creation/
 server/public/ad_frames/
 client/public/gamebuddies_veo_ad.mp4
 client/public/gamebuddies_ad.mp4
+
+# Dev/Maintenance Scripts (Not needed for app runtime)
+server/scripts/createVideoAd.js
+server/scripts/debugAlign.js
+server/scripts/debugFonts.js
+server/scripts/normalizeAvatars.js
+
+# Documentation/Misc
+Supabase.txt
+gamebuddies.jpg
