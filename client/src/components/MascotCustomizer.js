@@ -48,19 +48,18 @@ const MascotCustomizer = ({
     
     const newConfig = { avatarId: item.id };
     setConfig(newConfig);
+    
+    // Auto-save immediately
+    onSave({
+      avatar_style: 'custom-mascot',
+      avatar_seed: 'custom',
+      avatar_options: newConfig
+    });
   };
 
   const handleUpgrade = () => {
     navigate('/premium');
     if (onCancel) onCancel();
-  };
-
-  const handleSave = () => {
-    onSave({
-      avatar_style: 'custom-mascot',
-      avatar_seed: 'custom',
-      avatar_options: config
-    });
   };
 
   return (
@@ -126,27 +125,6 @@ const MascotCustomizer = ({
             })}
           </div>
         )}
-      </div>
-
-      <div className="mascot-actions">
-        {onCancel && (
-          <button
-            type="button"
-            onClick={onCancel}
-            className="btn btn-outline"
-            disabled={loading}
-          >
-            Cancel
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={handleSave}
-          className="btn btn-primary"
-          disabled={loading}
-        >
-          {loading ? 'Saving...' : 'Save & Done'}
-        </button>
       </div>
     </div>
   );
