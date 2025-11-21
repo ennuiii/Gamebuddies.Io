@@ -17,15 +17,21 @@ const MascotCustomizer = ({
   const { avatars, loading: isLoadingAvatars } = useAvatars();
 
   useEffect(() => {
+    console.log('🎨 [MASCOT DEBUG] MascotCustomizer mounted');
+    console.log('🎨 [MASCOT DEBUG] isPremium prop:', isPremium);
+    console.log('🎨 [MASCOT DEBUG] Avatars loaded:', avatars.length);
+    
     if (!currentConfig || !currentConfig.avatarId) {
       setConfig(getDefaultMascotConfig());
     } else {
       setConfig(currentConfig);
     }
-  }, [currentConfig]);
+  }, [currentConfig, isPremium, avatars]);
 
   const handleSelect = (item) => {
+    console.log('🎨 [MASCOT DEBUG] Selecting item:', item.name, 'Premium required:', item.premium, 'User isPremium:', isPremium);
     if (item.premium && !isPremium) {
+      console.warn('❌ [MASCOT DEBUG] Selection blocked: Item is premium but user is not.');
       return;
     }
     setConfig({ avatarId: item.id });
@@ -39,11 +45,6 @@ const MascotCustomizer = ({
     });
   };
 
-  const handleUpgrade = () => {
-    navigate('/premium');
-    if (onCancel) onCancel(); 
-  };
-
   return (
     <div className="mascot-customizer">
       <div className="mascot-preview-area">
@@ -51,11 +52,6 @@ const MascotCustomizer = ({
           <MascotAvatar config={config} size={200} />
         </div>
         <p className="mascot-helper-text">Select your avatar</p>
-        {!isPremium && (
-          <button type="button" className="btn-text-only" onClick={handleUpgrade} style={{fontSize: '0.8rem', marginTop: '0.5rem', textDecoration: 'underline', color: 'var(--primary)'}}>
-            Unlock all avatars with Premium
-          </button>
-        )}
       </div>
 
       <div className="mascot-controls">
