@@ -48,7 +48,10 @@ const MascotCustomizer = ({
     });
   };
 
-  // Removed manual handleSave as it is now automatic
+  const handleUpgrade = () => {
+    navigate('/premium');
+    if (onCancel) onCancel();
+  };
 
   return (
     <div className="mascot-customizer">
