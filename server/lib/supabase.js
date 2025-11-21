@@ -857,6 +857,7 @@ class DatabaseService {
             user_id,
             role,
             is_connected,
+            custom_lobby_name,
             user:users(username, display_name, premium_tier, role)
           )
         `);
@@ -880,6 +881,16 @@ class DatabaseService {
         .limit(50);
 
       if (error) throw error;
+
+      if (rooms && rooms.length > 0) {
+        console.log('🔍 [DEBUG] getActiveRooms sample data:', {
+          count: rooms.length,
+          firstRoomHost: rooms[0].host,
+          firstRoomHostRole: rooms[0].host?.role,
+          firstRoomMembers: rooms[0].members?.map(m => ({ uid: m.user_id, role: m.user?.role }))
+        });
+      }
+
       return rooms || [];
     } catch (error) {
       console.error('Error getting active rooms:', error);

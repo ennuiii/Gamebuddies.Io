@@ -67,10 +67,7 @@ router.get('/', async (req, res) => {
 
     scanDir('free', false);
     scanDir('premium', true);
-    
-    if (isAdmin) {
-      scanDir('hidden', false);
-    }
+    scanDir('hidden', true); // Always scan hidden, mark as premium/locked
 
     res.json({ success: true, avatars });
   } catch (error) {

@@ -7,7 +7,8 @@ const AvatarCustomizer = ({
   onSave,
   onCancel,
   loading = false,
-  isPremium = false
+  isPremium = false,
+  userRole = 'user'
 }) => {
   return (
     <div className="avatar-customizer">
@@ -17,6 +18,7 @@ const AvatarCustomizer = ({
         onCancel={onCancel}
         loading={loading}
         isPremium={isPremium}
+        userRole={userRole}
       />
     </div>
   );

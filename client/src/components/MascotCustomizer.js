@@ -10,7 +10,8 @@ const MascotCustomizer = ({
   onSave, 
   onCancel, 
   loading = false,
-  isPremium = false
+  isPremium = false,
+  userRole = 'user'
 }) => {
   const navigate = useNavigate();
   const [config, setConfig] = useState(currentConfig || getDefaultMascotConfig());
@@ -18,7 +19,7 @@ const MascotCustomizer = ({
 
   useEffect(() => {
     console.log('🎨 [MASCOT DEBUG] MascotCustomizer mounted');
-    console.log('🎨 [MASCOT DEBUG] isPremium prop:', isPremium);
+    console.log('🎨 [MASCOT DEBUG] isPremium prop:', isPremium, 'Role:', userRole);
     console.log('🎨 [MASCOT DEBUG] Avatars loaded:', avatars.length);
     
     if (!currentConfig || !currentConfig.avatarId) {
@@ -26,13 +27,23 @@ const MascotCustomizer = ({
     } else {
       setConfig(currentConfig);
     }
-  }, [currentConfig, isPremium, avatars]);
+  }, [currentConfig, isPremium, userRole, avatars]);
 
   const handleSelect = (item) => {
-    console.log('🎨 [MASCOT DEBUG] Selecting item:', item.name, 'Premium required:', item.premium, 'User isPremium:', isPremium);
-    if (item.premium && !isPremium) {
-      console.warn('❌ [MASCOT DEBUG] Selection blocked: Item is premium but user is not.');
+    const isAdminItem = item.hidden;
+    const isAdminUser = userRole === 'admin';
+    
+    console.log('🎨 [MASCOT DEBUG] Selecting item:', item.name);
+    console.log('🎨 [MASCOT DEBUG] Checks:', { isAdminItem, isAdminUser, isPremiumItem: item.premium, isUserPremium: isPremium });
+
+    if (isAdminItem && !isAdminUser) {
+      console.warn('❌ [MASCOT DEBUG] Selection blocked: Admin only.');
       return;
+    }
+
+    if (item.premium && !isPremium && !isAdminItem) { // Admin items might be marked premium in backend, but we handle them separately
+       console.warn('❌ [MASCOT DEBUG] Selection blocked: Premium only.');
+       return;
     }
     
     const newConfig = { avatarId: item.id };
@@ -59,7 +70,7 @@ const MascotCustomizer = ({
           <MascotAvatar config={config} size={200} />
         </div>
         <p className="mascot-helper-text">Select your avatar</p>
-        {!isPremium && (
+        {!isPremium && userRole !== 'admin' && (
           <button type="button" className="btn-text-only" onClick={handleUpgrade} style={{fontSize: '0.8rem', marginTop: '0.5rem', textDecoration: 'underline', color: 'var(--primary)'}}>
             Unlock all avatars with Premium
           </button>
@@ -72,7 +83,18 @@ const MascotCustomizer = ({
         ) : (
           <div className="options-grid single-category">
             {avatars.map(item => {
-              const isLocked = item.premium && !isPremium;
+              const isAdminItem = item.hidden;
+              const isAdminUser = userRole === 'admin';
+              
+              // Logic:
+              // - If hidden (admin item): Locked unless user is admin.
+              // - If premium (and not hidden): Locked unless user is premium.
+              // - Note: Backend marks hidden items as premium too, so we check hidden first.
+              
+              const isLocked = isAdminItem 
+                ? !isAdminUser 
+                : (item.premium && !isPremium);
+
               const isSelected = config.avatarId === item.id;
               
               return (
@@ -81,12 +103,12 @@ const MascotCustomizer = ({
                   type="button"
                   className={`mascot-option-btn ${isSelected ? 'selected' : ''} ${isLocked ? 'locked' : ''}`}
                   onClick={() => handleSelect(item)}
-                  title={isLocked ? `${item.name} (Premium)` : item.name}
+                  title={isAdminItem ? (isLocked ? 'Admin Only 🔒' : 'Admin Avatar') : (isLocked ? `${item.name} (Premium)` : item.name)}
                   disabled={isLocked}
                 >
                   <div className="img-wrapper">
                     <img src={item.src} alt={item.name} />
-                    {item.premium && (
+                    {item.premium && !item.hidden && (
                       <span className="premium-badge-icon" title="Premium">★</span>
                     )}
                     {item.hidden && (

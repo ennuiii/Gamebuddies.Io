@@ -52,6 +52,13 @@ const BrowseRooms = ({ onRoomSelected, onCancel }) => {
 
       // Listen for response
       const handleRoomsList = (data) => {
+        console.log('🔍 [BROWSER DEBUG] Received rooms list:', data);
+        if (data.rooms && data.rooms.length > 0) {
+          console.log('🔍 [BROWSER DEBUG] First room host data:', {
+            host: data.rooms[0].host,
+            members: data.rooms[0].members
+          });
+        }
         setRooms(data.rooms || []);
         setLoading(false);
         setError('');
@@ -97,6 +104,14 @@ const BrowseRooms = ({ onRoomSelected, onCancel }) => {
   // Define getHostInfo function
   const getHostInfo = (room) => {
     const hostMember = room.members?.find(m => m.user_id === room.host_id); // Get the member details for the host
+    
+    // Debug logging for specific room
+    // console.log(`🔍 [BROWSER DEBUG] getHostInfo for room ${room.room_code}:`, { 
+    //   hostId: room.host_id, 
+    //   hostMemberUser: hostMember?.user,
+    //   roomHost: room.host 
+    // });
+
     const name = hostMember?.custom_lobby_name || // Prioritize custom lobby name
                  hostMember?.user?.display_name || 
                  hostMember?.user?.username || 
@@ -105,10 +120,12 @@ const BrowseRooms = ({ onRoomSelected, onCancel }) => {
                  'Unknown Host';
     const premiumTier = hostMember?.user?.premium_tier || room.host?.premium_tier || 'free';
     const role = hostMember?.user?.role || room.host?.role || 'user'; // Extract role
+    
     return { name, premiumTier, role };
   };
 
   const getPremiumBadge = (premiumTier, role) => { // Added role parameter
+    // console.log(`🔍 [BROWSER DEBUG] getPremiumBadge: role=${role}, tier=${premiumTier}`);
     if (role === 'admin') { // Check for admin role
       return <span className="host-premium-badge lifetime" title="Administrator">💻</span>;
     }

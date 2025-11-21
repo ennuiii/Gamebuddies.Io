@@ -26,6 +26,17 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
   const [showRoomCode, setShowRoomCode] = useState(false); // For streamer mode: toggle room code visibility
   const [showProfileSettings, setShowProfileSettings] = useState(false); // Profile settings modal
   
+  // Debug logging for players
+  useEffect(() => {
+    if (players.length > 0) {
+      console.log('🔍 [LOBBY DEBUG] Players updated:', players.map(p => ({ 
+        name: p.name, 
+        role: p.role, 
+        premiumTier: p.premiumTier 
+      })));
+    }
+  }, [players]);
+
   const selectedGameInfo = ({
     ddf: {
       name: 'Der Duemmste fliegt',
@@ -1359,6 +1370,8 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
                   avatarSeed: player.avatarSeed,
                   willShowAvatar: player.avatarStyle && (player.premiumTier === 'lifetime' || player.premiumTier === 'monthly')
                 });
+
+                // console.log(`🔍 [LOBBY DEBUG] Rendering player ${player.name}: role=${player.role}, tier=${player.premiumTier}`);
 
                 return (
                   <div

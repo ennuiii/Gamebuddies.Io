@@ -152,6 +152,7 @@ const ProfileSettingsModal = ({ isOpen, onClose, roomCode, isPremium: propIsPrem
                   onCancel={() => setShowAvatarCustomizer(false)}
                   loading={avatarLoading}
                   isPremium={isPremium}
+                  userRole={user?.role}
                 />
               </div>
             ) : (
