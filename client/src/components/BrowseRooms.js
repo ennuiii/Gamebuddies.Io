@@ -94,22 +94,21 @@ const BrowseRooms = ({ onRoomSelected, onCancel }) => {
     return `${connectedPlayers}/${room.max_players}`;
   };
 
-    // Get name
+  // Define getHostInfo function
+  const getHostInfo = (room) => {
+    const hostMember = room.members?.find(m => m.user_id === room.host_id); // Get the member details for the host
     const name = hostMember?.user?.display_name || 
                  hostMember?.user?.username || 
                  room.host?.display_name || 
                  room.host?.username || 
                  'Unknown Host';
-
-    // Get premium tier and role
     const premiumTier = hostMember?.user?.premium_tier || room.host?.premium_tier || 'free';
-    const role = hostMember?.user?.role || room.host?.role || 'user';
-
+    const role = hostMember?.user?.role || room.host?.role || 'user'; // Extract role
     return { name, premiumTier, role };
   };
 
-  const getPremiumBadge = (premiumTier, role) => {
-    if (role === 'admin') {
+  const getPremiumBadge = (premiumTier, role) => { // Added role parameter
+    if (role === 'admin') { // Check for admin role
       return <span className="host-premium-badge lifetime" title="Administrator">💻</span>;
     }
     if (premiumTier === 'lifetime') {
