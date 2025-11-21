@@ -40,3 +40,9 @@ Thumbs.db
 *.tmp
 *.temp
 .cache/
+
+# Generated Scripts & Assets
+server/scripts/veo_ad_creation/
+server/public/ad_frames/
+client/public/gamebuddies_veo_ad.mp4
+client/public/gamebuddies_ad.mp4
