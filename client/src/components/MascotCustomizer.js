@@ -89,6 +89,9 @@ const MascotCustomizer = ({
                     {item.premium && (
                       <span className="premium-badge-icon" title="Premium">★</span>
                     )}
+                    {item.hidden && (
+                      <span className="premium-badge-icon admin" title="Admin Only">💻</span>
+                    )}
                     {isLocked && (
                       <div className="lock-overlay">
                         <span>🔒</span>
