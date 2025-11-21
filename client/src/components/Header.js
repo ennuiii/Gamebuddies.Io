@@ -97,6 +97,12 @@ const Header = ({ onNavigateHome, onNavigateGames, isInLobby }) => {
               </nav>
 
               <div className="auth-section">
+                {/* Debug info */}
+                {/* {isAuthenticated && user && (
+                  <div style={{display: 'none'}}>
+                    Header Debug: Role={user.role}, Tier={user.premium_tier}
+                  </div>
+                )} */}
                 {isAuthenticated && user ? (
                   <div className="user-section">
                     <button
