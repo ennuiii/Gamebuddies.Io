@@ -1354,27 +1354,6 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
               .map((player) => {
                 const { playerStatus, countdownTime, isDisconnectedWithTimer } = player;
 
-                // Debug premium tier
-                console.log(`🎮 [ROOM LOBBY] Player data:`, {
-                  name: player.name,
-                  role: player.role,
-                  premiumTier: player.premiumTier,
-                  premiumTierType: typeof player.premiumTier,
-                  avatarUrl: player.avatarUrl,
-                  hasPremiumTier: !!player.premiumTier,
-                  isPremium: player.premiumTier !== 'free',
-                  isLifetime: player.premiumTier === 'lifetime',
-                  isMonthly: player.premiumTier === 'monthly',
-                  willShowLifetimeBadge: player.role !== 'admin' && player.premiumTier === 'lifetime',
-                  willShowMonthlyBadge: player.role !== 'admin' && player.premiumTier === 'monthly',
-                  willShowAdminBadge: player.role === 'admin',
-                  avatarStyle: player.avatarStyle,
-                  avatarSeed: player.avatarSeed,
-                  willShowAvatar: player.avatarStyle && (player.role === 'admin' || player.premiumTier === 'lifetime' || player.premiumTier === 'monthly')
-                });
-
-                // console.log(`🔍 [LOBBY DEBUG] Rendering player ${player.name}: role=${player.role}, tier=${player.premiumTier}`);
-
                 return (
                   <div
                     key={player.id}
