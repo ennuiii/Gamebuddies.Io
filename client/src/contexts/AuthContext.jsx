@@ -62,7 +62,7 @@ export const AuthProvider = ({ children }) => {
 
       // Set up auth state listener
       const { data: { subscription } } = supabase.auth.onAuthStateChange(
-        async (event, session) => {
+        (event, session) => {
           console.log('🔐 [AUTH] State changed:', event, session ? 'authenticated' : 'guest', {
             timestamp: new Date().toISOString(),
             userId: session?.user?.id
@@ -70,7 +70,8 @@ export const AuthProvider = ({ children }) => {
           setSession(session);
 
           if (session) {
-            await fetchUser(session.user.id, session.access_token);
+            // Don't await inside onAuthStateChange - causes deadlock on signOut
+            fetchUser(session.user.id, session.access_token);
           } else {
             setUser(null);
           }
