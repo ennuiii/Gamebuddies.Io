@@ -478,6 +478,16 @@
     0 0 40px rgba(255, 165, 0, 0.2);
 }
 
+.player-card.premium-admin {
+  position: relative;
+  border-radius: 20px;
+  background: rgba(35, 15, 15, 1);
+  isolation: isolate;
+  box-shadow:
+    0 0 20px rgba(255, 51, 51, 0.4),
+    0 0 40px rgba(255, 0, 0, 0.2);
+}
+
 /* Animated border gradient */
 .player-card.premium-lifetime::before {
   content: '';
@@ -504,8 +514,35 @@
   animation: spinBorder 4s linear infinite;
 }
 
+/* Admin Border Gradient */
+.player-card.premium-admin::before {
+  content: '';
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  right: -4px;
+  bottom: -4px;
+  border-radius: 24px;
+  background: conic-gradient(
+    from var(--angle, 0deg),
+    #FF3333 0deg,
+    #FF0000 30deg,
+    #CC0000 60deg,
+    #990000 90deg,
+    transparent 135deg,
+    transparent 225deg,
+    #FF3333 270deg,
+    #FF0000 300deg,
+    #CC0000 330deg,
+    #FF3333 360deg
+  );
+  z-index: -1;
+  animation: spinBorder 4s linear infinite;
+}
+
 /* Ensure content is above the background layer */
-.player-card.premium-lifetime > * {
+.player-card.premium-lifetime > *,
+.player-card.premium-admin > * {
   position: relative;
   z-index: 1;
 }
@@ -518,6 +555,20 @@
   box-shadow:
     0 0 20px rgba(0, 217, 255, 0.4),
     0 0 40px rgba(0, 255, 136, 0.2);
+}
+
+@keyframes spinBorder {
+  to {
+    --angle: 360deg;
+  }
+}
+
+/* Add this to register the property if not already present */
+@property --angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
 }
 
 /* Animated border gradient */

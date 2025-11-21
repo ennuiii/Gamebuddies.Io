@@ -1355,8 +1355,9 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
                 const { playerStatus, countdownTime, isDisconnectedWithTimer } = player;
 
                 // Debug premium tier
-                console.log('🎮 [ROOM LOBBY] Player data:', {
+                console.log(`🎮 [ROOM LOBBY] Player data:`, {
                   name: player.name,
+                  role: player.role,
                   premiumTier: player.premiumTier,
                   premiumTierType: typeof player.premiumTier,
                   avatarUrl: player.avatarUrl,
@@ -1364,11 +1365,12 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
                   isPremium: player.premiumTier !== 'free',
                   isLifetime: player.premiumTier === 'lifetime',
                   isMonthly: player.premiumTier === 'monthly',
-                  willShowLifetimeBadge: player.premiumTier === 'lifetime',
-                  willShowMonthlyBadge: player.premiumTier === 'monthly',
+                  willShowLifetimeBadge: player.role !== 'admin' && player.premiumTier === 'lifetime',
+                  willShowMonthlyBadge: player.role !== 'admin' && player.premiumTier === 'monthly',
+                  willShowAdminBadge: player.role === 'admin',
                   avatarStyle: player.avatarStyle,
                   avatarSeed: player.avatarSeed,
-                  willShowAvatar: player.avatarStyle && (player.premiumTier === 'lifetime' || player.premiumTier === 'monthly')
+                  willShowAvatar: player.avatarStyle && (player.role === 'admin' || player.premiumTier === 'lifetime' || player.premiumTier === 'monthly')
                 });
 
                 // console.log(`🔍 [LOBBY DEBUG] Rendering player ${player.name}: role=${player.role}, tier=${player.premiumTier}`);
@@ -1376,7 +1378,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
                 return (
                   <div
                     key={player.id}
-                    className={`player-card ${player.isHost ? 'host' : ''} ${playerStatus.status} ${isDisconnectedWithTimer ? 'disconnecting' : ''} ${player.premiumTier === 'lifetime' ? 'premium-lifetime' : player.premiumTier === 'monthly' ? 'premium-monthly' : ''}`}
+                    className={`player-card ${player.isHost ? 'host' : ''} ${playerStatus.status} ${isDisconnectedWithTimer ? 'disconnecting' : ''} ${player.role === 'admin' ? 'premium-admin' : player.premiumTier === 'lifetime' ? 'premium-lifetime' : player.premiumTier === 'monthly' ? 'premium-monthly' : ''}`}
                   >
                     <div className="player-card-content">
                       <div className="player-avatar">
@@ -1386,7 +1388,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
                           avatarOptions={player.avatarOptions}
                           name={player.name}
                           size={120}
-                          isPremium={player.premiumTier !== 'free'}
+                          isPremium={player.role === 'admin' || player.premiumTier !== 'free'}
                           className="avatar-image"
                         />
                         {/* Premium indicator on avatar */}
