@@ -81,7 +81,7 @@ class DatabaseService {
             last_ping,
             joined_at,
             custom_lobby_name,
-            user:users(username, display_name, premium_tier, avatar_url, avatar_style, avatar_seed, avatar_options)
+            user:users(username, display_name, premium_tier, role, avatar_url, avatar_style, avatar_seed, avatar_options)
           )
         `)
         .eq('room_code', roomCode)
@@ -113,7 +113,7 @@ class DatabaseService {
             last_ping,
             joined_at,
             custom_lobby_name,
-            user:users(username, display_name, premium_tier, avatar_url, avatar_style, avatar_seed, avatar_options)
+            user:users(username, display_name, premium_tier, role, avatar_url, avatar_style, avatar_seed, avatar_options)
           )
         `)
         .eq('id', roomId)
@@ -236,7 +236,7 @@ class DatabaseService {
         })
         .select(`
           *,
-          user:users(username, display_name)
+          user:users(username, display_name, role)
         `)
         .single();
 
@@ -415,7 +415,7 @@ class DatabaseService {
         .from('room_members')
         .select(`
           *,
-          user:users(username, display_name)
+          user:users(username, display_name, role)
         `)
         .eq('room_id', roomId)
         .eq('is_connected', true)
@@ -851,13 +851,13 @@ class DatabaseService {
         .from('rooms')
         .select(`
           *,
-          host:users!host_id(username, display_name),
+          host:users!host_id(username, display_name, premium_tier, role),
           members:room_members(
             id,
             user_id,
             role,
             is_connected,
-            user:users(username, display_name)
+            user:users(username, display_name, premium_tier, role)
           )
         `);
 
