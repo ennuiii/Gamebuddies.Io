@@ -2127,14 +2127,14 @@ io.on('connection', async (socket) => {
           created_at,
           metadata,
           streamer_mode,
-          host:users!host_id(id, username, display_name, avatar_url, premium_tier, avatar_style, avatar_seed, avatar_options),
+          host:users!host_id(id, username, display_name, avatar_url, premium_tier, role, avatar_style, avatar_seed, avatar_options),
           members:room_members(
             id,
             is_connected,
             role,
             custom_lobby_name,
             last_ping,
-            user:users(id, username, display_name, avatar_url, premium_tier, avatar_style, avatar_seed, avatar_options)
+            user:users(id, username, display_name, avatar_url, premium_tier, role, avatar_style, avatar_seed, avatar_options)
           )
         `)
         .eq('is_public', true)
@@ -2560,7 +2560,7 @@ io.on('connection', async (socket) => {
       const updatedRoom = await db.getRoomByCode(data.roomCode);
       
       // Prepare player list - include ALL participants with their status
-              const players = updatedRoom.participants?.map(p => ({
+      const players = updatedRoom.participants?.map(p => ({
           id: p.user_id,
           name: p.custom_lobby_name || p.user?.display_name || p.user?.username,
           isHost: p.role === 'host',
@@ -2569,6 +2569,7 @@ io.on('connection', async (socket) => {
           currentLocation: p.current_location || (p.is_connected ? 'lobby' : 'disconnected'),
           lastPing: p.last_ping,
           premiumTier: p.user?.premium_tier || 'free',
+          role: p.user?.role || 'user',
           avatarUrl: p.user?.avatar_url,
           avatarStyle: p.user?.avatar_style,
           avatarSeed: p.user?.avatar_seed,
@@ -2586,6 +2587,7 @@ io.on('connection', async (socket) => {
           name: customLobbyName || user.display_name || data.playerName,
           isHost: isHost,
           premiumTier: user.premium_tier || 'free',
+          role: user.role || 'user',
           avatarUrl: user.avatar_url,
           avatarStyle: user.avatar_style,
           avatarSeed: user.avatar_seed,
@@ -2967,6 +2969,12 @@ io.on('connection', async (socket) => {
           inGame: p.in_game,
           currentLocation: p.current_location || (p.is_connected ? 'lobby' : 'disconnected'),
           lastPing: p.last_ping,
+          premiumTier: p.user?.premium_tier || 'free',
+          role: p.user?.role || 'user',
+          avatarUrl: p.user?.avatar_url,
+          avatarStyle: p.user?.avatar_style,
+          avatarSeed: p.user?.avatar_seed,
+          avatarOptions: p.user?.avatar_options,
           socketId: null // Socket IDs are tracked in activeConnections, not stored in DB
         })) || [];
 
@@ -3113,6 +3121,12 @@ io.on('connection', async (socket) => {
         inGame: p.in_game,
         currentLocation: p.current_location || (p.is_connected ? 'lobby' : 'disconnected'),
         lastPing: p.last_ping,
+        premiumTier: p.user?.premium_tier || 'free',
+        role: p.user?.role || 'user',
+        avatarUrl: p.user?.avatar_url,
+        avatarStyle: p.user?.avatar_style,
+        avatarSeed: p.user?.avatar_seed,
+        avatarOptions: p.user?.avatar_options,
         socketId: null
       })) || [];
 
@@ -3259,6 +3273,12 @@ io.on('connection', async (socket) => {
         inGame: p.in_game,
         currentLocation: p.current_location || (p.is_connected ? 'lobby' : 'disconnected'),
         lastPing: p.last_ping,
+        premiumTier: p.user?.premium_tier || 'free',
+        role: p.user?.role || 'user',
+        avatarUrl: p.user?.avatar_url,
+        avatarStyle: p.user?.avatar_style,
+        avatarSeed: p.user?.avatar_seed,
+        avatarOptions: p.user?.avatar_options,
         socketId: null
       })) || [];
 
@@ -3567,6 +3587,12 @@ io.on('connection', async (socket) => {
             inGame: p.in_game,
             currentLocation: p.current_location || (p.is_connected ? 'lobby' : 'disconnected'),
             lastPing: p.last_ping,
+            premiumTier: p.user?.premium_tier || 'free',
+            role: p.user?.role || 'user',
+            avatarUrl: p.user?.avatar_url,
+            avatarStyle: p.user?.avatar_style,
+            avatarSeed: p.user?.avatar_seed,
+            avatarOptions: p.user?.avatar_options,
             socketId: null
           })) || [];
 
