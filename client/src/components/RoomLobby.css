@@ -569,16 +569,27 @@
 }
 
 .player-avatar {
-  width: 60px;
-  height: 60px;
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2.5rem;
+  font-weight: 700;
+  color: white;
+  position: relative;
+}
+
+.player-avatar .avatar-initial {
+  width: 100%;
+  height: 100%;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--primary-color), var(--accent-color));
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.8rem;
-  font-weight: 700;
-  color: white;
   box-shadow: 
     0 8px 25px rgba(0, 0, 0, 0.3),
     inset 0 1px 0 rgba(255, 255, 255, 0.2);
@@ -586,7 +597,7 @@
   overflow: hidden;
 }
 
-.player-avatar::before {
+.player-avatar .avatar-initial::before {
   content: '';
   position: absolute;
   top: -50%;

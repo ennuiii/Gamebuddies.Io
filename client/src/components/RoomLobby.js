@@ -1359,7 +1359,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
                           avatarSeed={player.avatarSeed}
                           avatarOptions={player.avatarOptions}
                           name={player.name}
-                          size={80}
+                          size={100}
                           isPremium={player.premiumTier !== 'free'}
                           className="avatar-image"
                         />
