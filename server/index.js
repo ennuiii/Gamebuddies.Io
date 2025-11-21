@@ -4,6 +4,7 @@ const gameApiV2DDFRouter = require('./routes/gameApiV2_DDFCompatibility');
 const gamesRouter = require('./routes/games');
 const authRouter = require('./routes/auth');
 const stripeRouter = require('./routes/stripe');
+const avatarsRouter = require('./routes/avatars');
 const express = require('express');
 const path = require('path');
 const cors = require('cors');
@@ -333,6 +334,9 @@ server.on('upgrade', (request, socket, head) => {
 
 // Serve static files from React build
 app.use(express.static(path.join(__dirname, '../client/build')));
+
+// Serve static avatars
+app.use('/avatars', express.static(path.join(__dirname, 'public/avatars')));
 
 // Serve screenshots
 app.use('/screenshots', express.static(path.join(__dirname, 'screenshots')));
@@ -1903,6 +1907,7 @@ app.use(gameApiV2DDFRouter(io, db, connectionManager, lobbyManager, statusSyncMa
 app.use('/api/games', gamesRouter);
 app.use('/api/auth', authRouter); // Auth endpoints
 app.use('/api', authRouter); // Mount /users endpoint at /api/users
+app.use('/api/avatars', avatarsRouter); // Mount avatars endpoint
 console.log('🔌 [SERVER] Mounting Stripe API routes at /api/stripe');
 app.use('/api/stripe', stripeRouter); // Stripe payment endpoints
 

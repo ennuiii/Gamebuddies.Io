@@ -1,7 +1,9 @@
 import React from 'react';
+import MascotAvatar from './MascotAvatar';
 
 // DiceBear avatar styles suitable for gaming
 export const AVATAR_STYLES = [
+  { id: 'custom-mascot', name: 'Custom Mascot', description: 'Build your own mascot!' },
   { id: 'pixel-art', name: 'Pixel Art', description: '8-bit gaming aesthetic' },
   { id: 'adventurer', name: 'Adventurer', description: 'RPG character portraits' },
   { id: 'adventurer-neutral', name: 'Adventurer Neutral', description: 'Simplified adventurer' },
@@ -44,10 +46,20 @@ const Avatar = ({
   isPremium = false,
   className = ''
 }) => {
-  // If user has custom avatar settings and is premium, use DiceBear
-  const showCustomAvatar = isPremium && avatarStyle;
+  // If user has custom avatar settings, use DiceBear or Mascot
+  const showCustomAvatar = !!avatarStyle;
 
   if (showCustomAvatar) {
+    if (avatarStyle === 'custom-mascot') {
+      return (
+        <MascotAvatar
+          config={avatarOptions}
+          size={size}
+          className={className}
+        />
+      );
+    }
+
     const seed = avatarSeed || name || 'default';
     const url = getDiceBearUrl(avatarStyle, seed, avatarOptions, size * 2); // 2x for retina
 

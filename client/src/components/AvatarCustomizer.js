@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { AVATAR_STYLES, getDiceBearUrl } from './Avatar';
+import MascotCustomizer from './MascotCustomizer';
 import './AvatarCustomizer.css';
 
 const AvatarCustomizer = ({
@@ -9,7 +10,8 @@ const AvatarCustomizer = ({
   username,
   onSave,
   onCancel,
-  loading = false
+  loading = false,
+  isPremium = false
 }) => {
   const [style, setStyle] = useState(currentStyle || 'pixel-art');
   const [seed, setSeed] = useState(currentSeed || username || '');
@@ -40,98 +42,110 @@ const AvatarCustomizer = ({
 
   return (
     <div className="avatar-customizer">
-      <div className="avatar-preview-section">
-        <div className="avatar-preview-container">
-          <img
-            src={previewUrl}
-            alt="Avatar preview"
-            className="avatar-preview"
-          />
-        </div>
-        <button
-          type="button"
-          onClick={handleRandomize}
-          className="btn btn-small btn-outline"
+      <div className="option-group" style={{ marginBottom: '1.5rem' }}>
+        <label htmlFor="avatar-style">Style</label>
+        <select
+          id="avatar-style"
+          value={style}
+          onChange={(e) => setStyle(e.target.value)}
+          className="avatar-select"
         >
-          Randomize
-        </button>
+          {AVATAR_STYLES.map(s => (
+            <option key={s.id} value={s.id}>
+              {s.name} - {s.description}
+            </option>
+          ))}
+        </select>
       </div>
 
-      <div className="avatar-options">
-        <div className="option-group">
-          <label htmlFor="avatar-style">Style</label>
-          <select
-            id="avatar-style"
-            value={style}
-            onChange={(e) => setStyle(e.target.value)}
-            className="avatar-select"
-          >
-            {AVATAR_STYLES.map(s => (
-              <option key={s.id} value={s.id}>
-                {s.name} - {s.description}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div className="option-group">
-          <label htmlFor="avatar-seed">Seed (for uniqueness)</label>
-          <input
-            id="avatar-seed"
-            type="text"
-            value={seed}
-            onChange={(e) => setSeed(e.target.value)}
-            placeholder={username || 'Enter custom seed'}
-            className="avatar-input"
-          />
-          <small className="input-hint">
-            Different seeds create different avatars in the same style
-          </small>
-        </div>
-
-        {/* Style previews */}
-        <div className="style-previews">
-          <label>Quick Style Select</label>
-          <div className="style-grid">
-            {AVATAR_STYLES.slice(0, 6).map(s => (
-              <button
-                key={s.id}
-                type="button"
-                className={`style-preview-btn ${style === s.id ? 'selected' : ''}`}
-                onClick={() => setStyle(s.id)}
-                title={s.name}
-              >
-                <img
-                  src={getDiceBearUrl(s.id, seed || username || 'preview', {}, 48)}
-                  alt={s.name}
-                  loading="lazy"
-                />
-              </button>
-            ))}
+      {style === 'custom-mascot' ? (
+        <MascotCustomizer
+          currentConfig={currentOptions}
+          onSave={onSave}
+          onCancel={onCancel}
+          loading={loading}
+          isPremium={isPremium}
+        />
+      ) : (
+        <>
+          <div className="avatar-preview-section">
+            <div className="avatar-preview-container">
+              <img
+                src={previewUrl}
+                alt="Avatar preview"
+                className="avatar-preview"
+              />
+            </div>
+            <button
+              type="button"
+              onClick={handleRandomize}
+              className="btn btn-small btn-outline"
+            >
+              Randomize
+            </button>
           </div>
-        </div>
-      </div>
 
-      <div className="avatar-actions">
-        {onCancel && (
-          <button
-            type="button"
-            onClick={onCancel}
-            className="btn btn-outline"
-            disabled={loading}
-          >
-            Cancel
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={handleSave}
-          className="btn btn-primary"
-          disabled={loading}
-        >
-          {loading ? 'Saving...' : 'Save Avatar'}
-        </button>
-      </div>
+          <div className="avatar-options">
+            <div className="option-group">
+              <label htmlFor="avatar-seed">Seed (for uniqueness)</label>
+              <input
+                id="avatar-seed"
+                type="text"
+                value={seed}
+                onChange={(e) => setSeed(e.target.value)}
+                placeholder={username || 'Enter custom seed'}
+                className="avatar-input"
+              />
+              <small className="input-hint">
+                Different seeds create different avatars in the same style
+              </small>
+            </div>
+
+            {/* Style previews */}
+            <div className="style-previews">
+              <label>Quick Style Select</label>
+              <div className="style-grid">
+                {AVATAR_STYLES.filter(s => s.id !== 'custom-mascot').slice(0, 6).map(s => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    className={`style-preview-btn ${style === s.id ? 'selected' : ''}`}
+                    onClick={() => setStyle(s.id)}
+                    title={s.name}
+                  >
+                    <img
+                      src={getDiceBearUrl(s.id, seed || username || 'preview', {}, 48)}
+                      alt={s.name}
+                      loading="lazy"
+                    />
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="avatar-actions">
+            {onCancel && (
+              <button
+                type="button"
+                onClick={onCancel}
+                className="btn btn-outline"
+                disabled={loading}
+              >
+                Cancel
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={handleSave}
+              className="btn btn-primary"
+              disabled={loading}
+            >
+              {loading ? 'Saving...' : 'Save Avatar'}
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 };

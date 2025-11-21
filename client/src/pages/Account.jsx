@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getSupabaseClient } from '../utils/supabase';
 import AvatarCustomizer from '../components/AvatarCustomizer';
-import { getDiceBearUrl } from '../components/Avatar';
+import Avatar, { getDiceBearUrl } from '../components/Avatar';
 import './Account.css';
 
 const Account = () => {
@@ -255,14 +255,13 @@ const Account = () => {
               <div className="current-avatar">
                 <div className="avatar-display">
                   {user?.avatar_style ? (
-                    <img
-                      src={getDiceBearUrl(
-                        user.avatar_style,
-                        user.avatar_seed || user.username || user.display_name,
-                        user.avatar_options || {},
-                        120
-                      )}
-                      alt="Your avatar"
+                    <Avatar
+                      avatarStyle={user.avatar_style}
+                      avatarSeed={user.avatar_seed}
+                      avatarOptions={user.avatar_options}
+                      name={user.username || user.display_name}
+                      size={120}
+                      isPremium={true}
                       className="avatar-large"
                     />
                   ) : (

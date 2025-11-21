@@ -1,0 +1,17 @@
+.mascot-avatar-container {
+  position: relative;
+  display: inline-block;
+  overflow: hidden;
+  background-color: #f0f0f0; /* Light background for transparent images */
+  border-radius: 50%;
+}
+
+.mascot-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover; /* Fill the circle */
+  object-position: center; /* Center the subject */
+  border-radius: 50%;
+  display: block;
+}
+

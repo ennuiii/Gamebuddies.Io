@@ -5,7 +5,7 @@ import { useSocket } from '../contexts/LazySocketContext';
 import { useNotification } from '../contexts/NotificationContext';
 import { useNavigate } from 'react-router-dom';
 import AvatarCustomizer from './AvatarCustomizer';
-import { getDiceBearUrl } from './Avatar';
+import Avatar, { getDiceBearUrl } from './Avatar';
 import './ProfileSettingsModal.css';
 
 const ProfileSettingsModal = ({ isOpen, onClose, roomCode }) => {
@@ -92,23 +92,17 @@ const ProfileSettingsModal = ({ isOpen, onClose, roomCode }) => {
   };
 
   const getCurrentAvatarDisplay = () => {
-    if (user?.avatar_style) {
-      return (
-        <img
-          src={getDiceBearUrl(
-            user.avatar_style,
-            user.avatar_seed || user.username || user.display_name,
-            user.avatar_options || {},
-            80
-          )}
-          alt="Your avatar"
-          className="avatar-preview-img"
-        />
-      );
-    }
-    // Default to first letter of display name
-    const name = user?.display_name || user?.username || 'U';
-    return <span className="avatar-preview-initial">{name[0].toUpperCase()}</span>;
+    return (
+      <Avatar
+        avatarStyle={user?.avatar_style}
+        avatarSeed={user?.avatar_seed}
+        avatarOptions={user?.avatar_options}
+        name={user?.display_name || user?.username || 'User'}
+        size={80}
+        isPremium={isPremium}
+        className="avatar-preview-img"
+      />
+    );
   };
 
   return (
@@ -138,7 +132,7 @@ const ProfileSettingsModal = ({ isOpen, onClose, roomCode }) => {
 
           <div className="profile-settings-content">
             {/* Avatar Section */}
-            {showAvatarCustomizer && isPremium ? (
+            {showAvatarCustomizer ? (
               <div className="avatar-customizer-section">
                 <AvatarCustomizer
                   currentStyle={user?.avatar_style}
@@ -148,6 +142,7 @@ const ProfileSettingsModal = ({ isOpen, onClose, roomCode }) => {
                   onSave={handleSaveAvatar}
                   onCancel={() => setShowAvatarCustomizer(false)}
                   loading={avatarLoading}
+                  isPremium={isPremium}
                 />
               </div>
             ) : (
@@ -157,24 +152,12 @@ const ProfileSettingsModal = ({ isOpen, onClose, roomCode }) => {
                 </div>
                 <div className="avatar-preview-info">
                   <span className="preview-label">Current Avatar</span>
-                  {isPremium ? (
-                    <button
-                      className="change-avatar-btn"
-                      onClick={() => setShowAvatarCustomizer(true)}
-                    >
-                      {user?.avatar_style ? 'Change Avatar' : 'Create Avatar'}
-                    </button>
-                  ) : (
-                    <button
-                      className="upgrade-avatar-btn"
-                      onClick={() => {
-                        onClose();
-                        navigate('/premium');
-                      }}
-                    >
-                      Upgrade for Custom Avatar
-                    </button>
-                  )}
+                  <button
+                    className="change-avatar-btn"
+                    onClick={() => setShowAvatarCustomizer(true)}
+                  >
+                    {user?.avatar_style ? 'Change Avatar' : 'Create Avatar'}
+                  </button>
                 </div>
               </div>
             )}
