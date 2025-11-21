@@ -231,6 +231,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
         currentLocation: member.current_location,
         lastPing: member.last_ping,
         premiumTier: member.user?.premium_tier || 'free',
+        role: member.user?.role || 'user',
         avatarUrl: member.user?.avatar_url,
         avatarStyle: member.user?.avatar_style,
         avatarSeed: member.user?.avatar_seed,
@@ -372,6 +373,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
         currentLocation: p.currentLocation || (p.isConnected ? 'lobby' : 'disconnected'),
         lastPing: p.lastPing,
         premiumTier: p.premiumTier || 'free',
+        role: p.role || 'user',
         avatarUrl: p.avatarUrl,
         avatarStyle: p.avatarStyle,
         avatarSeed: p.avatarSeed,
@@ -468,7 +470,13 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
         isConnected: p.is_connected,
         inGame: p.in_game,
         currentLocation: p.current_location,
-        lastPing: p.last_ping
+        lastPing: p.last_ping,
+        premiumTier: p.user?.premium_tier || 'free',
+        role: p.user?.role || 'user',
+        avatarUrl: p.user?.avatar_url,
+        avatarStyle: p.user?.avatar_style,
+        avatarSeed: p.user?.avatar_seed,
+        avatarOptions: p.user?.avatar_options
       })) || [];
       
       setPlayers(mappedPlayers);
