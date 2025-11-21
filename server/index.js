@@ -3453,7 +3453,7 @@ io.on('connection', async (socket) => {
       console.log(`👤 [PROFILE] Profile update received for user ${userId} in room ${roomCode}`);
 
       // Broadcast to all users in the room
-      io.to(roomCode).emit('profileUpdated', {
+      io.to(roomCode).emit('profile_updated', {
         userId,
         displayName,
         avatarUrl,
