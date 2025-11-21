@@ -1,23 +1,8 @@
 import React from 'react';
 import MascotAvatar from './MascotAvatar';
 
-// DiceBear avatar styles suitable for gaming
-export const AVATAR_STYLES = [
-  { id: 'custom-mascot', name: 'Custom Mascot', description: 'Build your own mascot!' },
-  { id: 'pixel-art', name: 'Pixel Art', description: '8-bit gaming aesthetic' },
-  { id: 'adventurer', name: 'Adventurer', description: 'RPG character portraits' },
-  { id: 'adventurer-neutral', name: 'Adventurer Neutral', description: 'Simplified adventurer' },
-  { id: 'bottts', name: 'Robots', description: 'Friendly robot avatars' },
-  { id: 'fun-emoji', name: 'Fun Emoji', description: 'Expressive emoji faces' },
-  { id: 'thumbs', name: 'Thumbs', description: 'Simple thumbs characters' },
-  { id: 'lorelei', name: 'Lorelei', description: 'Illustrated portraits' },
-  { id: 'notionists', name: 'Notionists', description: 'Minimalist faces' },
-  { id: 'big-smile', name: 'Big Smile', description: 'Happy cartoon faces' },
-  { id: 'micah', name: 'Micah', description: 'Modern illustrated avatars' }
-];
-
 /**
- * Generate DiceBear avatar URL
+ * Generate DiceBear avatar URL (Legacy support)
  * @param {string} style - Avatar style (e.g., 'pixel-art', 'adventurer')
  * @param {string} seed - Seed for generating unique avatar (username, etc.)
  * @param {object} options - Additional options for the avatar
