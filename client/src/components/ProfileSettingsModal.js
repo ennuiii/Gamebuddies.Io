@@ -69,7 +69,7 @@ const ProfileSettingsModal = ({ isOpen, onClose, roomCode, isPremium: propIsPrem
       }
 
       console.log('✅ [PROFILE MODAL] Avatar saved successfully');
-      setShowAvatarCustomizer(false);
+      // setShowAvatarCustomizer(false); // Don't close automatically on auto-save
 
       // Refresh user data to get updated avatar
       if (refreshUser) {
