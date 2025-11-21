@@ -12,10 +12,24 @@ const MascotAvatar = ({
 
   const src = getAvatarSrc(avatarId);
 
+  // Determine style based on file type
+  const isFullArt = src && (src.toLowerCase().endsWith('.jpg') || src.toLowerCase().endsWith('.jpeg'));
+  
+  // Dynamic styles
+  const containerStyle = {
+    width: size,
+    height: size,
+    padding: isFullArt ? 0 : '12%' // No padding for full art, safe padding for mascots
+  };
+
+  const imgStyle = {
+    objectFit: isFullArt ? 'cover' : 'contain'
+  };
+
   return (
     <div 
       className={`mascot-avatar-container ${className}`}
-      style={{ width: size, height: size }}
+      style={containerStyle}
     >
       {!src ? (
         // Placeholder / Loading state
@@ -32,6 +46,7 @@ const MascotAvatar = ({
           src={src} 
           alt="Custom Mascot" 
           className="mascot-avatar-img"
+          style={imgStyle}
         />
       )}
     </div>

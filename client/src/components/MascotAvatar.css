@@ -2,19 +2,18 @@
   position: relative;
   display: inline-block;
   overflow: hidden;
-  background-color: transparent; /* Transparent background as requested */
+  background-color: transparent;
   border-radius: 50%;
-  /* Padding reduced to 10% to maximize size while keeping most content within the circle */
-  padding: 10%; 
+  padding: 0; /* Default padding, overridden by inline style if needed */
   box-sizing: border-box;
 }
 
 .mascot-avatar-img {
   width: 100%;
   height: 100%;
-  object-fit: contain;
   object-position: center;
   border-radius: 0;
   display: block;
+  /* object-fit is handled inline based on file type */
 }
 
