@@ -1,28 +1,15 @@
 -- Migration: Add role column and fix guest status
 -- Created at: 2025-11-21
--- Updated to use dynamic SQL for role updates to prevent "column does not exist" parse errors
+-- Simplified to standard SQL commands for better compatibility
 
--- 1. Add role column to users table if it doesn't exist
-DO $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM information_schema.columns 
-        WHERE table_name = 'users' 
-        AND column_name = 'role'
-    ) THEN
-        ALTER TABLE public.users 
-        ADD COLUMN role text DEFAULT 'user' CHECK (role IN ('user', 'admin', 'moderator'));
-        
-        RAISE NOTICE 'Added role column to users table';
-    END IF;
-END $$;
+-- 1. Add role column to users table (idempotent)
+ALTER TABLE public.users 
+ADD COLUMN IF NOT EXISTS role text DEFAULT 'user' CHECK (role IN ('user', 'admin', 'moderator'));
 
 -- 2. Update specific user to admin
--- Using dynamic SQL to defer parsing, avoiding error if column was just added in the same batch
-DO $$
-BEGIN
-    EXECUTE 'UPDATE public.users SET role = ''admin'' WHERE username = ''ennuigw2'' OR email = ''ennui.gw2@gmail.com''';
-END $$;
+UPDATE public.users 
+SET role = 'admin' 
+WHERE username = 'ennuigw2' OR email = 'ennui.gw2@gmail.com';
 
 -- 3. Fix is_guest logic
 -- Users with email OR oauth_provider are NOT guests
