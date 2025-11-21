@@ -770,25 +770,27 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
 
       // 1. Optimistic Update
       setPlayers(prevPlayers => {
-        const targetPlayer = prevPlayers.find(p => p.id === userId);
-        if (!targetPlayer) {
+        const targetPlayerIndex = prevPlayers.findIndex(p => p.id === userId);
+        if (targetPlayerIndex === -1) {
           console.warn('👤 [PROFILE DEBUG] Target player not found in list:', userId);
           return prevPlayers;
         }
 
-        console.log('👤 [PROFILE DEBUG] Updating player:', targetPlayer.name, 'Old options:', targetPlayer.avatarOptions, 'New options:', avatarOptions);
-
-        return prevPlayers.map(player => {
-          if (player.id === userId) {
-            return {
-              ...player,
-              avatarStyle: avatarStyle || player.avatarStyle,
-              avatarSeed: avatarSeed || player.avatarSeed,
-              avatarOptions: avatarOptions || player.avatarOptions
-            };
-          }
-          return player;
+        const targetPlayer = prevPlayers[targetPlayerIndex];
+        console.log('👤 [PROFILE DEBUG] Updating player:', targetPlayer.name, {
+          old: { style: targetPlayer.avatarStyle, options: targetPlayer.avatarOptions },
+          new: { style: avatarStyle, options: avatarOptions }
         });
+
+        const updatedPlayers = [...prevPlayers];
+        updatedPlayers[targetPlayerIndex] = {
+          ...targetPlayer,
+          avatarStyle: avatarStyle || targetPlayer.avatarStyle,
+          avatarSeed: avatarSeed || targetPlayer.avatarSeed,
+          avatarOptions: avatarOptions || targetPlayer.avatarOptions
+        };
+        
+        return updatedPlayers;
       });
 
       // 2. Authoritative Fetch (Backup)

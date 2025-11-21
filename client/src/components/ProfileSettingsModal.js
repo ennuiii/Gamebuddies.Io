@@ -80,7 +80,21 @@ const ProfileSettingsModal = ({ isOpen, onClose, roomCode, isPremium: propIsPrem
 
       // Notify lobby of avatar change via socket
       if (socket && roomCode) {
-        console.log('🎨 [PROFILE MODAL] Emitting profile_updated to socket');
+        console.log('🎨 [PROFILE MODAL] Socket available:', {
+          connected: socket.connected,
+          id: socket.id,
+          roomCode
+        });
+        
+        console.log('🎨 [PROFILE MODAL] Emitting profile_updated to socket:', {
+          roomCode,
+          userId: user.id,
+          displayName: user.display_name || user.username,
+          avatarStyle: avatarData.avatar_style,
+          avatarSeed: avatarData.avatar_seed,
+          avatarOptions: avatarData.avatar_options
+        });
+        
         socket.emit('profile_updated', {
           roomCode,
           userId: user.id,
@@ -88,6 +102,11 @@ const ProfileSettingsModal = ({ isOpen, onClose, roomCode, isPremium: propIsPrem
           avatarStyle: avatarData.avatar_style,
           avatarSeed: avatarData.avatar_seed,
           avatarOptions: avatarData.avatar_options
+        });
+      } else {
+        console.warn('⚠️ [PROFILE MODAL] Cannot emit update: socket or roomCode missing', {
+          socket: !!socket,
+          roomCode
         });
       }
 
