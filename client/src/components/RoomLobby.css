@@ -569,7 +569,6 @@
   initial-value: 0deg;
   inherits: false;
 }
-}
 
 /* Animated border gradient */
 .player-card.premium-monthly::before {
