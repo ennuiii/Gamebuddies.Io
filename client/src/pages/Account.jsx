@@ -254,6 +254,7 @@ const Account = () => {
                 onCancel={() => setShowAvatarCustomizer(false)}
                 loading={avatarLoading}
                 isPremium={isPremium}
+                userRole={user?.role}
               />
             ) : (
               <div className="current-avatar">
