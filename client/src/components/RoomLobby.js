@@ -58,9 +58,33 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
   }, [socket]);
 
   const handleSendMessage = (text) => {
-    const me = players.find(p => p.id === currentUserIdRef.current) || 
-               players.find(p => p.name === playerNameRef.current);
+    // Robust "Me" lookup
+    let me = null;
+    
+    // 1. Try Auth ID (Most reliable if logged in)
+    if (user?.id) {
+        me = players.find(p => p.id === user.id);
+    }
+    
+    // 2. Try Ref ID (If set during join)
+    if (!me && currentUserIdRef.current) {
+        me = players.find(p => p.id === currentUserIdRef.current);
+    }
+    
+    // 3. Try Name (Fallback)
+    if (!me) {
+        me = players.find(p => p.name === playerNameRef.current);
+    }
+
     const nameToSend = me ? me.name : playerNameRef.current;
+    
+    console.log('💬 [CHAT DEBUG] Sending as:', { 
+        nameToSend, 
+        foundMe: !!me, 
+        authId: user?.id, 
+        refId: currentUserIdRef.current, 
+        propName: playerNameRef.current 
+    });
 
     if (socket) socket.emit('chat:message', { 
       message: text,
