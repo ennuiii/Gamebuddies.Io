@@ -2664,6 +2664,7 @@ io.on('connection', async (socket) => {
           avatarStyle: user.avatar_style,
           avatarSeed: user.avatar_seed,
           avatarOptions: user.avatar_options,
+          level: user.level || 1,
           socketId: socket.id
         },
         players: players,

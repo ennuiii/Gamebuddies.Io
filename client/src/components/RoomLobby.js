@@ -57,7 +57,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
     };
   }, [socket]);
 
-  const handleSendMessage = (text) => {
+  const handleSendMessage = useCallback((text) => {
     // Robust "Me" lookup
     let me = null;
     
@@ -83,14 +83,15 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
         foundMe: !!me, 
         authId: user?.id, 
         refId: currentUserIdRef.current, 
-        propName: playerNameRef.current 
+        propName: playerNameRef.current,
+        playersList: players.map(p => ({ id: p.id, name: p.name, level: p.level })) // Debug players state
     });
 
     if (socket) socket.emit('chat:message', { 
       message: text,
       playerName: nameToSend
     });
-  };
+  }, [players, user, currentUserIdRef.current, playerNameRef.current, socket]);
 
   const [gamesList, setGamesList] = useState([]);
 
