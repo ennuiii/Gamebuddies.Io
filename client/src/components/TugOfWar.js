@@ -23,13 +23,21 @@ const TugOfWar = ({ playerName }) => {
         setLastWinner(data.winner);
         setTimeout(() => setLastWinner(null), 2000);
       }
-      if (data.myTeam) { // Server sends my assigned team
-        setMyTeam(data.myTeam);
+    };
+
+    const handleYourTeam = (data) => {
+      if (data.team) {
+        setMyTeam(data.team);
       }
     };
 
     socket.on('tugOfWar:update', handleUpdate);
-    return () => socket.off('tugOfWar:update', handleUpdate);
+    socket.on('tugOfWar:yourTeam', handleYourTeam);
+    
+    return () => {
+      socket.off('tugOfWar:update', handleUpdate);
+      socket.off('tugOfWar:yourTeam', handleYourTeam);
+    };
   }, [socket]);
 
   const handlePull = (e) => {

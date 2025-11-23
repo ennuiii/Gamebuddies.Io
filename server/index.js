@@ -2027,15 +2027,18 @@ io.on('connection', async (socket) => {
         state.position = 50; // Reset for next round;
       }
 
+      // Broadcast update to everyone (Global State)
       io.to(roomCode).emit('tugOfWar:update', {
         position: state.position,
         redWins: state.redWins,
         blueWins: state.blueWins,
         winner,
-        pullTeam: playerTeam, // Send the team that pulled
-        myTeam: playerTeam, // Send my assigned team (for TugOfWar.js client)
-        teams: Object.fromEntries(roomTeams) // Send map for UI (optional, can be inferred)
+        pullTeam: playerTeam, // Who pulled
+        teams: Object.fromEntries(roomTeams) // Full team list
       });
+
+      // Tell the specific user their team (Private State)
+      socket.emit('tugOfWar:yourTeam', { team: playerTeam });
     }
   });
 
