@@ -1925,6 +1925,35 @@ io.on('connection', async (socket) => {
   // Store connection info
   connectionManager.addConnection(socket.id);
 
+  // Chat Handler (Lobby)
+  socket.on('chat:message', (data) => {
+    const rooms = Array.from(socket.rooms).filter(r => r !== socket.id);
+    if (rooms.length > 0) {
+      const roomCode = rooms[0];
+      io.to(roomCode).emit('chat:message', {
+        id: crypto.randomUUID(),
+        playerName: data.playerName || 'Player',
+        message: data.message,
+        timestamp: Date.now(),
+        type: 'user'
+      });
+    }
+  });
+
+  // Minigame Handler (Lobby)
+  socket.on('minigame:click', (data) => {
+    const rooms = Array.from(socket.rooms).filter(r => r !== socket.id);
+    if (rooms.length > 0) {
+      const roomCode = rooms[0];
+      io.to(roomCode).emit('minigame:leaderboard-update', {
+        playerId: data.playerId || socket.id,
+        playerName: data.playerName || 'Player',
+        score: data.score,
+        time: data.time
+      });
+    }
+  });
+
   // Handle room creation
   socket.on('createRoom', async (data) => {
     try {
