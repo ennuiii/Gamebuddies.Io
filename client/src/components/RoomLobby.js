@@ -506,14 +506,22 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
 
     const handlePlayerJoined = (data) => {
       console.log('👋 Player joined:', data.player.name);
-      // Add system message
+      // Add system message with deduplication
       if (data.player?.name) {
-        setMessages(prev => [...prev, {
-          id: Date.now(),
-          type: 'system',
-          message: `${data.player.name} joined the lobby`,
-          timestamp: Date.now()
-        }]);
+        setMessages(prev => {
+          const lastMsg = prev[prev.length - 1];
+          const msgText = `${data.player.name} joined the lobby`;
+          // Prevent duplicate message if same content within 2 seconds
+          if (lastMsg && lastMsg.message === msgText && (Date.now() - lastMsg.timestamp < 2000)) {
+            return prev;
+          }
+          return [...prev, {
+            id: Date.now(),
+            type: 'system',
+            message: msgText,
+            timestamp: Date.now()
+          }];
+        });
       }
 
       console.log('🔍 [PREMIUM DEBUG] Player joined with data:', {
@@ -620,15 +628,20 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       console.log('👋 Player left:', data);
       
       // Add system message if player data is available
-      // Note: data might be just { players: [] } or { player: {...}, players: [] } depending on server event
-      // If data.player exists, use it.
       if (data.player?.name) {
-         setMessages(prev => [...prev, {
-          id: Date.now(),
-          type: 'system',
-          message: `${data.player.name} left the lobby`,
-          timestamp: Date.now()
-        }]);
+         setMessages(prev => {
+          const lastMsg = prev[prev.length - 1];
+          const msgText = `${data.player.name} left the lobby`;
+          if (lastMsg && lastMsg.message === msgText && (Date.now() - lastMsg.timestamp < 2000)) {
+            return prev;
+          }
+          return [...prev, {
+            id: Date.now(),
+            type: 'system',
+            message: msgText,
+            timestamp: Date.now()
+          }];
+        });
       } else {
         // If we only have the new list, determining who left is hard without prev state diffing
         // But 'playerLeft' event usually sends the leaver info if structured correctly.
