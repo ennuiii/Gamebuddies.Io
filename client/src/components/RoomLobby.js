@@ -30,6 +30,12 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
   
   // Lobby Extras State
   const [messages, setMessages] = useState([]);
+  const [imageError, setImageError] = useState(false); // Track if game thumbnail fails
+
+  // Reset image error when game changes
+  useEffect(() => {
+    setImageError(false);
+  }, [selectedGame]);
 
   // Use refs for values that shouldn't trigger re-renders
   const roomCodeRef = useRef(roomCode);
@@ -1583,8 +1589,13 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
           ) : (
             <div className="selected-game-card">
               <div className="game-icon">
-                {selectedGameInfo.thumbnailUrl ? (
-                  <img src={selectedGameInfo.thumbnailUrl} alt={selectedGameInfo.name} style={{ width: '100px', height: '100px', objectFit: 'contain' }} />
+                {selectedGameInfo.thumbnailUrl && !imageError ? (
+                  <img 
+                    src={selectedGameInfo.thumbnailUrl} 
+                    alt={selectedGameInfo.name} 
+                    style={{ width: '100px', height: '100px', objectFit: 'contain' }} 
+                    onError={() => setImageError(true)}
+                  />
                 ) : (
                   selectedGameInfo.icon
                 )}
