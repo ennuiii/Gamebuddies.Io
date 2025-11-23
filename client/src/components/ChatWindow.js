@@ -36,7 +36,7 @@ const ChatWindow = ({ messages, onSendMessage, currentPlayerName }) => {
               key={msg.id || index} 
               className={`chat-message ${isMe ? 'me' : ''} ${isSystem ? 'system' : ''}`}
             >
-              {!isMe && !isSystem && <span className="chat-sender">{msg.playerName}</span>}
+              {!isSystem && <span className="chat-sender">{msg.playerName}</span>}
               <span className="chat-text">{msg.message}</span>
             </div>
           );

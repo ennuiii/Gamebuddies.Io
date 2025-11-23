@@ -454,6 +454,16 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
 
     const handlePlayerJoined = (data) => {
       console.log('👋 Player joined:', data.player.name);
+      // Add system message
+      if (data.player?.name) {
+        setMessages(prev => [...prev, {
+          id: Date.now(),
+          type: 'system',
+          message: `${data.player.name} joined the lobby`,
+          timestamp: Date.now()
+        }]);
+      }
+
       console.log('🔍 [PREMIUM DEBUG] Player joined with data:', {
         playerName: data.player.name,
         premiumTier: data.player.premiumTier,
@@ -549,6 +559,21 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
     const handlePlayerLeft = (data) => {
       console.log('👋 Player left:', data);
       
+      // Add system message if player data is available
+      // Note: data might be just { players: [] } or { player: {...}, players: [] } depending on server event
+      // If data.player exists, use it.
+      if (data.player?.name) {
+         setMessages(prev => [...prev, {
+          id: Date.now(),
+          type: 'system',
+          message: `${data.player.name} left the lobby`,
+          timestamp: Date.now()
+        }]);
+      } else {
+        // If we only have the new list, determining who left is hard without prev state diffing
+        // But 'playerLeft' event usually sends the leaver info if structured correctly.
+      }
+
       // Update players list with complete status information
       setPlayers(data.players || []);
       
