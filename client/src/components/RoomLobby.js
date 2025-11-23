@@ -3,6 +3,8 @@ import { useSocket } from '../contexts/LazySocketContext';
 import { useNotification } from '../contexts/NotificationContext'; // Import useNotification hook
 import { useAuth } from '../contexts/AuthContext';
 import GamePicker from './GamePicker';
+import ChatWindow from './ChatWindow';
+import LobbyMinigame from './LobbyMinigame';
 import ProfileSettingsModal from './ProfileSettingsModal';
 import { useRealtimeSubscription } from '../utils/useRealtimeSubscription';
 import { getSupabaseClient } from '../utils/supabase';
@@ -26,6 +28,10 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
   const [showRoomCode, setShowRoomCode] = useState(false); // For streamer mode: toggle room code visibility
   const [showProfileSettings, setShowProfileSettings] = useState(false); // Profile settings modal
   
+  // Lobby Extras State
+  const [messages, setMessages] = useState([]);
+  const [minigameLeaderboard, setMinigameLeaderboard] = useState([]);
+
   // Debug logging for players
   useEffect(() => {
     if (players.length > 0) {
@@ -36,6 +42,42 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       })));
     }
   }, [players]);
+
+  // Chat & Minigame Listeners
+  useEffect(() => {
+    if (!socket) return;
+
+    const handleChatMessage = (msg) => {
+      setMessages(prev => [...prev, msg]);
+    };
+
+    const handleLeaderboardUpdate = (entry) => {
+      setMinigameLeaderboard(prev => {
+        // Keep only highest score per player
+        const existing = prev.find(p => p.playerId === entry.playerId);
+        if (existing && existing.score >= entry.score) return prev;
+        
+        const others = prev.filter(p => p.playerId !== entry.playerId);
+        return [...others, entry].sort((a, b) => b.score - a.score);
+      });
+    };
+
+    socket.on('chat:message', handleChatMessage);
+    socket.on('minigame:leaderboard-update', handleLeaderboardUpdate);
+
+    return () => {
+      socket.off('chat:message', handleChatMessage);
+      socket.off('minigame:leaderboard-update', handleLeaderboardUpdate);
+    };
+  }, [socket]);
+
+  const handleSendMessage = (text) => {
+    if (socket) socket.emit('chat:message', { message: text });
+  };
+
+  const handleMinigameScore = (score, time) => {
+    if (socket) socket.emit('minigame:click', { score, time });
+  };
 
   const [gamesList, setGamesList] = useState([]);
 
@@ -1455,6 +1497,19 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
                 );
               })}
           </div>
+        </div>
+
+        {/* Lobby Extras: Chat & Minigame */}
+        <div className="lobby-extras">
+          <ChatWindow 
+            messages={messages} 
+            onSendMessage={handleSendMessage} 
+            currentPlayerName={playerNameRef.current} 
+          />
+          <LobbyMinigame 
+            onScore={handleMinigameScore}
+            leaderboard={minigameLeaderboard}
+          />
         </div>
 
         <div className="game-section">

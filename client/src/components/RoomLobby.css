@@ -1641,3 +1641,16 @@
   letter-spacing: 0.5px;
   align-self: flex-start;
 }
+
+.lobby-extras {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  margin-bottom: 4rem;
+}
+
+@media (max-width: 900px) {
+  .lobby-extras {
+    grid-template-columns: 1fr;
+  }
+}
