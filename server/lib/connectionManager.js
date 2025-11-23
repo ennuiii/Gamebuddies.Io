@@ -35,10 +35,16 @@ class ConnectionManager {
     return this.activeConnections.get(socketId);
   }
 
-  // Get all connections for a room
+  // Get all connections for a room by ID
   getRoomConnections(roomId) {
     return Array.from(this.activeConnections.values())
       .filter(conn => conn.roomId === roomId);
+  }
+
+  // Get all connections for a room by Code
+  getRoomConnectionsByCode(roomCode) {
+    return Array.from(this.activeConnections.values())
+      .filter(conn => conn.roomCode === roomCode);
   }
 
   // Get all connections for a user

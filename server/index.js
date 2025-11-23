@@ -2023,6 +2023,11 @@ io.on('connection', async (socket) => {
     }
   });
 
+  // Handle heartbeat to keep connection active
+  socket.on('heartbeat', () => {
+    connectionManager.updateConnection(socket.id, {});
+  });
+
   // Handle room creation
   socket.on('createRoom', async (data) => {
     try {

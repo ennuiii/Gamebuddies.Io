@@ -1010,6 +1010,19 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
     };
   }, [socket, socketIsConnected]); // Effect dependencies: socket instance and its connection status
 
+  // Heartbeat to keep connection alive
+  useEffect(() => {
+    if (!socket) return;
+    
+    const interval = setInterval(() => {
+      if (socket.connected) {
+        socket.emit('heartbeat');
+      }
+    }, 30000); // Every 30 seconds
+    
+    return () => clearInterval(interval);
+  }, [socket]);
+
   // Add beforeunload handler to cleanup WebSocket on navigation
   useEffect(() => {
     const handleBeforeUnload = () => {
