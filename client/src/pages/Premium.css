@@ -386,11 +386,13 @@
 .referral-code-section {
   max-width: 600px;
   margin: 0 auto 4rem;
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(22, 33, 62, 0.8);
+  backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 20px;
   padding: 2rem;
   text-align: center;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
 }
 
 .section-description {
@@ -400,6 +402,22 @@
 
 .relative-input {
   position: relative;
+}
+
+.referral-code-section input {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: white;
+  font-size: 1.1rem;
+  letter-spacing: 1px;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.referral-code-section input:focus {
+  background: rgba(0, 0, 0, 0.4);
+  border-color: #00d9ff;
+  box-shadow: 0 0 0 2px rgba(0, 217, 255, 0.2);
 }
 
 .input-status-icon {
