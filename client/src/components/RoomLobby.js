@@ -37,43 +37,45 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
     }
   }, [players]);
 
-  const selectedGameInfo = ({
-    ddf: {
-      name: 'Der Duemmste fliegt',
-      icon: '🎮',
-      description: 'Quiz game where the worst player gets eliminated',
-      maxPlayers: 8
-    },
-    schooled: {
-      name: 'School Quiz',
-      icon: '🎓',
-      description: 'Educational quiz game for students',
-      maxPlayers: 10
-    },
-    schoolquiz: {
-      name: 'School Quiz',
-      icon: '🎓',
-      description: 'Educational quiz game for students',
-      maxPlayers: 10
-    },
-    susd: {
-      name: "SUS'D",
-      icon: '🕵️',
-      description: "Imposter game - find who's acting suspicious!",
-      maxPlayers: 10
-    },
-    bingo: {
-      name: 'Bingo Buddies',
-      icon: '🎱',
-      description: 'Fast-paced multiplayer bingo with custom cards and power-ups.',
-      maxPlayers: 12
+  const [gamesList, setGamesList] = useState([]);
+
+  // Fetch games list to populate details
+  useEffect(() => {
+    const fetchGames = async () => {
+      try {
+        const response = await fetch('/api/games');
+        const data = await response.json();
+        if (data.success && data.games) {
+          setGamesList(data.games);
+        }
+      } catch (err) {
+        console.error('❌ [RoomLobby] Error fetching games list:', err);
+      }
+    };
+    fetchGames();
+  }, []);
+
+  const selectedGameInfo = useMemo(() => {
+    if (!selectedGame) return null;
+    
+    const foundGame = gamesList.find(g => g.id === selectedGame);
+    if (foundGame) {
+      return {
+        name: foundGame.display_name || foundGame.name,
+        icon: foundGame.icon || '🎮',
+        description: foundGame.description,
+        maxPlayers: foundGame.max_players || foundGame.maxPlayers
+      };
     }
-  })[selectedGame] || {
-    name: selectedGame || 'Unknown game',
-    icon: '🎮',
-    description: 'Waiting for host to select a game',
-    maxPlayers: null
-  };
+
+    // Fallback for unknown game IDs (or before list loads)
+    return {
+      name: selectedGame,
+      icon: '🎮',
+      description: 'Loading game details...',
+      maxPlayers: null
+    };
+  }, [selectedGame, gamesList]);
 
   // Use refs for values that shouldn't trigger re-renders
   const roomCodeRef = useRef(roomCode);

@@ -8,7 +8,7 @@ const RoomReady = ({ room, gameType, onClose }) => {
 
   const game = {
     'schoolquiz': {
-      name: 'School Quiz Game',
+      name: 'Schooled!',
       icon: '🎓',
       path: '/schooled'
     },

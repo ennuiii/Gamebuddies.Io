@@ -164,7 +164,7 @@ class LobbyManager {
         }
 
         // Add as new participant
-        await this.db.adminClient
+        const { data: newMember, error: insertError } = await this.db.adminClient
           .from('room_members')
           .insert({
             room_id: room.id,
@@ -174,7 +174,31 @@ class LobbyManager {
             socket_id: socketId,
             current_location: 'lobby',
             custom_lobby_name: customLobbyName
-          });
+          })
+          .select()
+          .single();
+          
+        if (insertError) throw insertError;
+
+        // POST-INSERT CAPACITY CHECK (Race Condition Fix)
+        // Verify we didn't exceed the limit due to concurrent inserts
+        const { count: currentCount, error: countError } = await this.db.adminClient
+          .from('room_members')
+          .select('*', { count: 'exact', head: true })
+          .eq('room_id', room.id)
+          .eq('is_connected', true);
+
+        if (!countError && currentCount > room.max_players) {
+          console.warn(`⚠️ [LOBBY] Room ${roomCode} overfilled (race condition). Rolling back join for ${playerId}.`);
+          
+          // Rollback: Remove the member we just added
+          await this.db.adminClient
+            .from('room_members')
+            .delete()
+            .eq('id', newMember.id);
+            
+          throw new Error('Room is full');
+        }
 
         console.log(`✅ [LOBBY] Player ${playerName} joined room ${roomCode}`);
       }

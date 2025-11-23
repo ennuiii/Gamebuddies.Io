@@ -30,7 +30,13 @@
       "Bash(find:*)",
       "Bash(./node_modules/.bin/react-scripts --version)",
       "Bash(git rm:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(git -C \"E:\\GamebuddiesPlatform\\Gamebuddies.Io\" status)",
+      "Bash(git -C \"E:\\GamebuddiesPlatform\\Gamebuddies.Io\" diff --stat)",
+      "Bash(git -C \"E:\\GamebuddiesPlatform\\Gamebuddies.Io\" log -5 --oneline)",
+      "Bash(git -C \"E:\\GamebuddiesPlatform\\Gamebuddies.Io\" add \"server/public/avatars/premium/druid.png\")",
+      "Bash(git -C \"E:\\GamebuddiesPlatform\\Gamebuddies.Io\" commit -m \"$(cat <<''EOF''\nAdd druid premium avatar asset\n\nAdded druid.png to the premium avatars collection.\n\n🤖 Generated with [Claude Code](https://claude.com/claude-code)\n\nCo-Authored-By: Claude <noreply@anthropic.com>\nEOF\n)\")",
+      "Bash(git -C \"E:\\GamebuddiesPlatform\\Gamebuddies.Io\" push origin test)"
     ],
     "deny": [],
     "ask": [],

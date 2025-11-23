@@ -42,7 +42,7 @@ const GamePicker = ({ onGameSelect, isHost, disabled }) => {
           },
           {
             id: 'schooled',
-            name: 'School Quiz',
+            name: 'Schooled!',
             icon: '🎓',
             description: 'Educational quiz game for students',
             maxPlayers: 10
@@ -141,7 +141,6 @@ const GamePicker = ({ onGameSelect, isHost, disabled }) => {
                 <img
                   src={game.thumbnailUrl}
                   alt={game.name}
-                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                 />
               ) : (
                 game.icon || '🎮'

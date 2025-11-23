@@ -677,7 +677,7 @@ CREATE POLICY "Admin only access" ON public.connection_metrics
 -- Insert default games
 INSERT INTO public.games (id, name, display_name, description, base_url, is_external, min_players, max_players, is_active) VALUES
 ('ddf', 'Der dümmste fliegt', 'Der dümmste fliegt', 'Quiz game where the worst player gets eliminated each round', 'https://ddf-game.onrender.com', true, 2, 8, true),
-('schooled', 'Schooled', 'School Quiz Game', 'Educational quiz game for students with various subjects', 'https://schoolquizgame.onrender.com', true, 2, 10, true),
+('schooled', 'Schooled', 'Schooled!', 'Educational quiz game for students with various subjects', 'https://schoolquizgame.onrender.com', true, 2, 10, true),
 ('susd', 'SUS''D', 'SUS''D - Imposter Game', 'Find who''s acting suspicious in this social deduction game', 'https://susd-1.onrender.com', true, 4, 10, true)
 ON CONFLICT (id) DO UPDATE SET
     display_name = EXCLUDED.display_name,
