@@ -556,6 +556,74 @@ module.exports = (io, db, connectionManager) => {
     }
   });
 
+  // V2 Progress Event (XP Gain)
+  router.post('/progress/event', apiKeyMiddleware, getRateLimiter('apiCalls'), async (req, res) => {
+    try {
+      const { userId, amount, source, gameId, metadata } = req.body;
+
+      if (!userId || !amount) {
+        return res.status(400).json({ error: 'Missing userId or amount' });
+      }
+
+      console.log(`📈 [API V2] XP Event for ${userId}: +${amount} (${source})`);
+
+      // Call the SQL function add_xp
+      const { data: result, error } = await db.adminClient.rpc('add_xp', {
+        p_user_id: userId,
+        p_amount: amount,
+        p_game_id: gameId || req.apiKey.service_name, // Fallback to API key service name
+        p_source: source || 'api_event'
+      });
+
+      if (error) {
+        console.error('❌ [API V2] XP Add Error:', error);
+        return res.status(500).json({ error: 'Failed to add XP', details: error.message });
+      }
+
+      res.json({
+        success: true,
+        progress: result
+      });
+
+    } catch (error) {
+      console.error('❌ [API V2] Progress event error:', error);
+      res.status(500).json({ error: 'Internal Server Error' });
+    }
+  });
+
+  // V2 Get Progress
+  router.get('/progress/:userId', apiKeyMiddleware, getRateLimiter('apiCalls'), async (req, res) => {
+    try {
+      const { userId } = req.params;
+
+      const { data: user, error } = await db.adminClient
+        .from('users')
+        .select('id, username, xp, level')
+        .eq('id', userId)
+        .single();
+
+      if (error || !user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      // Calculate progress to next level (matching SQL logic: Level * 1000)
+      const nextLevelXp = user.level * 1000;
+      const progressPercent = nextLevelXp > 0 ? Math.min(100, Math.floor((user.xp / nextLevelXp) * 100)) : 0;
+
+      res.json({
+        userId: user.id,
+        level: user.level,
+        xp: user.xp,
+        nextLevelXp,
+        progressPercent
+      });
+
+    } catch (error) {
+      console.error('❌ [API V2] Get progress error:', error);
+      res.status(500).json({ error: 'Internal Server Error' });
+    }
+  });
+
   // V2 Connection health check
   router.get('/health', (req, res) => {
     res.json({
