@@ -58,9 +58,13 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
   }, [socket]);
 
   const handleSendMessage = (text) => {
+    const me = players.find(p => p.id === currentUserIdRef.current) || 
+               players.find(p => p.name === playerNameRef.current);
+    const nameToSend = me ? me.name : playerNameRef.current;
+
     if (socket) socket.emit('chat:message', { 
       message: text,
-      playerName: playerNameRef.current
+      playerName: nameToSend
     });
   };
 
