@@ -218,7 +218,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
           in_game,
           current_location,
           last_ping,
-          user:users(username, display_name, premium_tier, avatar_url, avatar_style, avatar_seed, avatar_options)
+          user:users(username, display_name, premium_tier, avatar_url, avatar_style, avatar_seed, avatar_options, level)
         `)
         .eq('room_id', roomIdRef.current);
 
@@ -237,7 +237,8 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
         avatarUrl: member.user?.avatar_url,
         avatarStyle: member.user?.avatar_style,
         avatarSeed: member.user?.avatar_seed,
-        avatarOptions: member.user?.avatar_options
+        avatarOptions: member.user?.avatar_options,
+        level: member.user?.level || 1
       })) || [];
 
       setPlayers(mappedPlayers);
@@ -1392,6 +1393,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
                       <div className="player-info">
                         <span className="player-name">{player.name}</span>
                         <div className="player-badges">
+                          <span className="level-badge-lobby" title={`Level ${player.level}`}>Lvl {player.level}</span>
                           {player.isHost && <span className="host-badge">Host</span>}
                           {/* Premium badges */}
                           {player.role === 'admin' ? (
