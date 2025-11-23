@@ -73,11 +73,38 @@ const MascotCustomizer = ({
           <div className="loading-spinner">Loading avatars...</div>
         ) : (
           <div className="options-grid single-category">
-            {avatars.map(item => {
+            {avatars
+              .filter(item => !item.hidden || userRole === 'admin') // Hide admin avatars from non-admins
+              .sort((a, b) => {
+                const levelA = a.unlockLevel || 0;
+                const levelB = b.unlockLevel || 0;
+                
+                // Check if unlocked for current user
+                const isUnlockedA = (userLevel >= levelA) || (a.premium && isPremium) || (!a.premium && !a.unlockLevel) || userRole === 'admin';
+                const isUnlockedB = (userLevel >= levelB) || (b.premium && isPremium) || (!b.premium && !b.unlockLevel) || userRole === 'admin';
+
+                // Sort: Unlocked first
+                if (isUnlockedA && !isUnlockedB) return -1;
+                if (!isUnlockedA && isUnlockedB) return 1;
+
+                // Sort by level requirement
+                return levelA - levelB;
+              })
+              .map(item => {
               const isAdminItem = item.hidden;
               const isAdminUser = userRole === 'admin';
               const levelReq = item.unlockLevel || 0;
               
+              // Debug specific avatar
+              if (item.name.includes('King')) {
+                 console.log('👑 [MASCOT DEBUG] King Avatar:', { 
+                   id: item.id, 
+                   levelReq, 
+                   userLevel, 
+                   locked: userLevel < levelReq 
+                 });
+              }
+
               const isLockedByPremium = item.premium && !isPremium && !isAdminItem;
               const isLockedByLevel = userLevel < levelReq && !isAdminUser;
               const isLockedByAdmin = isAdminItem && !isAdminUser;
