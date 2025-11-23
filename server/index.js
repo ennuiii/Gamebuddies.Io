@@ -1919,9 +1919,6 @@ setInterval(() => {
   }
 }, 60000); // Every minute
 
-io.on('connection', async (socket) => {
-  console.log(`🔌 User connected: ${socket.id}`);
-  
 // In-memory state for Tug of War (simple, non-persistent)
 const tugOfWarState = new Map(); // roomCode -> { position: 50, redWins: 0, blueWins: 0 }
 
