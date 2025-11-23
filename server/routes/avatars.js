@@ -7,6 +7,15 @@ const router = express.Router();
 
 const AVATARS_DIR = path.join(__dirname, '../public/avatars');
 
+// Level requirements for specific avatars
+const AVATAR_REQUIREMENTS = {
+  'wizard': 5,
+  'dragon': 10,
+  'king': 20,
+  'cyber_punk': 15,
+  'gold_robot': 50
+};
+
 /**
  * @route GET /api/avatars
  * @desc Get list of all available avatars (free and premium)
@@ -58,7 +67,8 @@ router.get('/', async (req, res) => {
               name: name,
               src: `/avatars/${type}/${file}`,
               premium: isPremium,
-              hidden: type === 'hidden'
+              hidden: type === 'hidden',
+              unlockLevel: AVATAR_REQUIREMENTS[id] || 0
             });
           }
         });

@@ -254,6 +254,7 @@ const Account = () => {
               loading={avatarLoading}
               isPremium={isPremium}
               userRole={user?.role}
+              userLevel={user?.level || 1}
             />
           ) : (
             <div className="current-avatar">

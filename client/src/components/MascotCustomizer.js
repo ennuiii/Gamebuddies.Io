@@ -11,7 +11,8 @@ const MascotCustomizer = ({
   onCancel, 
   loading = false,
   isPremium = false,
-  userRole = 'user'
+  userRole = 'user',
+  userLevel = 1
 }) => {
   const navigate = useNavigate();
   const [config, setConfig] = useState(currentConfig || getDefaultMascotConfig());
@@ -19,37 +20,26 @@ const MascotCustomizer = ({
 
   useEffect(() => {
     console.log('🎨 [MASCOT DEBUG] MascotCustomizer mounted');
-    console.log('🎨 [MASCOT DEBUG] isPremium prop:', isPremium, 'Role:', userRole);
-    console.log('🎨 [MASCOT DEBUG] Avatars loaded:', avatars.length);
+    console.log('🎨 [MASCOT DEBUG] isPremium:', isPremium, 'Role:', userRole, 'Level:', userLevel);
     
     if (!currentConfig || !currentConfig.avatarId) {
       setConfig(getDefaultMascotConfig());
     } else {
       setConfig(currentConfig);
     }
-  }, [currentConfig, isPremium, userRole, avatars]);
+  }, [currentConfig, isPremium, userRole, userLevel, avatars]);
 
   const handleSelect = (item) => {
     const isAdminItem = item.hidden;
     const isAdminUser = userRole === 'admin';
+    const levelReq = item.unlockLevel || 0;
     
-    console.log('🎨 [MASCOT DEBUG] Selecting item:', item.name);
-    console.log('🎨 [MASCOT DEBUG] Checks:', { isAdminItem, isAdminUser, isPremiumItem: item.premium, isUserPremium: isPremium });
-
-    if (isAdminItem && !isAdminUser) {
-      console.warn('❌ [MASCOT DEBUG] Selection blocked: Admin only.');
-      return;
-    }
-
-    if (item.premium && !isPremium && !isAdminItem) { // Admin items might be marked premium in backend, but we handle them separately
-       console.warn('❌ [MASCOT DEBUG] Selection blocked: Premium only.');
-       return;
-    }
+    if (isAdminItem && !isAdminUser) return;
+    if (item.premium && !isPremium && !isAdminItem) return;
+    if (userLevel < levelReq && !isAdminUser) return;
     
     const newConfig = { avatarId: item.id };
     setConfig(newConfig);
-    
-    // Auto-save immediately
     onSave({
       avatar_style: 'custom-mascot',
       avatar_seed: 'custom',
@@ -68,7 +58,9 @@ const MascotCustomizer = ({
         <div className="mascot-preview-wrapper">
           <MascotAvatar config={config} size={200} />
         </div>
-        <p className="mascot-helper-text">Select your avatar</p>
+        <p className="mascot-helper-text">
+          Level: {userLevel} • Select your avatar
+        </p>
         {!isPremium && userRole !== 'admin' && (
           <button type="button" className="btn-text-only" onClick={handleUpgrade} style={{fontSize: '0.8rem', marginTop: '0.5rem', textDecoration: 'underline', color: 'var(--primary)'}}>
             Unlock all avatars with Premium
@@ -84,25 +76,27 @@ const MascotCustomizer = ({
             {avatars.map(item => {
               const isAdminItem = item.hidden;
               const isAdminUser = userRole === 'admin';
+              const levelReq = item.unlockLevel || 0;
               
-              // Logic:
-              // - If hidden (admin item): Locked unless user is admin.
-              // - If premium (and not hidden): Locked unless user is premium.
-              // - Note: Backend marks hidden items as premium too, so we check hidden first.
+              const isLockedByPremium = item.premium && !isPremium && !isAdminItem;
+              const isLockedByLevel = userLevel < levelReq && !isAdminUser;
+              const isLockedByAdmin = isAdminItem && !isAdminUser;
               
-              const isLocked = isAdminItem 
-                ? !isAdminUser 
-                : (item.premium && !isPremium);
-
+              const isLocked = isLockedByAdmin || isLockedByPremium || isLockedByLevel;
               const isSelected = config.avatarId === item.id;
               
+              let lockReason = '';
+              if (isLockedByAdmin) lockReason = 'Admin Only';
+              else if (isLockedByLevel) lockReason = `Lvl ${levelReq}`;
+              else if (isLockedByPremium) lockReason = 'Premium';
+
               return (
                 <button
                   key={item.id}
                   type="button"
                   className={`mascot-option-btn ${isSelected ? 'selected' : ''} ${isLocked ? 'locked' : ''}`}
                   onClick={() => handleSelect(item)}
-                  title={isAdminItem ? (isLocked ? 'Admin Only 🔒' : 'Admin Avatar') : (isLocked ? `${item.name} (Premium)` : item.name)}
+                  title={isLocked ? `${item.name} (${lockReason})` : item.name}
                   disabled={isLocked}
                 >
                   <div className="img-wrapper">
@@ -115,7 +109,9 @@ const MascotCustomizer = ({
                     )}
                     {isLocked && (
                       <div className="lock-overlay">
-                        <span>🔒</span>
+                        <span style={{fontSize: '0.8rem', fontWeight: 'bold'}}>
+                          {isLockedByLevel ? `Lvl ${levelReq}` : '🔒'}
+                        </span>
                       </div>
                     )}
                   </div>
