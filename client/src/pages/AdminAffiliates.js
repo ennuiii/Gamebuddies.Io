@@ -8,6 +8,9 @@ const AdminAffiliates = () => {
   const [affiliates, setAffiliates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [newCode, setNewCode] = useState('');
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [notes, setNotes] = useState('');
   const [commissionRate, setCommissionRate] = useState(0.20);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -54,13 +57,16 @@ const AdminAffiliates = () => {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${session.access_token}`
         },
-        body: JSON.stringify({ code: newCode, commissionRate })
+        body: JSON.stringify({ code: newCode, commissionRate, name, email, notes })
       });
       
       const data = await res.json();
       if (data.success) {
         setSuccess(`Affiliate ${data.affiliate.code} created!`);
         setNewCode('');
+        setName('');
+        setEmail('');
+        setNotes('');
         fetchAffiliates();
       } else {
         setError(data.error);
@@ -82,24 +88,56 @@ const AdminAffiliates = () => {
       <div className="add-affiliate-section">
         <h2>Add New Affiliate</h2>
         <form onSubmit={handleAdd}>
-          <div className="form-group">
-            <label>Referral Code:</label>
-            <input 
-              type="text" 
-              value={newCode} 
-              onChange={(e) => setNewCode(e.target.value.toUpperCase())}
-              placeholder="STREAMER123"
-              required
-            />
+          <div className="form-row">
+            <div className="form-group">
+              <label>Name (Optional):</label>
+              <input 
+                type="text" 
+                value={name} 
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Streamer Name"
+              />
+            </div>
+            <div className="form-group">
+              <label>Email (Optional):</label>
+              <input 
+                type="email" 
+                value={email} 
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="email@example.com"
+              />
+            </div>
+          </div>
+          <div className="form-row">
+            <div className="form-group">
+              <label>Referral Code:</label>
+              <input 
+                type="text" 
+                value={newCode} 
+                onChange={(e) => setNewCode(e.target.value.toUpperCase())}
+                placeholder="STREAMER123"
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label>Commission Rate (0.0 - 1.0):</label>
+              <input 
+                type="number" 
+                step="0.01" 
+                value={commissionRate} 
+                onChange={(e) => setCommissionRate(parseFloat(e.target.value))}
+                required
+              />
+            </div>
           </div>
           <div className="form-group">
-            <label>Commission Rate (0.0 - 1.0):</label>
-            <input 
-              type="number" 
-              step="0.01" 
-              value={commissionRate} 
-              onChange={(e) => setCommissionRate(parseFloat(e.target.value))}
-              required
+            <label>Notes (Internal):</label>
+            <textarea 
+              value={notes} 
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Payment details, contacts, etc."
+              rows="3"
+              className="notes-input"
             />
           </div>
           <button type="submit">Create Affiliate</button>
@@ -111,6 +149,7 @@ const AdminAffiliates = () => {
         <table>
           <thead>
             <tr>
+              <th>Name</th>
               <th>Code</th>
               <th>Rate</th>
               <th>Total Earnings</th>
@@ -121,6 +160,7 @@ const AdminAffiliates = () => {
           <tbody>
             {affiliates.map(aff => (
               <tr key={aff.id}>
+                <td>{aff.name || '-'}</td>
                 <td className="code-cell">{aff.code}</td>
                 <td>{(aff.commission_rate * 100).toFixed(0)}%</td>
                 <td>€{aff.total_earnings || 0}</td>

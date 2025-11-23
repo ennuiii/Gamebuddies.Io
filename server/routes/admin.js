@@ -30,7 +30,7 @@ router.get('/affiliates', async (req, res) => {
 // POST /api/admin/affiliates (Create new affiliate)
 router.post('/affiliates', async (req, res) => {
   try {
-    const { code, userId, commissionRate } = req.body;
+    const { code, userId, commissionRate, name, email, notes } = req.body;
 
     if (!code) return res.status(400).json({ error: 'Code is required' });
 
@@ -49,7 +49,10 @@ router.post('/affiliates', async (req, res) => {
         code: code.toUpperCase(),
         user_id: userId || null, // Optional linking to existing user
         commission_rate: commissionRate || 0.20,
-        status: 'active'
+        status: 'active',
+        name: name || null,
+        email: email || null,
+        notes: notes || null
       })
       .select()
       .single();

@@ -38,6 +38,26 @@
   color: white;
 }
 
+.form-row {
+  display: flex;
+  gap: 1rem;
+}
+
+.form-row .form-group {
+  flex: 1;
+}
+
+.notes-input {
+  width: 100%;
+  padding: 0.8rem;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: white;
+  resize: vertical;
+  font-family: inherit;
+}
+
 button[type="submit"] {
   background: linear-gradient(135deg, #00d9ff, #0099cc);
   border: none;
