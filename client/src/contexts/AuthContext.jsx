@@ -132,7 +132,19 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const lastFetchTimeRef = React.useRef(0);
+  const lastFetchIdRef = React.useRef(null);
+
   const fetchUser = async (userId, accessToken) => {
+    const now = Date.now();
+    // Throttle requests: if same user and less than 2 seconds, skip
+    if (userId === lastFetchIdRef.current && now - lastFetchTimeRef.current < 2000) {
+        console.log('⏳ [AUTH] Skipping redundant user fetch (throttled)');
+        return;
+    }
+    lastFetchTimeRef.current = now;
+    lastFetchIdRef.current = userId;
+
     try {
       console.log('👤 [AUTH] Fetching user from database:', userId);
 

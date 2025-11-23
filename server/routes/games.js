@@ -2,6 +2,13 @@ const express = require('express');
 const router = express.Router();
 const { db } = require('../lib/supabase');
 
+// Simple in-memory cache
+let gamesCache = {
+  data: null,
+  timestamp: 0,
+  duration: 60 * 1000 // 60 seconds
+};
+
 /**
  * GET /api/games
  * Fetch all active games from the database
@@ -9,6 +16,12 @@ const { db } = require('../lib/supabase');
  */
 router.get('/', async (req, res) => {
   try {
+    // Check cache
+    if (gamesCache.data && (Date.now() - gamesCache.timestamp < gamesCache.duration)) {
+      // console.log('[Games API] 📦 Using cached games list');
+      return res.json(gamesCache.data);
+    }
+
     console.log('[Games API] 🎮 Fetching games from database...');
 
     const { data: games, error } = await db.client
@@ -27,7 +40,7 @@ router.get('/', async (req, res) => {
       });
     }
 
-    console.log(`[Games API] ✅ Found ${games.length} games:`, games.map(g => g.id));
+    console.log(`[Games API] ✅ Found ${games.length} games`);
 
     // Transform data to match frontend expectations
     const transformedGames = games.map(game => ({
@@ -36,10 +49,10 @@ router.get('/', async (req, res) => {
       displayName: game.display_name,
       description: game.description || '',
       icon: game.icon || '🎮',
-      screenshot: game.thumbnail_url,  // GameCard expects 'screenshot'
+      screenshot: game.thumbnail_url,
       thumbnailUrl: game.thumbnail_url,
-      path: `/${game.id}`,  // GameCard expects 'path' for routing
-      available: game.is_active && !game.maintenance_mode,  // GameCard expects 'available'
+      path: `/${game.id}`,
+      available: game.is_active && !game.maintenance_mode,
       maxPlayers: game.max_players || 10,
       minPlayers: game.min_players || 2,
       baseUrl: game.base_url,
@@ -49,17 +62,19 @@ router.get('/', async (req, res) => {
       defaultSettings: game.default_settings || {}
     }));
 
-    console.log('[Games API] 📤 Returning games:', transformedGames.map(g => ({
-      id: g.id,
-      name: g.name,
-      icon: g.icon,
-      available: g.available
-    })));
-
-    res.json({
+    const responseData = {
       success: true,
       games: transformedGames
-    });
+    };
+
+    // Update cache
+    gamesCache = {
+      data: responseData,
+      timestamp: Date.now(),
+      duration: 60 * 1000
+    };
+
+    res.json(responseData);
 
   } catch (err) {
     console.error('[Games API] Unexpected error:', err);
