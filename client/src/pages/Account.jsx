@@ -236,55 +236,53 @@ const Account = () => {
           </div>
         </div>
 
-        {/* Avatar Customization - Premium Only */}
-        {isPremium && (
-          <div className="account-section avatar-section">
-            <h2>Custom Avatar</h2>
-            <p className="section-description">
-              Customize your avatar to display in game lobbies
-            </p>
+        {/* Avatar Customization */}
+        <div className="account-section avatar-section">
+          <h2>Custom Avatar</h2>
+          <p className="section-description">
+            Customize your avatar to display in game lobbies
+          </p>
 
-            {showAvatarCustomizer ? (
-              <AvatarCustomizer
-                currentStyle={user?.avatar_style}
-                currentSeed={user?.avatar_seed}
-                currentOptions={user?.avatar_options || {}}
-                username={user?.username || user?.display_name}
-                onSave={handleSaveAvatar}
-                onCancel={() => setShowAvatarCustomizer(false)}
-                loading={avatarLoading}
-                isPremium={isPremium}
-                userRole={user?.role}
-              />
-            ) : (
-              <div className="current-avatar">
-                <div className="avatar-display">
-                  {user?.avatar_style ? (
-                    <Avatar
-                      avatarStyle={user.avatar_style}
-                      avatarSeed={user.avatar_seed}
-                      avatarOptions={user.avatar_options}
-                      name={user.username || user.display_name}
-                      size={120}
-                      isPremium={true}
-                      className="avatar-large"
-                    />
-                  ) : (
-                    <div className="avatar-placeholder">
-                      <span>{(user?.username || user?.display_name || '?').charAt(0).toUpperCase()}</span>
-                    </div>
-                  )}
-                </div>
-                <button
-                  onClick={() => setShowAvatarCustomizer(true)}
-                  className="btn btn-secondary"
-                >
-                  {user?.avatar_style ? 'Change Avatar' : 'Create Avatar'}
-                </button>
+          {showAvatarCustomizer ? (
+            <AvatarCustomizer
+              currentStyle={user?.avatar_style}
+              currentSeed={user?.avatar_seed}
+              currentOptions={user?.avatar_options || {}}
+              username={user?.username || user?.display_name}
+              onSave={handleSaveAvatar}
+              onCancel={() => setShowAvatarCustomizer(false)}
+              loading={avatarLoading}
+              isPremium={isPremium}
+              userRole={user?.role}
+            />
+          ) : (
+            <div className="current-avatar">
+              <div className="avatar-display">
+                {user?.avatar_style ? (
+                  <Avatar
+                    avatarStyle={user.avatar_style}
+                    avatarSeed={user.avatar_seed}
+                    avatarOptions={user.avatar_options}
+                    name={user.username || user.display_name}
+                    size={120}
+                    isPremium={true}
+                    className="avatar-large"
+                  />
+                ) : (
+                  <div className="avatar-placeholder">
+                    <span>{(user?.username || user?.display_name || '?').charAt(0).toUpperCase()}</span>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
-        )}
+              <button
+                onClick={() => setShowAvatarCustomizer(true)}
+                className="btn btn-secondary"
+              >
+                {user?.avatar_style ? 'Change Avatar' : 'Create Avatar'}
+              </button>
+            </div>
+          )}
+        </div>
 
         {/* Subscription Status */}
         <div className="account-section subscription-section">

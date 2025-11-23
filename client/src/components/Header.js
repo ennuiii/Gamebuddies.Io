@@ -136,9 +136,9 @@ const Header = ({ onNavigateHome, onNavigateGames, isInLobby }) => {
                 <span className="premium-badge lifetime">💻 ADMIN</span>
               ) : user.premium_tier === 'lifetime' ? (
                 <span className="premium-badge lifetime">PREMIUM</span>
-              ) : (
+              ) : user.premium_tier === 'monthly' ? (
                 <span className="premium-badge monthly">PRO</span>
-              )}
+              ) : null}
                         </>
                       )}
                     </button>
