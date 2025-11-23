@@ -51,28 +51,51 @@ router.get('/', async (req, res) => {
       }
     }
 
-    // Helper to scan directory
+    // Helper to scan directory with level support
     const scanDir = (type, isPremium) => {
-      const dirPath = path.join(AVATARS_DIR, type);
-      if (fs.existsSync(dirPath)) {
-        const files = fs.readdirSync(dirPath);
-        files.forEach(file => {
-          if (file.match(/\.(png|jpg|jpeg|svg|gif)$/i)) {
-            const id = path.parse(file).name; // 'archer' from 'archer.png'
-            // Create a human-readable name: 'archer' -> 'Archer'
-            const name = id.charAt(0).toUpperCase() + id.slice(1).replace(/[-_]/g, ' ');
-            
-            avatars.push({
-              id: id,
-              name: name,
-              src: `/avatars/${type}/${file}`,
-              premium: isPremium,
-              hidden: type === 'hidden',
-              unlockLevel: AVATAR_REQUIREMENTS[id] || 0
-            });
-          }
-        });
-      }
+      const baseDirPath = path.join(AVATARS_DIR, type);
+      if (!fs.existsSync(baseDirPath)) return;
+
+      const items = fs.readdirSync(baseDirPath, { withFileTypes: true });
+
+      items.forEach(item => {
+        // Handle direct files (Level 0/1 default)
+        if (item.isFile() && item.name.match(/\.(png|jpg|jpeg|svg|gif)$/i)) {
+          const id = path.parse(item.name).name;
+          const name = id.charAt(0).toUpperCase() + id.slice(1).replace(/[-_]/g, ' ');
+          
+          avatars.push({
+            id: id,
+            name: name,
+            src: `/avatars/${type}/${item.name}`,
+            premium: isPremium,
+            hidden: type === 'hidden',
+            unlockLevel: AVATAR_REQUIREMENTS[id] || 0 // Fallback to hardcoded if any
+          });
+        } 
+        // Handle Level Folders (e.g., level_5)
+        else if (item.isDirectory() && item.name.startsWith('level_')) {
+          const level = parseInt(item.name.split('_')[1], 10) || 0;
+          const levelPath = path.join(baseDirPath, item.name);
+          const levelFiles = fs.readdirSync(levelPath);
+
+          levelFiles.forEach(file => {
+            if (file.match(/\.(png|jpg|jpeg|svg|gif)$/i)) {
+              const id = path.parse(file).name;
+              const name = id.charAt(0).toUpperCase() + id.slice(1).replace(/[-_]/g, ' ');
+
+              avatars.push({
+                id: id,
+                name: name,
+                src: `/avatars/${type}/${item.name}/${file}`, // Include subfolder in path
+                premium: isPremium,
+                hidden: type === 'hidden',
+                unlockLevel: level
+              });
+            }
+          });
+        }
+      });
     };
 
     scanDir('free', false);
