@@ -4,7 +4,7 @@ import { useNotification } from '../contexts/NotificationContext'; // Import use
 import { useAuth } from '../contexts/AuthContext';
 import GamePicker from './GamePicker';
 import ChatWindow from './ChatWindow';
-import LobbyMinigame from './LobbyMinigame';
+import TugOfWar from './TugOfWar';
 import ProfileSettingsModal from './ProfileSettingsModal';
 import { useRealtimeSubscription } from '../utils/useRealtimeSubscription';
 import { getSupabaseClient } from '../utils/supabase';
@@ -30,7 +30,6 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
   
   // Lobby Extras State
   const [messages, setMessages] = useState([]);
-  const [minigameLeaderboard, setMinigameLeaderboard] = useState([]);
 
   // Debug logging for players
   useEffect(() => {
@@ -43,7 +42,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
     }
   }, [players]);
 
-  // Chat & Minigame Listeners
+  // Chat Listeners
   useEffect(() => {
     if (!socket) return;
 
@@ -51,37 +50,16 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       setMessages(prev => [...prev, msg]);
     };
 
-    const handleLeaderboardUpdate = (entry) => {
-      console.log('🏆 [LOBBY] Leaderboard update received:', entry);
-      setMinigameLeaderboard(prev => {
-        // Always update if new score is received (server handles logic? No, server broadcasts click)
-        // We should only update if score is higher OR just always update latest
-        const others = prev.filter(p => p.playerId !== entry.playerId);
-        return [...others, entry].sort((a, b) => b.score - a.score);
-      });
-    };
-
     socket.on('chat:message', handleChatMessage);
-    socket.on('minigame:leaderboard-update', handleLeaderboardUpdate);
 
     return () => {
       socket.off('chat:message', handleChatMessage);
-      socket.off('minigame:leaderboard-update', handleLeaderboardUpdate);
     };
   }, [socket]);
 
   const handleSendMessage = (text) => {
     if (socket) socket.emit('chat:message', { 
       message: text,
-      playerName: playerNameRef.current
-    });
-  };
-
-  const handleMinigameScore = (score, time) => {
-    if (socket) socket.emit('minigame:click', { 
-      score, 
-      time,
-      playerId: currentUserIdRef.current, // Use ref or user?.id
       playerName: playerNameRef.current
     });
   };
@@ -1513,10 +1491,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
             onSendMessage={handleSendMessage} 
             currentPlayerName={playerNameRef.current} 
           />
-          <LobbyMinigame 
-            onScore={handleMinigameScore}
-            leaderboard={minigameLeaderboard}
-          />
+          <TugOfWar playerName={playerNameRef.current} />
         </div>
 
         <div className="game-section">

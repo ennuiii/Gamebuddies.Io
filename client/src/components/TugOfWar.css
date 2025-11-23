@@ -1,0 +1,182 @@
+.tug-of-war {
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  height: 400px;
+  display: flex;
+  flex-direction: column;
+  margin-top: 2rem;
+  overflow: hidden;
+  position: relative;
+}
+
+.tow-header {
+  padding: 1rem;
+  background: rgba(255, 255, 255, 0.05);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.tow-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  color: var(--text-primary);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.tow-scores {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  font-weight: 800;
+  font-size: 1.2rem;
+}
+
+.score.red { color: #ff4757; }
+.score.blue { color: #2e86de; }
+.vs { color: var(--text-secondary); font-size: 0.8rem; }
+
+.tow-arena {
+  flex: 1;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 2rem;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.rope-track {
+  position: relative;
+  width: 100%;
+  height: 12px;
+  background: #333;
+  border-radius: 6px;
+  overflow: visible;
+}
+
+.center-marker {
+  position: absolute;
+  left: 50%;
+  top: -10px;
+  bottom: -10px;
+  width: 2px;
+  background: rgba(255, 255, 255, 0.3);
+  z-index: 1;
+}
+
+.knot {
+  position: absolute;
+  top: 50%;
+  width: 20px;
+  height: 20px;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+  transition: left 0.1s linear;
+}
+
+.knot-marker {
+  width: 100%;
+  height: 100%;
+  background: white;
+  border-radius: 50%;
+  box-shadow: 0 0 10px white;
+}
+
+.territory {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  opacity: 0.3;
+  transition: width 0.1s linear;
+}
+
+.territory.red {
+  left: 0;
+  background: #ff4757;
+  border-radius: 6px 0 0 6px;
+}
+
+.territory.blue {
+  right: 0;
+  background: #2e86de;
+  border-radius: 0 6px 6px 0;
+}
+
+.winner-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 2rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  background: rgba(0, 0, 0, 0.7);
+  z-index: 20;
+  animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.winner-overlay.red { color: #ff4757; text-shadow: 0 0 20px rgba(255, 71, 87, 0.5); }
+.winner-overlay.blue { color: #2e86de; text-shadow: 0 0 20px rgba(46, 134, 222, 0.5); }
+
+@keyframes popIn {
+  from { transform: scale(0.5); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+.tow-controls {
+  padding: 1.5rem;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.05);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.team-indicator {
+  margin-bottom: 1rem;
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+}
+
+.team-name { font-weight: 700; }
+.team-name.red { color: #ff4757; }
+.team-name.blue { color: #2e86de; }
+
+.pull-btn {
+  width: 100%;
+  max-width: 200px;
+  padding: 1rem;
+  font-size: 1.2rem;
+  font-weight: 800;
+  border: none;
+  border-radius: 50px;
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  transition: transform 0.05s, box-shadow 0.1s;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pull-btn.red {
+  background: linear-gradient(135deg, #ff4757, #ff6b81);
+  color: white;
+  box-shadow: 0 6px 0 #c0392b;
+}
+
+.pull-btn.blue {
+  background: linear-gradient(135deg, #2e86de, #54a0ff);
+  color: white;
+  box-shadow: 0 6px 0 #2980b9;
+}
+
+.pull-btn:active, .pull-btn.pulling {
+  transform: translateY(4px);
+  box-shadow: 0 2px 0 rgba(0,0,0,0.2) !important; /* Use !important to override team color shadow */
+}

@@ -1922,6 +1922,12 @@ setInterval(() => {
 io.on('connection', async (socket) => {
   console.log(`🔌 User connected: ${socket.id}`);
   
+// In-memory state for Tug of War (simple, non-persistent)
+const tugOfWarState = new Map(); // roomCode -> { position: 50, redWins: 0, blueWins: 0 }
+
+io.on('connection', async (socket) => {
+  console.log(`🔌 User connected: ${socket.id}`);
+  
   // Store connection info
   connectionManager.addConnection(socket.id);
 
@@ -1940,7 +1946,7 @@ io.on('connection', async (socket) => {
     }
   });
 
-  // Minigame Handler (Lobby)
+  // Minigame Handler (Lobby - Reflex)
   socket.on('minigame:click', (data) => {
     const rooms = Array.from(socket.rooms).filter(r => r !== socket.id);
     if (rooms.length > 0) {
@@ -1950,6 +1956,44 @@ io.on('connection', async (socket) => {
         playerName: data.playerName || 'Player',
         score: data.score,
         time: data.time
+      });
+    }
+  });
+
+  // Tug of War Handler (Lobby - Multiplayer)
+  socket.on('tugOfWar:pull', (data) => {
+    const rooms = Array.from(socket.rooms).filter(r => r !== socket.id);
+    if (rooms.length > 0) {
+      const roomCode = rooms[0];
+      
+      let state = tugOfWarState.get(roomCode);
+      if (!state) {
+        state = { position: 50, redWins: 0, blueWins: 0 };
+        tugOfWarState.set(roomCode, state);
+      }
+
+      // Red pulls towards 0, Blue pulls towards 100
+      const moveAmount = 1.5; // Difficulty tuning
+      if (data.team === 'red') state.position = Math.max(0, state.position - moveAmount);
+      if (data.team === 'blue') state.position = Math.min(100, state.position + moveAmount);
+
+      let winner = null;
+      if (state.position <= 0) {
+        state.redWins++;
+        winner = 'red';
+        state.position = 50; // Reset for next round
+      } else if (state.position >= 100) {
+        state.blueWins++;
+        winner = 'blue';
+        state.position = 50; // Reset for next round
+      }
+
+      io.to(roomCode).emit('tugOfWar:update', {
+        position: state.position,
+        redWins: state.redWins,
+        blueWins: state.blueWins,
+        winner,
+        pullTeam: data.team
       });
     }
   });
