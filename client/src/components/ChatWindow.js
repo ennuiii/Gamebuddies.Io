@@ -10,8 +10,19 @@ const ChatWindow = ({ messages, onSendMessage, currentPlayerName }) => {
   };
 
   useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+    const chatMessagesDiv = messagesEndRef.current?.parentNode;
+    if (chatMessagesDiv) {
+      const isScrolledToBottom = chatMessagesDiv.scrollHeight - chatMessagesDiv.clientHeight <= chatMessagesDiv.scrollTop + 1;
+      
+      const lastMessage = messages[messages.length - 1];
+      const isMyMessage = lastMessage && lastMessage.playerName === currentPlayerName;
+
+      // Only scroll to bottom if it's my message, or if user is already scrolled to bottom
+      if (isMyMessage || isScrolledToBottom) {
+        scrollToBottom();
+      }
+    }
+  }, [messages, currentPlayerName]);
 
   const handleSubmit = (e) => {
     e.preventDefault();

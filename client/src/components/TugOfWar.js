@@ -7,13 +7,7 @@ const TugOfWar = ({ playerName }) => {
   const [gameState, setGameState] = useState({ position: 50, redWins: 0, blueWins: 0 });
   const [lastWinner, setLastWinner] = useState(null);
   const [isPulling, setIsPulling] = useState(false);
-
-  // Assign team deterministically based on socket ID
-  const myTeam = useMemo(() => {
-    if (!socketId) return 'red';
-    const sum = socketId.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    return sum % 2 === 0 ? 'red' : 'blue';
-  }, [socketId]);
+  const [myTeam, setMyTeam] = useState(null); // Will be assigned by server
 
   useEffect(() => {
     if (!socket) return;
@@ -29,6 +23,9 @@ const TugOfWar = ({ playerName }) => {
         setLastWinner(data.winner);
         setTimeout(() => setLastWinner(null), 2000);
       }
+      if (data.myTeam) { // Server sends my assigned team
+        setMyTeam(data.myTeam);
+      }
     };
 
     socket.on('tugOfWar:update', handleUpdate);
@@ -36,6 +33,8 @@ const TugOfWar = ({ playerName }) => {
   }, [socket]);
 
   const handlePull = (e) => {
+    if (!myTeam) return; // Cannot pull if team not assigned
+    
     // Prevent default touch behaviors
     if (e.type === 'touchstart') e.preventDefault();
     
@@ -81,12 +80,17 @@ const TugOfWar = ({ playerName }) => {
 
       <div className="tow-controls">
         <div className="team-indicator">
-          You are on <span className={`team-name ${myTeam}`}>{myTeam.toUpperCase()}</span>
+          {myTeam ? (
+            <>You are on <span className={`team-name ${myTeam}`}>{myTeam.toUpperCase()}</span> team</>
+          ) : (
+            <>Assigning team...</>
+          )}
         </div>
         <button 
           className={`pull-btn ${myTeam} ${isPulling ? 'pulling' : ''}`}
           onMouseDown={handlePull}
           onTouchStart={handlePull}
+          disabled={!myTeam}
         >
           PULL!
         </button>

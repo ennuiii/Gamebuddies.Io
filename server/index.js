@@ -1924,6 +1924,7 @@ setInterval(() => {
 
 // In-memory state for Tug of War (simple, non-persistent)
 const tugOfWarState = new Map(); // roomCode -> { position: 50, redWins: 0, blueWins: 0 }
+const tugOfWarTeams = new Map(); // roomCode -> Map<playerId, 'red'|'blue'>
 
 io.on('connection', async (socket) => {
   console.log(`🔌 User connected: ${socket.id}`);
@@ -1966,16 +1967,38 @@ io.on('connection', async (socket) => {
     if (rooms.length > 0) {
       const roomCode = rooms[0];
       
+      const playerConnection = connectionManager.getConnection(socket.id);
+      const playerId = playerConnection?.userId;
+      
+      if (!playerId) return; // Must be an authenticated player in room
+      
       let state = tugOfWarState.get(roomCode);
       if (!state) {
         state = { position: 50, redWins: 0, blueWins: 0 };
         tugOfWarState.set(roomCode, state);
       }
 
-      // Red pulls towards 0, Blue pulls towards 100
+      let roomTeams = tugOfWarTeams.get(roomCode);
+      if (!roomTeams) {
+        roomTeams = new Map();
+        tugOfWarTeams.set(roomCode, roomTeams);
+      }
+
+      let playerTeam = roomTeams.get(playerId);
+      
+      // Assign team if not assigned yet
+      if (!playerTeam) {
+        const redCount = Array.from(roomTeams.values()).filter(t => t === 'red').length;
+        const blueCount = Array.from(roomTeams.values()).filter(t => t === 'blue').length;
+        playerTeam = redCount <= blueCount ? 'red' : 'blue'; // Assign to smaller team
+        roomTeams.set(playerId, playerTeam);
+        console.log(`[TOW] Assigned ${playerId} to ${playerTeam} team in room ${roomCode}`);
+      }
+
+      // Move bar (Red < 50 < Blue)
       const moveAmount = 1.5; // Difficulty tuning
-      if (data.team === 'red') state.position = Math.max(0, state.position - moveAmount);
-      if (data.team === 'blue') state.position = Math.min(100, state.position + moveAmount);
+      if (playerTeam === 'red') state.position = Math.max(0, state.position - moveAmount);
+      if (playerTeam === 'blue') state.position = Math.min(100, state.position + moveAmount);
 
       let winner = null;
       if (state.position <= 0) {
@@ -1985,7 +2008,7 @@ io.on('connection', async (socket) => {
       } else if (state.position >= 100) {
         state.blueWins++;
         winner = 'blue';
-        state.position = 50; // Reset for next round
+        state.position = 50; // Reset for next round;
       }
 
       io.to(roomCode).emit('tugOfWar:update', {
@@ -1993,7 +2016,9 @@ io.on('connection', async (socket) => {
         redWins: state.redWins,
         blueWins: state.blueWins,
         winner,
-        pullTeam: data.team
+        pullTeam: playerTeam, // Send the team that pulled
+        myTeam: playerTeam, // Send my assigned team (for TugOfWar.js client)
+        teams: Object.fromEntries(roomTeams) // Send map for UI (optional, can be inferred)
       });
     }
   });
