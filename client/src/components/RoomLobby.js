@@ -71,11 +71,19 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
   }, [socket]);
 
   const handleSendMessage = (text) => {
-    if (socket) socket.emit('chat:message', { message: text });
+    if (socket) socket.emit('chat:message', { 
+      message: text,
+      playerName: playerNameRef.current
+    });
   };
 
   const handleMinigameScore = (score, time) => {
-    if (socket) socket.emit('minigame:click', { score, time });
+    if (socket) socket.emit('minigame:click', { 
+      score, 
+      time,
+      playerId: currentUserIdRef.current, // Use ref or user?.id
+      playerName: playerNameRef.current
+    });
   };
 
   const [gamesList, setGamesList] = useState([]);
