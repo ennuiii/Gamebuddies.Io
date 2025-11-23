@@ -160,7 +160,7 @@ router.post('/create-checkout-session', requireAuth, async (req, res) => {
   });
 
   try {
-    const { userId, priceType } = req.body;
+    const { userId, priceType, referralCode } = req.body;
 
     // Validate inputs
     if (!userId) {
@@ -171,6 +171,23 @@ router.post('/create-checkout-session', requireAuth, async (req, res) => {
     if (req.user.id !== userId) {
       console.warn(`⚠️ [STRIPE] User ${req.user.id} tried to create checkout for user ${userId}`);
       return res.status(403).json({ error: 'Forbidden - Can only create checkout for yourself' });
+    }
+
+    // Validate Referral Code
+    let affiliateId = null;
+    if (referralCode) {
+      const { data: affiliate } = await supabaseAdmin
+        .from('affiliates')
+        .select('id')
+        .eq('code', referralCode)
+        .single();
+      
+      if (affiliate) {
+        affiliateId = affiliate.id;
+        console.log(`🔗 [STRIPE] Applying referral code: ${referralCode} (ID: ${affiliateId})`);
+      } else {
+        console.warn(`⚠️ [STRIPE] Invalid referral code provided: ${referralCode}`);
+      }
     }
 
     if (!['lifetime', 'monthly'].includes(priceType)) {
@@ -262,6 +279,8 @@ router.post('/create-checkout-session', requireAuth, async (req, res) => {
       metadata: {
         supabase_user_id: userId,
         premium_tier: priceType,
+        affiliate_id: affiliateId,
+        referral_code: referralCode
       },
     };
 
@@ -540,10 +559,55 @@ async function handleCheckoutCompleted(session) {
 
   const userId = session.metadata.supabase_user_id;
   const premiumTier = session.metadata.premium_tier;
+  const affiliateId = session.metadata.affiliate_id;
 
   if (!userId) {
     console.error('❌ [STRIPE WEBHOOK] No user ID in session metadata');
     return;
+  }
+
+  // Handle Affiliate Logic
+  if (affiliateId) {
+    try {
+      const amountPaid = (session.amount_total || 0) / 100; // Cents to currency units
+      console.log(`🔗 [STRIPE WEBHOOK] Processing affiliate commission for ${affiliateId} on amount ${amountPaid}`);
+
+      // Fetch affiliate details
+      const { data: affiliate } = await supabaseAdmin
+        .from('affiliates')
+        .select('commission_rate, total_earnings')
+        .eq('id', affiliateId)
+        .single();
+
+      if (affiliate) {
+        const commission = amountPaid * (affiliate.commission_rate || 0.20);
+        
+        // 1. Log earnings
+        await supabaseAdmin.from('affiliate_earnings').insert({
+          affiliate_id: affiliateId,
+          source_user_id: userId,
+          stripe_session_id: session.id,
+          transaction_amount: amountPaid,
+          commission_amount: commission,
+          status: 'pending'
+        });
+
+        // 2. Update affiliate total
+        await supabaseAdmin.from('affiliates').update({
+          total_earnings: (Number(affiliate.total_earnings) || 0) + commission
+        }).eq('id', affiliateId);
+
+        // 3. Record referral link (ignore if already referred)
+        await supabaseAdmin.from('referrals').insert({
+          referred_user_id: userId,
+          affiliate_id: affiliateId
+        }).catch(err => console.log('ℹ️ User already referred:', err.message)); // Safe ignore
+
+        console.log(`💰 [STRIPE WEBHOOK] Commission recorded: +${commission}`);
+      }
+    } catch (err) {
+      console.error('❌ [STRIPE WEBHOOK] Affiliate processing error:', err);
+    }
   }
 
   const updateData = {

@@ -10,10 +10,22 @@ const Premium = () => {
   const [loadingTier, setLoadingTier] = useState(null);
   const [prices, setPrices] = useState(null);
   const [loadingPrices, setLoadingPrices] = useState(true);
+  const [referralCode, setReferralCode] = useState('');
+  const [referralCodeValid, setReferralCodeValid] = useState(true); // State for validation feedback
+  const [referralCodeTouched, setReferralCodeTouched] = useState(false); // Track if input has been touched
 
   const isPremium = user?.premium_tier === 'lifetime' || user?.premium_tier === 'monthly';
   const isLifetime = user?.premium_tier === 'lifetime';
   const isMonthly = user?.premium_tier === 'monthly';
+
+  // Validate referral code (client-side simple check, server does full validation)
+  useEffect(() => {
+    if (referralCodeTouched && referralCode.length > 0 && referralCode.length < 3) {
+      setReferralCodeValid(false);
+    } else {
+      setReferralCodeValid(true);
+    }
+  }, [referralCode, referralCodeTouched]);
 
   // Fetch prices from Stripe API on component mount
   useEffect(() => {
@@ -78,6 +90,7 @@ const Premium = () => {
     const payload = {
       userId: user.id,
       priceType,
+      referralCode: referralCode.length > 0 ? referralCode : undefined,
     };
 
     console.log('💳 [PREMIUM CLIENT] Creating checkout session');
@@ -344,10 +357,7 @@ const Premium = () => {
             )}
           </div>
         </div>
-      </div>
-
-      <div className="premium-faq">
-        <h2>Frequently Asked Questions</h2>
+      )}
 
         <div className="faq-grid">
           <div className="faq-item">
