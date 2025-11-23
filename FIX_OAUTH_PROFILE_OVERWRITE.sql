@@ -1,5 +1,5 @@
 -- =====================================================
--- Fix OAuth Profile Overwrite Issue
+-- Fix OAuth Profile Overwrite Issue (Corrected Syntax)
 -- =====================================================
 -- This script modifies the user synchronization trigger to prevent
 -- overwriting existing profile data (name, avatar) when logging in
@@ -36,19 +36,21 @@ BEGIN
 
     -- INSERT CASE: New User
     IF (TG_OP = 'INSERT') THEN
-        INSERT INTO public.users (id, username, display_name, avatar_url, is_guest, metadata)
-        VALUES (
-            new.id,
-            sanitized_username, -- Try email prefix first
-            new_display_name,
-            new_avatar,
-            false,
-            jsonb_build_object('created_via', 'auth_trigger')
-        )
-        ON CONFLICT (id) DO NOTHING; -- If it exists, it handles in UPDATE or does nothing
-        
-        -- Handle username collision on insert by appending random suffix
+        BEGIN
+            INSERT INTO public.users (id, username, display_name, avatar_url, is_guest, metadata)
+            VALUES (
+                new.id,
+                sanitized_username, -- Try email prefix first
+                new_display_name,
+                new_avatar,
+                false,
+                jsonb_build_object('created_via', 'auth_trigger')
+            )
+            ON CONFLICT (id) DO NOTHING; -- If ID exists, do nothing (handled in UPDATE or ignored)
+            
         EXCEPTION WHEN unique_violation THEN
+            -- Handle username collision on insert by appending random suffix
+            -- This catches collision on 'username' constraint, not 'id'
             INSERT INTO public.users (id, username, display_name, avatar_url, is_guest, metadata)
             VALUES (
                 new.id,
@@ -58,6 +60,7 @@ BEGIN
                 false,
                 jsonb_build_object('created_via', 'auth_trigger_retry')
             );
+        END;
             
         RETURN new;
 
@@ -82,9 +85,15 @@ BEGIN
             WHERE id = new.id;
         ELSE
             -- Edge case: auth user exists but public user is missing (restore it)
-            INSERT INTO public.users (id, username, display_name, avatar_url, is_guest)
-            VALUES (new.id, sanitized_username, new_display_name, new_avatar, false)
-            ON CONFLICT (username) DO UPDATE SET username = sanitized_username || '_' || floor(random() * 10000)::text;
+            -- We use a BEGIN block here too just in case of race conditions
+            BEGIN
+                INSERT INTO public.users (id, username, display_name, avatar_url, is_guest)
+                VALUES (new.id, sanitized_username, new_display_name, new_avatar, false);
+            EXCEPTION WHEN unique_violation THEN
+                -- Retry with random suffix if username taken
+                INSERT INTO public.users (id, username, display_name, avatar_url, is_guest)
+                VALUES (new.id, sanitized_username || '_' || floor(random() * 10000)::text, new_display_name, new_avatar, false);
+            END;
         END IF;
         
         RETURN new;
@@ -108,4 +117,4 @@ CREATE TRIGGER on_auth_user_updated
   FOR EACH ROW EXECUTE FUNCTION public.handle_user_identity_sync();
 
 -- Output success message
-SELECT 'OAuth profile overwrite protection enabled.' as status;
+SELECT 'OAuth profile overwrite protection enabled (syntax corrected).' as status;
