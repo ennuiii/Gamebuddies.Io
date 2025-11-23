@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import './Header.css';
 
 const Header = ({ onNavigateHome, onNavigateGames, isInLobby }) => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, isAuthenticated, loading, session, signOut } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
@@ -22,8 +23,15 @@ const Header = ({ onNavigateHome, onNavigateGames, isInLobby }) => {
     if (isInLobby && onNavigateHome) {
       e.preventDefault();
       onNavigateHome();
+      return;
     }
-    // If not in lobby, let the Link component handle navigation normally
+
+    if (location.pathname === '/') {
+      // If already on home, smooth scroll to top
+      e.preventDefault();
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    // If not in lobby and not on home, let Link handle standard navigation
   };
 
   const handleGamesClick = (e) => {
