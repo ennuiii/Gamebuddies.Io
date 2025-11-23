@@ -68,7 +68,7 @@
 /* Pricing Tiers */
 .pricing-tiers {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 2rem;
   max-width: 1200px;
   margin: 0 auto 4rem;
@@ -351,17 +351,26 @@
 
 /* Responsive */
 @media (max-width: 768px) {
+  .premium-page {
+    padding: 100px 15px 40px 15px;
+  }
+
   .premium-header h1 {
-    font-size: 2.5rem;
+    font-size: 2.2rem;
   }
 
   .premium-subtitle {
-    font-size: 1.1rem;
+    font-size: 1rem;
   }
 
   .pricing-tiers {
     grid-template-columns: 1fr;
     gap: 2rem;
+    padding: 0 10px;
+  }
+
+  .pricing-card {
+    padding: 1.5rem;
   }
 
   .price .amount {
