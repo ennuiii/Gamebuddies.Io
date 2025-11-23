@@ -31,6 +31,14 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
   // Lobby Extras State
   const [messages, setMessages] = useState([]);
 
+  // Use refs for values that shouldn't trigger re-renders
+  const roomCodeRef = useRef(roomCode);
+  const playerNameRef = useRef(playerName);
+  const currentUserIdRef = useRef(null);
+  const roomIdRef = useRef(null);
+  const timerIntervalsRef = useRef(new Map()); // Track timer intervals
+  const roomVersionRef = useRef(0); // Latest applied room version
+
   // Debug logging for players
   useEffect(() => {
     if (players.length > 0) {
@@ -134,14 +142,6 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       minPlayers: null
     };
   }, [selectedGame, gamesList]);
-
-  // Use refs for values that shouldn't trigger re-renders
-  const roomCodeRef = useRef(roomCode);
-  const playerNameRef = useRef(playerName);
-  const currentUserIdRef = useRef(null);
-  const roomIdRef = useRef(null);
-  const timerIntervalsRef = useRef(new Map()); // Track timer intervals
-  const roomVersionRef = useRef(0); // Latest applied room version
 
   // TODO: Review if connectionStatus local state is still needed or if socketIsConnected from context is enough.
   // For now, let's try to use socketIsConnected directly.
