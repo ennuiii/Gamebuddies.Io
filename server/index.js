@@ -1172,6 +1172,7 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
       avatarStyle: p.user?.avatar_style,
       avatarSeed: p.user?.avatar_seed,
       avatarOptions: p.user?.avatar_options,
+      level: p.user?.level || 1,
       socketId: null
     })) || [];
 
@@ -2644,6 +2645,7 @@ io.on('connection', async (socket) => {
           avatarStyle: p.user?.avatar_style,
           avatarSeed: p.user?.avatar_seed,
           avatarOptions: p.user?.avatar_options,
+          level: p.user?.level || 1,
           socketId: null // Socket IDs are tracked in activeConnections, not stored in DB
       })) || [];
 
@@ -3045,6 +3047,7 @@ io.on('connection', async (socket) => {
           avatarStyle: p.user?.avatar_style,
           avatarSeed: p.user?.avatar_seed,
           avatarOptions: p.user?.avatar_options,
+          level: p.user?.level || 1,
           socketId: null // Socket IDs are tracked in activeConnections, not stored in DB
         })) || [];
 
@@ -3197,6 +3200,7 @@ io.on('connection', async (socket) => {
         avatarStyle: p.user?.avatar_style,
         avatarSeed: p.user?.avatar_seed,
         avatarOptions: p.user?.avatar_options,
+        level: p.user?.level || 1,
         socketId: null
       })) || [];
 
@@ -3349,6 +3353,7 @@ io.on('connection', async (socket) => {
         avatarStyle: p.user?.avatar_style,
         avatarSeed: p.user?.avatar_seed,
         avatarOptions: p.user?.avatar_options,
+        level: p.user?.level || 1,
         socketId: null
       })) || [];
 
@@ -3663,6 +3668,7 @@ io.on('connection', async (socket) => {
             avatarStyle: p.user?.avatar_style,
             avatarSeed: p.user?.avatar_seed,
             avatarOptions: p.user?.avatar_options,
+            level: p.user?.level || 1,
             socketId: null
           })) || [];
 

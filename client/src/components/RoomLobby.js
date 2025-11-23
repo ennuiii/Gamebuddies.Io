@@ -409,7 +409,8 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
         avatarUrl: p.avatarUrl,
         avatarStyle: p.avatarStyle,
         avatarSeed: p.avatarSeed,
-        avatarOptions: p.avatarOptions
+        avatarOptions: p.avatarOptions,
+        level: p.level || 1
       })) || [];
 
       console.log('🎯 [PREMIUM DEBUG] Mapped players with premium/avatar data:', mappedPlayers.map(p => ({
@@ -518,7 +519,8 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
         avatarUrl: p.user?.avatar_url,
         avatarStyle: p.user?.avatar_style,
         avatarSeed: p.user?.avatar_seed,
-        avatarOptions: p.user?.avatar_options
+        avatarOptions: p.user?.avatar_options,
+        level: p.user?.level || 1
       })) || [];
       
       setPlayers(mappedPlayers);
