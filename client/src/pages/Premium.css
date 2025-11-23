@@ -381,3 +381,65 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Referral Code Section */
+.referral-code-section {
+  max-width: 600px;
+  margin: 0 auto 4rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 2rem;
+  text-align: center;
+}
+
+.section-description {
+  color: var(--text-secondary);
+  margin-bottom: 1.5rem;
+}
+
+.relative-input {
+  position: relative;
+}
+
+.input-status-icon {
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 1.2rem;
+}
+
+.input-status-icon.loading {
+  animation: spin 1s linear infinite;
+  color: #00d9ff;
+}
+
+.input-status-icon.success {
+  color: #4ade80;
+}
+
+.input-status-icon.error {
+  color: #ff6b6b;
+}
+
+.input-error {
+  border-color: #ff6b6b !important;
+  box-shadow: 0 0 0 2px rgba(255, 107, 107, 0.2) !important;
+}
+
+.input-success {
+  border-color: #4ade80 !important;
+  box-shadow: 0 0 0 2px rgba(74, 222, 128, 0.2) !important;
+}
+
+.input-error-message {
+  color: #ff6b6b;
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+  text-align: left;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

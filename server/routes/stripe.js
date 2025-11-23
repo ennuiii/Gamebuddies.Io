@@ -481,6 +481,25 @@ router.post('/customer-portal', requireAuth, async (req, res) => {
 });
 
 /**
+ * GET /api/stripe/validate-referral/:code
+ * Check if a referral code is valid
+ */
+router.get('/validate-referral/:code', async (req, res) => {
+  const { code } = req.params;
+  try {
+    const { data } = await supabaseAdmin
+      .from('affiliates')
+      .select('id')
+      .eq('code', code.toUpperCase()) // Codes are usually uppercase
+      .single();
+    
+    res.json({ valid: !!data });
+  } catch (error) {
+    res.json({ valid: false });
+  }
+});
+
+/**
  * POST /api/stripe/cancel-subscription
  * Cancel a user's subscription
  * SECURITY: Requires authentication + user can only cancel their own subscription
