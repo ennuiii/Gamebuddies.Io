@@ -46,9 +46,6 @@ const GameCard = React.memo(({ game }) => {
           <p className="game-card-description">{game.description}</p>
 
           <div className="game-card-footer">
-            <span className={`game-status ${game.available ? 'available' : 'coming-soon'}`}>
-              {game.available ? 'Available' : 'Coming Soon'}
-            </span>
             {/* The button is now just for show, as the whole card is a link */}
             <div className="play-button-small">
               Play

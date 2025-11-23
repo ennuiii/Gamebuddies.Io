@@ -1,3 +1,10 @@
+.game-card-link {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+  height: 100%;
+}
+
 .game-card {
   background: var(--card-bg);
   border-radius: 20px;
@@ -146,32 +153,12 @@
 
 .game-card-footer {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end; /* Align button to the right since status is gone */
   align-items: center;
   margin-top: auto;
 }
 
-.game-status {
-  display: inline-block;
-  padding: 0.4rem 1rem;
-  border-radius: 20px;
-  font-size: 0.85rem;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-}
-
-.game-status.available {
-  background: rgba(0, 217, 255, 0.2);
-  color: var(--secondary-color);
-  border: 1px solid var(--secondary-color);
-}
-
-.game-status.coming-soon {
-  background: rgba(255, 107, 107, 0.2);
-  color: var(--accent-color);
-  border: 1px solid var(--accent-color);
-}
+/* Removed game-status styles as they are no longer needed */
 
 /* Responsive */
 @media (max-width: 768px) {
@@ -192,4 +179,4 @@
     padding: 0.4rem 1.2rem;
     font-size: 0.8rem;
   }
-} 
+}
