@@ -149,7 +149,9 @@ const GamePicker = ({ onGameSelect, isHost, disabled }) => {
             <h4 className="game-name">{game.name}</h4>
             <p className="game-description">{game.description}</p>
             <div className="game-meta">
-              <span className="max-players">Max {game.maxPlayers} players</span>
+              <span className="max-players">
+                {(game.min_players || 2)}-{game.max_players || game.maxPlayers} Players
+              </span>
             </div>
           </motion.button>
           );

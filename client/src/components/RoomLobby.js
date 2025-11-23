@@ -64,7 +64,8 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
         name: foundGame.display_name || foundGame.name,
         icon: foundGame.icon || '🎮',
         description: foundGame.description,
-        maxPlayers: foundGame.max_players || foundGame.maxPlayers
+        maxPlayers: foundGame.max_players || foundGame.maxPlayers,
+        minPlayers: foundGame.min_players || foundGame.minPlayers || 2
       };
     }
 
@@ -73,7 +74,8 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       name: selectedGame,
       icon: '🎮',
       description: 'Loading game details...',
-      maxPlayers: null
+      maxPlayers: null,
+      minPlayers: null
     };
   }, [selectedGame, gamesList]);
 
@@ -1471,7 +1473,11 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
               <div className="game-details">
                 <h4>{selectedGameInfo.name}</h4>
                 <p>{selectedGameInfo.description}</p>
-                <span className="max-players">Max {selectedGameInfo.maxPlayers ?? '??'} players</span>
+                <span className="max-players">
+                  {selectedGameInfo.minPlayers && selectedGameInfo.maxPlayers 
+                    ? `${selectedGameInfo.minPlayers}-${selectedGameInfo.maxPlayers} Players`
+                    : `Max ${selectedGameInfo.maxPlayers ?? '??'} Players`}
+                </span>
               </div>
               {currentIsHost && (
                 <div>
