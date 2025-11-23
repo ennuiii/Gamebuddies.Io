@@ -103,13 +103,6 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
 
   const [gamesList, setGamesList] = useState([]);
 
-  // Debug logging for game selection
-  useEffect(() => {
-    console.log('🎮 [LOBBY DEBUG] Selected Game:', selectedGame);
-    console.log('🎮 [LOBBY DEBUG] Games List Length:', gamesList.length);
-    console.log('🎮 [LOBBY DEBUG] Selected Info:', selectedGameInfo);
-  }, [selectedGame, gamesList, selectedGameInfo]);
-
   // Fetch games list to populate details
   useEffect(() => {
     const fetchGames = async () => {
@@ -149,6 +142,13 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       minPlayers: null
     };
   }, [selectedGame, gamesList]);
+
+  // Debug logging for game selection
+  useEffect(() => {
+    console.log('🎮 [LOBBY DEBUG] Selected Game:', selectedGame);
+    console.log('🎮 [LOBBY DEBUG] Games List Length:', gamesList.length);
+    console.log('🎮 [LOBBY DEBUG] Selected Info:', selectedGameInfo);
+  }, [selectedGame, gamesList, selectedGameInfo]);
 
   // TODO: Review if connectionStatus local state is still needed or if socketIsConnected from context is enough.
   // For now, let's try to use socketIsConnected directly.
