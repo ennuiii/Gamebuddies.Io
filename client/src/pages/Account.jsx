@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getSupabaseClient } from '../utils/supabase';
 import AvatarCustomizer from '../components/AvatarCustomizer';
-import Avatar, { getDiceBearUrl } from '../components/Avatar';
+import Avatar from '../components/Avatar';
 import './Account.css';
 
 const Account = () => {

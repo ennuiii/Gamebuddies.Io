@@ -1502,6 +1502,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
                     <div className="player-card-content">
                       <div className="player-avatar">
                         <Avatar
+                          url={player.avatarUrl}
                           avatarStyle={player.avatarStyle}
                           avatarSeed={player.avatarSeed}
                           avatarOptions={player.avatarOptions}

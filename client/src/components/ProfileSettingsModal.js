@@ -5,7 +5,7 @@ import { useSocket } from '../contexts/LazySocketContext';
 import { useNotification } from '../contexts/NotificationContext';
 import { useNavigate } from 'react-router-dom';
 import AvatarCustomizer from './AvatarCustomizer';
-import Avatar, { getDiceBearUrl } from './Avatar';
+import Avatar from './Avatar';
 import './ProfileSettingsModal.css';
 
 const ProfileSettingsModal = ({ isOpen, onClose, roomCode, isPremium: propIsPremium }) => {

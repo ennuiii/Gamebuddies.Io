@@ -24,16 +24,8 @@ const resolveAvatarUrl = (style, seed, options) => {
     return null;
   }
 
-  // Default to DiceBear
-  const params = new URLSearchParams({
-    seed: seed || 'default',
-    size: 128,
-    ...options
-  });
-  // Remove internal options from params if any
-  params.delete('avatarId'); 
-  
-  return `https://api.dicebear.com/9.x/${style || 'pixel-art'}/svg?${params.toString()}`;
+  // Fallback to Default Mascot (Gabu)
+  return '/avatars/free/Gabu.png';
 };
 
 /**
