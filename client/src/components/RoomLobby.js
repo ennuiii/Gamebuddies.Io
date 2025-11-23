@@ -52,11 +52,10 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
     };
 
     const handleLeaderboardUpdate = (entry) => {
+      console.log('🏆 [LOBBY] Leaderboard update received:', entry);
       setMinigameLeaderboard(prev => {
-        // Keep only highest score per player
-        const existing = prev.find(p => p.playerId === entry.playerId);
-        if (existing && existing.score >= entry.score) return prev;
-        
+        // Always update if new score is received (server handles logic? No, server broadcasts click)
+        // We should only update if score is higher OR just always update latest
         const others = prev.filter(p => p.playerId !== entry.playerId);
         return [...others, entry].sort((a, b) => b.score - a.score);
       });
