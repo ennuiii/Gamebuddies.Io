@@ -103,6 +103,13 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
 
   const [gamesList, setGamesList] = useState([]);
 
+  // Debug logging for game selection
+  useEffect(() => {
+    console.log('🎮 [LOBBY DEBUG] Selected Game:', selectedGame);
+    console.log('🎮 [LOBBY DEBUG] Games List Length:', gamesList.length);
+    console.log('🎮 [LOBBY DEBUG] Selected Info:', selectedGameInfo);
+  }, [selectedGame, gamesList, selectedGameInfo]);
+
   // Fetch games list to populate details
   useEffect(() => {
     const fetchGames = async () => {
@@ -461,19 +468,21 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       console.log('🔔 [REALTIME] Room ID set for subscription:', roomIdRef.current);
       
       // Update host status based on server response
-      const currentUser = mappedPlayers.find(p => p.name === playerNameRef.current);
-      if (currentUser) {
-        console.log(`🔍 [CLIENT DEBUG] Initial host status: ${playerNameRef.current} is host: ${currentUser.isHost}`);
-              console.log(`🔍 [LOBBY DEBUG] Host status update:`, {
-        playerName: playerNameRef.current,
-        playerId: currentUser.id,
-        wasHost: currentIsHost,
-        nowHost: currentUser.isHost,
-        changed: currentIsHost !== currentUser.isHost
-      });
-      setCurrentIsHost(currentUser.isHost);
-      currentUserIdRef.current = currentUser.id; // Store user ID for session storage
-    }
+      // Use the 'player' object from response which represents the current user
+      if (data.player) {
+        console.log(`🔍 [CLIENT DEBUG] Updating host status from join response:`, data.player.isHost);
+        setCurrentIsHost(data.player.isHost);
+        currentUserIdRef.current = data.player.id;
+        // Also update playerNameRef to match the server-assigned name (e.g. custom lobby name)
+        playerNameRef.current = data.player.name;
+      } else {
+        // Fallback to name lookup if player object missing (legacy)
+        const currentUser = mappedPlayers.find(p => p.name === playerNameRef.current);
+        if (currentUser) {
+          setCurrentIsHost(currentUser.isHost);
+          currentUserIdRef.current = currentUser.id;
+        }
+      }
     
     // Auto-update room status based on host location after initial join
     updateRoomStatusBasedOnHost(mappedPlayers);
@@ -515,7 +524,11 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       }
       
       // Ensure host status is maintained when players join
-      const currentUser = updatedPlayers.find(p => p.name === playerNameRef.current);
+      const myId = currentUserIdRef.current;
+      const currentUser = myId 
+        ? updatedPlayers.find(p => p.id === myId) 
+        : updatedPlayers.find(p => p.name === playerNameRef.current);
+
       if (currentUser) {
         if (currentUser.isHost !== currentIsHost) {
           console.log(`🔍 [CLIENT DEBUG] Host status sync: ${playerNameRef.current} is host: ${currentUser.isHost}`);
@@ -559,10 +572,13 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       if (data.hostTransfer) {
         console.log('👑 Host transfer detected in status update:', data.hostTransfer);
         
-        // Update local host status if current user is affected
-        const currentUser = mappedPlayers.find(p => p.name === playerNameRef.current);
-        if (currentUser) {
-          const newHostStatus = currentUser.isHost;
+              // Update local host status if current user is affected
+              const myId = currentUserIdRef.current;
+              const currentUser = myId 
+                ? mappedPlayers.find(p => p.id === myId)
+                : mappedPlayers.find(p => p.name === playerNameRef.current);
+              
+              if (currentUser) {          const newHostStatus = currentUser.isHost;
           console.log(`🔍 [CLIENT DEBUG] Host status update via external game: ${playerNameRef.current} is now host: ${newHostStatus}`);
           setCurrentIsHost(newHostStatus);
         }
