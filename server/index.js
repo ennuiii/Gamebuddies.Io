@@ -2043,8 +2043,29 @@ io.on('connection', async (socket) => {
   });
 
   // Handle heartbeat to keep connection active
-  socket.on('heartbeat', () => {
-    connectionManager.updateConnection(socket.id, {});
+  socket.on('heartbeat', async () => {
+    const connection = connectionManager.getConnection(socket.id);
+    if (connection) {
+      // Update memory state
+      connectionManager.updateConnection(socket.id, {});
+      
+      // Update Database (Throttle to once per minute to save DB writes)
+      const now = Date.now();
+      if (!connection.lastDBUpdate || now - connection.lastDBUpdate > 60000) {
+        connection.lastDBUpdate = now;
+        if (connection.userId && connection.roomId) {
+          // Fire and forget DB update
+          db.adminClient
+            .from('room_members')
+            .update({ last_ping: new Date().toISOString(), is_connected: true })
+            .eq('user_id', connection.userId)
+            .eq('room_id', connection.roomId)
+            .then(({ error }) => {
+               if(error) console.error(`❌ Failed to update heartbeat for ${connection.username}:`, error);
+            });
+        }
+      }
+    }
   });
 
   // Handle room creation
