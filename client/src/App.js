@@ -16,7 +16,8 @@ import Premium from './pages/Premium'; // Import Premium
 import PaymentSuccess from './pages/PaymentSuccess'; // Import PaymentSuccess
 import PaymentCancel from './pages/PaymentCancel'; // Import PaymentCancel
 import Account from './pages/Account'; // Import Account
-import AdminAffiliates from './pages/AdminAffiliates'; // Import Admin Page
+import AdminAffiliates from './pages/AdminAffiliates'; // Import Admin Affiliates
+import AdminDashboard from './pages/AdminDashboard'; // Import Admin Dashboard
 import AdminRoute from './components/AdminRoute'; // Import Admin Route Guard
 // GameBuddiesReturnHandler removed - using simpler URL-based return flow
 import DebugPanel from './components/DebugPanel';
@@ -104,6 +105,14 @@ function AppContent() {
           element={
             <AdminRoute>
               <AdminAffiliates />
+            </AdminRoute>
+          } 
+        />
+        <Route 
+          path="/admin/dashboard" 
+          element={
+            <AdminRoute>
+              <AdminDashboard />
             </AdminRoute>
           } 
         />

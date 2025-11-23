@@ -7,6 +7,54 @@ const router = express.Router();
 router.use(requireAuth);
 router.use(requireAdmin);
 
+// GET /api/admin/dashboard-stats
+router.get('/dashboard-stats', async (req, res) => {
+  try {
+    // 1. Key Metrics (Parallel fetch for speed)
+    const [
+      { count: totalUsers },
+      { count: premiumUsers },
+      { count: activeRooms },
+      { count: totalSessions }
+    ] = await Promise.all([
+      supabaseAdmin.from('users').select('*', { count: 'exact', head: true }),
+      supabaseAdmin.from('users').select('*', { count: 'exact', head: true }).neq('premium_tier', 'free'),
+      supabaseAdmin.from('rooms').select('*', { count: 'exact', head: true }).in('status', ['lobby', 'in_game']),
+      supabaseAdmin.from('game_sessions').select('*', { count: 'exact', head: true })
+    ]);
+
+    // 2. Recent Users
+    const { data: recentUsers } = await supabaseAdmin
+      .from('users')
+      .select('id, username, email, created_at, premium_tier')
+      .order('created_at', { ascending: false })
+      .limit(5);
+
+    // 3. Game Popularity (Sample last 500 sessions for trends)
+    const { data: sessions } = await supabaseAdmin
+      .from('game_sessions')
+      .select('game_type')
+      .order('created_at', { ascending: false })
+      .limit(500);
+
+    const gameStats = sessions?.reduce((acc, curr) => {
+      const game = curr.game_type || 'Unknown';
+      acc[game] = (acc[game] || 0) + 1;
+      return acc;
+    }, {}) || {};
+
+    res.json({
+      success: true,
+      metrics: { totalUsers, premiumUsers, activeRooms, totalSessions },
+      recentUsers,
+      gameStats
+    });
+  } catch (err) {
+    console.error('Dashboard stats error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // GET /api/admin/affiliates
 router.get('/affiliates', async (req, res) => {
   try {
