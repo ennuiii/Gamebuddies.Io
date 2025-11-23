@@ -33,17 +33,21 @@ const TugOfWar = ({ playerName }) => {
   }, [socket]);
 
   const handlePull = (e) => {
-    if (!myTeam) return; // Cannot pull if team not assigned
-    
     // Prevent default touch behaviors
-    if (e.type === 'touchstart') e.preventDefault();
+    if (e.type === 'touchstart') {
+      e.preventDefault();
+    }
+
+    if (!socket) return;
     
     setIsPulling(true);
     setTimeout(() => setIsPulling(false), 100);
 
-    if (socket) {
-      socket.emit('tugOfWar:pull', { team: myTeam, playerName });
-    }
+    // Send pull request (server assigns team if null)
+    socket.emit('tugOfWar:pull', { 
+      team: myTeam, 
+      playerName 
+    });
   };
 
   return (
@@ -83,16 +87,16 @@ const TugOfWar = ({ playerName }) => {
           {myTeam ? (
             <>You are on <span className={`team-name ${myTeam}`}>{myTeam.toUpperCase()}</span> team</>
           ) : (
-            <>Assigning team...</>
+            <>Click PULL to join a team!</>
           )}
         </div>
         <button 
-          className={`pull-btn ${myTeam} ${isPulling ? 'pulling' : ''}`}
+          className={`pull-btn ${myTeam || 'neutral'} ${isPulling ? 'pulling' : ''}`}
           onMouseDown={handlePull}
           onTouchStart={handlePull}
-          disabled={!myTeam}
+          disabled={!socket} // Always enabled if socket connected
         >
-          PULL!
+          {myTeam ? 'PULL!' : 'JOIN & PULL!'}
         </button>
       </div>
     </div>
