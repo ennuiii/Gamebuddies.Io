@@ -10,7 +10,7 @@
 /* Beta Testing Disclaimer */
 .beta-disclaimer {
   position: fixed;
-  top: 70px; /* Below header */
+  top: 90px; /* Below header */
   left: 0;
   right: 0;
   z-index: 999;
@@ -75,7 +75,7 @@
 /* Responsive */
 @media (max-width: 768px) {
   .beta-disclaimer {
-    top: 60px; /* Adjust for smaller header */
+    top: 80px; /* Adjust for smaller header */
   }
 
   .beta-disclaimer-content {
