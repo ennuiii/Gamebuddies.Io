@@ -99,7 +99,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       message: text,
       playerName: nameToSend
     });
-  }, [players, user, currentUserIdRef.current, playerNameRef.current, socket]);
+  }, [players, user, currentUserIdRef, playerNameRef, socket]);
 
   const [gamesList, setGamesList] = useState([]);
 
