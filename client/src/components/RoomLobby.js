@@ -65,7 +65,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
     };
   }, [socket]);
 
-  const handleSendMessage = useCallback((text) => {
+  const handleSendMessage = (text) => {
     // Robust "Me" lookup
     let me = null;
     
@@ -99,7 +99,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       message: text,
       playerName: nameToSend
     });
-  }, [players, user, currentUserIdRef, playerNameRef, socket]);
+  };
 
   const [gamesList, setGamesList] = useState([]);
 
