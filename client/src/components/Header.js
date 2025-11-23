@@ -4,11 +4,48 @@ import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import './Header.css';
 
+// Level Curve Configuration (Must match DB)
+const LEVEL_CURVE = [
+  { level: 1, xp: 0 },
+  { level: 2, xp: 500 },
+  { level: 3, xp: 1500 },
+  { level: 4, xp: 3500 },
+  { level: 5, xp: 7500 },
+  { level: 6, xp: 15000 },
+  { level: 7, xp: 25000 },
+  { level: 8, xp: 40000 },
+  { level: 9, xp: 65000 },
+  { level: 10, xp: 100000 }
+];
+
 const Header = ({ onNavigateHome, onNavigateGames, isInLobby }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, isAuthenticated, loading, session, signOut } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const calculateProgress = () => {
+    if (!user?.level) return { percent: 0, currentLevelXp: 0, nextLevelXp: 500 };
+    
+    const currentLevel = user.level;
+    const currentTotalXp = user.xp || 0;
+    
+    // Find XP required for current and next level
+    const currentLevelStart = LEVEL_CURVE.find(l => l.level === currentLevel)?.xp || 0;
+    const nextLevelStart = LEVEL_CURVE.find(l => l.level === currentLevel + 1)?.xp;
+    
+    // If max level (no next level), show 100%
+    if (nextLevelStart === undefined) return { percent: 100, currentLevelXp: currentTotalXp, nextLevelXp: currentTotalXp };
+
+    const xpInThisLevel = currentTotalXp - currentLevelStart;
+    const xpNeededForLevel = nextLevelStart - currentLevelStart;
+    
+    const percent = Math.min(100, Math.floor((xpInThisLevel / xpNeededForLevel) * 100));
+    
+    return { percent, currentLevelXp: currentTotalXp, nextLevelXp: nextLevelStart };
+  };
+
+  const { percent, nextLevelXp } = calculateProgress();
 
   console.log('🎯 [HEADER] Rendering with auth state:', {
     loading,
@@ -78,14 +115,7 @@ const Header = ({ onNavigateHome, onNavigateGames, isInLobby }) => {
     }
   };
 
-  const calculateProgress = () => {
-    if (!user?.level) return { percent: 0, nextXp: 1000 };
-    const nextLevelXp = user.level * 1000;
-    const percent = Math.min(100, Math.floor((user.xp / nextLevelXp) * 100));
-    return { percent, nextXp: nextLevelXp };
-  };
-
-  const { percent } = calculateProgress();
+  /* Replaced by new calculateProgress above */
 
   return (
     <>
@@ -123,7 +153,7 @@ const Header = ({ onNavigateHome, onNavigateGames, isInLobby }) => {
                 {isAuthenticated && user ? (
                   <div className="user-section">
                     {/* Level Badge & XP Bar */}
-                    <div className="level-container" title={`Level ${user.level || 1} (${user.xp || 0} XP)`}>
+                    <div className="level-container" title={`Level ${user.level || 1} (${user.xp || 0} / ${nextLevelXp} XP)`}>
                       <div className="level-badge">
                         <span>Lvl {user.level || 1}</span>
                       </div>
