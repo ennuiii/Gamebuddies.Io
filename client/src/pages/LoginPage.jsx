@@ -246,7 +246,7 @@ const LoginPage = () => {
                 <span>or sign in with</span>
               </div>
 
-              {/* OAuth Buttons */}
+              {/* Updated OAuth Buttons: Discord and Google only */}
               <button
                 onClick={() => handleOAuthLogin('discord')}
                 className="auth-button discord-button"
