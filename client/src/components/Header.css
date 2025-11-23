@@ -256,6 +256,42 @@
   transform: scale(0.95) rotate(45deg);
 }
 
+/* Level & XP Styles */
+.level-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  margin-right: 1rem;
+  min-width: 80px;
+}
+
+.level-badge {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--secondary-color);
+  text-align: center;
+  margin-bottom: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.xp-bar-container {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.3);
+}
+
+.xp-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--secondary-color), var(--primary-color));
+  border-radius: 3px;
+  transition: width 0.5s ease-out;
+  box-shadow: 0 0 10px rgba(0, 217, 255, 0.5);
+}
+
 /* Responsive */
 @media (max-width: 768px) {
   .logo {
@@ -306,6 +342,10 @@
     display: none; /* Hide username on very small screens, keep icon */
   }
 
+  .level-container {
+    display: none; /* Hide level on very small screens */
+  }
+
   .logout-button {
     padding: 0.5rem 0.8rem;
     font-size: 0.8rem;
@@ -315,4 +355,4 @@
     padding: 0.5rem 1rem;
     font-size: 0.9rem;
   }
-} 
+}

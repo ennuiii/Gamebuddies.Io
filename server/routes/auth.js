@@ -51,7 +51,7 @@ router.get('/me', requireAuth, async (req, res) => {
     // Fetch user from database
     const { data: user, error } = await supabaseAdmin
       .from('users')
-      .select('id, username, email, display_name, avatar_url, premium_tier, premium_expires_at, subscription_canceled_at, avatar_style, avatar_seed, avatar_options, created_at, role, is_guest')
+      .select('id, username, email, display_name, avatar_url, premium_tier, premium_expires_at, subscription_canceled_at, avatar_style, avatar_seed, avatar_options, created_at, role, is_guest, xp, level')
       .eq('id', userId)
       .single();
 

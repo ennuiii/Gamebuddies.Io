@@ -78,6 +78,15 @@ const Header = ({ onNavigateHome, onNavigateGames, isInLobby }) => {
     }
   };
 
+  const calculateProgress = () => {
+    if (!user?.level) return { percent: 0, nextXp: 1000 };
+    const nextLevelXp = user.level * 1000;
+    const percent = Math.min(100, Math.floor((user.xp / nextLevelXp) * 100));
+    return { percent, nextXp: nextLevelXp };
+  };
+
+  const { percent } = calculateProgress();
+
   return (
     <>
       <motion.header 
@@ -113,6 +122,19 @@ const Header = ({ onNavigateHome, onNavigateGames, isInLobby }) => {
                 )} */}
                 {isAuthenticated && user ? (
                   <div className="user-section">
+                    {/* Level Badge & XP Bar */}
+                    <div className="level-container" title={`Level ${user.level || 1} (${user.xp || 0} XP)`}>
+                      <div className="level-badge">
+                        <span>Lvl {user.level || 1}</span>
+                      </div>
+                      <div className="xp-bar-container">
+                        <div 
+                          className="xp-bar-fill" 
+                          style={{ width: `${percent}%` }}
+                        />
+                      </div>
+                    </div>
+
                     <button
                       onClick={() => navigate('/account')}
                       className="user-info user-info-button"
