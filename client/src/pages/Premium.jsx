@@ -376,7 +376,38 @@ const Premium = () => {
             )}
           </div>
         </div>
-      )}
+      </div>
+
+      <div className="referral-code-section">
+        <h2>Have a Referral Code?</h2>
+        <p className="section-description">
+          Enter your streamer's code to support them!
+        </p>
+        <div className="form-group relative-input">
+          <input
+            type="text"
+            placeholder="Referral Code (Optional)"
+            value={referralCode}
+            onChange={(e) => {
+              setReferralCode(e.target.value.toUpperCase());
+              setReferralCodeValid(null);
+            }}
+            onBlur={validateReferralCode}
+            disabled={loadingTier !== null}
+            className={`input ${referralCodeValid === false ? 'input-error' : referralCodeValid === true ? 'input-success' : ''}`}
+          />
+          {validatingCode && <span className="input-status-icon loading">↻</span>}
+          {referralCodeValid === true && <span className="input-status-icon success">✓</span>}
+          {referralCodeValid === false && <span className="input-status-icon error">✗</span>}
+          
+          {referralCodeValid === false && (
+            <p className="input-error-message">Invalid referral code. Please check or clear it.</p>
+          )}
+        </div>
+      </div>
+
+      <div className="premium-faq">
+        <h2>Frequently Asked Questions</h2>
 
         <div className="faq-grid">
           <div className="faq-item">
