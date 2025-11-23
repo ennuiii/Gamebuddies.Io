@@ -1601,52 +1601,46 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
                 )}
               </div>
               <div className="game-details">
-                <h4 style={{ color: 'white', background: 'none', WebkitTextFillColor: 'initial' }}>
-                  {selectedGameInfo.name}
-                </h4>
+                <h4>{selectedGameInfo.name}</h4>
                 <p>{selectedGameInfo.description}</p>
                 <span className="max-players">
                   {selectedGameInfo.minPlayers && selectedGameInfo.maxPlayers 
                     ? `${selectedGameInfo.minPlayers}-${selectedGameInfo.maxPlayers} Players`
                     : `Max ${selectedGameInfo.maxPlayers ?? '??'} Players`}
                 </span>
-                {/* Debug Host Status */}
-                <div style={{ fontSize: '0.8rem', color: '#aaa', marginTop: '5px' }}>
-                  Is Host: {currentIsHost ? 'YES' : 'NO'}
-                </div>
               </div>
               <div className="game-controls" style={{ minWidth: '200px', display: 'flex', flexDirection: 'column', gap: '1rem', zIndex: 10 }}>
                 {currentIsHost ? (
                   <>
-                    <button 
-                      onClick={handleStartGame}
-                      className="start-game-button"
-                      disabled={!socket || !socketIsConnected || isStartingGame}
-                      style={{ display: 'block', width: '100%', background: '#e94560' }} // Force style
-                    >
-                      {isStartingGame ? 'Starting...' : 'Start Game'}
-                    </button>
-                    <button 
-                      onClick={() => {
-                        setSelectedGame(null);
-                        if (socket && socketIsConnected) {
-                          socket.emit('selectGame', { gameType: null });
-                        }
-                      }}
-                      className="change-game-btn"
-                      disabled={!socket || !socketIsConnected}
-                      style={{ display: 'block', width: '100%', background: '#00d9ff' }} // Force style
-                    >
-                      Change Game
-                    </button>
-                  </>
-                ) : (
-                  <div style={{ textAlign: 'center', color: '#aaa' }}>
-                    <p>Waiting for host to start...</p>
-                  </div>
-                )}
-              </div>
-            </div>
+                                      <button 
+                                        onClick={handleStartGame}
+                                        className="start-game-button"
+                                        disabled={!socket || !socketIsConnected || isStartingGame}
+                                        style={{ display: 'block', width: '100%', background: '#e94560' }} // Force style
+                                      >
+                                        {isStartingGame ? 'Starting...' : 'Start Game'}
+                                      </button>
+                                      <button 
+                                        onClick={() => {
+                                          setSelectedGame(null);
+                                          if (socket && socketIsConnected) {
+                                            socket.emit('selectGame', { gameType: null });
+                                          }
+                                        }}
+                                        className="change-game-btn"
+                                        disabled={!socket || !socketIsConnected}
+                                        style={{ display: 'block', width: '100%', background: '#00d9ff', color: 'black' }} // Force style + color
+                                      >
+                                        Change Game
+                                      </button>
+                                    </>
+                                  ) : (
+                                    <div style={{ textAlign: 'center', color: '#aaa' }}>
+                                      <p>Waiting for host to start...</p>
+                                    </div>
+                                  )}
+                                </div>
+                                </div>
           )}
         </div>
       </div>

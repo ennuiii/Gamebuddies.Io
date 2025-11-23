@@ -38,15 +38,19 @@ const CreateRoom = ({ onRoomCreated, onCancel }) => {
     setError('');
 
     try {
-      // Determine playerName and customLobbyName based on auth status
-      const playerName = isAuthenticated
-        ? (user?.username || user?.display_name || 'User')
+      // Determine playerName for server and customLobbyName
+      const serverPlayerName = isAuthenticated
+        ? (displayName.trim() || user?.display_name || user?.username || 'User')
         : displayName.trim();
-      const customLobbyName = isAuthenticated && displayName.trim()
+      const serverCustomLobbyName = isAuthenticated && displayName.trim()
         ? displayName.trim()
         : null;
 
-      console.log('🏠 Creating room:', { playerName, customLobbyName, isAuthenticated });
+      console.log('🏠 Creating room:', { 
+        playerName: serverPlayerName, 
+        customLobbyName: serverCustomLobbyName, 
+        isAuthenticated 
+      });
       
       // Connect to socket lazily - only when creating room
       const activeSocket = socket || connectSocket();
@@ -128,15 +132,15 @@ const CreateRoom = ({ onRoomCreated, onCancel }) => {
 
       // Emit room creation request
       activeSocket.emit('createRoom', {
-        playerName,
-        customLobbyName,
+        playerName: serverPlayerName,
+        customLobbyName: serverCustomLobbyName,
         streamerMode,
         isPublic,
         supabaseUserId: session?.user?.id || null // Send auth user ID if logged in
       });
       console.log('📤 [CLIENT] createRoom event sent', {
-        playerName,
-        customLobbyName,
+        playerName: serverPlayerName,
+        customLobbyName: serverCustomLobbyName,
         streamerMode,
         isPublic,
         isAuthenticated,
