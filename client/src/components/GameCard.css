@@ -21,12 +21,17 @@
   width: 100%;
   height: 225px;
   overflow: hidden;
+  background-color: #1a1a2e; /* A dark background from your theme */
+  padding: 1rem; /* Add some padding around the logo */
+  display: flex; /* Use flex to center image within padding */
+  align-items: center;
+  justify-content: center;
 }
 
 .game-card-image {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain; /* Ensures the entire image is visible */
   transition: transform 0.3s ease;
 }
 
