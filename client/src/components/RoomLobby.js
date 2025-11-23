@@ -1626,6 +1626,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
               disabled={!socket || !socketIsConnected} // Use socketIsConnected
             />
           ) : (
+            <>
             <div className="selected-game-card">
               <div className="game-icon">
                 {selectedGameInfo.thumbnailUrl && !imageError ? (
@@ -1640,7 +1641,9 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
                 )}
               </div>
               <div className="game-details">
-                <h4>{selectedGameInfo.name}</h4>
+                <h4 style={{ color: 'white', background: 'none', WebkitTextFillColor: 'initial' }}>
+                  {selectedGameInfo.name}
+                </h4>
                 <p>{selectedGameInfo.description}</p>
                 <span className="max-players">
                   {selectedGameInfo.minPlayers && selectedGameInfo.maxPlayers 
@@ -1648,38 +1651,41 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
                     : `Max ${selectedGameInfo.maxPlayers ?? '??'} Players`}
                 </span>
               </div>
-              <div className="game-controls" style={{ minWidth: '200px', display: 'flex', flexDirection: 'column', gap: '1rem', zIndex: 10 }}>
+            </div>
+            
+            {/* Controls moved outside card for clickability safety */}
+            <div className="game-controls" style={{ marginTop: '2rem', display: 'flex', flexDirection: 'column', gap: '1rem', alignItems: 'center' }}>
                 {currentIsHost ? (
                   <>
-                                      <button 
-                                        onClick={handleStartGame}
-                                        className="start-game-button"
-                                        disabled={!socket || !socketIsConnected || isStartingGame}
-                                        style={{ display: 'block', width: '100%', background: '#e94560' }} // Force style
-                                      >
-                                        {isStartingGame ? 'Starting...' : 'Start Game'}
-                                      </button>
-                                      <button 
-                                        onClick={() => {
-                                          setSelectedGame(null);
-                                          if (socket && socketIsConnected) {
-                                            socket.emit('selectGame', { gameType: null });
-                                          }
-                                        }}
-                                        className="change-game-btn"
-                                        disabled={!socket || !socketIsConnected}
-                                        style={{ display: 'block', width: '100%', background: '#00d9ff', color: 'black' }} // Force style + color
-                                      >
-                                        Change Game
-                                      </button>
-                                    </>
-                                  ) : (
-                                    <div style={{ textAlign: 'center', color: '#aaa' }}>
-                                      <p>Waiting for host to start...</p>
-                                    </div>
-                                  )}
-                                </div>
-                                </div>
+                    <button 
+                      onClick={handleStartGame}
+                      className="start-game-button"
+                      disabled={!socket || !socketIsConnected || isStartingGame}
+                      style={{ display: 'block', width: '100%', maxWidth: '400px', background: '#e94560' }}
+                    >
+                      {isStartingGame ? 'Starting...' : 'Start Game'}
+                    </button>
+                    <button 
+                      onClick={() => {
+                        setSelectedGame(null);
+                        if (socket && socketIsConnected) {
+                          socket.emit('selectGame', { gameType: null });
+                        }
+                      }}
+                      className="change-game-btn"
+                      disabled={!socket || !socketIsConnected}
+                      style={{ display: 'block', width: '100%', maxWidth: '400px', background: '#00d9ff', color: 'black' }}
+                    >
+                      Change Game
+                    </button>
+                  </>
+                ) : (
+                  <div style={{ textAlign: 'center', color: '#aaa' }}>
+                    <p>Waiting for host to start...</p>
+                  </div>
+                )}
+              </div>
+            </>
           )}
         </div>
       </div>
