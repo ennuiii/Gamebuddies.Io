@@ -738,6 +738,17 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       let userFriendlyMessage = error.message || 'An error occurred';
       let shouldRedirect = false; // Flag for critical errors that require leaving
       
+      // Auto-recovery for lost session
+      if (userFriendlyMessage === 'Not in a room') {
+         console.log('⚠️ [LOBBY RECOVERY] Server lost our session. Attempting to rejoin...');
+         socket.emit('joinRoom', {
+            roomCode: roomCodeRef.current,
+            playerName: playerNameRef.current,
+            supabaseUserId: user?.id
+         });
+         return; // Don't show error to user, just try to fix it
+      }
+
       switch (error.code) {
         case 'ROOM_NOT_FOUND':
           userFriendlyMessage = 'Room not found. It may have expired or been cleaned up.';
