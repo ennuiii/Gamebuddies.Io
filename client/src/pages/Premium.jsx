@@ -18,6 +18,17 @@ const Premium = () => {
   const isLifetime = user?.premium_tier === 'lifetime';
   const isMonthly = user?.premium_tier === 'monthly';
 
+  const checkCodeValidity = async (code) => {
+    if (!code || code.length < 3) return false;
+    try {
+      const res = await fetch(`/api/stripe/validate-referral/${code}`);
+      const data = await res.json();
+      return data.valid;
+    } catch {
+      return false;
+    }
+  };
+
   // Validate referral code on blur
   const validateReferralCode = async () => {
     if (!referralCode || referralCode.length < 3) {
@@ -26,19 +37,9 @@ const Premium = () => {
     }
 
     setValidatingCode(true);
-    try {
-      const res = await fetch(`/api/stripe/validate-referral/${referralCode}`);
-      const data = await res.json();
-      setReferralCodeValid(data.valid);
-      if (!data.valid) {
-        // Optional: Auto-clear invalid code after delay? 
-        // Better to let user fix it.
-      }
-    } catch (err) {
-      setReferralCodeValid(false);
-    } finally {
-      setValidatingCode(false);
-    }
+    const isValid = await checkCodeValidity(referralCode);
+    setReferralCodeValid(isValid);
+    setValidatingCode(false);
   };
 
   // Fetch prices from Stripe API on component mount
@@ -99,9 +100,27 @@ const Premium = () => {
       return;
     }
 
-    if (referralCode && referralCodeValid === false) {
-      alert('Please clear or fix the invalid referral code before proceeding.');
-      return;
+    // Re-validate code on submit if present
+    if (referralCode) {
+      // Check if we already know it's invalid
+      if (referralCodeValid === false) {
+        alert('Please clear or fix the invalid referral code before proceeding.');
+        return;
+      }
+      
+      // If unchecked or valid, verify one last time (in case it was valid but changed?)
+      // Actually, if it's 'true', we trust it. If 'null', we check.
+      if (referralCodeValid === null) {
+        setValidatingCode(true);
+        const isValid = await checkCodeValidity(referralCode);
+        setReferralCodeValid(isValid);
+        setValidatingCode(false);
+        
+        if (!isValid) {
+          alert('The referral code entered is invalid.');
+          return;
+        }
+      }
     }
 
     setLoadingTier(priceType);
