@@ -1925,6 +1925,7 @@ setInterval(() => {
 // In-memory state for Tug of War (simple, non-persistent)
 const tugOfWarState = new Map(); // roomCode -> { position: 50, redWins: 0, blueWins: 0 }
 const tugOfWarTeams = new Map(); // roomCode -> Map<playerId, 'red'|'blue'>
+const roomActivityCache = new Map(); // roomCode -> timestamp (throttling DB updates)
 
 io.on('connection', async (socket) => {
   console.log(`🔌 User connected: ${socket.id}`);
@@ -1937,6 +1938,21 @@ io.on('connection', async (socket) => {
     const rooms = Array.from(socket.rooms).filter(r => r !== socket.id);
     if (rooms.length > 0) {
       const roomCode = rooms[0];
+      
+      // Update DB activity (throttled to once per minute) to prevent cleanup
+      const lastUpdate = roomActivityCache.get(roomCode) || 0;
+      if (Date.now() - lastUpdate > 60000) {
+        roomActivityCache.set(roomCode, Date.now());
+        // Async update, fire and forget
+        db.adminClient
+          .from('rooms')
+          .update({ last_activity: new Date().toISOString() })
+          .eq('room_code', roomCode)
+          .then(({ error }) => {
+             if(error) console.error(`❌ Failed to update activity for room ${roomCode}:`, error);
+          });
+      }
+
       io.to(roomCode).emit('chat:message', {
         id: crypto.randomUUID(),
         playerName: data.playerName || 'Player',
