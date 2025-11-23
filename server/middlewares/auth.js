@@ -89,7 +89,43 @@ function requireOwnAccount(req, res, next) {
   next();
 }
 
+/**
+ * Middleware to check if the authenticated user has 'admin' role
+ * Use after requireAuth middleware
+ */
+async function requireAdmin(req, res, next) {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Unauthorized - Not authenticated' });
+    }
+
+    // Fetch user role from public.users table
+    const { data: publicUser, error } = await supabaseAdmin
+      .from('users')
+      .select('role')
+      .eq('id', req.user.id)
+      .single();
+
+    if (error || !publicUser) {
+      console.error('❌ [AUTH MIDDLEWARE] Failed to fetch user role:', error);
+      return res.status(403).json({ error: 'Forbidden - Failed to verify role' });
+    }
+
+    if (publicUser.role !== 'admin') {
+      console.warn(`⚠️ [AUTH] User ${req.user.id} attempted admin access (role: ${publicUser.role})`);
+      return res.status(403).json({ error: 'Forbidden - Admins only' });
+    }
+
+    console.log('✅ [AUTH MIDDLEWARE] Admin privileges verified');
+    next();
+  } catch (error) {
+    console.error('❌ [AUTH MIDDLEWARE] Admin check error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
 module.exports = {
   requireAuth,
-  requireOwnAccount
+  requireOwnAccount,
+  requireAdmin
 };

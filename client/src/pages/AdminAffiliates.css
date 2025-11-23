@@ -1,0 +1,88 @@
+.admin-page {
+  padding: 120px 2rem 4rem;
+  color: white;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.admin-page h1 {
+  color: #00d9ff;
+  border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 1rem;
+  margin-bottom: 2rem;
+}
+
+.add-affiliate-section {
+  background: rgba(255, 255, 255, 0.05);
+  padding: 2rem;
+  border-radius: 12px;
+  margin-bottom: 3rem;
+}
+
+.form-group {
+  margin-bottom: 1rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: var(--text-secondary);
+}
+
+.form-group input {
+  width: 100%;
+  padding: 0.8rem;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: white;
+}
+
+button[type="submit"] {
+  background: linear-gradient(135deg, #00d9ff, #0099cc);
+  border: none;
+  padding: 0.8rem 2rem;
+  color: white;
+  border-radius: 8px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+th, td {
+  padding: 1rem;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+th {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.code-cell {
+  font-family: monospace;
+  color: #00d9ff;
+  font-weight: 700;
+}
+
+.error-msg {
+  background: rgba(255, 60, 60, 0.2);
+  color: #ff6b6b;
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.success-msg {
+  background: rgba(60, 255, 60, 0.2);
+  color: #4ade80;
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
