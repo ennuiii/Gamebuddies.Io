@@ -94,7 +94,7 @@ const CreateRoom = ({ onRoomCreated, onCancel }) => {
       // Now we're connected, emit the createRoom event
       console.log('✅ [CLIENT] Connected to server, creating room...');
       console.log('🔍 [CLIENT DEBUG] Socket ID:', activeSocket.id);
-      console.log('🔍 [CLIENT DEBUG] Player name:', playerName.trim());
+      console.log('🔍 [CLIENT DEBUG] Player name:', serverPlayerName.trim());
       
       // Set up one-time event handlers for room creation
       const cleanup = () => {
@@ -109,7 +109,7 @@ const CreateRoom = ({ onRoomCreated, onCancel }) => {
         if (onRoomCreated) {
           onRoomCreated({
             roomCode: data.roomCode,
-            playerName: playerName.trim(),
+            playerName: serverPlayerName.trim(),
             isHost: true,
             room: data.room
           });
