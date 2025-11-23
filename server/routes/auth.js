@@ -144,8 +144,9 @@ router.post('/sync-user', async (req, res) => {
           email,
           oauth_provider,
           oauth_id,
-          avatar_url,
-          display_name: display_name || existingUser.display_name,
+          // Preserve existing avatar/name if they exist; otherwise use new values
+          avatar_url: existingUser.avatar_url || avatar_url,
+          display_name: existingUser.display_name || display_name,
           last_seen: new Date().toISOString(),
           is_guest: false,
           email_verified: isEmailVerified
