@@ -1615,35 +1615,37 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
                   Is Host: {currentIsHost ? 'YES' : 'NO'}
                 </div>
               </div>
-              {currentIsHost && (
-                <div>
-                  <button 
-                    onClick={handleStartGame}
-                    className="start-game-button"
-                    disabled={!socket || !socketIsConnected || isStartingGame} // Use socketIsConnected
-                  >
-                    {isStartingGame ? 'Starting Game...' : 'Start Game'}
-                  </button>
-                  <button 
-                    onClick={() => {
-                      setSelectedGame(null);
-                      if (socket && socketIsConnected) { // Also emit game deselection if needed
-                        socket.emit('selectGame', { gameType: null }); // Assuming server handles null as deselection
-                      }
-                    }}
-                    className="change-game-btn"
-                    disabled={!socket || !socketIsConnected} // Use socketIsConnected
-                    style={{ marginTop: '1rem' }}
-                  >
-                    Change Game
-                  </button>
-                </div>
-              )}
-              {!currentIsHost && (
-                <div style={{ textAlign: 'center' }}>
-                  <p>Waiting for host to start the game...</p>
-                </div>
-              )}
+              <div className="game-controls" style={{ minWidth: '200px', display: 'flex', flexDirection: 'column', gap: '1rem', zIndex: 10 }}>
+                {currentIsHost ? (
+                  <>
+                    <button 
+                      onClick={handleStartGame}
+                      className="start-game-button"
+                      disabled={!socket || !socketIsConnected || isStartingGame}
+                      style={{ display: 'block', width: '100%', background: '#e94560' }} // Force style
+                    >
+                      {isStartingGame ? 'Starting...' : 'Start Game'}
+                    </button>
+                    <button 
+                      onClick={() => {
+                        setSelectedGame(null);
+                        if (socket && socketIsConnected) {
+                          socket.emit('selectGame', { gameType: null });
+                        }
+                      }}
+                      className="change-game-btn"
+                      disabled={!socket || !socketIsConnected}
+                      style={{ display: 'block', width: '100%', background: '#00d9ff' }} // Force style
+                    >
+                      Change Game
+                    </button>
+                  </>
+                ) : (
+                  <div style={{ textAlign: 'center', color: '#aaa' }}>
+                    <p>Waiting for host to start...</p>
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>

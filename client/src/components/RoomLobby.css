@@ -914,7 +914,12 @@
     0 15px 40px rgba(0, 0, 0, 0.3),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
   position: relative;
-  overflow: hidden;
+  overflow: visible; /* Changed from hidden to visible */
+  flex-wrap: wrap; /* Allow wrapping */
+}
+
+.selected-game-card * {
+  z-index: 2; /* Ensure content is above background effects */
 }
 
 /* Fallback for selected game card */
@@ -934,6 +939,7 @@
   height: 100%;
   background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.05), transparent);
   animation: gameCardShine 4s linear infinite;
+  z-index: 0; /* Behind content */
 }
 
 @keyframes gameCardShine {
@@ -946,6 +952,9 @@
   flex-shrink: 0;
   filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.2));
   animation: gameIconFloat 3s ease-in-out infinite;
+  min-width: 100px; /* Prevent collapse */
+  display: flex;
+  justify-content: center;
 }
 
 @keyframes gameIconFloat {
@@ -955,16 +964,16 @@
 
 .game-details {
   flex: 1;
+  min-width: 200px; /* Prevent collapse */
+  color: white; /* Force white text */
 }
 
 .game-details h4 {
   font-size: 2rem;
   font-weight: 700;
   margin-bottom: 1rem;
-  background: linear-gradient(135deg, var(--text-primary) 0%, var(--secondary-color) 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
+  color: white; /* Force white */
+  text-shadow: 0 2px 4px rgba(0,0,0,0.5);
 }
 
 .game-details p {
