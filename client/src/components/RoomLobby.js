@@ -1601,13 +1601,19 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
                 )}
               </div>
               <div className="game-details">
-                <h4>{selectedGameInfo.name}</h4>
+                <h4 style={{ color: 'white', background: 'none', WebkitTextFillColor: 'initial' }}>
+                  {selectedGameInfo.name}
+                </h4>
                 <p>{selectedGameInfo.description}</p>
                 <span className="max-players">
                   {selectedGameInfo.minPlayers && selectedGameInfo.maxPlayers 
                     ? `${selectedGameInfo.minPlayers}-${selectedGameInfo.maxPlayers} Players`
                     : `Max ${selectedGameInfo.maxPlayers ?? '??'} Players`}
                 </span>
+                {/* Debug Host Status */}
+                <div style={{ fontSize: '0.8rem', color: '#aaa', marginTop: '5px' }}>
+                  Is Host: {currentIsHost ? 'YES' : 'NO'}
+                </div>
               </div>
               {currentIsHost && (
                 <div>
