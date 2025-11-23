@@ -470,11 +470,15 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       // Update host status based on server response
       // Use the 'player' object from response which represents the current user
       if (data.player) {
-        console.log(`🔍 [CLIENT DEBUG] Updating host status from join response:`, data.player.isHost);
+        console.log(`🔍 [CLIENT DEBUG] Updating host status from join response (player obj):`, data.player.isHost);
         setCurrentIsHost(data.player.isHost);
         currentUserIdRef.current = data.player.id;
-        // Also update playerNameRef to match the server-assigned name (e.g. custom lobby name)
         playerNameRef.current = data.player.name;
+      } else if (data.isHost !== undefined) {
+        console.log(`🔍 [CLIENT DEBUG] Updating host status from join response (root prop):`, data.isHost);
+        setCurrentIsHost(data.isHost);
+        // Try to find ID from mapped players if possible, though risky if name mismatch
+        // But we prioritize Host status here
       } else {
         // Fallback to name lookup if player object missing (legacy)
         const currentUser = mappedPlayers.find(p => p.name === playerNameRef.current);
