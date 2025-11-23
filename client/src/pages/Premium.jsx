@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useNotification } from '../contexts/NotificationContext'; // Import useNotification
 import { getSupabaseClient } from '../utils/supabase';
 import './Premium.css';
 
@@ -10,6 +11,7 @@ const Premium = () => {
   const [loadingTier, setLoadingTier] = useState(null);
   const [prices, setPrices] = useState(null);
   const [loadingPrices, setLoadingPrices] = useState(true);
+  const { addNotification } = useNotification(); // Get addNotification function
   const [referralCode, setReferralCode] = useState('');
   const [referralCodeValid, setReferralCodeValid] = useState(null); // null=unchecked, true=valid, false=invalid
   const [validatingCode, setValidatingCode] = useState(false);
@@ -104,7 +106,7 @@ const Premium = () => {
     if (referralCode) {
       // Check if we already know it's invalid
       if (referralCodeValid === false) {
-        alert('Please clear or fix the invalid referral code before proceeding.');
+        addNotification('Please clear or fix the invalid referral code before proceeding.', 'error');
         return;
       }
       
@@ -117,7 +119,7 @@ const Premium = () => {
         setValidatingCode(false);
         
         if (!isValid) {
-          alert('The referral code entered is invalid.');
+          addNotification('The referral code entered is invalid.', 'error');
           return;
         }
       }
@@ -192,7 +194,7 @@ const Premium = () => {
       console.error('  Error name:', error.name);
       console.error('  Error message:', error.message);
       console.error('  Error stack:', error.stack);
-      alert(`Payment error: ${error.message}`);
+      addNotification(`Payment error: ${error.message}`, 'error');
       setLoadingTier(null);
     }
   };
@@ -230,7 +232,7 @@ const Premium = () => {
       window.location.href = data.url;
     } catch (error) {
       console.error('❌ [PREMIUM] Portal error:', error);
-      alert(`Error: ${error.message}`);
+      addNotification(`Error opening portal: ${error.message}`, 'error');
     }
   };
 
@@ -264,138 +266,23 @@ const Premium = () => {
         </div>
       )}
 
-      <div className="pricing-tiers">
-        {/* Free Tier */}
-        <div className={`pricing-card ${!isPremium ? 'current' : ''}`}>
-          <div className="tier-header">
-            <h2>Free</h2>
-            <div className="price">
-              <span className="amount">€0</span>
-              <span className="period">forever</span>
-            </div>
+      <div className="current-tier-banner">
+          <div className="tier-badge">
+            {isLifetime ? '⭐ Lifetime Premium' : '💎 Monthly Premium'}
           </div>
-
-          <ul className="features">
-            <li className="included">✓ Play all games</li>
-            <li className="included">✓ Join rooms</li>
-            <li className="included">✓ Basic chat</li>
-            <li className="not-included">✗ Custom avatars</li>
-            <li className="not-included">✗ Ad-free experience</li>
-            <li className="not-included">✗ Premium features</li>
-          </ul>
-
-          {!isPremium && (
-            <div className="card-footer">
-              <span className="current-badge">Current Plan</span>
-            </div>
-          )}
-        </div>
-
-        {/* Monthly Tier */}
-        <div className={`pricing-card ${isMonthly ? 'current' : ''} ${!isPremium ? 'recommended' : ''}`}>
-          {!isPremium && <div className="recommended-badge">Most Popular</div>}
-
-          <div className="tier-header">
-            <h2>{prices?.monthly?.name || 'Monthly Premium'}</h2>
-            <div className="price">
-              {loadingPrices ? (
-                <span className="amount">Loading...</span>
-              ) : (
-                <>
-                  <span className="amount">€{prices?.monthly?.amount || '4.99'}</span>
-                  <span className="period">/ month</span>
-                </>
-              )}
-            </div>
-          </div>
-
-          <ul className="features">
-            <li className="included">✓ All Free features</li>
-            <li className="included">✓ Ad-free experience</li>
-            <li className="included">✓ Custom avatars</li>
-            <li className="included">✓ Priority support</li>
-            <li className="included">✓ Exclusive games</li>
-            <li className="included">✓ Advanced statistics</li>
-            <li className="included">✓ Custom themes</li>
-            <li className="info">↻ Cancel anytime</li>
-          </ul>
-
-          <div className="card-footer">
-            {isMonthly ? (
+          {isMonthly && (
+            <div className="tier-info">
+              <p>Your subscription renews automatically each month</p>
               <button
                 onClick={handleManageSubscription}
-                className="action-button manage"
+                className="manage-button"
               >
                 Manage Subscription
               </button>
-            ) : isLifetime ? (
-              <button className="action-button disabled" disabled>
-                You have Lifetime
-              </button>
-            ) : (
-              <button
-                onClick={() => handleUpgrade('monthly')}
-                className="action-button"
-                disabled={loadingTier !== null}
-              >
-                {loadingTier === 'monthly' ? 'Processing...' : 'Subscribe Now'}
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Lifetime Tier */}
-        <div className={`pricing-card premium ${isLifetime ? 'current' : ''}`}>
-          <div className="best-value-badge">Best Value</div>
-
-          <div className="tier-header">
-            <h2>{prices?.lifetime?.name || 'Lifetime Premium'}</h2>
-            <div className="price">
-              {loadingPrices ? (
-                <span className="amount">Loading...</span>
-              ) : (
-                <>
-                  <span className="amount">€{prices?.lifetime?.amount || '29.99'}</span>
-                  <span className="period">one-time</span>
-                </>
-              )}
             </div>
-            {!loadingPrices && prices && (
-              <div className="savings">
-                Save €{((prices.monthly.amount * 6) - prices.lifetime.amount).toFixed(2)}+ over 6 months
-              </div>
-            )}
-          </div>
-
-          <ul className="features">
-            <li className="included">✓ All Monthly features</li>
-            <li className="included">✓ Lifetime access</li>
-            <li className="included">✓ Future features included</li>
-            <li className="included">✓ Priority updates</li>
-            <li className="included">✓ VIP badge</li>
-            <li className="included">✓ Early access to new games</li>
-            <li className="included">✓ Exclusive tournaments</li>
-            <li className="premium-highlight">⭐ Never pay again</li>
-          </ul>
-
-          <div className="card-footer">
-            {isLifetime ? (
-              <div className="lifetime-badge">
-                <span className="star">⭐</span>
-                <span>Lifetime Member</span>
-              </div>
-            ) : (
-              <button
-                onClick={() => handleUpgrade('lifetime')}
-                className="action-button lifetime"
-                disabled={loadingTier !== null}
-              >
-                {loadingTier === 'lifetime' ? 'Processing...' : 'Get Lifetime Access'}
-              </button>
-            )}
-          </div>
+          )}
         </div>
-      </div>
+      )}
 
       <div className="referral-code-section">
         <h2>Have a Referral Code?</h2>
@@ -424,6 +311,8 @@ const Premium = () => {
           )}
         </div>
       </div>
+
+      <div className="pricing-tiers">
 
       <div className="premium-faq">
         <h2>Frequently Asked Questions</h2>
