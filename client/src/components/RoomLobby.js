@@ -127,6 +127,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       return {
         name: foundGame.display_name || foundGame.name,
         icon: foundGame.icon || '🎮',
+        thumbnailUrl: foundGame.thumbnailUrl,
         description: foundGame.description,
         maxPlayers: foundGame.max_players || foundGame.maxPlayers,
         minPlayers: foundGame.min_players || foundGame.minPlayers || 2
@@ -137,6 +138,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
     return {
       name: selectedGame,
       icon: '🎮',
+      thumbnailUrl: null,
       description: 'Loading game details...',
       maxPlayers: null,
       minPlayers: null
@@ -148,10 +150,10 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
     console.log('🎮 [LOBBY DEBUG] Selected Game:', selectedGame);
     console.log('🎮 [LOBBY DEBUG] Games List Length:', gamesList.length);
     console.log('🎮 [LOBBY DEBUG] Selected Info:', selectedGameInfo);
-  }, [selectedGame, gamesList, selectedGameInfo]);
+    console.log('👑 [LOBBY DEBUG] Current Is Host:', currentIsHost);
+  }, [selectedGame, gamesList, selectedGameInfo, currentIsHost]);
 
-  // TODO: Review if connectionStatus local state is still needed or if socketIsConnected from context is enough.
-  // For now, let's try to use socketIsConnected directly.
+  // Fetch games list to populate details
 
   // Function to start disconnect countdown for a player
   const startDisconnectCountdown = (playerId) => {
@@ -1581,7 +1583,11 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
           ) : (
             <div className="selected-game-card">
               <div className="game-icon">
-                {selectedGameInfo.icon}
+                {selectedGameInfo.thumbnailUrl ? (
+                  <img src={selectedGameInfo.thumbnailUrl} alt={selectedGameInfo.name} style={{ width: '100px', height: '100px', objectFit: 'contain' }} />
+                ) : (
+                  selectedGameInfo.icon
+                )}
               </div>
               <div className="game-details">
                 <h4>{selectedGameInfo.name}</h4>
