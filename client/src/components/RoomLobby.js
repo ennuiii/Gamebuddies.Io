@@ -360,7 +360,8 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       console.log('📤 [LOBBY DEBUG] Sending joinRoom event...');
       socket.emit('joinRoom', {
         roomCode: roomCodeRef.current,
-        playerName: playerNameRef.current
+        playerName: playerNameRef.current,
+        supabaseUserId: user?.id // Pass auth ID to match existing participant
       });
       console.log('📤 [CLIENT] joinRoom event sent from lobby');
     };
