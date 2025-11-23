@@ -13,20 +13,23 @@ router.get('/dashboard-stats', async (req, res) => {
     // 1. Key Metrics (Parallel fetch for speed)
     const [
       { count: totalUsers },
+      { count: registeredUsers },
       { count: premiumUsers },
       { count: activeRooms },
       { count: totalSessions }
     ] = await Promise.all([
       supabaseAdmin.from('users').select('*', { count: 'exact', head: true }),
+      supabaseAdmin.from('users').select('*', { count: 'exact', head: true }).eq('is_guest', false),
       supabaseAdmin.from('users').select('*', { count: 'exact', head: true }).neq('premium_tier', 'free'),
       supabaseAdmin.from('rooms').select('*', { count: 'exact', head: true }).in('status', ['lobby', 'in_game']),
       supabaseAdmin.from('game_sessions').select('*', { count: 'exact', head: true })
     ]);
 
-    // 2. Recent Users
+    // 2. Recent Registered Users (Exclude guests)
     const { data: recentUsers } = await supabaseAdmin
       .from('users')
       .select('id, username, email, created_at, premium_tier')
+      .eq('is_guest', false)
       .order('created_at', { ascending: false })
       .limit(5);
 
@@ -45,7 +48,14 @@ router.get('/dashboard-stats', async (req, res) => {
 
     res.json({
       success: true,
-      metrics: { totalUsers, premiumUsers, activeRooms, totalSessions },
+      metrics: { 
+        totalUsers, 
+        registeredUsers,
+        guestUsers: totalUsers - registeredUsers,
+        premiumUsers, 
+        activeRooms, 
+        totalSessions 
+      },
       recentUsers,
       gameStats
     });

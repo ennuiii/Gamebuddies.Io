@@ -39,8 +39,13 @@ const AdminDashboard = () => {
       {/* Key Metrics Cards */}
       <div className="metrics-grid">
         <div className="metric-card">
-          <h3>Total Users</h3>
-          <div className="value">{metrics.totalUsers}</div>
+          <h3>Registered Users</h3>
+          <div className="value">
+            {metrics.registeredUsers}
+            <span style={{display: 'block', fontSize: '0.4em', opacity: 0.6, fontWeight: 'normal', marginTop: '5px'}}>
+              {metrics.totalUsers} total (inc. guests)
+            </span>
+          </div>
         </div>
         <div className="metric-card highlight">
           <h3>Premium Members</h3>
