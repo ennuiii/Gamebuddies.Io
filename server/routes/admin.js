@@ -25,11 +25,12 @@ router.get('/dashboard-stats', async (req, res) => {
       supabaseAdmin.from('game_sessions').select('*', { count: 'exact', head: true })
     ]);
 
-    // 2. Recent Registered Users (Exclude guests)
+    // 2. Recent Registered Users (Exclude guests and users without email)
     const { data: recentUsers } = await supabaseAdmin
       .from('users')
       .select('id, username, email, created_at, premium_tier')
       .eq('is_guest', false)
+      .not('email', 'is', null)
       .order('created_at', { ascending: false })
       .limit(5);
 
