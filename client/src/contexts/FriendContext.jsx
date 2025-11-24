@@ -12,6 +12,7 @@ export const FriendProvider = ({ children }) => {
   const location = useLocation(); // Get current location object
 
   const isCurrentlyInLobby = location.pathname.startsWith('/lobby/') && !!roomCode;
+  const currentRoomCode = roomCode; // Define currentRoomCode explicitly
   // TODO: Implement logic to get current gameId if needed for invites
   const currentLobbyGameName = "Current Game"; // Placeholder for now
 
