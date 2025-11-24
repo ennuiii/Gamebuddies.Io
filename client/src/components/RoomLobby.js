@@ -164,7 +164,6 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
   // Update FriendContext when game is selected for friend invites
   useEffect(() => {
     if (selectedGameInfo && selectedGameInfo.name && roomCodeRef.current) {
-      console.log('🎮 [LOBBY] Updating FriendContext game name:', selectedGameInfo.name, 'thumbnail:', selectedGameInfo.thumbnailUrl);
       updateLobbyInfo(roomCodeRef.current, selectedGameInfo.name, selectedGameInfo.thumbnailUrl);
     }
   }, [selectedGameInfo, updateLobbyInfo]);

@@ -16,10 +16,15 @@ export const FriendProvider = ({ children }) => {
   const currentLobbyGameName = lobbyInfo.gameName || "Current Game";
   const currentLobbyThumbnail = lobbyInfo.gameThumbnail;
 
-  const updateLobbyInfo = (roomCode, gameName = null, gameThumbnail = null) => {
-    console.log('🎯 [FRIENDS] updateLobbyInfo called:', { roomCode, gameName, gameThumbnail });
-    setLobbyInfo({ roomCode, gameName, gameThumbnail });
-  };
+  const updateLobbyInfo = useCallback((roomCode, gameName = null, gameThumbnail = null) => {
+    setLobbyInfo(prev => {
+      // Skip update if values haven't changed to prevent unnecessary re-renders
+      if (prev.roomCode === roomCode && prev.gameName === gameName && prev.gameThumbnail === gameThumbnail) {
+        return prev;
+      }
+      return { roomCode, gameName, gameThumbnail };
+    });
+  }, []);
 
   const [friends, setFriends] = useState([]);
   const [pendingRequests, setPendingRequests] = useState([]);

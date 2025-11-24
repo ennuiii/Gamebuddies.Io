@@ -23,14 +23,6 @@ const FriendList = () => {
   const [addUsername, setAddUsername] = useState('');
   const [addResult, setAddResult] = useState(null);
 
-  // Debug: Log current lobby info when FriendList renders
-  console.log('👥 [FRIENDLIST] Current lobby info:', {
-    isCurrentlyInLobby,
-    currentRoomCode,
-    currentLobbyGameName,
-    currentLobbyThumbnail
-  });
-
   const handleAddFriend = async (e) => {
     e.preventDefault();
     const result = await sendFriendRequest(addUsername);

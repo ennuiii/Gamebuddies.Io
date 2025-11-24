@@ -7,9 +7,6 @@ const GameInviteToast = () => {
   const { gameInvites, dismissInvite } = useFriends();
   const navigate = useNavigate();
 
-  // Debug: Log what invites we have
-  console.log('🎮 [TOAST] Rendering with invites:', gameInvites);
-
   if (gameInvites.length === 0) return null;
 
   const handleAccept = (invite) => {
