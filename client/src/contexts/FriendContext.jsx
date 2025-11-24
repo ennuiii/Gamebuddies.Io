@@ -2,11 +2,19 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import { useAuth } from './AuthContext';
 import socketService from '../utils/socket';
 import { getSupabaseClient } from '../utils/supabase';
+import { useParams, useLocation } from 'react-router-dom';
 
 const FriendContext = createContext({});
 
 export const FriendProvider = ({ children }) => {
   const { user, session } = useAuth();
+  const { roomCode } = useParams(); // Get roomCode from URL
+  const location = useLocation(); // Get current location object
+
+  const isCurrentlyInLobby = location.pathname.startsWith('/lobby/') && !!roomCode;
+  // TODO: Implement logic to get current gameId if needed for invites
+  const currentLobbyGameName = "Current Game"; // Placeholder for now
+
   const [friends, setFriends] = useState([]);
   const [pendingRequests, setPendingRequests] = useState([]);
   const [onlineFriends, setOnlineFriends] = useState(new Set());
@@ -212,7 +220,10 @@ export const FriendProvider = ({ children }) => {
     removeFriend,
     inviteFriend,
     dismissInvite,
-    fetchFriends
+    fetchFriends,
+    isCurrentlyInLobby,
+    currentRoomCode,
+    currentLobbyGameName
   };
 
   return (

@@ -10,7 +10,10 @@ const FriendList = () => {
     sendFriendRequest, 
     acceptFriendRequest, 
     rejectFriendRequest,
-    inviteFriend
+    inviteFriend,
+    isCurrentlyInLobby,
+    currentRoomCode,
+    currentLobbyGameName
   } = useFriends();
 
   const [isOpen, setIsOpen] = useState(false);
@@ -70,7 +73,13 @@ const FriendList = () => {
           <div className="list online-list">
             {onlineList.length === 0 ? <p className="empty">No friends online</p> : 
               onlineList.map(friend => (
-                <FriendItem key={friend.friendshipId} friend={friend} isOnline={true} onInvite={inviteFriend} />
+                <FriendItem 
+                  key={friend.friendshipId || friend.id} 
+                  friend={friend} 
+                  isOnline={true} 
+                  onInvite={() => inviteFriend(friend.id, currentRoomCode, currentLobbyGameName)} 
+                  isCurrentlyInLobby={isCurrentlyInLobby}
+                />
               ))
             }
           </div>
@@ -87,10 +96,11 @@ const FriendList = () => {
             />
             {allList.map(friend => (
               <FriendItem 
-                key={friend.friendshipId} 
+                key={friend.friendshipId || friend.id} 
                 friend={friend} 
                 isOnline={onlineFriends.has(friend.id)} 
-                onInvite={inviteFriend}
+                onInvite={() => inviteFriend(friend.id, currentRoomCode, currentLobbyGameName)}
+                isCurrentlyInLobby={isCurrentlyInLobby}
               />
             ))}
           </div>
@@ -140,7 +150,7 @@ const FriendList = () => {
   );
 };
 
-const FriendItem = ({ friend, isOnline, onInvite }) => (
+const FriendItem = ({ friend, isOnline, onInvite, isCurrentlyInLobby }) => (
   <div className="friend-item">
     <div className="avatar-wrapper">
       <img src={friend.avatar_url || '/avatars/free/Gabu.png'} alt={friend.username} />
@@ -151,8 +161,8 @@ const FriendItem = ({ friend, isOnline, onInvite }) => (
       <span className="level">Lvl {friend.level || 1}</span>
     </div>
     <div className="actions">
-      {isOnline && (
-        <button className="invite-btn" onClick={() => onInvite(friend.id)}>
+      {isOnline && isCurrentlyInLobby && ( // Only show invite button if online AND in a lobby
+        <button className="invite-btn" onClick={onInvite}>
           Invite
         </button>
       )}
