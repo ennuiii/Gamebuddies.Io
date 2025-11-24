@@ -146,17 +146,17 @@ function AppContent() {
 function App() {
   return (
     <ThemeProvider>
-      <AuthProvider> {/* Wrap with AuthProvider */}
-        <LazySocketProvider>
-          <NotificationProvider> {/* Wrap with NotificationProvider */}
-            <FriendProvider>
-              <Router>
+      <Router>
+        <AuthProvider> {/* Wrap with AuthProvider */}
+          <LazySocketProvider>
+            <NotificationProvider> {/* Wrap with NotificationProvider */}
+              <FriendProvider>
                 <AppContent />
-              </Router>
-            </FriendProvider>
-          </NotificationProvider>
-        </LazySocketProvider>
-      </AuthProvider>
+              </FriendProvider>
+            </NotificationProvider>
+          </LazySocketProvider>
+        </AuthProvider>
+      </Router>
     </ThemeProvider>
   );
 }
