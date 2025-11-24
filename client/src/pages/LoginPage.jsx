@@ -158,28 +158,23 @@ const LoginPage = () => {
         console.error('❌ [CLIENT] Sign in error:', error);
         setAuthError(error.message);
       } else {
-        console.log('[SAVELOGIN] ✅ Sign in successful, preparing to redirect...');
+        console.log('✅ [CLIENT] Sign in successful, redirecting to home...');
 
         // --- Credential Management API Integration ---
         // Explicitly tell the browser to save these credentials
-        console.log('[SAVELOGIN] Checking for PasswordCredential support...');
         if (window.PasswordCredential) {
-          console.log('[SAVELOGIN] PasswordCredential is supported. Attempting to create and store credential...');
           try {
             const credential = new window.PasswordCredential({
               id: email,
               password: password,
               name: email, // Optional: Use email as name for now
             });
-            console.log('[SAVELOGIN] PasswordCredential object created.');
 
             await navigator.credentials.store(credential);
-            console.log('[SAVELOGIN] 🔐 navigator.credentials.store() completed. Browser should prompt now.');
+            // console.log('🔐 [CLIENT] Credential storage suggested to browser.'); // Removed log
           } catch (credError) {
-            console.error('[SAVELOGIN] ⚠️ Error storing credential:', credError);
+            console.error('⚠️ [CLIENT] Error storing credential:', credError);
           }
-        } else {
-          console.log('[SAVELOGIN] ❌ PasswordCredential API is NOT supported in this browser.');
         }
 
         // If "Remember Me" is unchecked, set a flag to clear session on browser close
@@ -190,8 +185,11 @@ const LoginPage = () => {
           sessionStorage.removeItem('gamebuddies-session-temp');
         }
 
-        // Force a full page reload to trigger browser's save password prompt
-        window.location.href = '/';
+        // Auth context will handle the redirect
+        // Adding a small delay to allow browser password manager to prompt before redirecting
+        setTimeout(() => {
+          window.location.href = '/';
+        }, 500);
       }
     } catch (err) {
       console.error('❌ [CLIENT] Sign in exception:', err);
