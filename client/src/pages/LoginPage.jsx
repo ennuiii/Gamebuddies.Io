@@ -168,8 +168,8 @@ const LoginPage = () => {
           sessionStorage.removeItem('gamebuddies-session-temp');
         }
 
-        // Auth context will handle the redirect
-        navigate('/');
+        // Force a full page reload to trigger browser's save password prompt
+        window.location.href = '/';
       }
     } catch (err) {
       console.error('❌ [CLIENT] Sign in exception:', err);
