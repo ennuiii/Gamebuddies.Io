@@ -85,14 +85,21 @@ export const FriendProvider = ({ children }) => {
 
     // Listeners
     socket.on('friend:list-online', ({ onlineUserIds }) => {
+      console.log('🟢 [FRIENDS] Received online list:', onlineUserIds);
       setOnlineFriends(new Set(onlineUserIds));
     });
 
     socket.on('friend:online', ({ userId }) => {
-      setOnlineFriends(prev => new Set(prev).add(userId));
+      console.log('🟢 [FRIENDS] Friend came online:', userId);
+      setOnlineFriends(prev => {
+        const newSet = new Set(prev);
+        newSet.add(userId);
+        return newSet;
+      });
     });
 
     socket.on('friend:offline', ({ userId }) => {
+      console.log('⚪ [FRIENDS] Friend went offline:', userId);
       setOnlineFriends(prev => {
         const next = new Set(prev);
         next.delete(userId);
