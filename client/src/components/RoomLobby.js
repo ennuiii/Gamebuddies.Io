@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useSocket } from '../contexts/LazySocketContext';
 import { useNotification } from '../contexts/NotificationContext'; // Import useNotification hook
 import { useAuth } from '../contexts/AuthContext';
+import { useFriends } from '../contexts/FriendContext';
 import GamePicker from './GamePicker';
 import ChatWindow from './ChatWindow';
 import TugOfWar from './TugOfWar';
@@ -15,6 +16,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
   const { socket, socketId, isConnected: socketIsConnected, connectSocket } = useSocket();
   const { addNotification } = useNotification(); // Get addNotification function
   const { user, isAuthenticated, isPremium } = useAuth(); // Get isPremium from context
+  const { updateLobbyInfo } = useFriends(); // Get updateLobbyInfo for friend invite game name
   const [players, setPlayers] = useState([]);
   const [selectedGame, setSelectedGame] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -158,6 +160,14 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
     console.log('🎮 [LOBBY DEBUG] Selected Info:', selectedGameInfo);
     console.log('👑 [LOBBY DEBUG] Current Is Host:', currentIsHost);
   }, [selectedGame, gamesList, selectedGameInfo, currentIsHost]);
+
+  // Update FriendContext when game is selected for friend invites
+  useEffect(() => {
+    if (selectedGameInfo && selectedGameInfo.name && roomCodeRef.current) {
+      console.log('🎮 [LOBBY] Updating FriendContext game name:', selectedGameInfo.name, 'thumbnail:', selectedGameInfo.thumbnailUrl);
+      updateLobbyInfo(roomCodeRef.current, selectedGameInfo.name, selectedGameInfo.thumbnailUrl);
+    }
+  }, [selectedGameInfo, updateLobbyInfo]);
 
   // Fetch games list to populate details
 

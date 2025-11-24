@@ -9,14 +9,16 @@ export const FriendProvider = ({ children }) => {
   const { user, session } = useAuth();
   
   // Manage lobby state internally since URL doesn't always reflect it (e.g. Streamer Mode)
-  const [lobbyInfo, setLobbyInfo] = useState({ roomCode: null, gameName: null });
+  const [lobbyInfo, setLobbyInfo] = useState({ roomCode: null, gameName: null, gameThumbnail: null });
 
   const isCurrentlyInLobby = !!lobbyInfo.roomCode;
   const currentRoomCode = lobbyInfo.roomCode;
   const currentLobbyGameName = lobbyInfo.gameName || "Current Game";
+  const currentLobbyThumbnail = lobbyInfo.gameThumbnail;
 
-  const updateLobbyInfo = (roomCode, gameName = null) => {
-    setLobbyInfo({ roomCode, gameName });
+  const updateLobbyInfo = (roomCode, gameName = null, gameThumbnail = null) => {
+    console.log('🎯 [FRIENDS] updateLobbyInfo called:', { roomCode, gameName, gameThumbnail });
+    setLobbyInfo({ roomCode, gameName, gameThumbnail });
   };
 
   const [friends, setFriends] = useState([]);
@@ -112,6 +114,7 @@ export const FriendProvider = ({ children }) => {
 
     socket.on('game:invite_received', (invite) => {
       console.log('💌 [FRIENDS] Game invite received:', invite);
+      console.log('💌 [FRIENDS] Invite details - gameName:', invite.gameName, 'gameThumbnail:', invite.gameThumbnail);
       setGameInvites(prev => [...prev, { ...invite, id: Date.now() }]);
       // You might want to trigger a toast notification here
     });
@@ -205,14 +208,19 @@ export const FriendProvider = ({ children }) => {
     return rejectFriendRequest(friendshipId);
   };
 
-  const inviteFriend = (friendId, roomId, gameName) => {
+  const inviteFriend = (friendId, roomId, gameName, gameThumbnail = null) => {
+    console.log('📨 [FRIENDS] inviteFriend called:', { friendId, roomId, gameName, gameThumbnail });
+    console.log('📨 [FRIENDS] Current lobby state:', { currentLobbyGameName, currentLobbyThumbnail });
     const socket = socketService.connect();
-    socket.emit('game:invite', {
+    const inviteData = {
       friendId,
       roomId,
       gameName: gameName || 'Unknown Game',
-      hostName: user.username // Use display name if preferred
-    });
+      gameThumbnail,
+      hostName: user.username
+    };
+    console.log('📨 [FRIENDS] Emitting game:invite with data:', inviteData);
+    socket.emit('game:invite', inviteData);
   };
 
   const dismissInvite = (inviteId) => {
@@ -235,6 +243,7 @@ export const FriendProvider = ({ children }) => {
     isCurrentlyInLobby,
     currentRoomCode,
     currentLobbyGameName,
+    currentLobbyThumbnail,
     updateLobbyInfo
   };
 

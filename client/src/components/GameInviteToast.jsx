@@ -7,6 +7,9 @@ const GameInviteToast = () => {
   const { gameInvites, dismissInvite } = useFriends();
   const navigate = useNavigate();
 
+  // Debug: Log what invites we have
+  console.log('🎮 [TOAST] Rendering with invites:', gameInvites);
+
   if (gameInvites.length === 0) return null;
 
   const handleAccept = (invite) => {
@@ -23,17 +26,28 @@ const GameInviteToast = () => {
               <span className="invite-icon">🎮</span>
               <span className="invite-title">Game Invite</span>
             </div>
-            <p className="invite-message">
-              <span className="host-name">{invite.hostName}</span> invited you to play 
-              <span className="game-name"> {invite.gameName}</span>!
-            </p>
+            <div className="invite-body">
+              <p className="invite-message">
+                <span className="host-name">{invite.hostName}</span> wants you to play
+              </p>
+              <div className="game-info-row">
+                {invite.gameThumbnail && (
+                  <img
+                    src={invite.gameThumbnail}
+                    alt={invite.gameName}
+                    className="game-thumbnail"
+                  />
+                )}
+                <p className="game-name-display">{invite.gameName}</p>
+              </div>
+            </div>
           </div>
           <div className="invite-actions">
             <button className="decline-btn" onClick={() => dismissInvite(invite.id)}>
               Decline
             </button>
             <button className="accept-btn" onClick={() => handleAccept(invite)}>
-              Accept
+              Join
             </button>
           </div>
         </div>

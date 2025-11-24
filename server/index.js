@@ -2102,13 +2102,17 @@ io.on('connection', async (socket) => {
 
   // Friend System: Game Invite
   socket.on('game:invite', (data) => {
+    console.log('📨 [SERVER] game:invite received:', data);
     // Forward invite to specific friend
-    io.to(`user:${data.friendId}`).emit('game:invite_received', {
+    const forwardData = {
       roomId: data.roomId,
       gameName: data.gameName,
+      gameThumbnail: data.gameThumbnail,
       hostName: data.hostName,
       senderId: socket.userId
-    });
+    };
+    console.log('📨 [SERVER] Forwarding game:invite_received to user:', data.friendId, 'with data:', forwardData);
+    io.to(`user:${data.friendId}`).emit('game:invite_received', forwardData);
   });
 
   // Handle heartbeat to keep connection active

@@ -3,17 +3,18 @@ import { useFriends } from '../contexts/FriendContext';
 import './FriendList.css';
 
 const FriendList = () => {
-  const { 
-    friends, 
-    pendingRequests, 
-    onlineFriends, 
-    sendFriendRequest, 
-    acceptFriendRequest, 
+  const {
+    friends,
+    pendingRequests,
+    onlineFriends,
+    sendFriendRequest,
+    acceptFriendRequest,
     rejectFriendRequest,
     inviteFriend,
     isCurrentlyInLobby,
     currentRoomCode,
-    currentLobbyGameName
+    currentLobbyGameName,
+    currentLobbyThumbnail
   } = useFriends();
 
   const [isOpen, setIsOpen] = useState(false);
@@ -21,6 +22,14 @@ const FriendList = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [addUsername, setAddUsername] = useState('');
   const [addResult, setAddResult] = useState(null);
+
+  // Debug: Log current lobby info when FriendList renders
+  console.log('👥 [FRIENDLIST] Current lobby info:', {
+    isCurrentlyInLobby,
+    currentRoomCode,
+    currentLobbyGameName,
+    currentLobbyThumbnail
+  });
 
   const handleAddFriend = async (e) => {
     e.preventDefault();
@@ -73,11 +82,11 @@ const FriendList = () => {
           <div className="list online-list">
             {onlineList.length === 0 ? <p className="empty">No friends online</p> : 
               onlineList.map(friend => (
-                <FriendItem 
-                  key={friend.friendshipId || friend.id} 
-                  friend={friend} 
-                  isOnline={true} 
-                  onInvite={() => inviteFriend(friend.id, currentRoomCode, currentLobbyGameName)} 
+                <FriendItem
+                  key={friend.friendshipId || friend.id}
+                  friend={friend}
+                  isOnline={true}
+                  onInvite={() => inviteFriend(friend.id, currentRoomCode, currentLobbyGameName, currentLobbyThumbnail)}
                   isCurrentlyInLobby={isCurrentlyInLobby}
                 />
               ))
@@ -95,11 +104,11 @@ const FriendList = () => {
               className="friend-search"
             />
             {allList.map(friend => (
-              <FriendItem 
-                key={friend.friendshipId || friend.id} 
-                friend={friend} 
-                isOnline={onlineFriends.has(friend.id)} 
-                onInvite={() => inviteFriend(friend.id, currentRoomCode, currentLobbyGameName)}
+              <FriendItem
+                key={friend.friendshipId || friend.id}
+                friend={friend}
+                isOnline={onlineFriends.has(friend.id)}
+                onInvite={() => inviteFriend(friend.id, currentRoomCode, currentLobbyGameName, currentLobbyThumbnail)}
                 isCurrentlyInLobby={isCurrentlyInLobby}
               />
             ))}
