@@ -297,7 +297,7 @@ const LoginPage = () => {
           ) : (
             <>
               {/* Email/Password Form */}
-              <form onSubmit={isSignUp ? handleEmailSignUp : handleEmailSignIn} className="email-form" method="post" action="#">
+              <form key={isSignUp ? 'signup-form' : 'login-form'} onSubmit={isSignUp ? handleEmailSignUp : handleEmailSignIn} className="email-form" method="post" action="#">
                 <div className="form-group">
                   <label htmlFor="email">Email</label>
                   <input
