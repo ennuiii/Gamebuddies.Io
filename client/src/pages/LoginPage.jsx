@@ -283,11 +283,13 @@ const LoginPage = () => {
                   <input
                     type="email"
                     id="email"
+                    name="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="your@email.com"
                     required
                     disabled={isSubmitting}
+                    autocomplete="username"
                   />
                 </div>
 
@@ -296,11 +298,13 @@ const LoginPage = () => {
                   <input
                     type="password"
                     id="password"
+                    name="password"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
                     required
                     disabled={isSubmitting}
+                    autocomplete="current-password"
                   />
                 </div>
 
@@ -310,11 +314,13 @@ const LoginPage = () => {
                     <input
                       type="password"
                       id="confirmPassword"
+                      name="confirmPassword"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="••••••••"
                       required
                       disabled={isSubmitting}
+                      autocomplete="new-password"
                     />
                   </div>
                 )}
