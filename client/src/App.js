@@ -23,6 +23,7 @@ import AdminRoute from './components/AdminRoute'; // Import Admin Route Guard
 // GameBuddiesReturnHandler removed - using simpler URL-based return flow
 import DebugPanel from './components/DebugPanel';
 import FriendList from './components/FriendList';
+import GameInviteToast from './components/GameInviteToast';
 import './App.css';
 
 function AppContent() {
@@ -79,6 +80,7 @@ function AppContent() {
       <Notification /> {/* Display Notification component here */}
       <DebugPanel />
       <FriendList />
+      <GameInviteToast />
       <Routes>
         <Route
           path="/"
