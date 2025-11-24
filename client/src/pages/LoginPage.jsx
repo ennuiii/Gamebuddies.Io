@@ -288,7 +288,6 @@ const LoginPage = () => {
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="your@email.com"
                     required
-                    disabled={isSubmitting}
                     autocomplete="username"
                   />
                 </div>
@@ -303,7 +302,6 @@ const LoginPage = () => {
                     onChange={(e) => setPassword(e.target.value)}
                     placeholder="••••••••"
                     required
-                    disabled={isSubmitting}
                     autocomplete="current-password"
                   />
                 </div>
@@ -319,7 +317,6 @@ const LoginPage = () => {
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="••••••••"
                       required
-                      disabled={isSubmitting}
                       autocomplete="new-password"
                     />
                   </div>
