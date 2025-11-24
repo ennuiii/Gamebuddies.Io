@@ -8,10 +8,14 @@ const FriendContext = createContext({});
 
 export const FriendProvider = ({ children }) => {
   const { user, session } = useAuth();
-  const { roomCode } = useParams(); // Get roomCode from URL
+  // const { roomCode } = useParams(); // useParams doesn't work outside Route
   const location = useLocation(); // Get current location object
 
-  const isCurrentlyInLobby = location.pathname.startsWith('/lobby/') && !!roomCode;
+  // Manually extract roomCode from pathname
+  const match = location.pathname.match(/^\/lobby\/([a-zA-Z0-9]+)/);
+  const roomCode = match ? match[1] : null;
+
+  const isCurrentlyInLobby = !!roomCode;
   const currentRoomCode = roomCode; // Define currentRoomCode explicitly
   // TODO: Implement logic to get current gameId if needed for invites
   const currentLobbyGameName = "Current Game"; // Placeholder for now
