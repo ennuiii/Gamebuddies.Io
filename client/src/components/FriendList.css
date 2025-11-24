@@ -1,0 +1,222 @@
+.friend-list-toggle {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: #2c3e50;
+  color: white;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+  z-index: 1000;
+  font-size: 24px;
+}
+
+.friend-list-toggle:hover {
+  transform: scale(1.05);
+}
+
+.friend-list-toggle .badge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  background: #27ae60;
+  color: white;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.friend-list-toggle .badge.pending {
+  background: #e74c3c;
+  right: auto;
+  left: -5px;
+}
+
+.friend-list-container {
+  position: fixed;
+  bottom: 80px;
+  right: 20px;
+  width: 300px;
+  height: 400px;
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+  display: flex;
+  flex-direction: column;
+  z-index: 1000;
+  overflow: hidden;
+  font-family: 'Inter', sans-serif;
+}
+
+.friend-list-header {
+  background: #2c3e50;
+  color: white;
+  padding: 10px 15px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.friend-list-header h3 {
+  margin: 0;
+  font-size: 16px;
+}
+
+.close-btn {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+}
+
+.friend-tabs {
+  display: flex;
+  border-bottom: 1px solid #eee;
+}
+
+.friend-tabs button {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  background: #f8f9fa;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.friend-tabs button.active {
+  background: white;
+  border-bottom: 2px solid #3498db;
+  font-weight: bold;
+}
+
+.friend-list-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+}
+
+.friend-item {
+  display: flex;
+  align-items: center;
+  padding: 8px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.avatar-wrapper {
+  position: relative;
+  margin-right: 10px;
+}
+
+.avatar-wrapper img {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.status-dot {
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  border: 1px solid white;
+}
+
+.status-dot.online { background: #2ecc71; }
+.status-dot.offline { background: #95a5a6; }
+
+.info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.info .username {
+  font-weight: bold;
+  font-size: 14px;
+  color: #333;
+}
+
+.info .level {
+  font-size: 10px;
+  color: #7f8c8d;
+}
+
+.actions button {
+  padding: 4px 8px;
+  font-size: 10px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-left: 5px;
+}
+
+.invite-btn { background: #3498db; color: white; }
+.accept-btn { background: #27ae60; color: white; }
+.reject-btn { background: #e74c3c; color: white; }
+
+.pending-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.pending-item .type {
+  font-size: 10px;
+  color: #999;
+  display: block;
+}
+
+.add-friend-section input {
+  width: 100%;
+  padding: 8px;
+  margin-bottom: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+.add-friend-section button {
+  width: 100%;
+  padding: 8px;
+  background: #3498db;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.message {
+  font-size: 12px;
+  margin-top: 8px;
+}
+.message.success { color: #27ae60; }
+.message.error { color: #e74c3c; }
+
+.friend-search {
+  width: 100%;
+  padding: 6px;
+  margin-bottom: 10px;
+  border: 1px solid #eee;
+  border-radius: 4px;
+}
+
+.empty {
+  text-align: center;
+  color: #999;
+  font-size: 12px;
+  margin-top: 20px;
+}

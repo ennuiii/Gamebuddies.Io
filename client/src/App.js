@@ -4,6 +4,7 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import { LazySocketProvider } from './contexts/LazySocketContext';
 import { NotificationProvider } from './contexts/NotificationContext'; // Import NotificationProvider
 import { AuthProvider } from './contexts/AuthContext'; // Import AuthProvider
+import { FriendProvider } from './contexts/FriendContext'; // Import FriendProvider
 import Notification from './components/Notification'; // Import Notification component
 import Header from './components/Header';
 import Footer from './components/Footer';
@@ -21,6 +22,7 @@ import AdminDashboard from './pages/AdminDashboard'; // Import Admin Dashboard
 import AdminRoute from './components/AdminRoute'; // Import Admin Route Guard
 // GameBuddiesReturnHandler removed - using simpler URL-based return flow
 import DebugPanel from './components/DebugPanel';
+import FriendList from './components/FriendList';
 import './App.css';
 
 function AppContent() {
@@ -76,6 +78,7 @@ function AppContent() {
       />
       <Notification /> {/* Display Notification component here */}
       <DebugPanel />
+      <FriendList />
       <Routes>
         <Route
           path="/"
@@ -144,9 +147,11 @@ function App() {
       <AuthProvider> {/* Wrap with AuthProvider */}
         <LazySocketProvider>
           <NotificationProvider> {/* Wrap with NotificationProvider */}
-            <Router>
-              <AppContent />
-            </Router>
+            <FriendProvider>
+              <Router>
+                <AppContent />
+              </Router>
+            </FriendProvider>
           </NotificationProvider>
         </LazySocketProvider>
       </AuthProvider>
