@@ -296,37 +296,37 @@ const LoginPage = () => {
             </>
           ) : (
             <>
-              {/* Email/Password Form */}
-              <form key={isSignUp ? 'signup-form' : 'login-form'} onSubmit={isSignUp ? handleEmailSignUp : handleEmailSignIn} className="email-form" method="post" action="#">
-                <div className="form-group">
-                  <label htmlFor="email">Email</label>
-                  <input
-                    type="email"
-                    id="email"
-                    name="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="your@email.com"
-                    required
-                    autocomplete="username"
-                  />
-                </div>
+              {isSignUp ? (
+                // Sign Up Form (distinct)
+                <form key="signup-form" onSubmit={handleEmailSignUp} className="email-form" method="post" action="#">
+                  <div className="form-group">
+                    <label htmlFor="email">Email</label>
+                    <input
+                      type="email"
+                      id="email"
+                      name="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="your@email.com"
+                      required
+                      autocomplete="email"
+                    />
+                  </div>
 
-                <div className="form-group">
-                  <label htmlFor="password">Password</label>
-                  <input
-                    type="password"
-                    id="password"
-                    name="password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="••••••••"
-                    required
-                    autocomplete="current-password"
-                  />
-                </div>
+                  <div className="form-group">
+                    <label htmlFor="password">Password</label>
+                    <input
+                      type="password"
+                      id="password"
+                      name="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      required
+                      autocomplete="new-password"
+                    />
+                  </div>
 
-                {isSignUp && (
                   <div className="form-group">
                     <label htmlFor="confirmPassword">Confirm Password</label>
                     <input
@@ -340,9 +340,61 @@ const LoginPage = () => {
                       autocomplete="new-password"
                     />
                   </div>
-                )}
 
-                {!isSignUp && (
+                  <button
+                    type="submit"
+                    className="auth-button email-submit-button"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? 'Processing...' : 'Sign Up'}
+                  </button>
+
+                  <div className="auth-toggle">
+                    <span>Already have an account?</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsSignUp(false);
+                        setAuthError('');
+                        setAuthSuccess('');
+                      }}
+                      className="toggle-link"
+                    >
+                      Sign In
+                    </button>
+                  </div>
+                </form>
+              ) : (
+                // Sign In Form (distinct)
+                <form key="login-form" onSubmit={handleEmailSignIn} className="email-form" method="post" action="#">
+                  <div className="form-group">
+                    <label htmlFor="email">Email</label>
+                    <input
+                      type="email"
+                      id="email"
+                      name="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="your@email.com"
+                      required
+                      autocomplete="email"
+                    />
+                  </div>
+
+                  <div className="form-group">
+                    <label htmlFor="password">Password</label>
+                    <input
+                      type="password"
+                      id="password"
+                      name="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      required
+                      autocomplete="current-password"
+                    />
+                  </div>
+
                   <div className="remember-me-group">
                     <label className="remember-me-label">
                       <input
@@ -355,39 +407,35 @@ const LoginPage = () => {
                       <span className="remember-me-text">Remember me</span>
                     </label>
                   </div>
-                )}
 
-                <button
-                  type="submit"
-                  className="auth-button email-submit-button"
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? 'Processing...' : isSignUp ? 'Sign Up' : 'Sign In'}
-                </button>
+                  <button
+                    type="submit"
+                    className="auth-button email-submit-button"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? 'Processing...' : 'Sign In'}
+                  </button>
 
-                {!isSignUp && (
                   <div className="forgot-password">
                     <a href="/password-reset">Forgot password?</a>
                   </div>
-                )}
 
-                <div className="auth-toggle">
-                  <span>
-                    {isSignUp ? 'Already have an account?' : "Don't have an account?"}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsSignUp(!isSignUp);
-                      setAuthError('');
-                      setAuthSuccess('');
-                    }}
-                    className="toggle-link"
-                  >
-                    {isSignUp ? 'Sign In' : 'Sign Up'}
-                  </button>
-                </div>
-              </form>
+                  <div className="auth-toggle">
+                    <span>Don't have an account?</span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsSignUp(true);
+                        setAuthError('');
+                        setAuthSuccess('');
+                      }}
+                      className="toggle-link"
+                    >
+                      Sign Up
+                    </button>
+                  </div>
+                </form>
+              )}
 
               <div className="divider">
                 <span>or continue as guest</span>
