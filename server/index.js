@@ -2044,6 +2044,73 @@ io.on('connection', async (socket) => {
     }
   });
 
+  // Friend System: Identify User (Central Server Implementation)
+  socket.on('user:identify', async (userId) => {
+    if (!userId) return;
+    
+    // console.log(`👤 [Friends] User identified: ${userId} (socket ${socket.id})`);
+    
+    // Join user-specific room for targeting
+    socket.join(`user:${userId}`);
+    
+    // Store userId on socket and connection manager
+    socket.userId = userId;
+    const conn = connectionManager.getConnection(socket.id);
+    if (conn) conn.userId = userId;
+
+    try {
+      // 1. Fetch friends directly from DB
+      const { data: friendships, error } = await db.adminClient
+        .from('friendships')
+        .select('friend_id, user_id')
+        .or(`user_id.eq.${userId},friend_id.eq.${userId}`)
+        .eq('status', 'accepted');
+
+      if (error) {
+        console.error('❌ [Friends] Failed to fetch friends:', error);
+        return;
+      }
+
+      // 2. Extract Friend IDs
+      const friendIds = friendships.map(f => 
+        f.user_id === userId ? f.friend_id : f.user_id
+      );
+      
+      // 3. Notify online friends & Build online list
+      const onlineFriends = [];
+
+      for (const friendId of friendIds) {
+        const friendRoom = `user:${friendId}`;
+        // Check if any socket is in this room
+        const room = io.sockets.adapter.rooms.get(friendRoom);
+        const isOnline = room && room.size > 0;
+        
+        if (isOnline) {
+          onlineFriends.push(friendId);
+          // Notify this friend (User B) that User A is online
+          io.to(friendRoom).emit('friend:online', { userId });
+        }
+      }
+
+      // 4. Send online friends list to me
+      socket.emit('friend:list-online', { onlineUserIds: onlineFriends });
+      
+    } catch (error) {
+      console.error('Error in user:identify:', error);
+    }
+  });
+
+  // Friend System: Game Invite
+  socket.on('game:invite', (data) => {
+    // Forward invite to specific friend
+    io.to(`user:${data.friendId}`).emit('game:invite_received', {
+      roomId: data.roomId,
+      gameName: data.gameName,
+      hostName: data.hostName,
+      senderId: socket.userId
+    });
+  });
+
   // Handle heartbeat to keep connection active
   socket.on('heartbeat', async () => {
     const connection = connectionManager.getConnection(socket.id);
@@ -3647,6 +3714,24 @@ io.on('connection', async (socket) => {
       // Get and remove connection from manager
       const connection = connectionManager.removeConnection(socket.id);
       if (connection?.userId) {
+        // Friend System: Notify friends of disconnection (Central Server Implementation)
+        try {
+          const { data: friendships } = await db.adminClient
+            .from('friendships')
+            .select('friend_id, user_id')
+            .or(`user_id.eq.${connection.userId},friend_id.eq.${connection.userId}`)
+            .eq('status', 'accepted');
+
+          if (friendships) {
+            const friendIds = friendships.map(f => 
+              f.user_id === connection.userId ? f.friend_id : f.user_id
+            );
+            for (const friendId of friendIds) {
+              io.to(`user:${friendId}`).emit('friend:offline', { userId: connection.userId });
+            }
+          }
+        } catch (e) { console.error('❌ Error broadcasting friend offline status:', e); }
+
         // Check if disconnecting user is the host
         let isDisconnectingHost = false;
         let room = null;
