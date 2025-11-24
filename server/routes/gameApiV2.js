@@ -624,6 +624,49 @@ module.exports = (io, db, connectionManager) => {
     }
   });
 
+  // V2 Get User Friends (Internal/Game Server Use)
+  router.get('/users/:userId/friends', apiKeyMiddleware, getRateLimiter('apiCalls'), async (req, res) => {
+    try {
+      const { userId } = req.params;
+
+      // Fetch accepted friendships
+      const { data: friendships, error } = await db.adminClient
+        .from('friendships')
+        .select(`
+          friend_id,
+          user_id,
+          friend:users!friend_id(id, username, display_name, avatar_url),
+          user:users!user_id(id, username, display_name, avatar_url)
+        `)
+        .or(`user_id.eq.${userId},friend_id.eq.${userId}`)
+        .eq('status', 'accepted');
+
+      if (error) {
+        console.error('❌ [API V2] Fetch friends error:', error);
+        return res.status(500).json({ error: 'Failed to fetch friends' });
+      }
+
+      // Format response
+      const friends = friendships.map(f => {
+        // Determine which side is the "other" person
+        const isSender = f.user_id === userId;
+        const friendData = isSender ? f.friend : f.user;
+        return {
+          id: friendData.id,
+          username: friendData.username,
+          displayName: friendData.displayName,
+          avatarUrl: friendData.avatar_url
+        };
+      });
+
+      res.json({ success: true, friends });
+
+    } catch (error) {
+      console.error('❌ [API V2] Get friends error:', error);
+      res.status(500).json({ error: 'Internal Server Error' });
+    }
+  });
+
   // V2 Connection health check
   router.get('/health', (req, res) => {
     res.json({
