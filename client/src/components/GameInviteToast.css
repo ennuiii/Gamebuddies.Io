@@ -2,7 +2,7 @@
   position: fixed;
   top: 90px; /* Adjusted for header */
   right: 20px;
-  z-index: 9999; /* Increased z-index */
+  z-index: 10000; /* Ensure it's on top of everything */
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -11,17 +11,19 @@
 
 .game-invite-toast {
   pointer-events: auto;
-  background: rgba(15, 23, 42, 0.95); /* Darker, richer bg */
-  border: 1px solid rgba(0, 217, 255, 0.3); /* More subtle border */
-  border-left: 4px solid var(--secondary-color); /* Accent accent */
+  background: #1a1a2e; /* Fallback color */
+  background: rgba(26, 26, 46, 0.95);
+  border: 1px solid rgba(0, 217, 255, 0.3);
+  border-left: 4px solid #00d9ff; /* Secondary color */
   border-radius: 8px;
   padding: 16px;
   width: 320px;
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 20px rgba(0, 217, 255, 0.15);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 20px rgba(0, 217, 255, 0.1);
   backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   animation: slideInRight 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
   color: #fff;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   overflow: hidden;
   position: relative;
 }

@@ -165,6 +165,13 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
     navigate('/', { replace: true });
   }, [navigate, setIsInLobby, setLobbyLeaveFn, updateLobbyInfo]);
 
+  // Helper to get game display name
+  const getGameDisplayName = useCallback((gameId) => {
+    if (!gameId) return "Game";
+    const game = games.find(g => g.id === gameId);
+    return game ? game.name : gameId; // Fallback to ID if name not found
+  }, [games]);
+
   const handleRoomCreated = useCallback((room) => {
     setCurrentRoom(room);
     setPlayerName(room.playerName);
@@ -173,8 +180,10 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
     setIsInLobby(true);
     setLobbyLeaveFn(() => handleLeaveLobby);
     persistSessionMetadata(room.roomCode, room.playerName, room.isHost ?? true, room.playerId ?? null);
-    updateLobbyInfo(room.roomCode, room.gameType); // Sync lobby info
-  }, [handleLeaveLobby, persistSessionMetadata, setIsInLobby, setLobbyLeaveFn, updateLobbyInfo]);
+    
+    const gameName = getGameDisplayName(room.gameType);
+    updateLobbyInfo(room.roomCode, gameName); 
+  }, [handleLeaveLobby, persistSessionMetadata, setIsInLobby, setLobbyLeaveFn, updateLobbyInfo, getGameDisplayName]);
 
   const handleJoinRoom = useCallback((room) => {
     // The actual room data will be fetched in RoomLobby
@@ -186,8 +195,10 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
     setLobbyLeaveFn(() => handleLeaveLobby);
     persistSessionMetadata(room.roomCode, room.playerName, room.isHost, room.playerId ?? null);
     setAutoJoin(false);
-    updateLobbyInfo(room.roomCode, room.gameType); // Sync lobby info
-  }, [handleLeaveLobby, persistSessionMetadata, setIsInLobby, setLobbyLeaveFn, updateLobbyInfo]);
+    
+    const gameName = getGameDisplayName(room.gameType || room.current_game);
+    updateLobbyInfo(room.roomCode, gameName); 
+  }, [handleLeaveLobby, persistSessionMetadata, setIsInLobby, setLobbyLeaveFn, updateLobbyInfo, getGameDisplayName]);
 
   const handleCloseModals = useCallback(() => {
     setShowCreateRoom(false);
@@ -245,11 +256,13 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
       const recoveredRoomCode = (data.roomCode || roomCode || '').toUpperCase();
       const playerId = data.playerId || playerState?.user_id || playerState?.id || null;
       const isHost = playerState?.role === 'host';
+      const gameType = data.gameType || playerState?.gameType;
 
       setCurrentRoom({
         roomCode: recoveredRoomCode,
         playerName: recoveredName,
-        isHost: !!isHost
+        isHost: !!isHost,
+        gameType: gameType
       });
       setPlayerName(recoveredName);
       setShowJoinRoom(false);
@@ -260,7 +273,9 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
       setLobbyLeaveFn(() => handleLeaveLobby);
 
       persistSessionMetadata(recoveredRoomCode, recoveredName, isHost, playerId, sessionToken);
-      updateLobbyInfo(recoveredRoomCode); // Sync lobby info
+      
+      const gameName = getGameDisplayName(gameType);
+      updateLobbyInfo(recoveredRoomCode, gameName);
 
       return true;
     } catch (error) {
