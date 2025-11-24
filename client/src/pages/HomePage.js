@@ -170,7 +170,8 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
     setIsInLobby(true);
     setLobbyLeaveFn(() => handleLeaveLobby);
     persistSessionMetadata(room.roomCode, room.playerName, room.isHost ?? true, room.playerId ?? null);
-  }, [handleLeaveLobby, persistSessionMetadata, setIsInLobby, setLobbyLeaveFn]);
+    navigate(`/lobby/${room.roomCode}`, { replace: true });
+  }, [handleLeaveLobby, persistSessionMetadata, setIsInLobby, setLobbyLeaveFn, navigate]);
 
   const handleJoinRoom = useCallback((room) => {
     // The actual room data will be fetched in RoomLobby
@@ -182,7 +183,8 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
     setLobbyLeaveFn(() => handleLeaveLobby);
     persistSessionMetadata(room.roomCode, room.playerName, room.isHost, room.playerId ?? null);
     setAutoJoin(false);
-  }, [handleLeaveLobby, persistSessionMetadata, setIsInLobby, setLobbyLeaveFn]);
+    navigate(`/lobby/${room.roomCode}`, { replace: true });
+  }, [handleLeaveLobby, persistSessionMetadata, setIsInLobby, setLobbyLeaveFn, navigate]);
 
   const handleCloseModals = useCallback(() => {
     setShowCreateRoom(false);
