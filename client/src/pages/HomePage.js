@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { useSocket } from '../contexts/LazySocketContext';
+import { useFriends } from '../contexts/FriendContext';
 import GameCard from '../components/GameCard';
 import CreateRoom from '../components/CreateRoom';
 import JoinRoom from '../components/JoinRoom';
@@ -16,6 +17,7 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
   const processedLinksRef = useRef(new Set());
   const [isRecoveringSession, setIsRecoveringSession] = useState(false);
   const { socket, connectSocket } = useSocket();
+  const { updateLobbyInfo } = useFriends();
   const [games, setGames] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showCreateRoom, setShowCreateRoom] = useState(false);
@@ -159,8 +161,9 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
     sessionStorage.removeItem('gamebuddies_sessionToken');
     sessionStorage.removeItem('gamebuddies_returnUrl');
     sessionStorage.removeItem('gamebuddies:return-session');
+    updateLobbyInfo(null); // Reset lobby info in FriendContext
     navigate('/', { replace: true });
-  }, [navigate, setIsInLobby, setLobbyLeaveFn]);
+  }, [navigate, setIsInLobby, setLobbyLeaveFn, updateLobbyInfo]);
 
   const handleRoomCreated = useCallback((room) => {
     setCurrentRoom(room);
@@ -170,8 +173,8 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
     setIsInLobby(true);
     setLobbyLeaveFn(() => handleLeaveLobby);
     persistSessionMetadata(room.roomCode, room.playerName, room.isHost ?? true, room.playerId ?? null);
-    navigate(`/lobby/${room.roomCode}`, { replace: true });
-  }, [handleLeaveLobby, persistSessionMetadata, setIsInLobby, setLobbyLeaveFn, navigate]);
+    updateLobbyInfo(room.roomCode, room.gameType); // Sync lobby info
+  }, [handleLeaveLobby, persistSessionMetadata, setIsInLobby, setLobbyLeaveFn, updateLobbyInfo]);
 
   const handleJoinRoom = useCallback((room) => {
     // The actual room data will be fetched in RoomLobby
@@ -183,8 +186,8 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
     setLobbyLeaveFn(() => handleLeaveLobby);
     persistSessionMetadata(room.roomCode, room.playerName, room.isHost, room.playerId ?? null);
     setAutoJoin(false);
-    navigate(`/lobby/${room.roomCode}`, { replace: true });
-  }, [handleLeaveLobby, persistSessionMetadata, setIsInLobby, setLobbyLeaveFn, navigate]);
+    updateLobbyInfo(room.roomCode, room.gameType); // Sync lobby info
+  }, [handleLeaveLobby, persistSessionMetadata, setIsInLobby, setLobbyLeaveFn, updateLobbyInfo]);
 
   const handleCloseModals = useCallback(() => {
     setShowCreateRoom(false);
@@ -257,6 +260,7 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
       setLobbyLeaveFn(() => handleLeaveLobby);
 
       persistSessionMetadata(recoveredRoomCode, recoveredName, isHost, playerId, sessionToken);
+      updateLobbyInfo(recoveredRoomCode); // Sync lobby info
 
       return true;
     } catch (error) {

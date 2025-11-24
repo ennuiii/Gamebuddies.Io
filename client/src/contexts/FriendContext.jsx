@@ -2,23 +2,22 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import { useAuth } from './AuthContext';
 import socketService from '../utils/socket';
 import { getSupabaseClient } from '../utils/supabase';
-import { useParams, useLocation } from 'react-router-dom';
 
 const FriendContext = createContext({});
 
 export const FriendProvider = ({ children }) => {
   const { user, session } = useAuth();
-  // const { roomCode } = useParams(); // useParams doesn't work outside Route
-  const location = useLocation(); // Get current location object
+  
+  // Manage lobby state internally since URL doesn't always reflect it (e.g. Streamer Mode)
+  const [lobbyInfo, setLobbyInfo] = useState({ roomCode: null, gameName: null });
 
-  // Manually extract roomCode from pathname
-  const match = location.pathname.match(/^\/lobby\/([a-zA-Z0-9]+)/);
-  const roomCode = match ? match[1] : null;
+  const isCurrentlyInLobby = !!lobbyInfo.roomCode;
+  const currentRoomCode = lobbyInfo.roomCode;
+  const currentLobbyGameName = lobbyInfo.gameName || "Current Game";
 
-  const isCurrentlyInLobby = !!roomCode;
-  const currentRoomCode = roomCode; // Define currentRoomCode explicitly
-  // TODO: Implement logic to get current gameId if needed for invites
-  const currentLobbyGameName = "Current Game"; // Placeholder for now
+  const updateLobbyInfo = (roomCode, gameName = null) => {
+    setLobbyInfo({ roomCode, gameName });
+  };
 
   const [friends, setFriends] = useState([]);
   const [pendingRequests, setPendingRequests] = useState([]);
@@ -235,7 +234,8 @@ export const FriendProvider = ({ children }) => {
     fetchFriends,
     isCurrentlyInLobby,
     currentRoomCode,
-    currentLobbyGameName
+    currentLobbyGameName,
+    updateLobbyInfo
   };
 
   return (
