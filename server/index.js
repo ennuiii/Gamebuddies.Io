@@ -2885,6 +2885,81 @@ io.on('connection', async (socket) => {
     }
   });
 
+  // Handle request for room state (without creating new participant)
+  // Used when RoomLobby detects JoinRoom already joined this room
+  socket.on('requestRoomState', async (data) => {
+    console.log(`📋 [REQUEST STATE] Received room state request:`, {
+      roomCode: data.roomCode,
+      playerName: data.playerName,
+      socketId: socket.id
+    });
+
+    try {
+      const room = await db.getRoomByCode(data.roomCode);
+      if (!room) {
+        console.error(`❌ [REQUEST STATE] Room not found: ${data.roomCode}`);
+        socket.emit('error', { message: 'Room not found', code: 'ROOM_NOT_FOUND' });
+        return;
+      }
+
+      // Join the socket to the room for future broadcasts
+      socket.join(data.roomCode);
+
+      // Map participants to the expected format
+      const players = room.participants?.map(p => ({
+        id: p.user_id,
+        name: p.user?.display_name || p.user?.username || 'Unknown',
+        isHost: p.role === 'host',
+        isConnected: p.is_connected,
+        inGame: p.in_game,
+        currentLocation: p.current_location,
+        lastPing: p.last_ping,
+        premiumTier: p.user?.premium_tier || 'free',
+        role: p.user?.role || 'user',
+        avatarUrl: p.user?.avatar_url,
+        avatarStyle: p.user?.avatar_style,
+        avatarSeed: p.user?.avatar_seed,
+        avatarOptions: p.user?.avatar_options,
+        level: p.user?.level || 1
+      })) || [];
+
+      // Update connection manager with the room info if user is found
+      const existingParticipant = data.supabaseUserId
+        ? room.participants?.find(p => p.user_id === data.supabaseUserId)
+        : room.participants?.find(p => p.user?.username === data.playerName || p.user?.display_name === data.playerName);
+
+      if (existingParticipant) {
+        // Update the connection to associate this socket with the existing user
+        connectionManager.updateConnection(socket.id, {
+          roomId: room.id,
+          userId: existingParticipant.user_id,
+          username: existingParticipant.user?.username
+        });
+
+        // Update participant's socket ID and connection status in database
+        await db.updateParticipantConnection(existingParticipant.user_id, socket.id, 'connected');
+
+        console.log(`📋 [REQUEST STATE] Associated socket with existing participant:`, {
+          socketId: socket.id,
+          userId: existingParticipant.user_id,
+          roomId: room.id
+        });
+      }
+
+      socket.emit('roomState', {
+        room: room,
+        players: players,
+        roomCode: room.room_code
+      });
+
+      console.log(`📋 [REQUEST STATE] Sent room state for ${data.roomCode} with ${players.length} players`);
+
+    } catch (error) {
+      console.error('❌ [REQUEST STATE] Error:', error);
+      socket.emit('error', { message: 'Failed to get room state', code: 'STATE_ERROR' });
+    }
+  });
+
   // Handle game selection
   socket.on('selectGame', async (data) => {
     try {

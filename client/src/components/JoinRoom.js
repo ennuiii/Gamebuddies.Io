@@ -138,7 +138,10 @@ const JoinRoom = ({ initialRoomCode = '', initialPlayerName = '', autoJoin = fal
           room_id: data.room?.id
         });
         console.log('🚪 [JOIN DEBUG] Join successful, transitioning to lobby');
-        
+
+        // Mark that we've joined this room to prevent RoomLobby from double-joining
+        sessionStorage.setItem(`gb_joined_${data.roomCode}`, Date.now().toString());
+
         if (onRoomJoined) {
           onRoomJoined({
             roomCode: data.roomCode,
