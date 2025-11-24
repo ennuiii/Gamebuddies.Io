@@ -160,6 +160,23 @@ const LoginPage = () => {
       } else {
         console.log('✅ [CLIENT] Sign in successful, redirecting to home...');
 
+        // --- Credential Management API Integration ---
+        // Explicitly tell the browser to save these credentials
+        if (window.PasswordCredential) {
+          try {
+            const credential = new window.PasswordCredential({
+              id: email,
+              password: password,
+              name: email, // Optional: Use email as name for now
+            });
+
+            await navigator.credentials.store(credential);
+            console.log('🔐 [CLIENT] Credential storage suggested to browser.');
+          } catch (credError) {
+            console.error('⚠️ [CLIENT] Error storing credential:', credError);
+          }
+        }
+
         // If "Remember Me" is unchecked, set a flag to clear session on browser close
         if (!rememberMe) {
           sessionStorage.setItem('gamebuddies-session-temp', 'true');
