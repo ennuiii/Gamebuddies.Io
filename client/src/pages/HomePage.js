@@ -518,9 +518,6 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
       return;
     }
 
-    // [RETURN] Debug logging
-    console.log('[RETURN] 📍 URL detected:', { pathname: location.pathname, roomCode, sessionToken, nameParam, storedName, effectiveName });
-
     if (sessionToken) {
       (async () => {
         const success = await handleSessionRecovery(roomCode, sessionToken, nameParam);
@@ -532,40 +529,13 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
         }
       })();
     } else {
-      // [RETURN] Check if user is returning from a game (already in this room)
-      const joinedFlag = sessionStorage.getItem(`gb_joined_${roomCode}`);
-      const storedRoomCode = sessionStorage.getItem('gamebuddies_roomCode');
-      const isReturningFromGame = joinedFlag || storedRoomCode === roomCode;
-
-      console.log('[RETURN] 📦 Checking return status:', {
-        joinedFlag,
-        storedRoomCode,
-        currentRoomCode: roomCode,
-        isReturningFromGame
-      });
-
-      if (isReturningFromGame && effectiveName) {
-        console.log('[RETURN] 🔄 Return from game detected, skipping JoinRoom');
-        console.log('[RETURN] ➡️ Going directly to RoomLobby with:', { roomCode, playerName: effectiveName });
-
-        // Go directly to lobby without showing JoinRoom
-        setCurrentRoom({ roomCode, playerName: effectiveName, isHost: false });
-        setPlayerName(effectiveName);
-        setInLobby(true);
-        setIsInLobby(true);
-        processedLinksRef.current.add(key);
-        return;
-      }
-
-      // Normal join flow - show JoinRoom modal
-      console.log('[RETURN] 📝 Normal join flow, showing JoinRoom modal');
       setJoinRoomCode(roomCode);
       setPrefillName(effectiveName);
       setAutoJoin(Boolean(effectiveName));
       setShowJoinRoom(true);
       processedLinksRef.current.add(key);
     }
-  }, [location.pathname, location.search, inLobby, isRecoveringSession, handleSessionRecovery, getStoredSessionInfo, setIsInLobby]);
+  }, [location.pathname, location.search, inLobby, isRecoveringSession, handleSessionRecovery, getStoredSessionInfo]);
 
   // If in lobby, show the lobby component
   if (inLobby && currentRoom) {

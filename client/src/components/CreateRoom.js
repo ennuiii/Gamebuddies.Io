@@ -105,12 +105,7 @@ const CreateRoom = ({ onRoomCreated, onCancel }) => {
       const handleRoomCreated = (data) => {
         console.log('✅ [CLIENT] Room created successfully:', data);
         cleanup();
-
-        // [HOST] Clear any stale return flags for this room
-        console.log('[HOST] 🧹 Clearing stale return flags for new room:', data.roomCode);
-        sessionStorage.removeItem(`gb_joined_${data.roomCode}`);
-        // Don't clear gamebuddies_roomCode as it might be from a different room
-
+        
         if (onRoomCreated) {
           onRoomCreated({
             roomCode: data.roomCode,
@@ -119,7 +114,7 @@ const CreateRoom = ({ onRoomCreated, onCancel }) => {
             room: data.room
           });
         }
-
+        
         setIsCreating(false);
       };
 
