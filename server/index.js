@@ -2566,16 +2566,55 @@ io.on('connection', async (socket) => {
       // This allows players and GMs to join ongoing games
       
       // Check for existing participant (disconnected or connected) to handle rejoining
-      // If authenticated, match by user ID; otherwise match by username
-      const existingParticipant = supabaseUserId
-        ? room.participants?.find(p => p.user_id === supabaseUserId)
-        : room.participants?.find(p => p.user?.username === data.playerName);
-      
+      // Enhanced matching: check user_id, username, display_name, AND custom_lobby_name
+      let existingParticipant;
+      let matchMethod = null;
+
+      // Primary: Match by authenticated user ID (most reliable)
+      if (supabaseUserId) {
+        existingParticipant = room.participants?.find(p => p.user_id === supabaseUserId);
+        if (existingParticipant) {
+          matchMethod = 'supabaseUserId';
+          console.log(`[REJOIN] ✅ Matched existing participant by supabaseUserId: ${supabaseUserId}`);
+        }
+      }
+
+      // Fallback: Match by any name field (for guests or when auth ID not available/race condition)
+      if (!existingParticipant && data.playerName) {
+        existingParticipant = room.participants?.find(p =>
+          p.user?.username === data.playerName ||
+          p.user?.display_name === data.playerName ||
+          p.custom_lobby_name === data.playerName
+        );
+        if (existingParticipant) {
+          matchMethod = existingParticipant.user?.username === data.playerName ? 'username' :
+                        existingParticipant.user?.display_name === data.playerName ? 'display_name' : 'custom_lobby_name';
+          console.log(`[REJOIN] ✅ Matched existing participant by ${matchMethod}: ${data.playerName}`);
+        }
+      }
+
+      // Additional fallback: Check if isHostHint is true and match the host
+      if (!existingParticipant && data.isHostHint) {
+        existingParticipant = room.participants?.find(p => p.role === 'host');
+        if (existingParticipant) {
+          matchMethod = 'isHostHint';
+          console.log(`[REJOIN] ✅ Matched existing host participant via isHostHint`);
+        }
+      }
+
+      if (!existingParticipant) {
+        console.log(`[REJOIN] ⚠️ No existing participant found for playerName="${data.playerName}", supabaseUserId="${supabaseUserId}", will create new`);
+      }
+
       console.log(`🔍 [REJOINING DEBUG] Checking for existing participant:`, {
         searchingFor: data.playerName,
+        supabaseUserId: supabaseUserId || null,
+        matchMethod,
         existingParticipant: existingParticipant ? {
           user_id: existingParticipant.user_id,
           username: existingParticipant.user?.username,
+          display_name: existingParticipant.user?.display_name,
+          custom_lobby_name: existingParticipant.custom_lobby_name,
           is_connected: existingParticipant.is_connected,
           role: existingParticipant.role
         } : null
