@@ -3115,7 +3115,7 @@ io.on('connection', async (socket) => {
       const joinEventData = {
         player: {
           id: user.id,
-          name: customLobbyName || user.display_name || data.playerName,
+          name: customLobbyName || user.display_name || 'Player',
           isHost: isHost,
           premiumTier: user.premium_tier || 'free',
           role: user.role || 'user',

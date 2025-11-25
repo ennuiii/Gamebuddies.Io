@@ -59,8 +59,9 @@ const JoinRoom = ({ initialRoomCode = '', initialPlayerName = '', autoJoin = fal
     setError('');
 
     // Determine playerName and customLobbyName based on auth status
+    // For authenticated users, use display_name (never username in lobby)
     const playerName = isAuthenticated
-      ? (user?.username || user?.display_name || 'User')
+      ? (user?.display_name || 'Player')
       : displayName.trim();
     const customLobbyName = isAuthenticated && displayName.trim()
       ? displayName.trim()
