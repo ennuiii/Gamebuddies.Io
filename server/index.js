@@ -2634,7 +2634,7 @@ io.on('connection', async (socket) => {
       
       // Sanitize input
       const playerName = sanitize.playerName(data.playerName);
-      const customLobbyName = data.customLobbyName ? sanitize.playerName(data.customLobbyName) : null;
+      let customLobbyName = data.customLobbyName ? sanitize.playerName(data.customLobbyName) : null;
       const roomCode = sanitize.roomCode(data.roomCode);
       const supabaseUserId = data.supabaseUserId || null;
 
@@ -2864,16 +2864,32 @@ io.on('connection', async (socket) => {
           participant_id: existingParticipant.id,
           user_id: existingParticipant.user_id,
           original_role: existingParticipant.role,
-          current_connection: existingParticipant.is_connected
+          current_connection: existingParticipant.is_connected,
+          custom_lobby_name: existingParticipant.custom_lobby_name,
+          display_name: existingParticipant.user?.display_name
         });
-        
-        // DON'T create a new user - use the original user data
+
+        // DON'T create a new user - use the original user data (include all display fields)
         user = {
           id: existingParticipant.user_id,
-          username: data.playerName,
+          username: existingParticipant.user?.username,
+          display_name: existingParticipant.user?.display_name,
+          premium_tier: existingParticipant.user?.premium_tier,
+          avatar_url: existingParticipant.user?.avatar_url,
+          avatar_style: existingParticipant.user?.avatar_style,
+          avatar_seed: existingParticipant.user?.avatar_seed,
+          avatar_options: existingParticipant.user?.avatar_options,
+          level: existingParticipant.user?.level,
+          role: existingParticipant.user?.role,
           external_id: existingParticipant.user?.external_id
         };
         userRole = existingParticipant.role;
+
+        // Use stored custom_lobby_name for rejoining players (don't rely on client to re-send it)
+        if (!customLobbyName && existingParticipant.custom_lobby_name) {
+          customLobbyName = existingParticipant.custom_lobby_name;
+          console.log(`🔄 [REJOIN] Using stored custom_lobby_name: ${customLobbyName}`);
+        }
 
         // [HOST] If original host reconnects after transfer, restore host status
         if (room.metadata?.original_host_id === existingParticipant.user_id && existingParticipant.role !== 'host') {
@@ -3138,7 +3154,8 @@ io.on('connection', async (socket) => {
         roomCode: data.roomCode
       });
       
-      io.to(data.roomCode).emit('playerJoined', { ...joinEventData, roomVersion: Date.now() });
+      // Broadcast to OTHER players in room (not the joining player - they get roomJoined event instead)
+      socket.to(data.roomCode).emit('playerJoined', { ...joinEventData, roomVersion: Date.now() });
 
       // Send success response to joining player
       const joinSuccessData = {
