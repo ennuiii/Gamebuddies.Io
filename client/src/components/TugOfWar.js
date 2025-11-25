@@ -3,14 +3,19 @@ import { useSocket } from '../contexts/LazySocketContext';
 import './TugOfWar.css';
 
 const TugOfWar = ({ playerName }) => {
-  const { socket, socketId } = useSocket();
+  const { socket, socketRef, socketId } = useSocket();
+
+  // Use socketRef.current as fallback when React state hasn't updated yet
+  // This fixes race condition where socket state is null immediately after joining
+  const activeSocket = socket || socketRef?.current;
+
   const [gameState, setGameState] = useState({ position: 50, redWins: 0, blueWins: 0 });
   const [lastWinner, setLastWinner] = useState(null);
   const [isPulling, setIsPulling] = useState(false);
   const [myTeam, setMyTeam] = useState(null); // Will be assigned by server
 
   useEffect(() => {
-    if (!socket) return;
+    if (!activeSocket) return;
 
     const handleUpdate = (data) => {
       setGameState({
@@ -18,7 +23,7 @@ const TugOfWar = ({ playerName }) => {
         redWins: data.redWins,
         blueWins: data.blueWins
       });
-      
+
       if (data.winner) {
         setLastWinner(data.winner);
         setTimeout(() => setLastWinner(null), 2000);
@@ -31,14 +36,14 @@ const TugOfWar = ({ playerName }) => {
       }
     };
 
-    socket.on('tugOfWar:update', handleUpdate);
-    socket.on('tugOfWar:yourTeam', handleYourTeam);
-    
+    activeSocket.on('tugOfWar:update', handleUpdate);
+    activeSocket.on('tugOfWar:yourTeam', handleYourTeam);
+
     return () => {
-      socket.off('tugOfWar:update', handleUpdate);
-      socket.off('tugOfWar:yourTeam', handleYourTeam);
+      activeSocket.off('tugOfWar:update', handleUpdate);
+      activeSocket.off('tugOfWar:yourTeam', handleYourTeam);
     };
-  }, [socket]);
+  }, [activeSocket]);
 
   const handlePull = (e) => {
     // Prevent default touch behaviors
@@ -46,15 +51,15 @@ const TugOfWar = ({ playerName }) => {
       e.preventDefault();
     }
 
-    if (!socket) return;
-    
+    if (!activeSocket) return;
+
     setIsPulling(true);
     setTimeout(() => setIsPulling(false), 100);
 
     // Send pull request (server assigns team if null)
-    socket.emit('tugOfWar:pull', { 
-      team: myTeam, 
-      playerName 
+    activeSocket.emit('tugOfWar:pull', {
+      team: myTeam,
+      playerName
     });
   };
 
@@ -98,11 +103,11 @@ const TugOfWar = ({ playerName }) => {
             <>Click PULL to join a team!</>
           )}
         </div>
-        <button 
+        <button
           className={`pull-btn ${myTeam || 'neutral'} ${isPulling ? 'pulling' : ''}`}
           onMouseDown={handlePull}
           onTouchStart={handlePull}
-          disabled={!socket} // Always enabled if socket connected
+          disabled={!activeSocket} // Always enabled if socket connected
         >
           {myTeam ? 'PULL!' : 'JOIN & PULL!'}
         </button>

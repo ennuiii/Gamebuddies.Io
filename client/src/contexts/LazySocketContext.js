@@ -255,6 +255,7 @@ export const LazySocketProvider = ({ children }) => {
 
   const value = useMemo(() => ({
     socket,
+    socketRef, // Direct ref access - bypasses async React state for immediate socket availability
     socketId,
     isConnected,
     isConnecting,

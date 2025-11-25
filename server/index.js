@@ -2095,56 +2095,60 @@ io.on('connection', async (socket) => {
     }
 
     const rooms = Array.from(socket.rooms).filter(r => r !== socket.id);
-    if (rooms.length > 0) {
-      const roomCode = rooms[0];
-
-      // [CHAT] Look up actual player name from database instead of trusting client
-      // This ensures we use the proper name chain: custom_lobby_name || display_name || username
-      const connection = connectionManager.getConnection(socket.id);
-      let playerName = (data.playerName || 'Player').substring(0, 30); // Fallback to client-provided name
-
-      if (connection?.userId && connection?.roomId) {
-        try {
-          const { data: participant } = await db.adminClient
-            .from('room_members')
-            .select('custom_lobby_name, user:users(display_name, username)')
-            .eq('room_id', connection.roomId)
-            .eq('user_id', connection.userId)
-            .single();
-
-          if (participant) {
-            playerName = participant.custom_lobby_name
-              || participant.user?.display_name
-              || 'Player';
-          }
-        } catch (err) {
-          // Fall back to client-provided name on error
-          console.error('❌ [CHAT] Error looking up player name:', err.message);
-        }
-      }
-
-      // Update DB activity (throttled to once per minute) to prevent cleanup
-      const lastUpdate = roomActivityCache.get(roomCode) || 0;
-      if (Date.now() - lastUpdate > 60000) {
-        roomActivityCache.set(roomCode, Date.now());
-        // Async update, fire and forget
-        db.adminClient
-          .from('rooms')
-          .update({ last_activity: new Date().toISOString() })
-          .eq('room_code', roomCode)
-          .then(({ error }) => {
-             if(error) console.error(`❌ Failed to update activity for room ${roomCode}:`, error);
-          });
-      }
-
-      io.to(roomCode).emit('chat:message', {
-        id: crypto.randomUUID(),
-        playerName: playerName,
-        message: message,
-        timestamp: Date.now(),
-        type: 'user'
-      });
+    if (rooms.length === 0) {
+      // Debug: Socket not in any room - likely a race condition or reconnection issue
+      console.warn('⚠️ [CHAT] Socket not in any room, message dropped. socketId:', socket.id);
+      return;
     }
+
+    const roomCode = rooms[0];
+
+    // [CHAT] Look up actual player name from database instead of trusting client
+    // This ensures we use the proper name chain: custom_lobby_name || display_name || username
+    const connection = connectionManager.getConnection(socket.id);
+    let playerName = (data.playerName || 'Player').substring(0, 30); // Fallback to client-provided name
+
+    if (connection?.userId && connection?.roomId) {
+      try {
+        const { data: participant } = await db.adminClient
+          .from('room_members')
+          .select('custom_lobby_name, user:users(display_name, username)')
+          .eq('room_id', connection.roomId)
+          .eq('user_id', connection.userId)
+          .single();
+
+        if (participant) {
+          playerName = participant.custom_lobby_name
+            || participant.user?.display_name
+            || 'Player';
+        }
+      } catch (err) {
+        // Fall back to client-provided name on error
+        console.error('❌ [CHAT] Error looking up player name:', err.message);
+      }
+    }
+
+    // Update DB activity (throttled to once per minute) to prevent cleanup
+    const lastUpdate = roomActivityCache.get(roomCode) || 0;
+    if (Date.now() - lastUpdate > 60000) {
+      roomActivityCache.set(roomCode, Date.now());
+      // Async update, fire and forget
+      db.adminClient
+        .from('rooms')
+        .update({ last_activity: new Date().toISOString() })
+        .eq('room_code', roomCode)
+        .then(({ error }) => {
+           if(error) console.error(`❌ Failed to update activity for room ${roomCode}:`, error);
+        });
+    }
+
+    io.to(roomCode).emit('chat:message', {
+      id: crypto.randomUUID(),
+      playerName: playerName,
+      message: message,
+      timestamp: Date.now(),
+      type: 'user'
+    });
   });
 
   // Minigame Handler (Lobby - Reflex)
@@ -2169,66 +2173,74 @@ io.on('connection', async (socket) => {
   // Tug of War Handler (Lobby - Multiplayer)
   socket.on('tugOfWar:pull', (data) => {
     const rooms = Array.from(socket.rooms).filter(r => r !== socket.id);
-    if (rooms.length > 0) {
-      const roomCode = rooms[0];
-      
-      const playerConnection = connectionManager.getConnection(socket.id);
-      const playerId = playerConnection?.userId;
-      
-      if (!playerId) return; // Must be an authenticated player in room
-      
-      let state = tugOfWarState.get(roomCode);
-      if (!state) {
-        state = { position: 50, redWins: 0, blueWins: 0 };
-        tugOfWarState.set(roomCode, state);
-      }
-
-      let roomTeams = tugOfWarTeams.get(roomCode);
-      if (!roomTeams) {
-        roomTeams = new Map();
-        tugOfWarTeams.set(roomCode, roomTeams);
-      }
-
-      let playerTeam = roomTeams.get(playerId);
-      
-      // Assign team if not assigned yet
-      if (!playerTeam) {
-        const redCount = Array.from(roomTeams.values()).filter(t => t === 'red').length;
-        const blueCount = Array.from(roomTeams.values()).filter(t => t === 'blue').length;
-        playerTeam = redCount <= blueCount ? 'red' : 'blue'; // Assign to smaller team
-        roomTeams.set(playerId, playerTeam);
-        console.log(`[TOW] Assigned ${playerId} to ${playerTeam} team in room ${roomCode}`);
-      }
-
-      // Move bar (Red < 50 < Blue)
-      const moveAmount = 1.5; // Difficulty tuning
-      if (playerTeam === 'red') state.position = Math.max(0, state.position - moveAmount);
-      if (playerTeam === 'blue') state.position = Math.min(100, state.position + moveAmount);
-
-      let winner = null;
-      if (state.position <= 0) {
-        state.redWins++;
-        winner = 'red';
-        state.position = 50; // Reset for next round
-      } else if (state.position >= 100) {
-        state.blueWins++;
-        winner = 'blue';
-        state.position = 50; // Reset for next round;
-      }
-
-      // Broadcast update to everyone (Global State)
-      io.to(roomCode).emit('tugOfWar:update', {
-        position: state.position,
-        redWins: state.redWins,
-        blueWins: state.blueWins,
-        winner,
-        pullTeam: playerTeam, // Who pulled
-        teams: Object.fromEntries(roomTeams) // Full team list
-      });
-
-      // Tell the specific user their team (Private State)
-      socket.emit('tugOfWar:yourTeam', { team: playerTeam });
+    if (rooms.length === 0) {
+      // Debug: Socket not in any room - likely a race condition or reconnection issue
+      console.warn('⚠️ [TOW] Socket not in any room, pull ignored. socketId:', socket.id);
+      return;
     }
+
+    const roomCode = rooms[0];
+
+    const playerConnection = connectionManager.getConnection(socket.id);
+    const playerId = playerConnection?.userId;
+
+    if (!playerId) {
+      // Debug: Player not tracked in connectionManager
+      console.warn('⚠️ [TOW] Player not authenticated, pull ignored. socketId:', socket.id);
+      return; // Must be an authenticated player in room
+    }
+
+    let state = tugOfWarState.get(roomCode);
+    if (!state) {
+      state = { position: 50, redWins: 0, blueWins: 0 };
+      tugOfWarState.set(roomCode, state);
+    }
+
+    let roomTeams = tugOfWarTeams.get(roomCode);
+    if (!roomTeams) {
+      roomTeams = new Map();
+      tugOfWarTeams.set(roomCode, roomTeams);
+    }
+
+    let playerTeam = roomTeams.get(playerId);
+
+    // Assign team if not assigned yet
+    if (!playerTeam) {
+      const redCount = Array.from(roomTeams.values()).filter(t => t === 'red').length;
+      const blueCount = Array.from(roomTeams.values()).filter(t => t === 'blue').length;
+      playerTeam = redCount <= blueCount ? 'red' : 'blue'; // Assign to smaller team
+      roomTeams.set(playerId, playerTeam);
+      console.log(`[TOW] Assigned ${playerId} to ${playerTeam} team in room ${roomCode}`);
+    }
+
+    // Move bar (Red < 50 < Blue)
+    const moveAmount = 1.5; // Difficulty tuning
+    if (playerTeam === 'red') state.position = Math.max(0, state.position - moveAmount);
+    if (playerTeam === 'blue') state.position = Math.min(100, state.position + moveAmount);
+
+    let winner = null;
+    if (state.position <= 0) {
+      state.redWins++;
+      winner = 'red';
+      state.position = 50; // Reset for next round
+    } else if (state.position >= 100) {
+      state.blueWins++;
+      winner = 'blue';
+      state.position = 50; // Reset for next round
+    }
+
+    // Broadcast update to everyone (Global State)
+    io.to(roomCode).emit('tugOfWar:update', {
+      position: state.position,
+      redWins: state.redWins,
+      blueWins: state.blueWins,
+      winner,
+      pullTeam: playerTeam, // Who pulled
+      teams: Object.fromEntries(roomTeams) // Full team list
+    });
+
+    // Tell the specific user their team (Private State)
+    socket.emit('tugOfWar:yourTeam', { team: playerTeam });
   });
 
   // Friend System: Identify User (Central Server Implementation)

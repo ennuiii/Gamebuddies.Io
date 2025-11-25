@@ -13,7 +13,11 @@ import Avatar from './Avatar';
 import './RoomLobby.css';
 
 const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
-  const { socket, socketId, isConnected: socketIsConnected, connectSocket, setLastRoom, clearLastRoom } = useSocket();
+  const { socket, socketRef, socketId, isConnected: socketIsConnected, connectSocket, setLastRoom, clearLastRoom } = useSocket();
+
+  // Use socketRef.current as fallback when React state hasn't updated yet
+  // This fixes race condition where socket state is null immediately after joining
+  const activeSocket = socket || socketRef?.current;
   const { addNotification } = useNotification(); // Get addNotification function
   const { user, isAuthenticated, isPremium } = useAuth(); // Get isPremium from context
   const { updateLobbyInfo } = useFriends(); // Get updateLobbyInfo for friend invite game name
@@ -65,6 +69,16 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
     roomStatusRef.current = roomStatus;
   }, [roomStatus]);
 
+  // Ensure socket is joined to Socket.IO room on mount
+  // This fixes race condition where joinRoom completes but socket room join isn't reflected
+  // Server handler 'joinSocketRoom' simply calls socket.join(roomCode) - idempotent and safe
+  useEffect(() => {
+    if (!activeSocket || !roomCode) return;
+
+    console.log('🔗 [RoomLobby] Ensuring socket is in room:', roomCode);
+    activeSocket.emit('joinSocketRoom', { roomCode });
+  }, [activeSocket, roomCode]);
+
   // Debug logging for players
   useEffect(() => {
     if (players.length > 0) {
@@ -78,18 +92,18 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
 
   // Chat Listeners
   useEffect(() => {
-    if (!socket) return;
+    if (!activeSocket) return;
 
     const handleChatMessage = (msg) => {
       setMessages(prev => [...prev, msg]);
     };
 
-    socket.on('chat:message', handleChatMessage);
+    activeSocket.on('chat:message', handleChatMessage);
 
     return () => {
-      socket.off('chat:message', handleChatMessage);
+      activeSocket.off('chat:message', handleChatMessage);
     };
-  }, [socket]);
+  }, [activeSocket]);
 
   const handleSendMessage = (text) => {
     // Robust "Me" lookup
@@ -121,7 +135,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
         playersList: players.map(p => ({ id: p.id, name: p.name, level: p.level })) // Debug players state
     });
 
-    if (socket) socket.emit('chat:message', { 
+    if (activeSocket) activeSocket.emit('chat:message', {
       message: text,
       playerName: nameToSend
     });
