@@ -16,6 +16,7 @@ export const LazySocketProvider = ({ children }) => {
   const reconnectionAttemptsRef = useRef(0);
   const maxReconnectionAttempts = 3;
   const socketRef = useRef(null);
+  const isConnectingRef = useRef(false); // Synchronous guard to prevent race conditions
 
   // Store last room info for auto-rejoin on reconnect
   const lastRoomRef = useRef(null);
@@ -104,14 +105,18 @@ export const LazySocketProvider = ({ children }) => {
   }, [isConnected, maxReconnectionAttempts]);
 
   const connectSocket = useCallback(() => {
-    // Don't create connection if already connecting or connected
-    if (isConnecting || socketRef.current?.connected) {
+    // Use ref for SYNCHRONOUS check (prevents race condition with async state)
+    if (isConnectingRef.current || socketRef.current?.connected) {
+      console.log('🔌 [LazySocketProvider] Already connecting/connected, returning existing socket');
       return socketRef.current;
     }
 
+    // Set ref IMMEDIATELY (synchronous) before any async operations
+    isConnectingRef.current = true;
+
     const serverUrl = getServerUrl();
     console.log('🔌 [LazySocketProvider] Connecting to server:', serverUrl);
-    setIsConnecting(true);
+    setIsConnecting(true); // Keep state for UI
 
     const transportsPref = (process.env.REACT_APP_SOCKET_TRANSPORTS || '')
       .split(',')
@@ -128,6 +133,7 @@ export const LazySocketProvider = ({ children }) => {
 
     newSocket.on('connect', () => {
       console.log('✅ [LazySocketProvider] Connected to server. Socket ID:', newSocket.id);
+      isConnectingRef.current = false; // Reset ref on success
       setSocket(newSocket);
       setSocketId(newSocket.id);
       setIsConnected(true);
@@ -163,6 +169,7 @@ export const LazySocketProvider = ({ children }) => {
 
     newSocket.on('disconnect', (reason) => {
       console.log('❌ [LazySocketProvider] Disconnected from server. Reason:', reason);
+      isConnectingRef.current = false; // Reset ref on disconnect
       setIsConnected(false);
       setIsConnecting(false);
       
@@ -178,6 +185,7 @@ export const LazySocketProvider = ({ children }) => {
 
     newSocket.on('connect_error', (error) => {
       console.error('❌ [LazySocketProvider] Connection error:', error);
+      isConnectingRef.current = false; // Reset ref on error
       setIsConnected(false);
       setIsConnecting(false);
       
@@ -191,7 +199,7 @@ export const LazySocketProvider = ({ children }) => {
     newSocket.connect();
 
     return newSocket;
-  }, [getServerUrl, isConnecting, isConnected, attemptReconnection]);
+  }, [getServerUrl, isConnected, attemptReconnection]); // Removed isConnecting - using ref now
 
   // Connect socket for an authenticated user (combines connect + identify)
   // This is called when user logs in to enable friend presence
@@ -232,6 +240,7 @@ export const LazySocketProvider = ({ children }) => {
       setSocketId(null);
       setIsConnected(false);
       setIsConnecting(false);
+      isConnectingRef.current = false; // Reset ref
       reconnectionAttemptsRef.current = 0;
     }
   }, []);
