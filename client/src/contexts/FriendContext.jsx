@@ -226,7 +226,7 @@ export const FriendProvider = ({ children }) => {
       roomId,
       gameName: gameName || 'Unknown Game',
       gameThumbnail,
-      hostName: user.username
+      hostName: user.display_name || 'Player'
     };
     console.log('📨 [FRIENDS] Emitting game:invite with data:', inviteData);
     socket.emit('game:invite', inviteData);

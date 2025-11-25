@@ -326,7 +326,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
 
       const mappedPlayers = roomMembers?.map(member => ({
         id: member.user_id,
-        name: member.user?.display_name || member.user?.username,
+        name: member.user?.display_name || 'Player',
         isHost: member.role === 'host',
         isConnected: member.is_connected,
         inGame: member.in_game,
@@ -607,7 +607,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       // Map the players using the updated room participants
       const mappedPlayers = data.room?.participants?.map(p => ({
         id: p.user_id,
-        name: p.user?.display_name || p.user?.username,
+        name: p.user?.display_name || 'Player',
         isHost: p.role === 'host',
         isConnected: p.is_connected,
         inGame: p.in_game,

@@ -560,7 +560,7 @@ class LobbyManager {
     const players = room.participants?.map(p => {
       const player = {
         id: p.user_id,
-        name: p.custom_lobby_name || p.user?.display_name || p.user?.username,
+        name: p.custom_lobby_name || p.user?.display_name || 'Player',
         isHost: p.role === 'host',
         isConnected: p.is_connected,
         inGame: p.in_game,

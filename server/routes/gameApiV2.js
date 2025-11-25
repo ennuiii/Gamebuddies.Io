@@ -129,7 +129,7 @@ module.exports = (io, db, connectionManager) => {
           ?.filter(p => p.is_connected === true)
           .map(p => ({
             id: p.user_id,
-            name: p.user?.display_name || p.user?.username,
+            name: p.user?.display_name || 'Player',
             role: p.role,
             isHost: p.role === 'host',
             currentLocation: p.current_location,
@@ -455,7 +455,7 @@ module.exports = (io, db, connectionManager) => {
       const updatedRoom = await db.getRoomByCode(roomCode);
       const allPlayers = updatedRoom.participants?.map(p => ({
         id: p.user_id,
-        name: p.user?.display_name || p.user?.username,
+        name: p.user?.display_name || 'Player',
         isHost: p.role === 'host',
         isConnected: p.is_connected,
         inGame: p.in_game,

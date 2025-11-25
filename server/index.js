@@ -303,14 +303,14 @@ function startHostTransferGracePeriod(roomId, roomCode, originalHostUserId) {
           io.to(room.room_code).emit('hostTransferred', {
             oldHostId: originalHostUserId,
             newHostId: newHost.user_id,
-            newHostName: newHost.user?.display_name || newHost.user?.username,
+            newHostName: newHost.user?.display_name || 'Player',
             reason: 'grace_period_expired',
             roomVersion: Date.now()
           });
           console.log(`👑 [HOST] Host transfer completed after grace period:`, {
             oldHostId: originalHostUserId,
             newHostId: newHost.user_id,
-            newHostName: newHost.user?.display_name || newHost.user?.username
+            newHostName: newHost.user?.display_name || 'Player'
           });
         }
       } else {
@@ -640,7 +640,7 @@ app.get('/api/game/rooms/:roomCode/validate', validateApiKey, async (req, res) =
         ?.filter(p => p.is_connected === true)
         .map(p => ({
           id: p.user_id,
-          name: p.custom_lobby_name || p.user?.display_name || p.user?.username,
+          name: p.custom_lobby_name || p.user?.display_name || 'Player',
           role: p.role,
           isReady: p.is_ready,
           status: p.is_connected ? 'connected' : 'disconnected',
@@ -754,7 +754,7 @@ app.get('/api/game/session/:token', async (req, res) => {
       },
       player: {
         id: session.player_id,
-        name: participant.custom_lobby_name || participant.user?.display_name || participant.user?.username,
+        name: participant.custom_lobby_name || participant.user?.display_name || 'Player',
         username: participant.user?.username,
         displayName: participant.user?.display_name,
         customLobbyName: participant.custom_lobby_name,
@@ -779,7 +779,7 @@ app.get('/api/game/session/:token', async (req, res) => {
         ?.filter(p => p.is_connected === true)
         .map(p => ({
           id: p.user_id,
-          name: p.custom_lobby_name || p.user?.display_name || p.user?.username,
+          name: p.custom_lobby_name || p.user?.display_name || 'Player',
           role: p.role,
           isHost: p.role === 'host',
           premiumTier: p.user?.premium_tier || 'free',
@@ -1306,7 +1306,7 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
     // Build consolidated players snapshot once for broadcast and status sync
     const allPlayers = updatedRoom.participants?.map(p => ({
       id: p.user_id,
-      name: p.custom_lobby_name || p.user?.display_name || p.user?.username,
+      name: p.custom_lobby_name || p.user?.display_name || 'Player',
       isHost: p.role === 'host',
       isConnected: p.is_connected,
       inGame: p.in_game,
@@ -1359,7 +1359,7 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
         broadcastData.hostTransfer = {
           oldHostId: playerId,
           newHostId: newHost.user_id,
-          newHostName: newHost.user?.username || newHost.user?.display_name,
+          newHostName: newHost.user?.display_name || 'Player',
           reason: 'external_game_disconnect'
         };
         console.log(`👑 [API] Including host transfer in broadcast:`, broadcastData.hostTransfer);
@@ -1660,7 +1660,7 @@ app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async 
     if (io) {
       const allPlayers = updatedRoom.participants?.map(p => ({
         id: p.user_id,
-        name: p.custom_lobby_name || p.user?.display_name || p.user?.username,
+        name: p.custom_lobby_name || p.user?.display_name || 'Player',
         isHost: p.role === 'host',
         isConnected: p.is_connected,
         inGame: p.in_game,
@@ -1919,7 +1919,7 @@ async function autoUpdateRoomStatusByHost(roomId, hostUserId, hostLocation) {
       oldStatus: room.status,
       newStatus: targetStatus,
       room: updatedRoom,
-      changedBy: `${hostParticipant?.user?.display_name || hostParticipant?.user?.username || 'Host'} (auto)`,
+      changedBy: `${hostParticipant?.user?.display_name || 'Host'} (auto)`,
       reason: 'host_location_change',
       isAutomatic: true,
       hostLocation: hostLocation,
@@ -2115,8 +2115,7 @@ io.on('connection', async (socket) => {
           if (participant) {
             playerName = participant.custom_lobby_name
               || participant.user?.display_name
-              || participant.user?.username
-              || playerName;
+              || 'Player';
           }
         } catch (err) {
           // Fall back to client-provided name on error
@@ -2905,7 +2904,7 @@ io.on('connection', async (socket) => {
             io.to(room.room_code).emit('hostTransferred', {
               oldHostId: currentHostParticipant.user_id,
               newHostId: existingParticipant.user_id,
-              newHostName: existingParticipant.user?.display_name || existingParticipant.user?.username || data.playerName,
+              newHostName: existingParticipant.user?.display_name || 'Player' || data.playerName,
               reason: 'original_host_returned',
               roomVersion: Date.now()
             });
@@ -3093,7 +3092,7 @@ io.on('connection', async (socket) => {
       // Prepare player list - include ALL participants with their status
       const players = updatedRoom.participants?.map(p => ({
           id: p.user_id,
-          name: p.custom_lobby_name || p.user?.display_name || p.user?.username,
+          name: p.custom_lobby_name || p.user?.display_name || 'Player',
           isHost: p.role === 'host',
           isConnected: p.is_connected,
           inGame: p.in_game,
@@ -3391,7 +3390,7 @@ io.on('connection', async (socket) => {
           streamer_mode: isStreamerMode,
           expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hour expiration
           metadata: {
-            player_name: participant.custom_lobby_name || participant.user?.display_name || participant.user?.username,
+            player_name: participant.custom_lobby_name || participant.user?.display_name || 'Player',
             is_host: participant.role === 'host',
             total_players: participants.length,
             premium_tier: participant.user?.premium_tier || 'free',
@@ -3518,7 +3517,7 @@ io.on('connection', async (socket) => {
         // Include ALL participants with their complete status (not just connected ones)
         const allPlayers = updatedRoom.participants?.map(p => ({
           id: p.user_id,
-          name: p.custom_lobby_name || p.user?.display_name || p.user?.username,
+          name: p.custom_lobby_name || p.user?.display_name || 'Player',
           isHost: p.role === 'host',
           isConnected: p.is_connected,
           inGame: p.in_game,
@@ -3540,13 +3539,13 @@ io.on('connection', async (socket) => {
       io.to(data.roomCode).emit('hostTransferred', {
         oldHostId: connection.userId,
         newHostId: newHost.user_id,
-        newHostName: newHost.user?.display_name || newHost.user?.username,
+        newHostName: newHost.user?.display_name || 'Player',
         reason: 'original_host_left',
         players: allPlayers,
         room: updatedRoom,
         roomVersion: Date.now()
       });
-          console.log(`👑 [LEAVE] Instantly transferred host to ${newHost.user?.display_name || newHost.user?.username}`);
+          console.log(`👑 [LEAVE] Instantly transferred host to ${newHost.user?.display_name || 'Player'}`);
         }
 
         // Then send player left event
@@ -3671,7 +3670,7 @@ io.on('connection', async (socket) => {
       // Include ALL participants with their complete status (not just connected ones)
       const allPlayers = updatedRoom.participants?.map(p => ({
         id: p.user_id,
-        name: p.custom_lobby_name || p.user?.display_name || p.user?.username,
+        name: p.custom_lobby_name || p.user?.display_name || 'Player',
         isHost: p.role === 'host',
         isConnected: p.is_connected,
         inGame: p.in_game,
@@ -3691,7 +3690,7 @@ io.on('connection', async (socket) => {
       io.to(data.roomCode).emit('hostTransferred', {
         oldHostId: connection.userId,
         newHostId: data.targetUserId,
-        newHostName: targetParticipant.user?.display_name || targetParticipant.user?.username,
+        newHostName: targetParticipant.user?.display_name || 'Player',
         players: allPlayers,
         room: updatedRoom,
         roomVersion: Date.now()
@@ -3807,7 +3806,7 @@ io.on('connection', async (socket) => {
         console.log(`📤 [KICK DEBUG] Notifying kicked player on socket: ${targetConnection.socketId}`);
         io.to(targetConnection.socketId).emit('playerKicked', {
           reason: 'You have been removed from the room by the host',
-          kickedBy: currentParticipant.user?.display_name || currentParticipant.user?.username,
+          kickedBy: currentParticipant.user?.display_name || 'Player',
           roomCode: data.roomCode
         });
 
@@ -3824,7 +3823,7 @@ io.on('connection', async (socket) => {
       // Include ALL participants with their complete status (not just connected ones)
       const allPlayers = updatedRoom.participants?.map(p => ({
         id: p.user_id,
-        name: p.custom_lobby_name || p.user?.display_name || p.user?.username,
+        name: p.custom_lobby_name || p.user?.display_name || 'Player',
         isHost: p.role === 'host',
         isConnected: p.is_connected,
         inGame: p.in_game,
@@ -3851,8 +3850,8 @@ io.on('connection', async (socket) => {
       // Notify remaining players about the kick with complete player data
       io.to(data.roomCode).emit('playerKicked', {
         targetUserId: data.targetUserId,
-        targetName: targetParticipant.user?.display_name || targetParticipant.user?.username,
-        kickedBy: currentParticipant.user?.display_name || currentParticipant.user?.username,
+        targetName: targetParticipant.user?.display_name || 'Player',
+        kickedBy: currentParticipant.user?.display_name || 'Player',
         players: allPlayers, // Send complete player data
         room: updatedRoom, // Also send updated room data
         isNotification: true // Flag to distinguish from personal kick notification
@@ -3935,7 +3934,7 @@ io.on('connection', async (socket) => {
         oldStatus: room.status,
         newStatus: data.newStatus,
         room: updatedRoom,
-        changedBy: participant.user?.display_name || participant.user?.username,
+        changedBy: participant.user?.display_name || 'Player',
         roomVersion: Date.now()
       });
 
@@ -4011,7 +4010,7 @@ io.on('connection', async (socket) => {
         oldStatus: room.status,
         newStatus: serverStatus,
         room: updatedRoom,
-        changedBy: `${participant.user?.display_name || participant.user?.username} (auto)`,
+        changedBy: `${participant.user?.display_name || 'Player'} (auto)`,
         reason: data.reason,
         isAutomatic: true,
         roomVersion: Date.now()
@@ -4156,7 +4155,7 @@ io.on('connection', async (socket) => {
           const updatedRoom = await db.getRoomById(connection.roomId);
           const allPlayers = updatedRoom?.participants?.map(p => ({
             id: p.user_id,
-            name: p.custom_lobby_name || p.user?.display_name || p.user?.username,
+            name: p.custom_lobby_name || p.user?.display_name || 'Player',
             isHost: p.role === 'host',
             isConnected: p.is_connected,
             inGame: p.in_game,
@@ -4177,7 +4176,7 @@ io.on('connection', async (socket) => {
           io.to(room.room_code).emit('hostTransferred', {
             oldHostId: connection.userId,
             newHostId: newHost.user_id,
-            newHostName: newHost.user?.display_name || newHost.user?.username,
+            newHostName: newHost.user?.display_name || 'Player',
             reason: 'original_host_disconnected',
             players: allPlayers,
             room: updatedRoom,
@@ -4448,7 +4447,7 @@ app.get('/api/game-sessions/:token', async (req, res) => {
         .eq('id', session.player_id)
         .single();
 
-      playerName = user?.display_name || user?.username || null;
+      playerName = user?.display_name || 'Player';
     }
 
     // Update last accessed timestamp
