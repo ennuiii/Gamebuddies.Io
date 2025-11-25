@@ -3125,17 +3125,18 @@ io.on('connection', async (socket) => {
         console.log(`👥 [REJOINING DEBUG] Adding new participant with role: ${userRole}${customLobbyName ? `, custom name: ${customLobbyName}` : ''}`);
         await db.addParticipant(room.id, user.id, socket.id, userRole, customLobbyName);
         
-        // If joining an in_game room, mark new player as NOT in_game and in 'lobby' location
+        // If joining an in_game room, mark new player as in_game with 'game' location
+        // This ensures late-joiners show "In Game" badge like other players
         if (room.status === 'in_game') {
           await db.adminClient
             .from('room_members')
-            .update({ 
-              in_game: false,
-              current_location: 'lobby'
+            .update({
+              in_game: true,
+              current_location: 'game'
             })
             .eq('user_id', user.id)
             .eq('room_id', room.id);
-          console.log(`🎮 [REJOINING DEBUG] Marked new participant as NOT in_game and in 'lobby' location`);
+          console.log(`🎮 [REJOINING DEBUG] Marked new participant as in_game with 'game' location`);
         }
         
         console.log(`✅ [REJOINING DEBUG] Added new participant`);
@@ -3443,6 +3444,37 @@ io.on('connection', async (socket) => {
       }
 
       console.log(`🎮 [START GAME DEBUG] Marked ${connectedParticipants.length} participants as in_game and in 'game' location`);
+
+      // Broadcast player status update to all clients in the room
+      // This ensures UI shows "In Game" badges before redirect
+      const updatedRoomForBroadcast = await db.getRoomByCode(room.room_code);
+      const allPlayersForBroadcast = updatedRoomForBroadcast.participants?.map(p => ({
+        id: p.user_id,
+        name: p.custom_lobby_name || p.user?.display_name || 'Player',
+        isHost: p.role === 'host',
+        isConnected: p.is_connected,
+        inGame: p.in_game,
+        currentLocation: p.current_location,
+        premiumTier: p.user?.premium_tier || 'free',
+        role: p.user?.role || 'user',
+        avatarUrl: p.user?.avatar_url,
+        avatarStyle: p.user?.avatar_style,
+        avatarSeed: p.user?.avatar_seed,
+        avatarOptions: p.user?.avatar_options,
+        level: p.user?.level || 1
+      })) || [];
+
+      io.to(room.room_code).emit('playerStatusUpdated', {
+        status: 'game',
+        reason: 'game_started',
+        players: allPlayersForBroadcast,
+        room: updatedRoomForBroadcast,
+        source: 'startGame',
+        timestamp: new Date().toISOString(),
+        roomVersion: Date.now()
+      });
+
+      console.log(`📡 [START GAME] Broadcast playerStatusUpdated to room ${room.room_code} with ${allPlayersForBroadcast.length} players`);
 
       // Get game proxy configuration
       const gameProxy = gameProxies[room.current_game];
