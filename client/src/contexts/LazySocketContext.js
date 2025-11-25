@@ -17,6 +17,9 @@ export const LazySocketProvider = ({ children }) => {
   const maxReconnectionAttempts = 3;
   const socketRef = useRef(null);
 
+  // Store last room info for auto-rejoin on reconnect
+  const lastRoomRef = useRef(null);
+
   // Determine server URL based on environment
   const getServerUrl = useCallback(() => {
     // Prefer explicit env vars (support both names used in docs/code)
@@ -45,17 +48,33 @@ export const LazySocketProvider = ({ children }) => {
     return 'http://localhost:3033';
   }, []);
 
+  // Set last room info for auto-rejoin on reconnect
+  const setLastRoom = useCallback((roomInfo) => {
+    if (roomInfo) {
+      console.log('📝 [LazySocketProvider] Storing room info for auto-rejoin:', roomInfo.roomCode);
+      lastRoomRef.current = roomInfo;
+    } else {
+      console.log('📝 [LazySocketProvider] Clearing stored room info');
+      lastRoomRef.current = null;
+    }
+  }, []);
+
+  // Clear last room (for explicit leave/disconnect)
+  const clearLastRoom = useCallback(() => {
+    lastRoomRef.current = null;
+  }, []);
+
   const attemptReconnection = useCallback(() => {
     if (reconnectionAttemptsRef.current >= maxReconnectionAttempts) {
       console.log('❌ [LazySocketProvider] Max reconnection attempts reached. Stopping reconnection.');
       setIsConnecting(false);
       return;
     }
-    
+
     reconnectionAttemptsRef.current++;
     const delay = Math.pow(2, reconnectionAttemptsRef.current) * 1000; // Exponential backoff
     console.log(`🔄 [LazySocketProvider] Reconnection attempt ${reconnectionAttemptsRef.current}/${maxReconnectionAttempts} in ${delay}ms`);
-    
+
     reconnectionTimeoutRef.current = setTimeout(() => {
       if (socketRef.current && !socketRef.current.connected && !isConnected) {
         console.log('🔌 [LazySocketProvider] Attempting reconnection...');
@@ -93,12 +112,26 @@ export const LazySocketProvider = ({ children }) => {
       setSocketId(newSocket.id);
       setIsConnected(true);
       setIsConnecting(false);
+
+      const wasReconnecting = reconnectionAttemptsRef.current > 0;
       reconnectionAttemptsRef.current = 0; // Reset reconnection attempts on successful connection
-      
+
       // Clear any pending reconnection timeout
       if (reconnectionTimeoutRef.current) {
         clearTimeout(reconnectionTimeoutRef.current);
         reconnectionTimeoutRef.current = null;
+      }
+
+      // Auto-rejoin room if we were in one before disconnect
+      if (wasReconnecting && lastRoomRef.current) {
+        console.log('🔄 [LazySocketProvider] Auto-rejoining room after reconnect:', lastRoomRef.current.roomCode);
+        newSocket.emit('joinRoom', {
+          roomCode: lastRoomRef.current.roomCode,
+          playerName: lastRoomRef.current.playerName,
+          customLobbyName: lastRoomRef.current.customLobbyName,
+          supabaseUserId: lastRoomRef.current.supabaseUserId,
+          isRejoin: true
+        });
       }
     });
 
@@ -137,13 +170,16 @@ export const LazySocketProvider = ({ children }) => {
   const disconnectSocket = useCallback(() => {
     if (socketRef.current) {
       console.log('🧹 [LazySocketProvider] Disconnecting socket');
-      
+
       // Clear any pending reconnection timeout
       if (reconnectionTimeoutRef.current) {
         clearTimeout(reconnectionTimeoutRef.current);
         reconnectionTimeoutRef.current = null;
       }
-      
+
+      // Clear stored room info on intentional disconnect
+      lastRoomRef.current = null;
+
       socketRef.current.disconnect();
       socketRef.current = null;
       setSocket(null);
@@ -169,7 +205,9 @@ export const LazySocketProvider = ({ children }) => {
     isConnecting,
     connectSocket,
     disconnectSocket,
-  }), [socket, socketId, isConnected, isConnecting, connectSocket, disconnectSocket]);
+    setLastRoom,
+    clearLastRoom,
+  }), [socket, socketId, isConnected, isConnecting, connectSocket, disconnectSocket, setLastRoom, clearLastRoom]);
 
   return <SocketContext.Provider value={value}>{children}</SocketContext.Provider>;
 };

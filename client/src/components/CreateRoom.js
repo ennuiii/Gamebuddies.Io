@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useSocket } from '../contexts/LazySocketContext';
 import { useAuth } from '../contexts/AuthContext';
 import './CreateRoom.css';
+
+const DEBOUNCE_MS = 1000; // Prevent double-clicks within 1 second
 
 const CreateRoom = ({ onRoomCreated, onCancel }) => {
   const [displayName, setDisplayName] = useState('');
@@ -11,11 +13,19 @@ const CreateRoom = ({ onRoomCreated, onCancel }) => {
   const [error, setError] = useState('');
   const { socket, isConnected, isConnecting, connectSocket } = useSocket();
   const { user, session } = useAuth();
+  const lastSubmitRef = useRef(0);
 
   const isAuthenticated = !!session?.user;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Debounce check - prevent rapid submissions
+    const now = Date.now();
+    if (now - lastSubmitRef.current < DEBOUNCE_MS) {
+      return;
+    }
+    lastSubmitRef.current = now;
 
     // For guests, display name is required
     // For authenticated users, display name is optional (falls back to username)

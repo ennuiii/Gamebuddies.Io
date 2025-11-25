@@ -13,7 +13,7 @@ import Avatar from './Avatar';
 import './RoomLobby.css';
 
 const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
-  const { socket, socketId, isConnected: socketIsConnected, connectSocket } = useSocket();
+  const { socket, socketId, isConnected: socketIsConnected, connectSocket, setLastRoom, clearLastRoom } = useSocket();
   const { addNotification } = useNotification(); // Get addNotification function
   const { user, isAuthenticated, isPremium } = useAuth(); // Get isPremium from context
   const { updateLobbyInfo } = useFriends(); // Get updateLobbyInfo for friend invite game name
@@ -46,6 +46,24 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
   const roomIdRef = useRef(null);
   const timerIntervalsRef = useRef(new Map()); // Track timer intervals
   const roomVersionRef = useRef(0); // Latest applied room version
+
+  // Refs for state values used in socket handlers (fixes stale closures)
+  const currentIsHostRef = useRef(currentIsHost);
+  const userRef = useRef(user);
+  const roomStatusRef = useRef(roomStatus);
+
+  // Keep refs in sync with state values
+  useEffect(() => {
+    currentIsHostRef.current = currentIsHost;
+  }, [currentIsHost]);
+
+  useEffect(() => {
+    userRef.current = user;
+  }, [user]);
+
+  useEffect(() => {
+    roomStatusRef.current = roomStatus;
+  }, [roomStatus]);
 
   // Debug logging for players
   useEffect(() => {
@@ -370,19 +388,18 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       socket.emit('joinRoom', {
         roomCode: roomCodeRef.current,
         playerName: playerNameRef.current,
-        supabaseUserId: user?.id // Pass auth ID to match existing participant
+        supabaseUserId: userRef.current?.id // Pass auth ID to match existing participant (using ref to avoid stale closure)
       });
       console.log('📤 [CLIENT] joinRoom event sent from lobby');
     };
 
-    // If the socket from context is already connected when this component mounts, call handleConnect.
-    // Otherwise, the 'connect' event on the socket itself (handled by SocketProvider or a direct listener here)
-    // will trigger the join.
-    if (socketIsConnected) {
-       handleConnect(); // Immediately try to join if socket is already connected.
+    // If the socket is already connected, call handleConnect immediately.
+    // Otherwise, register a one-time listener for connect event.
+    // Use socket.connected (actual state) rather than socketIsConnected (React state) to avoid race conditions.
+    if (socket.connected) {
+      handleConnect(); // Immediately try to join if socket is already connected.
     } else {
-      // If socket is not connected, we rely on SocketProvider's 'connect' event
-      // or add a one-time listener here if needed (though SocketProvider should cover it)
+      // Register one-time listener for when socket connects
       socket.once('connect', handleConnect);
     }
 
@@ -508,9 +525,19 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
     
     // Auto-update room status based on host location after initial join
     updateRoomStatusBasedOnHost(mappedPlayers);
-    
+
     setIsLoading(false); // Successfully joined, stop loading
     setError(null);
+
+    // Store room info for auto-rejoin on reconnect
+    if (setLastRoom) {
+      setLastRoom({
+        roomCode: data.roomCode || roomCodeRef.current,
+        playerName: playerNameRef.current,
+        customLobbyName: data.player?.customLobbyName,
+        supabaseUserId: userRef.current?.id
+      });
+    }
     };
 
     const handlePlayerJoined = (data) => {
@@ -1120,13 +1147,17 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
   }, [socket, socketIsConnected, currentIsHost, isStartingGame, addNotification]);
 
   const handleLeaveRoom = useCallback(() => {
+    // Clear stored room info so we don't auto-rejoin after intentional leave
+    if (clearLastRoom) {
+      clearLastRoom();
+    }
     if (socket && socketIsConnected) {
       socket.emit('leaveRoom', { roomCode: roomCodeRef.current });
     }
     if (onLeave) {
       onLeave();
     }
-  }, [socket, socketIsConnected, onLeave]);
+  }, [socket, socketIsConnected, onLeave, clearLastRoom]);
 
   const handleTransferHost = useCallback((targetPlayerId) => {
     if (socket && socketIsConnected && currentIsHost) {

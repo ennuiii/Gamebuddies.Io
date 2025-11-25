@@ -985,28 +985,34 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
       is_connected: participant.is_connected
     });
     
-    // Debug room context
+    // Debug room context (parallel COUNT queries)
+    const [totalCount, connectedCount, inGameCount] = await Promise.all([
+      db.adminClient
+        .from('room_members')
+        .select('user_id', { count: 'exact', head: true })
+        .eq('room_id', room.id)
+        .then(({ count }) => count),
+      db.adminClient
+        .from('room_members')
+        .select('user_id', { count: 'exact', head: true })
+        .eq('room_id', room.id)
+        .eq('is_connected', true)
+        .then(({ count }) => count),
+      db.adminClient
+        .from('room_members')
+        .select('user_id', { count: 'exact', head: true })
+        .eq('room_id', room.id)
+        .eq('in_game', true)
+        .then(({ count }) => count)
+    ]);
+
     console.log(`🏠 [API DEBUG] Room context:`, {
       room_id: room.id,
       room_code: room.room_code,
       room_status: room.status,
-      total_participants: await db.adminClient
-        .from('room_members')
-        .select('user_id', { count: 'exact' })
-        .eq('room_id', room.id)
-        .then(({ count }) => count),
-      connected_participants: await db.adminClient
-        .from('room_members')
-        .select('user_id', { count: 'exact' })
-        .eq('room_id', room.id)
-        .eq('is_connected', true)
-        .then(({ count }) => count),
-      in_game_participants: await db.adminClient
-        .from('room_members')
-        .select('user_id', { count: 'exact' })
-        .eq('room_id', room.id)
-        .eq('in_game', true)
-        .then(({ count }) => count)
+      total_participants: totalCount,
+      connected_participants: connectedCount,
+      in_game_participants: inGameCount
     });
     
     // Determine new status based on input
@@ -2121,13 +2127,18 @@ io.on('connection', async (socket) => {
 
   // Friend System: Game Invite
   socket.on('game:invite', (data) => {
+    // Validate friendId exists and is a string
+    if (!data?.friendId || typeof data.friendId !== 'string') {
+      return; // Silently ignore invalid invites
+    }
+
     console.log('📨 [SERVER] game:invite received:', data);
-    // Forward invite to specific friend
+    // Forward invite to specific friend with sanitized data
     const forwardData = {
-      roomId: data.roomId,
-      gameName: data.gameName,
-      gameThumbnail: data.gameThumbnail,
-      hostName: data.hostName,
+      roomId: sanitize.roomCode(data.roomId) || '',
+      gameName: (data.gameName || '').substring(0, 50),
+      gameThumbnail: (data.gameThumbnail || '').substring(0, 200),
+      hostName: (data.hostName || 'Host').substring(0, 30),
       senderId: socket.userId
     };
     console.log('📨 [SERVER] Forwarding game:invite_received to user:', data.friendId, 'with data:', forwardData);
@@ -2422,9 +2433,15 @@ io.on('connection', async (socket) => {
   // Handle socket room joining for listening only (used by return handler)
   socket.on('joinSocketRoom', (data) => {
     try {
-      console.log(`🔗 [SOCKET ROOM] Joining socket room for listening: ${data.roomCode}`);
-      socket.join(data.roomCode);
-      console.log(`✅ [SOCKET ROOM] Successfully joined socket room ${data.roomCode} for listening`);
+      // Sanitize and validate room code
+      const roomCode = sanitize.roomCode(data?.roomCode);
+      if (!roomCode || roomCode.length !== 6) {
+        return socket.emit('error', { message: 'Invalid room code', code: 'INVALID_ROOM_CODE' });
+      }
+
+      console.log(`🔗 [SOCKET ROOM] Joining socket room for listening: ${roomCode}`);
+      socket.join(roomCode);
+      console.log(`✅ [SOCKET ROOM] Successfully joined socket room ${roomCode} for listening`);
     } catch (error) {
       console.error('❌ [SOCKET ROOM] Error joining socket room:', error);
     }
@@ -2948,34 +2965,47 @@ io.on('connection', async (socket) => {
     try {
       const connection = connectionManager.getConnection(socket.id);
       console.log(`🎮 [DEBUG] Game selection from socket: ${socket.id}`);
-      console.log(`🎮 [DEBUG] Connection data:`, { 
-        userId: connection?.userId, 
-        roomId: connection?.roomId 
+      console.log(`🎮 [DEBUG] Connection data:`, {
+        userId: connection?.userId,
+        roomId: connection?.roomId
       });
-      
+
       if (!connection?.roomId) {
-        socket.emit('error', { message: 'Not in a room' });
-      return;
-    }
-    
+        socket.emit('error', { message: 'Not in a room', code: 'NOT_IN_ROOM' });
+        return;
+      }
+
+      // Validate gameType and roomCode using existing validator
+      const validation = await validators.selectGame({
+        roomCode: connection.roomCode || 'AAAAAA', // roomCode needed for validation schema
+        gameType: data?.gameType
+      });
+
+      if (!validation.isValid) {
+        return socket.emit('error', { message: validation.message, code: 'INVALID_INPUT' });
+      }
+
+      // Sanitize game settings to prevent prototype pollution
+      const cleanSettings = sanitize.gameSettings(data?.settings || {});
+
       // Update room with selected game
       const updatedRoom = await db.updateRoom(connection.roomId, {
-        current_game: data.gameType,
-        game_settings: data.settings || {}
+        current_game: validation.value.gameType,
+        game_settings: cleanSettings
       });
 
       // Notify all players in room
       io.to(updatedRoom.room_code).emit('gameSelected', {
-        gameType: data.gameType,
-        settings: data.settings,
+        gameType: validation.value.gameType,
+        settings: cleanSettings,
         roomVersion: Date.now()
       });
 
-      console.log(`🎮 Game selected: ${data.gameType} for room ${updatedRoom.room_code}`);
+      console.log(`🎮 Game selected: ${validation.value.gameType} for room ${updatedRoom.room_code}`);
 
     } catch (error) {
       console.error('❌ Error selecting game:', error);
-      socket.emit('error', { message: 'Failed to select game' });
+      socket.emit('error', { message: 'Failed to select game', code: 'SELECT_GAME_ERROR' });
     }
   });
 
@@ -3070,19 +3100,21 @@ io.on('connection', async (socket) => {
         game_started_at: new Date().toISOString()
       });
 
-      // Mark all connected participants as in_game and in 'game' location
+      // Mark all connected participants as in_game and in 'game' location (BATCHED)
       const connectedParticipants = room.participants?.filter(p => p.is_connected === true) || [];
-      for (const participant of connectedParticipants) {
+      const connectedUserIds = connectedParticipants.map(p => p.user_id);
+
+      if (connectedUserIds.length > 0) {
         await db.adminClient
           .from('room_members')
-          .update({ 
+          .update({
             in_game: true,
             current_location: 'game'
           })
-          .eq('user_id', participant.user_id)
-          .eq('room_id', room.id);
+          .eq('room_id', room.id)
+          .in('user_id', connectedUserIds);
       }
-      
+
       console.log(`🎮 [START GAME DEBUG] Marked ${connectedParticipants.length} participants as in_game and in 'game' location`);
 
       // Get game proxy configuration
@@ -3103,40 +3135,47 @@ io.on('connection', async (socket) => {
       // ALWAYS generate secure session tokens for ALL players (not just streamer mode)
       const crypto = require('crypto');
       const sessionTokens = {};
+      const sessionInserts = [];
 
+      // Generate all session tokens and prepare batch insert data
       for (const participant of participants) {
         const sessionToken = crypto.randomBytes(32).toString('hex');
-
-        // Insert session token into database
-        const { error: sessionInsertError } = await db.adminClient
-          .from('game_sessions')
-          .insert({
-            session_token: sessionToken,
-            room_id: room.id,
-            room_code: room.room_code,
-            player_id: participant.user_id,
-            game_type: room.current_game,
-            streamer_mode: isStreamerMode,
-            expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hour expiration
-            metadata: {
-              player_name: participant.custom_lobby_name || participant.user?.display_name || participant.user?.username,
-              is_host: participant.role === 'host',
-              total_players: participants.length,
-              premium_tier: participant.user?.premium_tier || 'free',
-              avatar_url: participant.user?.avatar_url,
-              avatar_style: participant.user?.avatar_style,
-              avatar_seed: participant.user?.avatar_seed,
-              avatar_options: participant.user?.avatar_options
-            }
-          });
-
-        if (sessionInsertError) {
-          console.error(`❌ [SECURE SESSION] Failed to insert session for ${participant.user?.username}:`, sessionInsertError);
-        }
-
         sessionTokens[participant.user_id] = sessionToken;
 
+        sessionInserts.push({
+          session_token: sessionToken,
+          room_id: room.id,
+          room_code: room.room_code,
+          player_id: participant.user_id,
+          game_type: room.current_game,
+          streamer_mode: isStreamerMode,
+          expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(), // 24 hour expiration
+          metadata: {
+            player_name: participant.custom_lobby_name || participant.user?.display_name || participant.user?.username,
+            is_host: participant.role === 'host',
+            total_players: participants.length,
+            premium_tier: participant.user?.premium_tier || 'free',
+            avatar_url: participant.user?.avatar_url,
+            avatar_style: participant.user?.avatar_style,
+            avatar_seed: participant.user?.avatar_seed,
+            avatar_options: participant.user?.avatar_options
+          }
+        });
+
         console.log(`🔐 [SECURE SESSION] Generated session token for ${participant.user?.username}:`, sessionToken.substring(0, 8) + '...');
+      }
+
+      // Batch insert all session tokens in single query
+      if (sessionInserts.length > 0) {
+        const { error: sessionInsertError } = await db.adminClient
+          .from('game_sessions')
+          .insert(sessionInserts);
+
+        if (sessionInsertError) {
+          console.error(`❌ [SECURE SESSION] Failed to batch insert sessions:`, sessionInsertError);
+        } else {
+          console.log(`✅ [SECURE SESSION] Batch inserted ${sessionInserts.length} session tokens`);
+        }
       }
 
       participants.forEach(p => {
@@ -3749,18 +3788,32 @@ io.on('connection', async (socket) => {
   // Handle profile updates (avatar, display name changes from lobby)
   socket.on('profile_updated', async (data) => {
     try {
-      const { roomCode, userId, displayName, avatarUrl, avatarStyle, avatarSeed, avatarOptions } = data;
-      console.log(`👤 [PROFILE] Profile update received for user ${userId} in room ${roomCode}`);
+      // Sanitize room code
+      const roomCode = sanitize.roomCode(data?.roomCode);
+      if (!roomCode || roomCode.length !== 6) {
+        return; // Silently ignore invalid room codes
+      }
+
+      // Validate userId exists
+      if (!data?.userId || typeof data.userId !== 'string') {
+        return;
+      }
+
+      // Sanitize all string fields
+      const sanitizedData = {
+        userId: data.userId,
+        displayName: (data.displayName || '').substring(0, 30),
+        avatarUrl: (data.avatarUrl || '').substring(0, 500),
+        avatarStyle: (data.avatarStyle || '').substring(0, 50),
+        avatarSeed: (data.avatarSeed || '').substring(0, 100),
+        // Sanitize avatarOptions to prevent prototype pollution
+        avatarOptions: sanitize.gameSettings(data.avatarOptions || {})
+      };
+
+      console.log(`👤 [PROFILE] Profile update received for user ${sanitizedData.userId} in room ${roomCode}`);
 
       // Broadcast to all users in the room
-      io.to(roomCode).emit('profile_updated', {
-        userId,
-        displayName,
-        avatarUrl,
-        avatarStyle,
-        avatarSeed,
-        avatarOptions
-      });
+      io.to(roomCode).emit('profile_updated', sanitizedData);
 
       console.log(`👤 [PROFILE] Broadcasted profile update to room ${roomCode}`);
     } catch (error) {

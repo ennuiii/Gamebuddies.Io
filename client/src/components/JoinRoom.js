@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import io from 'socket.io-client';
 import { useAuth } from '../contexts/AuthContext';
 import './JoinRoom.css';
+
+const DEBOUNCE_MS = 1000; // Prevent double-clicks within 1 second
 
 const JoinRoom = ({ initialRoomCode = '', initialPlayerName = '', autoJoin = false, onRoomJoined, onCancel }) => {
   const [roomCode, setRoomCode] = useState(initialRoomCode);
@@ -10,11 +12,19 @@ const JoinRoom = ({ initialRoomCode = '', initialPlayerName = '', autoJoin = fal
   const [error, setError] = useState('');
   const isInviteLink = !!initialRoomCode; // Track if user came via invite link
   const { user, session } = useAuth();
+  const lastSubmitRef = useRef(0);
 
   const isAuthenticated = !!session?.user;
 
   const handleSubmit = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
+
+    // Debounce check - prevent rapid submissions
+    const now = Date.now();
+    if (now - lastSubmitRef.current < DEBOUNCE_MS) {
+      return;
+    }
+    lastSubmitRef.current = now;
     
     if (!roomCode.trim()) {
       setError('Please enter a room code');
