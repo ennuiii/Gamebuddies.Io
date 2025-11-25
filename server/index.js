@@ -4544,7 +4544,7 @@ async function startServer() {
       console.log(`🚀 GameBuddies Server v2.1.0 running on port ${PORT}`);
       console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
       console.log(`🗄️ Storage: SUPABASE (Persistent)`);
-      console.log(`🎮 Game proxies configured: ${Object.keys(gameProxies).join(',')}`);
+      console.log(`🎮 Game proxies configured: ${Object.keys(proxyManager.gameProxies).join(',')}`);
       console.log(`✅ Supabase configured - using persistent database storage`);
 
       // Run initial cleanup on startup
