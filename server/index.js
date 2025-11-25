@@ -254,6 +254,87 @@ function cancelAbandonmentGracePeriod(roomId, roomCode) {
   }
 }
 
+// [HOST] Grace period before transferring host (prevents false transfer during return-from-game)
+const hostTransferTimers = new Map();
+const HOST_TRANSFER_GRACE_PERIOD_MS = 30000; // 30 seconds
+
+function startHostTransferGracePeriod(roomId, roomCode, originalHostUserId) {
+  // Clear any existing timer for this room
+  if (hostTransferTimers.has(roomId)) {
+    clearTimeout(hostTransferTimers.get(roomId).timer);
+  }
+
+  console.log(`⏳ [HOST] Starting ${HOST_TRANSFER_GRACE_PERIOD_MS}ms grace period for host ${originalHostUserId} in room ${roomCode}`);
+
+  const timer = setTimeout(async () => {
+    hostTransferTimers.delete(roomId);
+
+    try {
+      // Re-check if original host reconnected
+      const { data: room, error } = await db.adminClient
+        .from('rooms')
+        .select('*, room_members!inner(*)')
+        .eq('id', roomId)
+        .single();
+
+      if (error) {
+        console.error(`❌ [HOST] Error checking room ${roomCode}:`, error);
+        return;
+      }
+
+      const originalHost = room?.room_members?.find(m => m.user_id === originalHostUserId);
+      const isOriginalHostConnected = originalHost?.is_connected === true;
+
+      if (isOriginalHostConnected) {
+        console.log(`✅ [HOST] Grace period: Original host ${originalHostUserId} reconnected, keeping host status`);
+        return;
+      }
+
+      // Original host didn't reconnect - transfer to another player
+      const otherConnectedPlayers = room?.room_members?.filter(m =>
+        m.user_id !== originalHostUserId && m.is_connected === true
+      ) || [];
+
+      if (otherConnectedPlayers.length > 0) {
+        console.log(`👑 [HOST] Grace period expired, original host not connected - transferring host`);
+        const newHost = await db.autoTransferHost(roomId, originalHostUserId);
+        if (newHost) {
+          // Broadcast host transfer to all connected clients
+          io.to(room.room_code).emit('hostTransferred', {
+            oldHostId: originalHostUserId,
+            newHostId: newHost.user_id,
+            newHostName: newHost.user?.display_name || newHost.user?.username,
+            reason: 'grace_period_expired',
+            roomVersion: Date.now()
+          });
+          console.log(`👑 [HOST] Host transfer completed after grace period:`, {
+            oldHostId: originalHostUserId,
+            newHostId: newHost.user_id,
+            newHostName: newHost.user?.display_name || newHost.user?.username
+          });
+        }
+      } else {
+        console.log(`⚠️ [HOST] Grace period expired, no other connected players - keeping host role for when they return`);
+      }
+    } catch (err) {
+      console.error(`❌ [HOST] Exception during grace period check for room ${roomCode}:`, err);
+    }
+  }, HOST_TRANSFER_GRACE_PERIOD_MS);
+
+  hostTransferTimers.set(roomId, { timer, originalHostUserId });
+}
+
+function cancelHostTransferGracePeriod(roomId, roomCode, reconnectingUserId) {
+  const pending = hostTransferTimers.get(roomId);
+  if (pending && pending.originalHostUserId === reconnectingUserId) {
+    console.log(`✅ [HOST] Cancelled grace period for room ${roomCode} - original host ${reconnectingUserId} reconnected`);
+    clearTimeout(pending.timer);
+    hostTransferTimers.delete(roomId);
+    return true; // Indicates original host reconnected
+  }
+  return false;
+}
+
 // Global WebSocket error suppression function
 const isNavigationError = (err) => {
   const suppressedCodes = ['ERR_STREAM_WRITE_AFTER_END', 'ECONNRESET', 'EPIPE', 'ENOTFOUND'];
@@ -2317,7 +2398,8 @@ io.on('connection', async (socket) => {
         game_settings: {},
         metadata: {
           created_by_name: playerName,
-          created_from: 'web_client'
+          created_from: 'web_client',
+          original_host_id: user.id // [HOST] Store original host for restoration after return-from-game
         }
       });
       console.log(`✅ [DEBUG] Room created:`, { 
@@ -2608,6 +2690,14 @@ io.on('connection', async (socket) => {
       // [ABANDON] Cancel any pending abandonment grace period when a player joins
       cancelAbandonmentGracePeriod(room.id, room.room_code);
 
+      // [HOST] Cancel host transfer grace period if original host reconnects
+      if (supabaseUserId) {
+        const hostGracePeriodCancelled = cancelHostTransferGracePeriod(room.id, room.room_code, supabaseUserId);
+        if (hostGracePeriodCancelled) {
+          console.log(`👑 [HOST] Original host reconnected during grace period - preserving host status`);
+        }
+      }
+
       // Enhanced participant debugging
       console.log(`👥 [REJOINING DEBUG] Current participants:`, 
         room.participants?.map(p => ({
@@ -2762,7 +2852,47 @@ io.on('connection', async (socket) => {
           external_id: existingParticipant.user?.external_id
         };
         userRole = existingParticipant.role;
-        
+
+        // [HOST] If original host reconnects after transfer, restore host status
+        if (room.metadata?.original_host_id === existingParticipant.user_id && existingParticipant.role !== 'host') {
+          const currentHostParticipant = room.participants?.find(p => p.role === 'host');
+          if (currentHostParticipant && currentHostParticipant.user_id !== existingParticipant.user_id) {
+            console.log(`👑 [HOST] Restoring host status to original host ${existingParticipant.user_id}`);
+            // Demote current host
+            await db.adminClient
+              .from('room_members')
+              .update({ role: 'player' })
+              .eq('room_id', room.id)
+              .eq('user_id', currentHostParticipant.user_id);
+            // Promote original host
+            await db.adminClient
+              .from('room_members')
+              .update({ role: 'host' })
+              .eq('room_id', room.id)
+              .eq('user_id', existingParticipant.user_id);
+            // Update room's host_id
+            await db.adminClient
+              .from('rooms')
+              .update({ host_id: existingParticipant.user_id })
+              .eq('id', room.id);
+
+            userRole = 'host';
+
+            // Broadcast host restoration
+            io.to(room.room_code).emit('hostTransferred', {
+              oldHostId: currentHostParticipant.user_id,
+              newHostId: existingParticipant.user_id,
+              newHostName: existingParticipant.user?.display_name || existingParticipant.user?.username || data.playerName,
+              reason: 'original_host_returned',
+              roomVersion: Date.now()
+            });
+            console.log(`👑 [HOST] Host restoration completed:`, {
+              oldHostId: currentHostParticipant.user_id,
+              newHostId: existingParticipant.user_id
+            });
+          }
+        }
+
         // Clean up any existing connections for this user before creating new one
         const userConnections = connectionManager.getUserConnections(existingParticipant.user_id)
           .filter(conn => conn.socketId !== socket.id);
@@ -3971,17 +4101,18 @@ io.on('connection', async (socket) => {
           autoUpdateRoomStatusByHost(room.id, connection.userId, connectionStatus);
         }
 
-        // Handle INSTANT host transfer if host disconnected (no grace period)
+        // [HOST] Handle host disconnect with grace period (allows host to reconnect before transfer)
         let newHost = null;
         if (isDisconnectingHost && room) {
-          // Only auto-transfer host if there are other connected players
-          const otherConnectedPlayers = room.participants?.filter(p => 
+          // Only start grace period if there are other connected players
+          const otherConnectedPlayers = room.participants?.filter(p =>
             p.user_id !== connection.userId && p.is_connected === true
           ) || [];
-          
+
           if (otherConnectedPlayers.length > 0) {
-            console.log(`👑 [DISCONNECT] Host ${connection.userId} disconnected - transferring host instantly`);
-            console.log(`👑 [DISCONNECT] Other connected players available:`, 
+            // [HOST] Start grace period instead of immediate transfer
+            console.log(`⏳ [HOST] Host ${connection.userId} disconnected - starting grace period before transfer`);
+            console.log(`⏳ [HOST] Other connected players available:`,
               otherConnectedPlayers.map(p => ({
                 user_id: p.user_id,
                 username: p.user?.username,
@@ -3989,26 +4120,10 @@ io.on('connection', async (socket) => {
                 joined_at: p.joined_at
               }))
             );
-            
-            // Transfer host immediately (no grace period)
-            newHost = await db.autoTransferHost(connection.roomId, connection.userId);
-            
-            if (newHost) {
-              console.log(`👑 [DISCONNECT] Host transfer completed:`, {
-                oldHostId: connection.userId,
-                newHostId: newHost.user_id,
-                newHostName: newHost.user?.display_name || newHost.user?.username
-              });
-              
-              console.log(`👑 [DISCONNECT] Host transfer completed successfully`, {
-                newHostId: newHost.user_id,
-                newHostName: newHost.user?.display_name || newHost.user?.username
-              });
-            } else {
-              console.log(`❌ [DISCONNECT] Host transfer failed - no suitable replacement found`);
-            }
+            startHostTransferGracePeriod(room.id, room.room_code, connection.userId);
+            // Don't set newHost - no immediate transfer
           } else {
-            console.log(`⚠️ Host disconnected but no other connected players - keeping host role`);
+            console.log(`⚠️ [HOST] Host disconnected but no other connected players - keeping host role`);
           }
         }
 
