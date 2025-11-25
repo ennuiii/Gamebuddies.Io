@@ -97,7 +97,7 @@ const schemas = {
   createRoom: Joi.object({
     playerName: playerNameSchema.required(),
     gameType: gameTypeSchema.optional(),
-    maxPlayers: Joi.number().min(2).max(20).optional(),
+    maxPlayers: Joi.number().min(2).max(30).optional(),
     isPublic: Joi.boolean().optional()
   }),
 

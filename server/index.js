@@ -1937,10 +1937,24 @@ io.on('connection', async (socket) => {
 
   // Chat Handler (Lobby)
   socket.on('chat:message', (data) => {
+    // Validate message exists and is a string
+    if (!data.message || typeof data.message !== 'string') {
+      return; // Silently ignore invalid messages
+    }
+
+    // Enforce message length limit (500 chars) and trim whitespace
+    const message = data.message.trim().substring(0, 500);
+    if (message.length === 0) {
+      return; // Ignore empty messages
+    }
+
+    // Sanitize player name (30 char limit)
+    const playerName = (data.playerName || 'Player').substring(0, 30);
+
     const rooms = Array.from(socket.rooms).filter(r => r !== socket.id);
     if (rooms.length > 0) {
       const roomCode = rooms[0];
-      
+
       // Update DB activity (throttled to once per minute) to prevent cleanup
       const lastUpdate = roomActivityCache.get(roomCode) || 0;
       if (Date.now() - lastUpdate > 60000) {
@@ -1957,8 +1971,8 @@ io.on('connection', async (socket) => {
 
       io.to(roomCode).emit('chat:message', {
         id: crypto.randomUUID(),
-        playerName: data.playerName || 'Player',
-        message: data.message,
+        playerName: playerName,
+        message: message,
         timestamp: Date.now(),
         type: 'user'
       });
@@ -1967,14 +1981,19 @@ io.on('connection', async (socket) => {
 
   // Minigame Handler (Lobby - Reflex)
   socket.on('minigame:click', (data) => {
+    // Validate and bound score data to prevent fake scores
+    const score = typeof data.score === 'number' ? Math.max(0, Math.min(data.score, 10000)) : 0;
+    const time = typeof data.time === 'number' ? Math.max(0, Math.min(data.time, 60000)) : 0;
+    const playerName = (data.playerName || 'Player').substring(0, 30);
+
     const rooms = Array.from(socket.rooms).filter(r => r !== socket.id);
     if (rooms.length > 0) {
       const roomCode = rooms[0];
       io.to(roomCode).emit('minigame:leaderboard-update', {
         playerId: data.playerId || socket.id,
-        playerName: data.playerName || 'Player',
-        score: data.score,
-        time: data.time
+        playerName: playerName,
+        score: score,
+        time: time
       });
     }
   });
@@ -2223,7 +2242,7 @@ io.on('connection', async (socket) => {
         current_game: null, // Will be updated when game is selected
         status: 'lobby',
         is_public: isPublic,
-        max_players: 10,
+        max_players: 30,
         streamer_mode: streamerMode,
         game_settings: {},
         metadata: {
