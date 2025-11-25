@@ -2212,16 +2212,23 @@ io.on('connection', async (socket) => {
 
   // Tug of War Handler (Lobby - Multiplayer)
   socket.on('tugOfWar:pull', (data) => {
-    const rooms = Array.from(socket.rooms).filter(r => r !== socket.id);
-    if (rooms.length === 0) {
-      // Debug: Socket not in any room - likely a race condition or reconnection issue
-      console.warn('⚠️ [TOW] Socket not in any room, pull ignored. socketId:', socket.id);
-      return;
+    // Get connection first - it has the correct roomCode
+    const playerConnection = connectionManager.getConnection(socket.id);
+
+    // Use connectionManager.roomCode as primary source (correctly set during join)
+    // This avoids the bug where user:xxx presence rooms were being picked instead
+    let roomCode = playerConnection?.roomCode;
+
+    if (!roomCode) {
+      // Fallback: get from socket.rooms, filtering out socket.id AND user: presence rooms
+      const rooms = Array.from(socket.rooms).filter(r => r !== socket.id && !r.startsWith('user:'));
+      if (rooms.length === 0) {
+        console.warn('⚠️ [TOW] Socket not in any lobby room, pull ignored. socketId:', socket.id);
+        return;
+      }
+      roomCode = rooms[0];
     }
 
-    const roomCode = rooms[0];
-
-    const playerConnection = connectionManager.getConnection(socket.id);
     let playerId = playerConnection?.userId;
 
     // Fallback to socket.id if userId not available (handles timing issues and guests)
