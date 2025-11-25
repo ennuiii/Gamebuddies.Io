@@ -3180,7 +3180,7 @@ io.on('connection', async (socket) => {
       console.log(`📡 [START GAME] Broadcast playerStatusUpdated to room ${room.room_code} with ${allPlayersForBroadcast.length} players`);
 
       // Get game proxy configuration
-      const gameProxy = gameProxies[room.current_game];
+      const gameProxy = proxyManager.gameProxies[room.current_game];
       if (!gameProxy) {
         socket.emit('error', { message: 'Game not supported' });
         return;
