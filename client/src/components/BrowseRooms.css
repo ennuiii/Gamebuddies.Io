@@ -231,25 +231,9 @@
   font-size: 1.5rem;
   font-weight: 700;
   letter-spacing: 0.1em;
-  /* Fallback solid color for browsers that don't support gradient text */
   color: #00d9ff;
-  /* Gradient text for supporting browsers */
-  background: linear-gradient(135deg, #00d9ff, #00ff88);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
   margin: 0;
-  /* Add glow effect for better visibility */
-  filter: drop-shadow(0 0 8px rgba(0, 217, 255, 0.5));
-}
-
-/* Fallback for browsers without background-clip support */
-@supports not (background-clip: text) {
-  .room-code {
-    color: #00d9ff;
-    -webkit-text-fill-color: #00d9ff;
-    text-shadow: 0 0 10px rgba(0, 217, 255, 0.7);
-  }
+  text-shadow: 0 0 10px rgba(0, 217, 255, 0.7), 0 0 20px rgba(0, 217, 255, 0.4);
 }
 
 .status-badge {
