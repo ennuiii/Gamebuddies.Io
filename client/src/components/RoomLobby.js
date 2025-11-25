@@ -365,8 +365,29 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       console.log('🔍 [CLIENT DEBUG] Socket ID:', socket.id);
       console.log('🔍 [CLIENT DEBUG] Room code:', roomCodeRef.current);
       console.log('🔍 [CLIENT DEBUG] Player name:', playerNameRef.current);
+      console.log('🔍 [CLIENT DEBUG] isHost:', isHost);
 
-      // [RETURN] Check if this is a return-from-game scenario
+      // [HOST] If user is the initial host (from CreateRoom), skip return detection
+      // CreateRoom already established the connection and created the room
+      // We just need to request the room state to populate the UI
+      if (isHost) {
+        console.log('[HOST] ✅ Host detected (from CreateRoom), skipping return detection');
+        console.log('[HOST] 📤 Requesting room state for host...');
+
+        // Clear any stale return flags for this room
+        const alreadyJoinedKey = `gb_joined_${roomCodeRef.current}`;
+        sessionStorage.removeItem(alreadyJoinedKey);
+
+        // Request room state - the socket is already properly registered from CreateRoom
+        socket.emit('requestRoomState', {
+          roomCode: roomCodeRef.current,
+          playerName: playerNameRef.current,
+          supabaseUserId: user?.id
+        });
+        return;
+      }
+
+      // [RETURN] Check if this is a return-from-game scenario (for non-hosts only)
       const alreadyJoinedKey = `gb_joined_${roomCodeRef.current}`;
       const alreadyJoined = sessionStorage.getItem(alreadyJoinedKey);
       const storedRoomCode = sessionStorage.getItem('gamebuddies_roomCode');
