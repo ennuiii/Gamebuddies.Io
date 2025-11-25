@@ -2182,12 +2182,12 @@ io.on('connection', async (socket) => {
     const roomCode = rooms[0];
 
     const playerConnection = connectionManager.getConnection(socket.id);
-    const playerId = playerConnection?.userId;
+    let playerId = playerConnection?.userId;
 
+    // Fallback to socket.id if userId not available (handles timing issues and guests)
     if (!playerId) {
-      // Debug: Player not tracked in connectionManager
-      console.warn('⚠️ [TOW] Player not authenticated, pull ignored. socketId:', socket.id);
-      return; // Must be an authenticated player in room
+      console.warn('⚠️ [TOW] Using socket.id as fallback playerId:', socket.id);
+      playerId = socket.id;
     }
 
     let state = tugOfWarState.get(roomCode);
@@ -2605,7 +2605,7 @@ io.on('connection', async (socket) => {
     }
   });
 
-  // Handle socket room joining for listening only (used by return handler)
+  // Handle socket room joining for listening only (used by return handler and RoomLobby mount)
   socket.on('joinSocketRoom', (data) => {
     try {
       // Sanitize and validate room code
@@ -2614,9 +2614,21 @@ io.on('connection', async (socket) => {
         return socket.emit('error', { message: 'Invalid room code', code: 'INVALID_ROOM_CODE' });
       }
 
-      console.log(`🔗 [SOCKET ROOM] Joining socket room for listening: ${roomCode}`);
+      console.log(`🔗 [SOCKET ROOM] Joining socket room: ${roomCode}`);
       socket.join(roomCode);
-      console.log(`✅ [SOCKET ROOM] Successfully joined socket room ${roomCode} for listening`);
+
+      // Update connectionManager with roomCode to ensure chat/minigame handlers work
+      // This is important when socket uses joinSocketRoom before full joinRoom completes
+      const existingConnection = connectionManager.getConnection(socket.id);
+      if (existingConnection) {
+        connectionManager.updateConnection(socket.id, {
+          ...existingConnection,
+          roomCode: roomCode
+        });
+        console.log(`✅ [SOCKET ROOM] Joined room ${roomCode} and updated connectionManager`);
+      } else {
+        console.log(`✅ [SOCKET ROOM] Joined room ${roomCode} (no existing connection to update)`);
+      }
     } catch (error) {
       console.error('❌ [SOCKET ROOM] Error joining socket room:', error);
     }
