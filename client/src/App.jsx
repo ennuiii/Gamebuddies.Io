@@ -21,7 +21,7 @@ import AdminAffiliates from './pages/AdminAffiliates'; // Import Admin Affiliate
 import AdminDashboard from './pages/AdminDashboard'; // Import Admin Dashboard
 import AdminRoute from './components/AdminRoute'; // Import Admin Route Guard
 // GameBuddiesReturnHandler removed - using simpler URL-based return flow
-import DebugPanel from './components/DebugPanel';
+import DebugPanel from './components/DebugPanel.jsx';
 import FriendList from './components/FriendList';
 import GameInviteToast from './components/GameInviteToast';
 import './App.css';
@@ -72,7 +72,7 @@ function AppContent() {
 
   return (
     <div className="App">
-      <Header 
+      <Header
         onNavigateHome={handleNavigateHome}
         onNavigateGames={handleNavigateGames}
         isInLobby={isInLobby}
@@ -105,21 +105,21 @@ function AppContent() {
         <Route path="/password-reset" element={<PasswordReset />} />
         <Route path="/premium" element={<Premium />} />
         <Route path="/account" element={<Account />} />
-        <Route 
-          path="/admin/affiliates" 
+        <Route
+          path="/admin/affiliates"
           element={
             <AdminRoute>
               <AdminAffiliates />
             </AdminRoute>
-          } 
+          }
         />
-        <Route 
-          path="/admin/dashboard" 
+        <Route
+          path="/admin/dashboard"
           element={
             <AdminRoute>
               <AdminDashboard />
             </AdminRoute>
-          } 
+          }
         />
         <Route path="/payment/success" element={<PaymentSuccess />} />
         <Route path="/payment/cancel" element={<PaymentCancel />} />
