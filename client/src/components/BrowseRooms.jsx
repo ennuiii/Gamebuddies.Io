@@ -8,7 +8,26 @@ const BrowseRooms = ({ onRoomSelected, onCancel }) => {
   const [error, setError] = useState('');
   const [selectedGame, setSelectedGame] = useState('all');
   const [games, setGames] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
   const { socket, connectSocket } = useSocket();
+
+  // Helper to get game info for thumbnail display
+  const getGameInfo = (gameId) => {
+    return games.find(g => g.id === gameId);
+  };
+
+  // Filter rooms by search query (room code or host name)
+  const getFilteredRooms = () => {
+    if (!searchQuery.trim()) return rooms;
+    const query = searchQuery.toLowerCase();
+    return rooms.filter(room => {
+      const hostInfo = getHostInfo(room);
+      return (
+        room.room_code.toLowerCase().includes(query) ||
+        hostInfo.name.toLowerCase().includes(query)
+      );
+    });
+  };
 
   // Fetch available games from API
   useEffect(() => {
@@ -147,6 +166,13 @@ const BrowseRooms = ({ onRoomSelected, onCancel }) => {
         </div>
 
         <div className="browse-filters">
+          <input
+            type="text"
+            placeholder="Search room code or host..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="search-input"
+          />
           <label>
             Filter by Game:
             <select
@@ -184,9 +210,16 @@ const BrowseRooms = ({ onRoomSelected, onCancel }) => {
           </div>
         )}
 
-        {!loading && !error && rooms.length > 0 && (
+        {!loading && !error && rooms.length > 0 && getFilteredRooms().length === 0 && (
+          <div className="empty-state">
+            <p>🔍 No rooms match your search</p>
+            <p className="empty-hint">Try a different room code or host name</p>
+          </div>
+        )}
+
+        {!loading && !error && getFilteredRooms().length > 0 && (
           <div className="rooms-list">
-            {rooms.map((room) => (
+            {getFilteredRooms().map((room) => (
               <div key={room.id} className={`room-card ${room.status}`}>
                 <div className="room-header">
                   <div className="room-info">
@@ -195,7 +228,25 @@ const BrowseRooms = ({ onRoomSelected, onCancel }) => {
                   </div>
                   <div className="room-game">
                     {room.current_game ? (
-                      <span className="game-name">{room.current_game}</span>
+                      <div className="game-display">
+                        {(() => {
+                          const gameInfo = getGameInfo(room.current_game);
+                          return (
+                            <>
+                              {gameInfo?.thumbnailUrl ? (
+                                <img
+                                  src={gameInfo.thumbnailUrl}
+                                  alt={gameInfo?.name || room.current_game}
+                                  className="game-thumbnail"
+                                />
+                              ) : (
+                                <span className="game-icon">{gameInfo?.icon || '🎮'}</span>
+                              )}
+                              <span className="game-name">{gameInfo?.name || room.current_game}</span>
+                            </>
+                          );
+                        })()}
+                      </div>
                     ) : (
                       <span className="no-game">No game selected</span>
                     )}

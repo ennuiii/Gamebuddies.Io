@@ -109,6 +109,31 @@
   color: white;
 }
 
+/* Search input */
+.search-input {
+  padding: 0.75rem 1rem;
+  background: rgba(255, 255, 255, 0.1);
+  border: 2px solid rgba(0, 217, 255, 0.3);
+  border-radius: 12px;
+  color: var(--text-primary);
+  font-size: 1rem;
+  flex: 1;
+  min-width: 200px;
+  transition: all 0.3s ease;
+}
+
+.search-input:hover,
+.search-input:focus {
+  border-color: var(--secondary-color);
+  background: rgba(255, 255, 255, 0.15);
+  outline: none;
+}
+
+.search-input::placeholder {
+  color: var(--text-secondary);
+  opacity: 0.7;
+}
+
 .refresh-button {
   padding: 0.75rem 1.5rem;
   background: rgba(0, 217, 255, 0.15);
@@ -206,11 +231,25 @@
   font-size: 1.5rem;
   font-weight: 700;
   letter-spacing: 0.1em;
+  /* Fallback solid color for browsers that don't support gradient text */
+  color: #00d9ff;
+  /* Gradient text for supporting browsers */
   background: linear-gradient(135deg, #00d9ff, #00ff88);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
   margin: 0;
+  /* Add glow effect for better visibility */
+  filter: drop-shadow(0 0 8px rgba(0, 217, 255, 0.5));
+}
+
+/* Fallback for browsers without background-clip support */
+@supports not (background-clip: text) {
+  .room-code {
+    color: #00d9ff;
+    -webkit-text-fill-color: #00d9ff;
+    text-shadow: 0 0 10px rgba(0, 217, 255, 0.7);
+  }
 }
 
 .status-badge {
@@ -236,6 +275,26 @@
 
 .room-game {
   text-align: right;
+}
+
+/* Game display with thumbnail */
+.game-display {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.game-thumbnail {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  object-fit: cover;
+  border: 1px solid rgba(0, 217, 255, 0.3);
+}
+
+.game-icon {
+  font-size: 1.5rem;
 }
 
 .game-name {
