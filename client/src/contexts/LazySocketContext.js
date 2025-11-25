@@ -27,7 +27,7 @@ export const LazySocketProvider = ({ children }) => {
   // Determine server URL based on environment
   const getServerUrl = useCallback(() => {
     // Prefer explicit env vars (support both names used in docs/code)
-    const envUrl = process.env.REACT_APP_SERVER_URL || process.env.REACT_APP_GAMEBUDDIES_API_URL;
+    const envUrl = import.meta.env.REACT_APP_SERVER_URL || import.meta.env.REACT_APP_GAMEBUDDIES_API_URL;
     if (envUrl) return envUrl;
 
     // In hosted environments or non-localhost, use current origin
@@ -118,7 +118,7 @@ export const LazySocketProvider = ({ children }) => {
     console.log('🔌 [LazySocketProvider] Connecting to server:', serverUrl);
     setIsConnecting(true); // Keep state for UI
 
-    const transportsPref = (process.env.REACT_APP_SOCKET_TRANSPORTS || '')
+    const transportsPref = (import.meta.env.REACT_APP_SOCKET_TRANSPORTS || '')
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean);
@@ -172,7 +172,7 @@ export const LazySocketProvider = ({ children }) => {
       isConnectingRef.current = false; // Reset ref on disconnect
       setIsConnected(false);
       setIsConnecting(false);
-      
+
       // Only attempt reconnection for certain disconnect reasons
       if (reason === 'io server disconnect') {
         console.log('🔄 [LazySocketProvider] Server initiated disconnect, attempting reconnection...');
@@ -188,13 +188,13 @@ export const LazySocketProvider = ({ children }) => {
       isConnectingRef.current = false; // Reset ref on error
       setIsConnected(false);
       setIsConnecting(false);
-      
+
       // Attempt reconnection with backoff
       attemptReconnection();
     });
 
     socketRef.current = newSocket;
-    
+
     // Connect the socket
     newSocket.connect();
 

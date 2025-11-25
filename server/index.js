@@ -25,6 +25,8 @@ const LobbyManager = require('./lib/lobbyManager');
 const StatusSyncManager = require('./lib/statusSyncManager');
 const { validators, sanitize, rateLimits, validateApiKey } = require('./lib/validation');
 const gameKeepAlive = require('./services/gameKeepAlive');
+const RoomLifecycleManager = require('./lib/roomLifecycleManager');
+const ProxyManager = require('./lib/proxyManager');
 
 const app = express();
 const server = http.createServer(app);
@@ -58,7 +60,7 @@ const isAllowedOrigin = (origin) => {
     // Permit our known host families
     if (hostname === 'gamebuddies.io' || hostname.endsWith('.gamebuddies.io')) return true;
     if (hostname.endsWith('.onrender.com')) return true;
-  } catch (_) {}
+  } catch (_) { }
   return false;
 };
 
@@ -123,7 +125,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.get(
   ['/ddf/game', '/ddf/game/*', '/ddf/lobby', '/ddf/lobby/*'],
   (req, res) => {
-  res.redirect(302, '/ddf/');
+    res.redirect(302, '/ddf/');
   }
 );
 
@@ -136,6 +138,10 @@ const io = socketIo(server, {
   transports: ['websocket', 'polling']
 });
 
+// Initialize managers
+const roomLifecycleManager = new RoomLifecycleManager(io);
+const proxyManager = new ProxyManager();
+
 // Helpers for environment parsing
 const envBool = (name, defaultVal) => {
   const v = process.env[name];
@@ -143,197 +149,13 @@ const envBool = (name, defaultVal) => {
   return /^(1|true|yes|on)$/i.test(String(v).trim());
 };
 
-// Game proxy configuration - now loaded dynamically from database
-let gameProxies = {};
-
-// Function to load game proxies from database
-async function loadGameProxiesFromDatabase() {
-  try {
-    console.log('[PROXY] 🔄 Loading game configurations from database...');
-
-    const { data: games, error } = await db.client
-      .from('games')
-      .select('*')
-      .eq('is_active', true)
-      .eq('is_external', true); // Only external games need proxies
-
-    if (error) {
-      console.error('[PROXY] ❌ Error loading games from database:', error);
-      return {};
-    }
-
-    const proxies = {};
-
-    for (const game of games) {
-      const gameId = game.id;
-      const gameIdUpper = gameId.toUpperCase();
-
-      // Use environment variable if available, otherwise use base_url from database
-      const envVarName = `${gameIdUpper}_URL`;
-      const target = process.env[envVarName] || game.base_url;
-
-      proxies[gameId] = {
-        path: `/${gameId}`,
-        target: target,
-        pathRewrite: { [`^/${gameId}`]: '' },
-        ws: envBool(`${gameIdUpper}_WS`, false)
-      };
-
-      console.log(`[PROXY] ✅ Configured ${gameId}: /${gameId} -> ${target}`);
-    }
-
-    console.log(`[PROXY] 🎮 Loaded ${Object.keys(proxies).length} game proxies from database`);
-    return proxies;
-
-  } catch (err) {
-    console.error('[PROXY] ❌ Unexpected error loading game proxies:', err);
-    return {};
-  }
-}
+// Game proxy configuration - managed by ProxyManager
 
 // DDF routes are handled directly by the proxy - no SPA rewriting needed
 // The DDF service has its own SPA catch-all handler to serve index.html
 // This allows proper React Router functionality with preserved paths
 
-// Store proxy instances for WebSocket upgrade handling
-const proxyInstances = {};
-
-// [ABANDON] Grace period before marking rooms abandoned (prevents false abandonment during return-from-game)
-const abandonmentTimers = new Map();
-const ABANDONMENT_GRACE_PERIOD_MS = 10000; // 10 seconds
-
-function startAbandonmentGracePeriod(roomId, roomCode) {
-  // Clear any existing timer for this room
-  if (abandonmentTimers.has(roomId)) {
-    clearTimeout(abandonmentTimers.get(roomId));
-  }
-
-  console.log(`⏳ [ABANDON] Starting ${ABANDONMENT_GRACE_PERIOD_MS}ms grace period for room ${roomCode}`);
-
-  const timer = setTimeout(async () => {
-    abandonmentTimers.delete(roomId);
-
-    try {
-      // Re-check connected players after grace period
-      const { data: room, error } = await db.adminClient
-        .from('rooms')
-        .select('*, room_members!inner(*)')
-        .eq('id', roomId)
-        .single();
-
-      if (error) {
-        console.error(`❌ [ABANDON] Error checking room ${roomCode}:`, error);
-        return;
-      }
-
-      const connectedCount = room?.room_members?.filter(m => m.is_connected).length || 0;
-
-      if (connectedCount === 0 && room?.status !== 'abandoned') {
-        console.log(`🗑️ [ABANDON] Grace period expired, no reconnections - marking room ${roomCode} as abandoned`);
-        await db.adminClient
-          .from('rooms')
-          .update({ status: 'abandoned', updated_at: new Date().toISOString() })
-          .eq('id', roomId);
-        console.log(`✅ [ABANDON] Room ${roomCode} marked as abandoned`);
-      } else {
-        console.log(`✅ [ABANDON] Grace period: Room ${roomCode} has ${connectedCount} connected players, not abandoning`);
-      }
-    } catch (err) {
-      console.error(`❌ [ABANDON] Exception during grace period check for room ${roomCode}:`, err);
-    }
-  }, ABANDONMENT_GRACE_PERIOD_MS);
-
-  abandonmentTimers.set(roomId, timer);
-}
-
-function cancelAbandonmentGracePeriod(roomId, roomCode) {
-  if (abandonmentTimers.has(roomId)) {
-    console.log(`✅ [ABANDON] Cancelled grace period for room ${roomCode} - player reconnected`);
-    clearTimeout(abandonmentTimers.get(roomId));
-    abandonmentTimers.delete(roomId);
-  }
-}
-
-// [HOST] Grace period before transferring host (prevents false transfer during return-from-game)
-const hostTransferTimers = new Map();
-const HOST_TRANSFER_GRACE_PERIOD_MS = 30000; // 30 seconds
-
-function startHostTransferGracePeriod(roomId, roomCode, originalHostUserId) {
-  // Clear any existing timer for this room
-  if (hostTransferTimers.has(roomId)) {
-    clearTimeout(hostTransferTimers.get(roomId).timer);
-  }
-
-  console.log(`⏳ [HOST] Starting ${HOST_TRANSFER_GRACE_PERIOD_MS}ms grace period for host ${originalHostUserId} in room ${roomCode}`);
-
-  const timer = setTimeout(async () => {
-    hostTransferTimers.delete(roomId);
-
-    try {
-      // Re-check if original host reconnected
-      const { data: room, error } = await db.adminClient
-        .from('rooms')
-        .select('*, room_members!inner(*)')
-        .eq('id', roomId)
-        .single();
-
-      if (error) {
-        console.error(`❌ [HOST] Error checking room ${roomCode}:`, error);
-        return;
-      }
-
-      const originalHost = room?.room_members?.find(m => m.user_id === originalHostUserId);
-      const isOriginalHostConnected = originalHost?.is_connected === true;
-
-      if (isOriginalHostConnected) {
-        console.log(`✅ [HOST] Grace period: Original host ${originalHostUserId} reconnected, keeping host status`);
-        return;
-      }
-
-      // Original host didn't reconnect - transfer to another player
-      const otherConnectedPlayers = room?.room_members?.filter(m =>
-        m.user_id !== originalHostUserId && m.is_connected === true
-      ) || [];
-
-      if (otherConnectedPlayers.length > 0) {
-        console.log(`👑 [HOST] Grace period expired, original host not connected - transferring host`);
-        const newHost = await db.autoTransferHost(roomId, originalHostUserId);
-        if (newHost) {
-          // Broadcast host transfer to all connected clients
-          io.to(room.room_code).emit('hostTransferred', {
-            oldHostId: originalHostUserId,
-            newHostId: newHost.user_id,
-            newHostName: newHost.user?.display_name || 'Player',
-            reason: 'grace_period_expired',
-            roomVersion: Date.now()
-          });
-          console.log(`👑 [HOST] Host transfer completed after grace period:`, {
-            oldHostId: originalHostUserId,
-            newHostId: newHost.user_id,
-            newHostName: newHost.user?.display_name || 'Player'
-          });
-        }
-      } else {
-        console.log(`⚠️ [HOST] Grace period expired, no other connected players - keeping host role for when they return`);
-      }
-    } catch (err) {
-      console.error(`❌ [HOST] Exception during grace period check for room ${roomCode}:`, err);
-    }
-  }, HOST_TRANSFER_GRACE_PERIOD_MS);
-
-  hostTransferTimers.set(roomId, { timer, originalHostUserId });
-}
-
-function cancelHostTransferGracePeriod(roomId, roomCode, reconnectingUserId) {
-  const pending = hostTransferTimers.get(roomId);
-  if (pending && pending.originalHostUserId === reconnectingUserId) {
-    console.log(`✅ [HOST] Cancelled grace period for room ${roomCode} - original host ${reconnectingUserId} reconnected`);
-    clearTimeout(pending.timer);
-    hostTransferTimers.delete(roomId);
-    return true; // Indicates original host reconnected
-  }
-  return false;
-}
+// Room lifecycle management handled by RoomLifecycleManager
 
 // Global WebSocket error suppression function
 const isNavigationError = (err) => {
@@ -345,131 +167,12 @@ const isNavigationError = (err) => {
     'read ECONNRESET',
     'write EPIPE'
   ];
-  
-  return suppressedCodes.includes(err.code) || 
-         suppressedMessages.some(msg => err.message?.includes(msg));
+
+  return suppressedCodes.includes(err.code) ||
+    suppressedMessages.some(msg => err.message?.includes(msg));
 };
 
-// Setup game proxies with enhanced error handling
-const createFilteredLogger = () => {
-  const base = console;
-  const suppress = (message, args) => {
-    try {
-      const text = [message, ...(args || [])]
-        .map((a) => (a && a.stack ? a.stack : String(a)))
-        .join(' ');
-      return (
-        text.includes('HPM WebSocket error') ||
-        text.includes('ERR_STREAM_WRITE_AFTER_END') ||
-        text.includes('ECONNRESET') ||
-        text.includes('socket hang up')
-      );
-    } catch (_) {
-      return false;
-    }
-  };
-
-  return {
-    log: (...args) => base.log(...args),
-    debug: (...args) => (base.debug ? base.debug(...args) : base.log(...args)),
-    info: (...args) => (base.info ? base.info(...args) : base.log(...args)),
-    warn: (...args) => (base.warn ? base.warn(...args) : base.log(...args)),
-    error: (message, ...args) => {
-      if (suppress(message, args)) return;
-      base.error(message, ...args);
-    },
-  };
-};
-// Function to setup all game proxies
-async function setupGameProxies() {
-  // Load proxies from database
-  gameProxies = await loadGameProxiesFromDatabase();
-
-  // Setup each proxy
-  Object.entries(gameProxies).forEach(([key, proxy]) => {
-    console.log(`🔗 [PROXY] Setting up ${key.toUpperCase()} proxy: ${proxy.path} -> ${proxy.target}`);
-
-    // Base proxy configuration
-    const proxyConfig = {
-      target: proxy.target,
-      changeOrigin: true,
-      pathRewrite: proxy.pathRewrite,
-      timeout: 15000,
-      proxyTimeout: 15000,
-      ws: proxy.ws !== false, // Use individual proxy ws setting, default to true
-      logLevel: process.env.PROXY_LOG_LEVEL || 'silent',
-      logProvider: () => createFilteredLogger(),
-
-      // Enhanced error handling to prevent connection loops
-      onError: (err, req, res) => {
-        // Only log real errors, not connection resets from unreachable services
-        if (!isNavigationError(err) && err.code !== 'ECONNRESET') {
-          console.error(`❌ [PROXY] ${key.toUpperCase()} error: ${err.message}`);
-        }
-
-        // Only send response if not already sent and not a WebSocket upgrade
-        if (!res.headersSent && !req.headers.upgrade) {
-          res.status(503).json({
-            error: `${key.toUpperCase()} game service is temporarily unavailable`,
-            message: 'The game server may be starting up or temporarily down. Please try again in a few moments.',
-            service: key,
-            target: proxy.target
-          });
-        }
-      }
-    };
-
-    const proxyMiddleware = createProxyMiddleware(proxyConfig);
-
-    proxyInstances[proxy.path] = proxyMiddleware;
-    app.use(proxy.path, proxyMiddleware);
-  });
-}
-
-// Handle WebSocket upgrade requests for proxied game services
-server.on('upgrade', (request, socket, head) => {
-  const pathname = request.url || '';
-
-  // Never interfere with Socket.IO's own upgrade handling
-  if (pathname.startsWith('/socket.io')) {
-    return; // Let socket.io's listener handle this entirely
-  }
-
-  // Check if this is a request for one of our proxied game services
-  for (const [key, proxy] of Object.entries(gameProxies)) {
-    if (pathname.startsWith(proxy.path)) {
-      // Skip WebSocket upgrades for proxies that have ws disabled
-      if (proxy.ws === false) {
-        console.log(`🚫 [PROXY] Skipping WebSocket upgrade for ${proxy.path} (ws disabled)`);
-        socket.destroy();
-        return;
-      }
-      
-      const proxyMiddleware = proxyInstances[proxy.path];
-      if (proxyMiddleware && proxyMiddleware.upgrade) {
-        try {
-          // Attach error logging only for proxied sockets
-          socket.on('error', (err) => {
-            if (!isNavigationError(err)) {
-              console.error('Server upgrade socket error:', err.message);
-            }
-          });
-          // Let the proxy handle the WebSocket upgrade
-          proxyMiddleware.upgrade(request, socket, head);
-          return;
-        } catch (err) {
-          if (!isNavigationError(err)) {
-            console.error(`WebSocket upgrade error for ${proxy.path}:`, err.message);
-          }
-          socket.destroy();
-          return;
-        }
-      }
-    }
-  }
-  
-  // If not a proxy path, Socket.IO will handle its own upgrades
-});
+// Proxy setup handled by ProxyManager
 
 // Serve static files from React build
 app.use(express.static(path.join(__dirname, '../client/build')));
@@ -487,7 +190,7 @@ app.get('/health', async (req, res) => {
   try {
     const stats = connectionManager.getStats();
     const roomStats = await db.getRoomStats();
-    
+
     const health = {
       status: 'healthy',
       uptime: process.uptime(),
@@ -497,7 +200,7 @@ app.get('/health', async (req, res) => {
       database: 'connected', // We'll test this
       timestamp: new Date().toISOString()
     };
-    
+
     // Test database connection
     try {
       await db.adminClient.from('users').select('id').limit(1);
@@ -506,7 +209,7 @@ app.get('/health', async (req, res) => {
       health.status = 'degraded';
       health.errors = [dbError.message];
     }
-    
+
     const statusCode = health.status === 'healthy' ? 200 : 503;
     res.status(statusCode).json(health);
   } catch (error) {
@@ -548,9 +251,9 @@ app.get('/api/game/rooms/:roomCode/validate', validateApiKey, async (req, res) =
   try {
     const { roomCode } = req.params;
     const { playerName, playerId } = req.query;
-    
+
     console.log(`🔍 [API] Validating room ${roomCode} for ${playerName} (service: ${req.apiKey.service_name})`);
-    
+
     // Get room with all related data
     const { data: room, error } = await db.adminClient
       .from('rooms')
@@ -563,47 +266,47 @@ app.get('/api/game/rooms/:roomCode/validate', validateApiKey, async (req, res) =
       `)
       .eq('room_code', roomCode)
       .single();
-    
+
     if (error || !room) {
       console.log(`❌ [API] Room ${roomCode} not found`);
-      return res.status(404).json({ 
-        valid: false, 
+      return res.status(404).json({
+        valid: false,
         error: 'Room not found',
         code: 'ROOM_NOT_FOUND'
       });
     }
-    
+
     // Check room status - V2 Schema uses 'lobby', 'in_game', 'returning'
     if (!['lobby', 'in_game', 'returning'].includes(room.status)) {
       console.log(`❌ [API] Room ${roomCode} has invalid status: ${room.status}`);
-      return res.status(400).json({ 
-        valid: false, 
+      return res.status(400).json({
+        valid: false,
         error: `Room is ${room.status}`,
         code: 'ROOM_NOT_AVAILABLE',
         status: room.status
       });
     }
-    
+
     // Check if game type matches or room is in lobby state
     if (room.current_game && room.current_game !== req.apiKey.service_name) {
       console.log(`❌ [API] Room ${roomCode} is for game ${room.current_game}, not ${req.apiKey.service_name}`);
-      return res.status(400).json({ 
-        valid: false, 
+      return res.status(400).json({
+        valid: false,
         error: 'Room is for a different game',
         code: 'WRONG_GAME_TYPE',
         gameType: room.current_game
       });
     }
-    
+
     // Find participant if playerName or playerId provided
     let participant = null;
     if (playerName || playerId) {
-      participant = room.participants?.find(p => 
-        (playerName && p.user?.username === playerName) || 
+      participant = room.participants?.find(p =>
+        (playerName && p.user?.username === playerName) ||
         (playerId && p.user_id === playerId)
       );
     }
-    
+
     // Get latest game state if exists
     const { data: gameState } = await db.adminClient
       .from('game_states')
@@ -612,9 +315,9 @@ app.get('/api/game/rooms/:roomCode/validate', validateApiKey, async (req, res) =
       .order('created_at', { ascending: false })
       .limit(1)
       .single();
-    
+
     console.log(`✅ [API] Room ${roomCode} validated successfully`);
-    
+
     res.json({
       valid: true,
       room: {
@@ -657,11 +360,11 @@ app.get('/api/game/rooms/:roomCode/validate', validateApiKey, async (req, res) =
         createdAt: gameState.created_at
       } : null
     });
-    
+
   } catch (error) {
     console.error('❌ [API] Room validation error:', error);
-    res.status(500).json({ 
-      valid: false, 
+    res.status(500).json({
+      valid: false,
       error: 'Server error',
       code: 'SERVER_ERROR'
     });
@@ -805,35 +508,35 @@ app.post('/api/game/rooms/:roomCode/join', validateApiKey, async (req, res) => {
   try {
     const { roomCode } = req.params;
     const { playerName, playerId } = req.body;
-    
+
     console.log(`🚪 [API] Player ${playerName} joining room ${roomCode} (service: ${req.apiKey.service_name})`);
-    
+
     // Get room
     const { data: room, error: roomError } = await db.adminClient
       .from('rooms')
       .select('*')
       .eq('room_code', roomCode)
       .single();
-    
+
     if (roomError || !room) {
       console.log(`❌ [API] Room ${roomCode} not found for join`);
       return res.status(404).json({ error: 'Room not found' });
     }
-    
+
     // Check if room is full - calculate current players from connected members
     const currentPlayers = room.participants?.filter(p => p.is_connected === true).length || 0;
     if (currentPlayers >= room.max_players) {
       console.log(`❌ [API] Room ${roomCode} is full (${currentPlayers}/${room.max_players})`);
-      return res.status(400).json({ 
+      return res.status(400).json({
         error: 'Room is full',
         code: 'ROOM_FULL'
       });
     }
-    
+
     // Get or create user
     const externalId = playerId || `${req.apiKey.service_name}_${playerName}_${Date.now()}`;
     const user = await db.getOrCreateUser(externalId, playerName, playerName);
-    
+
     // Check if already in room
     const { data: existingParticipant } = await db.adminClient
       .from('room_members')
@@ -841,7 +544,7 @@ app.post('/api/game/rooms/:roomCode/join', validateApiKey, async (req, res) => {
       .eq('room_id', room.id)
       .eq('user_id', user.id)
       .single();
-    
+
     if (existingParticipant) {
       console.log(`🔄 [API] Player ${playerName} rejoining room ${roomCode}`);
       // Update connection status
@@ -852,7 +555,7 @@ app.post('/api/game/rooms/:roomCode/join', validateApiKey, async (req, res) => {
           last_ping: new Date().toISOString()
         })
         .eq('id', existingParticipant.id);
-        
+
       return res.json({
         success: true,
         playerId: user.id,
@@ -860,7 +563,7 @@ app.post('/api/game/rooms/:roomCode/join', validateApiKey, async (req, res) => {
         isRejoining: true
       });
     }
-    
+
     // Add as new participant
     const { error: joinError } = await db.adminClient
       .from('room_members')
@@ -870,35 +573,35 @@ app.post('/api/game/rooms/:roomCode/join', validateApiKey, async (req, res) => {
         role: 'player',
         is_connected: true
       });
-    
+
     if (joinError) throw joinError;
-    
+
     // Update room to current game if it doesn't have one
     if (!room.current_game) {
       await db.adminClient
         .from('rooms')
-        .update({ 
+        .update({
           current_game: req.apiKey.service_name,
           last_activity: new Date().toISOString()
         })
         .eq('id', room.id);
     }
-    
+
     // Log event
-    await db.logEvent(room.id, user.id, 'player_joined_via_api', { 
-      playerName, 
-      service: req.apiKey.service_name 
+    await db.logEvent(room.id, user.id, 'player_joined_via_api', {
+      playerName,
+      service: req.apiKey.service_name
     });
-    
+
     console.log(`✅ [API] Player ${playerName} joined room ${roomCode} successfully`);
-    
+
     res.json({
       success: true,
       playerId: user.id,
       role: 'player',
       isRejoining: false
     });
-    
+
   } catch (error) {
     console.error('❌ [API] Player join error:', error);
     res.status(500).json({ error: 'Failed to join room' });
@@ -910,20 +613,20 @@ app.post('/api/game/rooms/:roomCode/state', validateApiKey, async (req, res) => 
   try {
     const { roomCode } = req.params;
     const { playerId, gameState, stateType = 'full' } = req.body;
-    
+
     console.log(`📊 [API] Syncing game state for room ${roomCode} by player ${playerId}`);
-    
+
     // Get room
     const { data: room, error: roomError } = await db.adminClient
       .from('rooms')
       .select('id, status')
       .eq('room_code', roomCode)
       .single();
-    
+
     if (roomError || !room) {
       return res.status(404).json({ error: 'Room not found' });
     }
-    
+
     // Verify player is in room
     const { data: participant } = await db.adminClient
       .from('room_members')
@@ -931,23 +634,23 @@ app.post('/api/game/rooms/:roomCode/state', validateApiKey, async (req, res) => 
       .eq('room_id', room.id)
       .eq('user_id', playerId)
       .single();
-    
+
     if (!participant) {
       return res.status(403).json({ error: 'Player not in room' });
     }
-    
+
     // Save new state using existing method
     const savedState = await db.saveGameState(room.id, req.apiKey.service_name, gameState, playerId);
-    
+
     // Update room activity
     await db.adminClient
       .from('rooms')
-      .update({ 
+      .update({
         last_activity: new Date().toISOString(),
         status: 'in_game' // Mark room as in_game when game state is synced
       })
       .eq('id', room.id);
-    
+
     // Broadcast via Socket.io if available
     if (io) {
       io.to(roomCode).emit('gameStateUpdated', {
@@ -959,15 +662,15 @@ app.post('/api/game/rooms/:roomCode/state', validateApiKey, async (req, res) => 
         roomVersion: Date.now()
       });
     }
-    
+
     console.log(`✅ [API] Game state synced for room ${roomCode}, version ${savedState.state_version}`);
-    
+
     res.json({
       success: true,
       stateId: savedState.id,
       version: savedState.state_version
     });
-    
+
   } catch (error) {
     console.error('❌ [API] State sync error:', error);
     res.status(500).json({ error: 'Failed to sync state' });
@@ -979,36 +682,36 @@ app.get('/api/game/rooms/:roomCode/state', validateApiKey, async (req, res) => {
   try {
     const { roomCode } = req.params;
     const { version } = req.query;
-    
+
     // Get room
     const { data: room, error: roomError } = await db.adminClient
       .from('rooms')
       .select('id')
       .eq('room_code', roomCode)
       .single();
-    
+
     if (roomError || !room) {
       return res.status(404).json({ error: 'Room not found' });
     }
-    
+
     // Get state by version or latest
     let query = db.adminClient
       .from('game_states')
       .select('*')
       .eq('room_id', room.id);
-    
+
     if (version) {
       query = query.eq('state_version', version);
     } else {
       query = query.order('state_version', { ascending: false }).limit(1);
     }
-    
+
     const { data: gameState, error } = await query.single();
-    
+
     if (error || !gameState) {
       return res.status(404).json({ error: 'No game state found' });
     }
-    
+
     res.json({
       id: gameState.id,
       version: gameState.state_version,
@@ -1016,7 +719,7 @@ app.get('/api/game/rooms/:roomCode/state', validateApiKey, async (req, res) => {
       createdBy: gameState.created_by,
       createdAt: gameState.created_at
     });
-    
+
   } catch (error) {
     console.error('❌ [API] Get state error:', error);
     res.status(500).json({ error: 'Failed to get state' });
@@ -1028,7 +731,7 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
   try {
     const { roomCode, playerId } = req.params;
     const { status, gameData, location, reason } = req.body;
-    
+
     console.log(`🎮 [API] External game status update:`, {
       roomCode,
       playerId,
@@ -1041,7 +744,7 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
       userAgent: req.get('User-Agent'),
       timestamp: new Date().toISOString()
     });
-    
+
     // Debug request headers and body
     console.log(`🔍 [API DEBUG] Request details:`, {
       headers: {
@@ -1060,14 +763,14 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
       },
       params: { roomCode, playerId }
     });
-    
+
     // Get room
     const { data: room, error: roomError } = await db.adminClient
       .from('rooms')
       .select('id, room_code, status')
       .eq('room_code', roomCode)
       .single();
-    
+
     console.log(`🔍 [API DEBUG] Room query result:`, {
       roomCode,
       hasData: !!room,
@@ -1076,17 +779,17 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
       errorCode: roomError?.code,
       errorDetails: roomError?.details
     });
-    
+
     if (!room) {
       console.log(`❌ [API] Room not found: ${roomCode}`);
-      
+
       // Debug: Check if room exists but with different status
       const { data: anyRoom } = await db.adminClient
         .from('rooms')
         .select('id, room_code, status, created_at, last_activity')
         .eq('room_code', roomCode)
         .single();
-      
+
       if (anyRoom) {
         console.log(`🔍 [API DEBUG] Room ${roomCode} exists but wasn't returned:`, {
           id: anyRoom.id,
@@ -1097,10 +800,10 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
       } else {
         console.log(`🔍 [API DEBUG] Room ${roomCode} does not exist in database at all`);
       }
-      
+
       return res.status(404).json({ error: 'Room not found' });
     }
-    
+
     // Get current participant data (including role for host transfer logic)
     const { data: participant } = await db.adminClient
       .from('room_members')
@@ -1108,12 +811,12 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
       .eq('room_id', room.id)
       .eq('user_id', playerId)
       .single();
-    
+
     if (!participant) {
       console.log(`❌ [API] Player not found in room: ${playerId}`);
       return res.status(404).json({ error: 'Player not found in room' });
     }
-    
+
     console.log(`🔍 [API] Current participant status:`, {
       user_id: participant.user_id,
       role: participant.role,
@@ -1121,7 +824,7 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
       current_location: participant.current_location,
       is_connected: participant.is_connected
     });
-    
+
     // Debug room context (parallel COUNT queries)
     const [totalCount, connectedCount, inGameCount] = await Promise.all([
       db.adminClient
@@ -1151,13 +854,13 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
       connected_participants: connectedCount,
       in_game_participants: inGameCount
     });
-    
+
     // Determine new status based on input
     let updateData = {
       last_ping: new Date().toISOString(),
       game_data: gameData || null
     };
-    
+
     // Handle different status types
     switch (status) {
       case 'connected': // Player connected to the external game instance
@@ -1169,64 +872,64 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
           updateData.in_game = false;
         }
         break;
-        
-          case 'disconnected': // Player disconnected from the external game
-            // Room-level grace window: skip disconnects right after return-all
-            try {
-              const { data: roomMeta } = await db.adminClient
-                .from('rooms')
-                .select('metadata')
-                .eq('room_code', roomCode)
-                .single();
-              const graceUntil = roomMeta?.metadata?.return_in_progress_until;
-              if (graceUntil && new Date(graceUntil) > new Date()) {
-                console.log(`⚠️ [API DEBUG] Skipping disconnect for ${playerId} due to active return_in_progress window`);
-                break;
-              }
-            } catch (e) {
-              console.warn('[API DEBUG] Grace window check failed (non-fatal):', e?.message || e);
-            }
-            // Guard: if this player was already in 'lobby' just before this call, don't downgrade
-            try {
-              const { data: prevParticipant } = await db.adminClient
-                .from('room_members')
-                .select('current_location')
-                .eq('user_id', playerId)
-                .eq('room_id', room.id)
-                .single();
-              if (prevParticipant && prevParticipant.current_location === 'lobby') {
-                console.log(`⚠️ [API DEBUG] Skipping disconnect for ${playerId} due to existing lobby state`);
-                // Short-circuit this player update; treat as success to avoid failing the whole op
-                break;
-              }
-            } catch (e) {
-              // Non-fatal: if guard lookup fails, proceed with disconnect
-              console.warn('[API DEBUG] Disconnect guard (single) failed (non-fatal):', e?.message || e);
-            }
-            updateData.is_connected = false;
-            updateData.current_location = 'disconnected';
-            updateData.in_game = false;
+
+      case 'disconnected': // Player disconnected from the external game
+        // Room-level grace window: skip disconnects right after return-all
+        try {
+          const { data: roomMeta } = await db.adminClient
+            .from('rooms')
+            .select('metadata')
+            .eq('room_code', roomCode)
+            .single();
+          const graceUntil = roomMeta?.metadata?.return_in_progress_until;
+          if (graceUntil && new Date(graceUntil) > new Date()) {
+            console.log(`⚠️ [API DEBUG] Skipping disconnect for ${playerId} due to active return_in_progress window`);
             break;
-        
+          }
+        } catch (e) {
+          console.warn('[API DEBUG] Grace window check failed (non-fatal):', e?.message || e);
+        }
+        // Guard: if this player was already in 'lobby' just before this call, don't downgrade
+        try {
+          const { data: prevParticipant } = await db.adminClient
+            .from('room_members')
+            .select('current_location')
+            .eq('user_id', playerId)
+            .eq('room_id', room.id)
+            .single();
+          if (prevParticipant && prevParticipant.current_location === 'lobby') {
+            console.log(`⚠️ [API DEBUG] Skipping disconnect for ${playerId} due to existing lobby state`);
+            // Short-circuit this player update; treat as success to avoid failing the whole op
+            break;
+          }
+        } catch (e) {
+          // Non-fatal: if guard lookup fails, proceed with disconnect
+          console.warn('[API DEBUG] Disconnect guard (single) failed (non-fatal):', e?.message || e);
+        }
+        updateData.is_connected = false;
+        updateData.current_location = 'disconnected';
+        updateData.in_game = false;
+        break;
+
       case 'returned_to_lobby': // Player explicitly returned to GameBuddies lobby by external game action
         updateData.is_connected = true;
         updateData.current_location = 'lobby';
         updateData.in_game = false;
         break;
-        
+
       case 'in_game': // Player is actively in the external game
         updateData.is_connected = true;
         updateData.current_location = 'game';
         updateData.in_game = true;
         break;
-        
+
       default: // Fallback for unknown status, treat as potentially disconnected or lobby
         updateData.is_connected = false; // Default to not connected for unknown status
         updateData.current_location = location || 'disconnected';
         updateData.in_game = false;
         console.warn(`⚠️ [API] Unknown status type received: '${status}'. Defaulting to disconnected.`);
     }
-    
+
     console.log(`📝 [API] Status change analysis:`, {
       before: {
         is_connected: participant.is_connected,
@@ -1244,30 +947,30 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
         game_status_changed: participant.in_game !== updateData.in_game
       }
     });
-    
+
     console.log(`📝 [API] Updating participant with:`, updateData);
-    
+
     // Check if this player was the host before updating
     const wasHost = participant.role === 'host';
     const isDisconnecting = updateData.is_connected === false;
-    
+
     // Update participant
     const { error: updateError } = await db.adminClient
       .from('room_members')
       .update(updateData)
       .eq('room_id', room.id)
       .eq('user_id', playerId);
-    
+
     if (updateError) {
       console.error(`❌ [API] Database update error:`, updateError);
       throw updateError;
     }
-    
+
     // Handle host transfer if host disconnected via external game
     let newHost = null;
     if (wasHost && isDisconnecting) {
       console.log(`👑 [API] Host ${playerId} disconnected via external game - checking for host transfer`);
-      
+
       // Get other connected players who could become host
       const { data: otherConnectedPlayers } = await db.adminClient
         .from('room_members')
@@ -1275,11 +978,11 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
         .eq('room_id', room.id)
         .eq('is_connected', true)
         .neq('user_id', playerId);
-      
+
       if (otherConnectedPlayers && otherConnectedPlayers.length > 0) {
         // Auto-transfer host to the first connected player
         newHost = await db.autoTransferHost(room.id, playerId);
-        
+
         if (newHost) {
           console.log(`👑 [API] Host transferred from ${playerId} to ${newHost.user_id} (${newHost.user?.username || newHost.user?.display_name}) via external game disconnect`);
         } else {
@@ -1289,19 +992,19 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
         console.log(`⚠️ [API] Host ${playerId} disconnected but no other connected players - keeping host role`);
       }
     }
-    
+
     // Log event
-    await db.logEvent(room.id, playerId, 'external_game_status_update', { 
-      status, 
+    await db.logEvent(room.id, playerId, 'external_game_status_update', {
+      status,
       location: updateData.current_location,
       reason,
       gameData,
       service: req.apiKey?.service_name
     });
-    
+
     // Get updated room data for broadcasting
     const updatedRoom = await db.getRoomByCode(roomCode);
-    
+
     // Broadcast to GameBuddies lobby with complete player data
     // Build consolidated players snapshot once for broadcast and status sync
     const allPlayers = updatedRoom.participants?.map(p => ({
@@ -1322,7 +1025,7 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
     })) || [];
 
     if (io) {
-      
+
       // Debug broadcast details
       console.log(`📡 [API DEBUG] Broadcasting details:`, {
         roomCode,
@@ -1333,16 +1036,16 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
         targetPlayerId: playerId,
         newStatus: updateData.current_location
       });
-      
+
       // Debug player status summary
       const statusSummary = allPlayers.reduce((acc, p) => {
         const status = p.currentLocation || 'unknown';
         acc[status] = (acc[status] || 0) + 1;
         return acc;
       }, {});
-      
+
       console.log(`👥 [API DEBUG] Player status summary after update:`, statusSummary);
-      
+
       console.log(`📡 [API] Broadcasting status update to room ${roomCode}`);
       const broadcastData = {
         playerId,
@@ -1353,7 +1056,7 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
         source: 'external_game',
         timestamp: new Date().toISOString()
       };
-      
+
       // Include host transfer information if it occurred
       if (newHost) {
         broadcastData.hostTransfer = {
@@ -1364,22 +1067,22 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
         };
         console.log(`👑 [API] Including host transfer in broadcast:`, broadcastData.hostTransfer);
       }
-      
+
       broadcastData.roomVersion = Date.now();
       io.to(roomCode).emit('playerStatusUpdated', broadcastData);
-      
+
       // Confirm broadcast was sent
       console.log(`✅ [API DEBUG] Broadcast sent to ${io.sockets.adapter.rooms.get(roomCode)?.size || 0} connected clients`);
     } else {
       console.log(`⚠️ [API DEBUG] Socket.io not available - cannot broadcast status update`);
     }
-    
+
     // Auto-update room status if this player is the host
     if (wasHost || participant.role === 'host') {
       console.log(`👑 [API] Player ${playerId} is host - checking for auto room status update`);
       autoUpdateRoomStatusByHost(room.id, playerId, updateData.current_location);
     }
-    
+
     // Also check if this update should trigger a smart room status update
     // Get all players for analysis
     const allPlayersForAnalysis = updatedRoom.participants?.map(p => ({
@@ -1389,14 +1092,14 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
       inGame: p.in_game,
       currentLocation: p.current_location
     })) || [];
-    
+
     if (allPlayersForAnalysis.length > 1) {
       await autoUpdateRoomStatusBasedOnPlayerStates(updatedRoom, allPlayersForAnalysis, reason || 'player_status_change');
     }
-    
+
     console.log(`✅ [API] Successfully updated player ${playerId} status to ${status} (location: ${updateData.current_location})`);
-    
-    res.json({ 
+
+    res.json({
       success: true,
       updated: {
         status: updateData.current_location,
@@ -1404,7 +1107,7 @@ app.post('/api/game/rooms/:roomCode/players/:playerId/status', validateApiKey, a
         in_game: updateData.in_game
       }
     });
-    
+
   } catch (error) {
     console.error('❌ [API] Status update error:', error);
     res.status(500).json({ error: 'Failed to update status' });
@@ -1416,7 +1119,7 @@ app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async 
   try {
     const { roomCode } = req.params;
     const { players, reason } = req.body;
-    
+
     console.log(`🎮 [API] Bulk status update for room ${roomCode}:`, {
       playerCount: players?.length || 0,
       reason,
@@ -1425,7 +1128,7 @@ app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async 
       userAgent: req.get('User-Agent'),
       timestamp: new Date().toISOString()
     });
-    
+
     // Debug request details
     console.log(`🔍 [API DEBUG] Bulk request details:`, {
       headers: {
@@ -1447,32 +1150,32 @@ app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async 
       },
       params: { roomCode }
     });
-    
+
     if (!players || !Array.isArray(players) || players.length === 0) {
       return res.status(400).json({ error: 'Players array is required' });
     }
-    
+
     // Get room
     const { data: room } = await db.adminClient
       .from('rooms')
       .select('id, room_code, status, metadata')
       .eq('room_code', roomCode)
       .single();
-    
+
     if (!room) {
       console.log(`❌ [API] Room not found: ${roomCode}`);
       return res.status(404).json({ error: 'Room not found' });
     }
-    
+
     const results = [];
     const lobbyThisBatch = new Set(); // Track players moved to lobby in this bulk request
-    
+
     // Debug room context for bulk update
     const roomParticipants = await db.adminClient
       .from('room_members')
       .select('user_id, is_connected, current_location, in_game')
       .eq('room_id', room.id);
-    
+
     console.log(`🏠 [API DEBUG] Room context before bulk update:`, {
       room_id: room.id,
       room_code: room.room_code,
@@ -1484,18 +1187,18 @@ app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async 
         return acc;
       }, {}) || {}
     });
-    
+
     // Process each player update
     for (const playerUpdate of players) {
       const { playerId, status, gameData, location } = playerUpdate;
-      
+
       console.log(`👤 [API DEBUG] Processing player ${playerId}:`, {
         playerId,
         requestedStatus: status,
         requestedLocation: location,
         hasGameData: !!gameData
       });
-      
+
       try {
         // Determine update data
         let updateData = {
@@ -1515,18 +1218,18 @@ app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async 
         } catch (guardErr) {
           console.warn('[API DEBUG] Disconnect guard check failed (non-fatal):', guardErr?.message || guardErr);
         }
-        
+
         switch (status) {
-      case 'connected': // Player connected to the external game instance
+          case 'connected': // Player connected to the external game instance
             updateData.is_connected = true;
-        updateData.current_location = location || 'game'; // Default to 'game' as per documentation
-        updateData.in_game = true; // Assume connected to game means in_game true
-        if (location === 'lobby') { // Explicitly in lobby via external game
-          updateData.current_location = 'lobby';
-          updateData.in_game = false;
-        }
+            updateData.current_location = location || 'game'; // Default to 'game' as per documentation
+            updateData.in_game = true; // Assume connected to game means in_game true
+            if (location === 'lobby') { // Explicitly in lobby via external game
+              updateData.current_location = 'lobby';
+              updateData.in_game = false;
+            }
             break;
-            
+
           case 'disconnected': // Player disconnected from the external game
             // Global grace window after return-all: suppress disconnects briefly
             try {
@@ -1536,7 +1239,7 @@ app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async 
                 results.push({ playerId, success: true, skipped: true, reason: 'return_in_progress' });
                 break;
               }
-            } catch {}
+            } catch { }
             // If this same bulk request already returned this player to lobby, skip downgrade
             if (lobbyThisBatch.has(playerId)) {
               console.log(`⚠️ [API DEBUG] Skipping disconnect in same bulk for ${playerId} (already returned_to_lobby)`);
@@ -1547,34 +1250,34 @@ app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async 
             updateData.current_location = 'disconnected';
             updateData.in_game = false;
             break;
-            
+
           case 'returned_to_lobby': // Player explicitly returned to GameBuddies lobby by external game action
             updateData.is_connected = true;
             updateData.current_location = 'lobby';
             updateData.in_game = false;
             lobbyThisBatch.add(playerId);
             break;
-            
+
           case 'in_game': // Player is actively in the external game
             updateData.is_connected = true;
             updateData.current_location = 'game';
             updateData.in_game = true;
             break;
-            
+
           default: // Fallback for unknown status, treat as potentially disconnected or lobby
             updateData.is_connected = false; // Default to not connected for unknown status
             updateData.current_location = location || 'disconnected';
             updateData.in_game = false;
             console.warn(`⚠️ [API] Unknown status type received: '${status}'. Defaulting to disconnected.`);
         }
-        
+
         // Update participant
         const { error: updateError } = await db.adminClient
           .from('room_members')
           .update(updateData)
           .eq('room_id', room.id)
           .eq('user_id', playerId);
-        
+
         if (updateError) {
           console.error(`❌ [API] Failed to update player ${playerId}:`, {
             playerId,
@@ -1591,19 +1294,19 @@ app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async 
             newConnection: updateData.is_connected,
             newInGame: updateData.in_game
           });
-          
+
           // Log event
-          await db.logEvent(room.id, playerId, 'external_game_bulk_status_update', { 
-            status, 
+          await db.logEvent(room.id, playerId, 'external_game_bulk_status_update', {
+            status,
             location: updateData.current_location,
             reason,
             gameData,
             service: req.apiKey?.service_name
           });
-          
-          results.push({ 
-            playerId, 
-            success: true, 
+
+          results.push({
+            playerId,
+            success: true,
             updated: {
               status: updateData.current_location,
               is_connected: updateData.is_connected,
@@ -1611,7 +1314,7 @@ app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async 
             }
           });
         }
-        
+
       } catch (playerError) {
         console.error(`❌ [API] Error updating player ${playerId}:`, {
           playerId,
@@ -1623,7 +1326,7 @@ app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async 
         results.push({ playerId, success: false, error: playerError.message });
       }
     }
-    
+
     // Get updated room data and broadcast
     let updatedRoom = await db.getRoomByCode(roomCode);
 
@@ -1656,7 +1359,7 @@ app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async 
     } catch (e) {
       console.error('⚠️ [API DEBUG] Failed to restore host after bulk:', e?.message || e);
     }
-    
+
     if (io) {
       const allPlayers = updatedRoom.participants?.map(p => ({
         id: p.user_id,
@@ -1668,14 +1371,14 @@ app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async 
         lastPing: p.last_ping,
         socketId: null
       })) || [];
-      
+
       // Debug bulk broadcast details
       const finalStatusSummary = allPlayers.reduce((acc, p) => {
         const status = p.currentLocation || 'unknown';
         acc[status] = (acc[status] || 0) + 1;
         return acc;
       }, {});
-      
+
       console.log(`📡 [API DEBUG] Bulk broadcast details:`, {
         roomCode,
         socketRoomExists: io.sockets.adapter.rooms.has(roomCode),
@@ -1686,7 +1389,7 @@ app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async 
         successfulUpdates: results.filter(r => r.success).length,
         failedUpdates: results.filter(r => !r.success).length
       });
-      
+
       console.log(`📡 [API] Broadcasting bulk status update to room ${roomCode}`);
       io.to(roomCode).emit('playerStatusUpdated', {
         reason,
@@ -1696,16 +1399,16 @@ app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async 
         timestamp: new Date().toISOString(),
         roomVersion: Date.now()
       });
-      
+
       // Confirm bulk broadcast was sent
       console.log(`✅ [API DEBUG] Bulk broadcast sent to ${io.sockets.adapter.rooms.get(roomCode)?.size || 0} connected clients`);
     } else {
       console.log(`⚠️ [API DEBUG] Socket.io not available - cannot broadcast bulk status update`);
     }
-    
+
     // Auto-update room status based on player status changes
     await autoUpdateRoomStatusBasedOnPlayerStates(room, allPlayers, reason);
-    
+
     // Also check host-specific updates (legacy behavior)
     const hostUpdates = allPlayers.filter(p => p.isHost);
     if (hostUpdates.length > 0) {
@@ -1713,11 +1416,11 @@ app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async 
       console.log(`👑 [API] Host ${host.id} status updated in bulk - checking for auto room status update`);
       autoUpdateRoomStatusByHost(room.id, host.id, host.currentLocation);
     }
-    
+
     const successCount = results.filter(r => r.success).length;
     console.log(`✅ [API] Bulk update completed: ${successCount}/${results.length} players updated successfully`);
-    
-    res.json({ 
+
+    res.json({
       success: true,
       results,
       summary: {
@@ -1726,7 +1429,7 @@ app.post('/api/game/rooms/:roomCode/players/bulk-status', validateApiKey, async 
         failed: results.length - successCount
       }
     });
-    
+
   } catch (error) {
     console.error('❌ [API] Bulk status update error:', error);
     res.status(500).json({ error: 'Failed to update player statuses' });
@@ -1738,25 +1441,25 @@ app.post('/api/game/rooms/:roomCode/events', validateApiKey, async (req, res) =>
   try {
     const { roomCode } = req.params;
     const { playerId, eventType, eventData } = req.body;
-    
+
     // Get room
     const { data: room } = await db.adminClient
       .from('rooms')
       .select('id')
       .eq('room_code', roomCode)
       .single();
-    
+
     if (!room) {
       return res.status(404).json({ error: 'Room not found' });
     }
-    
+
     // Log event
     await db.logEvent(room.id, playerId, `game_${eventType}`, {
       ...eventData,
       service: req.apiKey.service_name,
       timestamp: new Date().toISOString()
     });
-    
+
     // Broadcast event
     if (io) {
       io.to(roomCode).emit('gameEvent', {
@@ -1767,9 +1470,9 @@ app.post('/api/game/rooms/:roomCode/events', validateApiKey, async (req, res) =>
         roomVersion: Date.now()
       });
     }
-    
+
     res.json({ success: true });
-    
+
   } catch (error) {
     console.error('❌ [API] Event logging error:', error);
     res.status(500).json({ error: 'Failed to log event' });
@@ -1790,9 +1493,9 @@ app.get('/api/rooms', async (req, res) => {
     res.json({ success: true, rooms });
   } catch (error) {
     console.error('Error fetching rooms:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to fetch rooms' 
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch rooms'
     });
   }
 });
@@ -1802,17 +1505,17 @@ app.get('/api/rooms/:code', async (req, res) => {
   try {
     const room = await db.getRoomByCode(req.params.code);
     if (!room) {
-      return res.status(404).json({ 
-        success: false, 
-        error: 'Room not found' 
+      return res.status(404).json({
+        success: false,
+        error: 'Room not found'
       });
     }
     res.json({ success: true, room });
   } catch (error) {
     console.error('Error fetching room:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Failed to fetch room details' 
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch room details'
     });
   }
 });
@@ -1822,9 +1525,9 @@ app.get('/api/health', async (req, res) => {
   try {
     // Test database connection
     await db.adminClient.from('rooms').select('id').limit(1);
-    
-    res.json({ 
-      status: 'healthy', 
+
+    res.json({
+      status: 'healthy',
       timestamp: new Date().toISOString(),
       version: '2.1.0',
       storage: {
@@ -1834,8 +1537,8 @@ app.get('/api/health', async (req, res) => {
       }
     });
   } catch (error) {
-    res.status(503).json({ 
-      status: 'unhealthy', 
+    res.status(503).json({
+      status: 'unhealthy',
       error: error.message,
       storage: {
         type: 'SUPABASE',
@@ -1879,7 +1582,7 @@ async function autoUpdateRoomStatusByHost(roomId, hostUserId, hostLocation) {
 
     // Determine target status based on host location
     let targetStatus = room.status; // Default to current status
-    
+
     if (hostLocation === 'game' || hostLocation === 'in_game') {
       targetStatus = 'in_game';
     } else if (hostLocation === 'lobby' || hostLocation === 'connected') {
@@ -1900,7 +1603,7 @@ async function autoUpdateRoomStatusByHost(roomId, hostUserId, hostLocation) {
 
     // Update room status in database
     const updateData = { status: targetStatus };
-    
+
     // If changing back to lobby, also reset current game
     if (targetStatus === 'lobby') {
       updateData.current_game = null;
@@ -1910,10 +1613,10 @@ async function autoUpdateRoomStatusByHost(roomId, hostUserId, hostLocation) {
 
     // Get updated room data
     const updatedRoom = await db.getRoomById(roomId);
-    
+
     // Find host participant for display name
     const hostParticipant = updatedRoom?.participants?.find(p => p.user_id === hostUserId);
-    
+
     // Notify all players about the automatic status change
     io.to(room.room_code).emit('roomStatusChanged', {
       oldStatus: room.status,
@@ -1991,7 +1694,7 @@ async function autoUpdateRoomStatusBasedOnPlayerStates(room, allPlayers, reason)
       const lobbyCount = playerStats.lobby || 0;
       const gameCount = playerStats.game || 0;
       const disconnectedCount = playerStats.disconnected || 0;
-      
+
       // If no players are actively in game anymore, switch to lobby
       if (gameCount === 0 && lobbyCount > 0) {
         targetStatus = 'lobby';
@@ -2005,7 +1708,7 @@ async function autoUpdateRoomStatusBasedOnPlayerStates(room, allPlayers, reason)
       console.log(`📝 [Smart Room Update] Reason: ${updateReason}`);
 
       const updateData = { status: targetStatus };
-      
+
       // If changing back to lobby, reset current game
       if (targetStatus === 'lobby') {
         updateData.current_game = null;
@@ -2015,7 +1718,7 @@ async function autoUpdateRoomStatusBasedOnPlayerStates(room, allPlayers, reason)
 
       // Get updated room data
       const updatedRoom = await db.getRoomById(room.id);
-      
+
       // Notify all players about the automatic status change
       if (io) {
         io.to(room.room_code).emit('roomStatusChanged', {
@@ -2077,7 +1780,7 @@ const roomActivityCache = new Map(); // roomCode -> timestamp (throttling DB upd
 
 io.on('connection', async (socket) => {
   console.log(`🔌 User connected: ${socket.id}`);
-  
+
   // Store connection info
   connectionManager.addConnection(socket.id);
 
@@ -2170,7 +1873,7 @@ io.on('connection', async (socket) => {
         .update({ last_activity: new Date().toISOString() })
         .eq('room_code', roomCode)
         .then(({ error }) => {
-           if(error) console.error(`❌ Failed to update activity for room ${roomCode}:`, error);
+          if (error) console.error(`❌ Failed to update activity for room ${roomCode}:`, error);
         });
     }
 
@@ -2293,12 +1996,12 @@ io.on('connection', async (socket) => {
   // Friend System: Identify User (Central Server Implementation)
   socket.on('user:identify', async (userId) => {
     if (!userId) return;
-    
+
     // console.log(`👤 [Friends] User identified: ${userId} (socket ${socket.id})`);
-    
+
     // Join user-specific room for targeting
     socket.join(`user:${userId}`);
-    
+
     // Store userId on socket and connection manager
     socket.userId = userId;
     const conn = connectionManager.getConnection(socket.id);
@@ -2318,10 +2021,10 @@ io.on('connection', async (socket) => {
       }
 
       // 2. Extract Friend IDs
-      const friendIds = friendships.map(f => 
+      const friendIds = friendships.map(f =>
         f.user_id === userId ? f.friend_id : f.user_id
       );
-      
+
       // 3. Notify online friends & Build online list
       const onlineFriends = [];
 
@@ -2330,7 +2033,7 @@ io.on('connection', async (socket) => {
         // Check if any socket is in this room
         const room = io.sockets.adapter.rooms.get(friendRoom);
         const isOnline = room && room.size > 0;
-        
+
         if (isOnline) {
           onlineFriends.push(friendId);
           // Notify this friend (User B) that User A is online
@@ -2340,7 +2043,7 @@ io.on('connection', async (socket) => {
 
       // 4. Send online friends list to me
       socket.emit('friend:list-online', { onlineUserIds: onlineFriends });
-      
+
     } catch (error) {
       console.error('Error in user:identify:', error);
     }
@@ -2372,7 +2075,7 @@ io.on('connection', async (socket) => {
     if (connection) {
       // Update memory state
       connectionManager.updateConnection(socket.id, {});
-      
+
       // Update Database (Throttle to once per minute to save DB writes)
       const now = Date.now();
       if (!connection.lastDBUpdate || now - connection.lastDBUpdate > 60000) {
@@ -2385,7 +2088,7 @@ io.on('connection', async (socket) => {
             .eq('user_id', connection.userId)
             .eq('room_id', connection.roomId)
             .then(({ error }) => {
-               if(error) console.error(`❌ Failed to update heartbeat for ${connection.username}:`, error);
+              if (error) console.error(`❌ Failed to update heartbeat for ${connection.username}:`, error);
             });
         }
       }
@@ -2404,16 +2107,16 @@ io.on('connection', async (socket) => {
         });
         return;
       }
-      
+
       // Check rate limiting
       if (connectionManager.isRateLimited(socket.id, 'createRoom', rateLimits.createRoom.max)) {
-        socket.emit('error', { 
+        socket.emit('error', {
           message: 'Too many room creation attempts. Please wait a moment.',
-          code: 'RATE_LIMITED' 
+          code: 'RATE_LIMITED'
         });
         return;
       }
-      
+
       // Sanitize input
       const playerName = sanitize.playerName(data.playerName);
       const customLobbyName = data.customLobbyName ? sanitize.playerName(data.customLobbyName) : null;
@@ -2483,9 +2186,9 @@ io.on('connection', async (socket) => {
           original_host_id: user.id // [HOST] Store original host for restoration after return-from-game
         }
       });
-      console.log(`✅ [DEBUG] Room created:`, { 
-        id: room.id, 
-        room_code: room.room_code, 
+      console.log(`✅ [DEBUG] Room created:`, {
+        id: room.id,
+        room_code: room.room_code,
         host_id: room.host_id
       });
 
@@ -2524,7 +2227,7 @@ io.on('connection', async (socket) => {
       // Join socket room
       console.log(`🔗 [DEBUG] Joining socket room: ${room.room_code}`);
       socket.join(room.room_code);
-      
+
       // Update connection tracking
       connectionManager.updateConnection(socket.id, {
         userId: user.id,
@@ -2567,7 +2270,7 @@ io.on('connection', async (socket) => {
         message: error.message,
         stack: error.stack
       });
-      socket.emit('error', { 
+      socket.emit('error', {
         message: 'Failed to create room. Please try again.',
         code: 'ROOM_CREATION_FAILED',
         debug: {
@@ -2693,16 +2396,16 @@ io.on('connection', async (socket) => {
         });
         return;
       }
-      
+
       // Check rate limiting
       if (connectionManager.isRateLimited(socket.id, 'joinRoom', rateLimits.joinRoom.max)) {
-        socket.emit('error', { 
+        socket.emit('error', {
           message: 'Too many join attempts. Please wait a moment.',
-          code: 'RATE_LIMITED' 
+          code: 'RATE_LIMITED'
         });
         return;
       }
-      
+
       // Sanitize input
       const playerName = sanitize.playerName(data.playerName);
       let customLobbyName = data.customLobbyName ? sanitize.playerName(data.customLobbyName) : null;
@@ -2718,13 +2421,13 @@ io.on('connection', async (socket) => {
 
       // Acquire connection lock to prevent race conditions
       if (!connectionManager.acquireLock(playerName, roomCode, socket.id)) {
-        socket.emit('error', { 
+        socket.emit('error', {
           message: 'Another connection attempt is in progress. Please wait.',
-          code: 'CONNECTION_IN_PROGRESS' 
+          code: 'CONNECTION_IN_PROGRESS'
         });
         return;
       }
-      
+
       try {
         const debugData = {
           socketId: socket.id,
@@ -2733,291 +2436,291 @@ io.on('connection', async (socket) => {
           timestamp: new Date().toISOString(),
           connectionCount: connectionManager.getStats().totalConnections
         };
-        
+
         console.log(`🚪 [REJOINING DEBUG] Join request received:`, debugData);
-        
+
         // Check if this is a potential rejoin scenario
         const existingConnection = connectionManager.getConnection(socket.id);
         const isReconnection = existingConnection?.userId !== null;
-      
-      console.log(`🔍 [REJOINING DEBUG] Connection analysis:`, {
-        hasExistingConnection: !!existingConnection,
-        isReconnection,
-        existingUserId: existingConnection?.userId,
-        existingRoomId: existingConnection?.roomId
-      });
 
-      // Get room from database
-      console.log(`🔍 [REJOINING DEBUG] Looking up room in database...`);
-      const room = await db.getRoomByCode(data.roomCode);
-      if (!room) {
-        console.log(`❌ [REJOINING DEBUG] Room ${data.roomCode} not found in database`);
-        console.log(`🔍 [REJOINING DEBUG] Database search details:`, {
-          searchCode: data.roomCode,
-          codeLength: data.roomCode?.length,
-          codeType: typeof data.roomCode
+        console.log(`🔍 [REJOINING DEBUG] Connection analysis:`, {
+          hasExistingConnection: !!existingConnection,
+          isReconnection,
+          existingUserId: existingConnection?.userId,
+          existingRoomId: existingConnection?.roomId
         });
-        socket.emit('error', { 
-          message: 'Room not found. The room may have been cleaned up or expired.',
-          code: 'ROOM_NOT_FOUND',
-          debug: {
-            room_code: data.roomCode,
-            search_timestamp: new Date().toISOString()
-          }
-        });
-        return;
-      }
-      
-      console.log(`✅ [REJOINING DEBUG] Room found:`, {
-        id: room.id,
-        room_code: room.room_code,
-        status: room.status,
-        connected_players: room.participants?.filter(p => p.is_connected === true).length || 0,
-        max_players: room.max_players,
-        created_at: room.created_at,
-        last_activity: room.last_activity,
-        current_game: room.current_game,
-        participants_count: room.participants?.length || 0
-      });
 
-      // [ABANDON] Cancel any pending abandonment grace period when a player joins
-      cancelAbandonmentGracePeriod(room.id, room.room_code);
-
-      // [HOST] Cancel host transfer grace period if original host reconnects
-      if (supabaseUserId) {
-        const hostGracePeriodCancelled = cancelHostTransferGracePeriod(room.id, room.room_code, supabaseUserId);
-        if (hostGracePeriodCancelled) {
-          console.log(`👑 [HOST] Original host reconnected during grace period - preserving host status`);
+        // Get room from database
+        console.log(`🔍 [REJOINING DEBUG] Looking up room in database...`);
+        const room = await db.getRoomByCode(data.roomCode);
+        if (!room) {
+          console.log(`❌ [REJOINING DEBUG] Room ${data.roomCode} not found in database`);
+          console.log(`🔍 [REJOINING DEBUG] Database search details:`, {
+            searchCode: data.roomCode,
+            codeLength: data.roomCode?.length,
+            codeType: typeof data.roomCode
+          });
+          socket.emit('error', {
+            message: 'Room not found. The room may have been cleaned up or expired.',
+            code: 'ROOM_NOT_FOUND',
+            debug: {
+              room_code: data.roomCode,
+              search_timestamp: new Date().toISOString()
+            }
+          });
+          return;
         }
-      }
 
-      // Enhanced participant debugging
-      console.log(`👥 [REJOINING DEBUG] Current participants:`, 
-        room.participants?.map(p => ({
-          user_id: p.user_id,
-          username: p.user?.username,
-          role: p.role,
-          is_connected: p.is_connected,
-          last_ping: p.last_ping,
-          joined_at: p.joined_at
-        })) || []
-      );
-
-      // Check if room is full - calculate from connected members
-      const connectedPlayers = room.participants?.filter(p => p.is_connected === true).length || 0;
-      if (connectedPlayers >= room.max_players) {
-        console.log(`❌ [REJOINING DEBUG] Room is full:`, {
-          connected: connectedPlayers,
-          max: room.max_players
+        console.log(`✅ [REJOINING DEBUG] Room found:`, {
+          id: room.id,
+          room_code: room.room_code,
+          status: room.status,
+          connected_players: room.participants?.filter(p => p.is_connected === true).length || 0,
+          max_players: room.max_players,
+          created_at: room.created_at,
+          last_activity: room.last_activity,
+          current_game: room.current_game,
+          participants_count: room.participants?.length || 0
         });
-        socket.emit('error', { 
-          message: 'Room is full. Cannot join.',
-          code: 'ROOM_FULL'
-        });
-        return;
-      }
-      
-      // Check if room is still accepting players
-      const isOriginalCreator = room.metadata?.created_by_name === data.playerName;
 
-      // [ABANDON] Quick check if this is a previous participant trying to rejoin an abandoned room
-      // This check happens BEFORE the full participant lookup to allow previous participants to rejoin
-      let isPreviousParticipant = false;
-      if (room.status === 'abandoned') {
-        // Check by supabaseUserId first (most reliable)
+        // [ABANDON] Cancel any pending abandonment grace period when a player joins
+        roomLifecycleManager.cancelAbandonmentGracePeriod(room.id, room.room_code);
+
+        // [HOST] Cancel host transfer grace period if original host reconnects
         if (supabaseUserId) {
-          isPreviousParticipant = room.participants?.some(p => p.user_id === supabaseUserId) || false;
+          const hostGracePeriodCancelled = roomLifecycleManager.cancelHostTransferGracePeriod(room.id, room.room_code, supabaseUserId);
+          if (hostGracePeriodCancelled) {
+            console.log(`👑 [HOST] Original host reconnected during grace period - preserving host status`);
+          }
         }
-        // Fallback: Check by name fields
-        if (!isPreviousParticipant && data.playerName) {
-          isPreviousParticipant = room.participants?.some(p =>
+
+        // Enhanced participant debugging
+        console.log(`👥 [REJOINING DEBUG] Current participants:`,
+          room.participants?.map(p => ({
+            user_id: p.user_id,
+            username: p.user?.username,
+            role: p.role,
+            is_connected: p.is_connected,
+            last_ping: p.last_ping,
+            joined_at: p.joined_at
+          })) || []
+        );
+
+        // Check if room is full - calculate from connected members
+        const connectedPlayers = room.participants?.filter(p => p.is_connected === true).length || 0;
+        if (connectedPlayers >= room.max_players) {
+          console.log(`❌ [REJOINING DEBUG] Room is full:`, {
+            connected: connectedPlayers,
+            max: room.max_players
+          });
+          socket.emit('error', {
+            message: 'Room is full. Cannot join.',
+            code: 'ROOM_FULL'
+          });
+          return;
+        }
+
+        // Check if room is still accepting players
+        const isOriginalCreator = room.metadata?.created_by_name === data.playerName;
+
+        // [ABANDON] Quick check if this is a previous participant trying to rejoin an abandoned room
+        // This check happens BEFORE the full participant lookup to allow previous participants to rejoin
+        let isPreviousParticipant = false;
+        if (room.status === 'abandoned') {
+          // Check by supabaseUserId first (most reliable)
+          if (supabaseUserId) {
+            isPreviousParticipant = room.participants?.some(p => p.user_id === supabaseUserId) || false;
+          }
+          // Fallback: Check by name fields
+          if (!isPreviousParticipant && data.playerName) {
+            isPreviousParticipant = room.participants?.some(p =>
+              p.user?.username === data.playerName ||
+              p.user?.display_name === data.playerName ||
+              p.custom_lobby_name === data.playerName
+            ) || false;
+          }
+          if (isPreviousParticipant) {
+            console.log(`🔄 [ABANDON] Previous participant ${data.playerName} rejoining abandoned room ${roomCode}`);
+          }
+        }
+
+        console.log(`🔍 [REJOINING DEBUG] Creator check:`, {
+          playerName: data.playerName,
+          createdByName: room.metadata?.created_by_name,
+          isOriginalCreator,
+          isPreviousParticipant,
+          roomStatus: room.status
+        });
+
+        // V2 Schema: Accept players when room status is 'lobby' or 'in_game', or if original creator/previous participant is rejoining
+        if (room.status !== 'lobby' && room.status !== 'in_game' && !isOriginalCreator && !isPreviousParticipant) {
+          console.log(`❌ [ABANDON] Room not accepting players:`, {
+            status: room.status,
+            isOriginalCreator,
+            isPreviousParticipant
+          });
+          socket.emit('error', {
+            message: `Room is ${room.status} and not accepting new players.`,
+            code: 'ROOM_NOT_ACCEPTING',
+            debug: {
+              room_status: room.status,
+              is_original_creator: isOriginalCreator,
+              is_previous_participant: isPreviousParticipant
+            }
+          });
+          return;
+        }
+
+        // Note: We no longer automatically reset in_game rooms to lobby when original creator rejoins
+        // This allows players and GMs to join ongoing games
+
+        // Check for existing participant (disconnected or connected) to handle rejoining
+        // Enhanced matching: check user_id, username, display_name, AND custom_lobby_name
+        let existingParticipant;
+        let matchMethod = null;
+
+        // Primary: Match by authenticated user ID (most reliable)
+        if (supabaseUserId) {
+          existingParticipant = room.participants?.find(p => p.user_id === supabaseUserId);
+          if (existingParticipant) {
+            matchMethod = 'supabaseUserId';
+            console.log(`[REJOIN] ✅ Matched existing participant by supabaseUserId: ${supabaseUserId}`);
+          }
+        }
+
+        // Fallback: Match by any name field (for guests or when auth ID not available/race condition)
+        if (!existingParticipant && data.playerName) {
+          existingParticipant = room.participants?.find(p =>
             p.user?.username === data.playerName ||
             p.user?.display_name === data.playerName ||
             p.custom_lobby_name === data.playerName
-          ) || false;
-        }
-        if (isPreviousParticipant) {
-          console.log(`🔄 [ABANDON] Previous participant ${data.playerName} rejoining abandoned room ${roomCode}`);
-        }
-      }
-
-      console.log(`🔍 [REJOINING DEBUG] Creator check:`, {
-        playerName: data.playerName,
-        createdByName: room.metadata?.created_by_name,
-        isOriginalCreator,
-        isPreviousParticipant,
-        roomStatus: room.status
-      });
-
-      // V2 Schema: Accept players when room status is 'lobby' or 'in_game', or if original creator/previous participant is rejoining
-      if (room.status !== 'lobby' && room.status !== 'in_game' && !isOriginalCreator && !isPreviousParticipant) {
-        console.log(`❌ [ABANDON] Room not accepting players:`, {
-          status: room.status,
-          isOriginalCreator,
-          isPreviousParticipant
-        });
-        socket.emit('error', {
-          message: `Room is ${room.status} and not accepting new players.`,
-          code: 'ROOM_NOT_ACCEPTING',
-          debug: {
-            room_status: room.status,
-            is_original_creator: isOriginalCreator,
-            is_previous_participant: isPreviousParticipant
-          }
-        });
-        return;
-      }
-      
-      // Note: We no longer automatically reset in_game rooms to lobby when original creator rejoins
-      // This allows players and GMs to join ongoing games
-      
-      // Check for existing participant (disconnected or connected) to handle rejoining
-      // Enhanced matching: check user_id, username, display_name, AND custom_lobby_name
-      let existingParticipant;
-      let matchMethod = null;
-
-      // Primary: Match by authenticated user ID (most reliable)
-      if (supabaseUserId) {
-        existingParticipant = room.participants?.find(p => p.user_id === supabaseUserId);
-        if (existingParticipant) {
-          matchMethod = 'supabaseUserId';
-          console.log(`[REJOIN] ✅ Matched existing participant by supabaseUserId: ${supabaseUserId}`);
-        }
-      }
-
-      // Fallback: Match by any name field (for guests or when auth ID not available/race condition)
-      if (!existingParticipant && data.playerName) {
-        existingParticipant = room.participants?.find(p =>
-          p.user?.username === data.playerName ||
-          p.user?.display_name === data.playerName ||
-          p.custom_lobby_name === data.playerName
-        );
-        if (existingParticipant) {
-          matchMethod = existingParticipant.user?.username === data.playerName ? 'username' :
-                        existingParticipant.user?.display_name === data.playerName ? 'display_name' : 'custom_lobby_name';
-          console.log(`[REJOIN] ✅ Matched existing participant by ${matchMethod}: ${data.playerName}`);
-        }
-      }
-
-      // Additional fallback: Check if isHostHint is true and match the host
-      if (!existingParticipant && data.isHostHint) {
-        existingParticipant = room.participants?.find(p => p.role === 'host');
-        if (existingParticipant) {
-          matchMethod = 'isHostHint';
-          console.log(`[REJOIN] ✅ Matched existing host participant via isHostHint`);
-        }
-      }
-
-      if (!existingParticipant) {
-        console.log(`[REJOIN] ⚠️ No existing participant found for playerName="${data.playerName}", supabaseUserId="${supabaseUserId}", will create new`);
-      }
-
-      console.log(`🔍 [REJOINING DEBUG] Checking for existing participant:`, {
-        searchingFor: data.playerName,
-        supabaseUserId: supabaseUserId || null,
-        matchMethod,
-        existingParticipant: existingParticipant ? {
-          user_id: existingParticipant.user_id,
-          username: existingParticipant.user?.username,
-          display_name: existingParticipant.user?.display_name,
-          custom_lobby_name: existingParticipant.custom_lobby_name,
-          is_connected: existingParticipant.is_connected,
-          role: existingParticipant.role
-        } : null
-      });
-      
-      let user;
-      let userRole;
-      
-      // Handle rejoining scenario
-      if (existingParticipant) {
-        console.log(`🔄 [REJOINING DEBUG] Rejoining as existing participant:`, {
-          participant_id: existingParticipant.id,
-          user_id: existingParticipant.user_id,
-          original_role: existingParticipant.role,
-          current_connection: existingParticipant.is_connected,
-          custom_lobby_name: existingParticipant.custom_lobby_name,
-          display_name: existingParticipant.user?.display_name
-        });
-
-        // DON'T create a new user - use the original user data (include all display fields)
-        user = {
-          id: existingParticipant.user_id,
-          username: existingParticipant.user?.username,
-          display_name: existingParticipant.user?.display_name,
-          premium_tier: existingParticipant.user?.premium_tier,
-          avatar_url: existingParticipant.user?.avatar_url,
-          avatar_style: existingParticipant.user?.avatar_style,
-          avatar_seed: existingParticipant.user?.avatar_seed,
-          avatar_options: existingParticipant.user?.avatar_options,
-          level: existingParticipant.user?.level,
-          role: existingParticipant.user?.role,
-          external_id: existingParticipant.user?.external_id
-        };
-        userRole = existingParticipant.role;
-
-        // Use stored custom_lobby_name for rejoining players (don't rely on client to re-send it)
-        if (!customLobbyName && existingParticipant.custom_lobby_name) {
-          customLobbyName = existingParticipant.custom_lobby_name;
-          console.log(`🔄 [REJOIN] Using stored custom_lobby_name: ${customLobbyName}`);
-        }
-
-        // [HOST] If original host reconnects after transfer, restore host status
-        if (room.metadata?.original_host_id === existingParticipant.user_id && existingParticipant.role !== 'host') {
-          const currentHostParticipant = room.participants?.find(p => p.role === 'host');
-          if (currentHostParticipant && currentHostParticipant.user_id !== existingParticipant.user_id) {
-            console.log(`👑 [HOST] Restoring host status to original host ${existingParticipant.user_id}`);
-            // Demote current host
-            await db.adminClient
-              .from('room_members')
-              .update({ role: 'player' })
-              .eq('room_id', room.id)
-              .eq('user_id', currentHostParticipant.user_id);
-            // Promote original host
-            await db.adminClient
-              .from('room_members')
-              .update({ role: 'host' })
-              .eq('room_id', room.id)
-              .eq('user_id', existingParticipant.user_id);
-            // Update room's host_id
-            await db.adminClient
-              .from('rooms')
-              .update({ host_id: existingParticipant.user_id })
-              .eq('id', room.id);
-
-            userRole = 'host';
-
-            // Broadcast host restoration
-            io.to(room.room_code).emit('hostTransferred', {
-              oldHostId: currentHostParticipant.user_id,
-              newHostId: existingParticipant.user_id,
-              newHostName: existingParticipant.user?.display_name || 'Player' || data.playerName,
-              reason: 'original_host_returned',
-              roomVersion: Date.now()
-            });
-            console.log(`👑 [HOST] Host restoration completed:`, {
-              oldHostId: currentHostParticipant.user_id,
-              newHostId: existingParticipant.user_id
-            });
+          );
+          if (existingParticipant) {
+            matchMethod = existingParticipant.user?.username === data.playerName ? 'username' :
+              existingParticipant.user?.display_name === data.playerName ? 'display_name' : 'custom_lobby_name';
+            console.log(`[REJOIN] ✅ Matched existing participant by ${matchMethod}: ${data.playerName}`);
           }
         }
 
-        // Clean up any existing connections for this user before creating new one
-        const userConnections = connectionManager.getUserConnections(existingParticipant.user_id)
-          .filter(conn => conn.socketId !== socket.id);
-        
-        userConnections.forEach(staleConn => {
-          console.log(`🧹 [CLEANUP] Removing stale connection for user ${existingParticipant.user_id}: ${staleConn.socketId}`);
-          connectionManager.removeConnection(staleConn.socketId);
+        // Additional fallback: Check if isHostHint is true and match the host
+        if (!existingParticipant && data.isHostHint) {
+          existingParticipant = room.participants?.find(p => p.role === 'host');
+          if (existingParticipant) {
+            matchMethod = 'isHostHint';
+            console.log(`[REJOIN] ✅ Matched existing host participant via isHostHint`);
+          }
+        }
+
+        if (!existingParticipant) {
+          console.log(`[REJOIN] ⚠️ No existing participant found for playerName="${data.playerName}", supabaseUserId="${supabaseUserId}", will create new`);
+        }
+
+        console.log(`🔍 [REJOINING DEBUG] Checking for existing participant:`, {
+          searchingFor: data.playerName,
+          supabaseUserId: supabaseUserId || null,
+          matchMethod,
+          existingParticipant: existingParticipant ? {
+            user_id: existingParticipant.user_id,
+            username: existingParticipant.user?.username,
+            display_name: existingParticipant.user?.display_name,
+            custom_lobby_name: existingParticipant.custom_lobby_name,
+            is_connected: existingParticipant.is_connected,
+            role: existingParticipant.role
+          } : null
         });
-        
-        // Update connection tracking with the ORIGINAL user ID IMMEDIATELY
-        connectionManager.updateConnection(socket.id, {
-          userId: existingParticipant.user_id,
-          username: playerName,
-          roomId: room.id,
-          roomCode: roomCode
-        });
+
+        let user;
+        let userRole;
+
+        // Handle rejoining scenario
+        if (existingParticipant) {
+          console.log(`🔄 [REJOINING DEBUG] Rejoining as existing participant:`, {
+            participant_id: existingParticipant.id,
+            user_id: existingParticipant.user_id,
+            original_role: existingParticipant.role,
+            current_connection: existingParticipant.is_connected,
+            custom_lobby_name: existingParticipant.custom_lobby_name,
+            display_name: existingParticipant.user?.display_name
+          });
+
+          // DON'T create a new user - use the original user data (include all display fields)
+          user = {
+            id: existingParticipant.user_id,
+            username: existingParticipant.user?.username,
+            display_name: existingParticipant.user?.display_name,
+            premium_tier: existingParticipant.user?.premium_tier,
+            avatar_url: existingParticipant.user?.avatar_url,
+            avatar_style: existingParticipant.user?.avatar_style,
+            avatar_seed: existingParticipant.user?.avatar_seed,
+            avatar_options: existingParticipant.user?.avatar_options,
+            level: existingParticipant.user?.level,
+            role: existingParticipant.user?.role,
+            external_id: existingParticipant.user?.external_id
+          };
+          userRole = existingParticipant.role;
+
+          // Use stored custom_lobby_name for rejoining players (don't rely on client to re-send it)
+          if (!customLobbyName && existingParticipant.custom_lobby_name) {
+            customLobbyName = existingParticipant.custom_lobby_name;
+            console.log(`🔄 [REJOIN] Using stored custom_lobby_name: ${customLobbyName}`);
+          }
+
+          // [HOST] If original host reconnects after transfer, restore host status
+          if (room.metadata?.original_host_id === existingParticipant.user_id && existingParticipant.role !== 'host') {
+            const currentHostParticipant = room.participants?.find(p => p.role === 'host');
+            if (currentHostParticipant && currentHostParticipant.user_id !== existingParticipant.user_id) {
+              console.log(`👑 [HOST] Restoring host status to original host ${existingParticipant.user_id}`);
+              // Demote current host
+              await db.adminClient
+                .from('room_members')
+                .update({ role: 'player' })
+                .eq('room_id', room.id)
+                .eq('user_id', currentHostParticipant.user_id);
+              // Promote original host
+              await db.adminClient
+                .from('room_members')
+                .update({ role: 'host' })
+                .eq('room_id', room.id)
+                .eq('user_id', existingParticipant.user_id);
+              // Update room's host_id
+              await db.adminClient
+                .from('rooms')
+                .update({ host_id: existingParticipant.user_id })
+                .eq('id', room.id);
+
+              userRole = 'host';
+
+              // Broadcast host restoration
+              io.to(room.room_code).emit('hostTransferred', {
+                oldHostId: currentHostParticipant.user_id,
+                newHostId: existingParticipant.user_id,
+                newHostName: existingParticipant.user?.display_name || 'Player' || data.playerName,
+                reason: 'original_host_returned',
+                roomVersion: Date.now()
+              });
+              console.log(`👑 [HOST] Host restoration completed:`, {
+                oldHostId: currentHostParticipant.user_id,
+                newHostId: existingParticipant.user_id
+              });
+            }
+          }
+
+          // Clean up any existing connections for this user before creating new one
+          const userConnections = connectionManager.getUserConnections(existingParticipant.user_id)
+            .filter(conn => conn.socketId !== socket.id);
+
+          userConnections.forEach(staleConn => {
+            console.log(`🧹 [CLEANUP] Removing stale connection for user ${existingParticipant.user_id}: ${staleConn.socketId}`);
+            connectionManager.removeConnection(staleConn.socketId);
+          });
+
+          // Update connection tracking with the ORIGINAL user ID IMMEDIATELY
+          connectionManager.updateConnection(socket.id, {
+            userId: existingParticipant.user_id,
+            username: playerName,
+            roomId: room.id,
+            roomCode: roomCode
+          });
           console.log(`🔗 [REJOINING DEBUG] Updated connection tracking with original user ID:`, {
             socketId: socket.id,
             userId: existingParticipant.user_id, // Original user ID
@@ -3025,160 +2728,160 @@ io.on('connection', async (socket) => {
             username: playerName,
             playerRole: existingParticipant.role
           });
-        
-        // Update connection status for existing participant (set to connected with new socket)
-        await db.updateParticipantConnection(existingParticipant.user_id, socket.id, 'connected', customLobbyName);
-        console.log(`✅ [REJOINING DEBUG] Updated existing participant connection status to connected with custom lobby name:`, customLobbyName);
-        
-        // Auto-update room status if this reconnecting user is the host
-        if (existingParticipant.role === 'host') {
-          console.log(`👑 [REJOINING DEBUG] Reconnecting host - checking for auto room status update`);
-          autoUpdateRoomStatusByHost(room.id, existingParticipant.user_id, 'lobby');
-        }
-        
-        // If rejoining the lobby (not in a game), ensure in_game is false
-        if (room.status === 'lobby' || room.status === 'in_game') {
-          await db.adminClient
-            .from('room_members')
-            .update({ 
-              in_game: false,
-              current_location: 'lobby'
-            })
-            .eq('user_id', existingParticipant.user_id)
-            .eq('room_id', room.id);
-          console.log(`🔄 [REJOINING DEBUG] Reset rejoining participant to lobby status (in_game: false)`);
-        }
-      } else {
-        // Get or create user profile for new participants
-        if (supabaseUserId) {
-          // Authenticated user - get existing user from database
-          console.log(`👤 [REJOINING DEBUG] Getting authenticated user profile for Supabase ID:`, supabaseUserId);
-          const { data: existingUser, error } = await db.adminClient
-            .from('users')
-            .select('*')
-            .eq('id', supabaseUserId)
-            .single();
 
-          if (error || !existingUser) {
-            console.error(`❌ [REJOINING DEBUG] Failed to find authenticated user:`, error);
+          // Update connection status for existing participant (set to connected with new socket)
+          await db.updateParticipantConnection(existingParticipant.user_id, socket.id, 'connected', customLobbyName);
+          console.log(`✅ [REJOINING DEBUG] Updated existing participant connection status to connected with custom lobby name:`, customLobbyName);
+
+          // Auto-update room status if this reconnecting user is the host
+          if (existingParticipant.role === 'host') {
+            console.log(`👑 [REJOINING DEBUG] Reconnecting host - checking for auto room status update`);
+            autoUpdateRoomStatusByHost(room.id, existingParticipant.user_id, 'lobby');
+          }
+
+          // If rejoining the lobby (not in a game), ensure in_game is false
+          if (room.status === 'lobby' || room.status === 'in_game') {
+            await db.adminClient
+              .from('room_members')
+              .update({
+                in_game: false,
+                current_location: 'lobby'
+              })
+              .eq('user_id', existingParticipant.user_id)
+              .eq('room_id', room.id);
+            console.log(`🔄 [REJOINING DEBUG] Reset rejoining participant to lobby status (in_game: false)`);
+          }
+        } else {
+          // Get or create user profile for new participants
+          if (supabaseUserId) {
+            // Authenticated user - get existing user from database
+            console.log(`👤 [REJOINING DEBUG] Getting authenticated user profile for Supabase ID:`, supabaseUserId);
+            const { data: existingUser, error } = await db.adminClient
+              .from('users')
+              .select('*')
+              .eq('id', supabaseUserId)
+              .single();
+
+            if (error || !existingUser) {
+              console.error(`❌ [REJOINING DEBUG] Failed to find authenticated user:`, error);
+              socket.emit('error', {
+                message: 'User account not found. Please try logging in again.',
+                code: 'USER_NOT_FOUND'
+              });
+              return;
+            }
+
+            user = existingUser;
+            console.log(`✅ [REJOINING DEBUG] Authenticated user found:`, {
+              id: user.id,
+              username: user.username,
+              premium_tier: user.premium_tier
+            });
+          } else {
+            // Guest user - create temporary user profile
+            console.log(`👤 [REJOINING DEBUG] Getting/creating guest user profile...`);
+            user = await db.getOrCreateUser(
+              `${socket.id}_${data.playerName}`, // Unique per connection to prevent conflicts
+              data.playerName,
+              data.playerName
+            );
+            console.log(`✅ [REJOINING DEBUG] Guest user profile:`, {
+              id: user.id,
+              username: user.username,
+              external_id: user.external_id
+            });
+          }
+
+          // Check for duplicate connected participants (only for truly new participants)
+          const duplicateConnectedParticipant = room.participants?.find(p =>
+            p.user?.username === data.playerName &&
+            p.is_connected === true &&
+            p.user_id !== existingParticipant?.user_id // Don't flag the same user as duplicate
+          );
+
+          console.log(`🔍 [REJOINING DEBUG] Duplicate check for new participants:`, {
+            searchingFor: data.playerName,
+            duplicateConnectedParticipant: duplicateConnectedParticipant ? {
+              user_id: duplicateConnectedParticipant.user_id,
+              username: duplicateConnectedParticipant.user?.username,
+              is_connected: duplicateConnectedParticipant.is_connected,
+              role: duplicateConnectedParticipant.role
+            } : null,
+            excludedUserId: existingParticipant?.user_id
+          });
+
+          if (duplicateConnectedParticipant) {
+            console.log(`❌ [REJOINING DEBUG] Duplicate name blocked: ${data.playerName} already in room ${data.roomCode}`);
             socket.emit('error', {
-              message: 'User account not found. Please try logging in again.',
-              code: 'USER_NOT_FOUND'
+              message: 'A player with this name is already in the room. Please choose a different name.',
+              code: 'DUPLICATE_PLAYER',
+              debug: {
+                existing_user_id: duplicateConnectedParticipant.user_id,
+                existing_connection_status: duplicateConnectedParticipant.is_connected
+              }
             });
             return;
           }
 
-          user = existingUser;
-          console.log(`✅ [REJOINING DEBUG] Authenticated user found:`, {
-            id: user.id,
+          // Determine role: original room creator becomes host, others are players
+          userRole = isOriginalCreator ? 'host' : 'player';
+          console.log(`👥 [REJOINING DEBUG] Adding new participant with role: ${userRole}${customLobbyName ? `, custom name: ${customLobbyName}` : ''}`);
+          await db.addParticipant(room.id, user.id, socket.id, userRole, customLobbyName);
+
+          // If joining an in_game room, mark new player as in_game with 'game' location
+          // This ensures late-joiners show "In Game" badge like other players
+          if (room.status === 'in_game') {
+            await db.adminClient
+              .from('room_members')
+              .update({
+                in_game: true,
+                current_location: 'game'
+              })
+              .eq('user_id', user.id)
+              .eq('room_id', room.id);
+            console.log(`🎮 [REJOINING DEBUG] Marked new participant as in_game with 'game' location`);
+          }
+
+          console.log(`✅ [REJOINING DEBUG] Added new participant`);
+
+          // Update connection tracking
+          // Clean up any existing connections for this user before creating new one
+          const userConnections = connectionManager.getUserConnections(user.id)
+            .filter(conn => conn.socketId !== socket.id);
+
+          userConnections.forEach(staleConn => {
+            console.log(`🧹 [CLEANUP] Removing stale connection for user ${user.id}: ${staleConn.socketId}`);
+            connectionManager.removeConnection(staleConn.socketId);
+          });
+
+          // Update connection tracking
+          connectionManager.updateConnection(socket.id, {
+            userId: user.id,
+            username: playerName,
+            roomId: room.id,
+            roomCode: roomCode
+          });
+          console.log(`🔗 [REJOINING DEBUG] Updated connection tracking:`, {
+            socketId: socket.id,
+            userId: user.id,
+            roomId: room.id,
             username: user.username,
-            premium_tier: user.premium_tier
-          });
-        } else {
-          // Guest user - create temporary user profile
-          console.log(`👤 [REJOINING DEBUG] Getting/creating guest user profile...`);
-          user = await db.getOrCreateUser(
-            `${socket.id}_${data.playerName}`, // Unique per connection to prevent conflicts
-            data.playerName,
-            data.playerName
-          );
-          console.log(`✅ [REJOINING DEBUG] Guest user profile:`, {
-            id: user.id,
-            username: user.username,
-            external_id: user.external_id
+            playerRole: userRole
           });
         }
-        
-        // Check for duplicate connected participants (only for truly new participants)
-        const duplicateConnectedParticipant = room.participants?.find(p => 
-          p.user?.username === data.playerName && 
-          p.is_connected === true &&
-          p.user_id !== existingParticipant?.user_id // Don't flag the same user as duplicate
-        );
-        
-        console.log(`🔍 [REJOINING DEBUG] Duplicate check for new participants:`, {
-          searchingFor: data.playerName,
-          duplicateConnectedParticipant: duplicateConnectedParticipant ? {
-            user_id: duplicateConnectedParticipant.user_id,
-            username: duplicateConnectedParticipant.user?.username,
-            is_connected: duplicateConnectedParticipant.is_connected,
-            role: duplicateConnectedParticipant.role
-          } : null,
-          excludedUserId: existingParticipant?.user_id
-        });
-        
-        if (duplicateConnectedParticipant) {
-          console.log(`❌ [REJOINING DEBUG] Duplicate name blocked: ${data.playerName} already in room ${data.roomCode}`);
-          socket.emit('error', { 
-            message: 'A player with this name is already in the room. Please choose a different name.',
-            code: 'DUPLICATE_PLAYER',
-            debug: {
-              existing_user_id: duplicateConnectedParticipant.user_id,
-              existing_connection_status: duplicateConnectedParticipant.is_connected
-            }
-          });
-          return;
-        }
-        
-        // Determine role: original room creator becomes host, others are players
-        userRole = isOriginalCreator ? 'host' : 'player';
-        console.log(`👥 [REJOINING DEBUG] Adding new participant with role: ${userRole}${customLobbyName ? `, custom name: ${customLobbyName}` : ''}`);
-        await db.addParticipant(room.id, user.id, socket.id, userRole, customLobbyName);
-        
-        // If joining an in_game room, mark new player as in_game with 'game' location
-        // This ensures late-joiners show "In Game" badge like other players
-        if (room.status === 'in_game') {
-          await db.adminClient
-            .from('room_members')
-            .update({
-              in_game: true,
-              current_location: 'game'
-            })
-            .eq('user_id', user.id)
-            .eq('room_id', room.id);
-          console.log(`🎮 [REJOINING DEBUG] Marked new participant as in_game with 'game' location`);
-        }
-        
-        console.log(`✅ [REJOINING DEBUG] Added new participant`);
-        
-        // Update connection tracking
-        // Clean up any existing connections for this user before creating new one
-        const userConnections = connectionManager.getUserConnections(user.id)
-          .filter(conn => conn.socketId !== socket.id);
-        
-        userConnections.forEach(staleConn => {
-          console.log(`🧹 [CLEANUP] Removing stale connection for user ${user.id}: ${staleConn.socketId}`);
-          connectionManager.removeConnection(staleConn.socketId);
-        });
-        
-        // Update connection tracking
-        connectionManager.updateConnection(socket.id, {
-          userId: user.id,
-          username: playerName,
-          roomId: room.id,
-          roomCode: roomCode
-        });
-        console.log(`🔗 [REJOINING DEBUG] Updated connection tracking:`, {
-          socketId: socket.id,
-          userId: user.id,
-          roomId: room.id,
-          username: user.username,
-          playerRole: userRole
-        });
-      }
 
-      // Join socket room
-      console.log(`🔗 [REJOINING DEBUG] Joining socket room: ${data.roomCode}`);
-      socket.join(data.roomCode);
+        // Join socket room
+        console.log(`🔗 [REJOINING DEBUG] Joining socket room: ${data.roomCode}`);
+        socket.join(data.roomCode);
 
 
 
-      // Get updated room data
-      console.log(`🔄 [REJOINING DEBUG] Fetching updated room data...`);
-      const updatedRoom = await db.getRoomByCode(data.roomCode);
-      
-      // Prepare player list - include ALL participants with their status
-      const players = updatedRoom.participants?.map(p => ({
+        // Get updated room data
+        console.log(`🔄 [REJOINING DEBUG] Fetching updated room data...`);
+        const updatedRoom = await db.getRoomByCode(data.roomCode);
+
+        // Prepare player list - include ALL participants with their status
+        const players = updatedRoom.participants?.map(p => ({
           id: p.user_id,
           name: p.custom_lobby_name || p.user?.display_name || 'Player',
           isHost: p.role === 'host',
@@ -3194,68 +2897,68 @@ io.on('connection', async (socket) => {
           avatarOptions: p.user?.avatar_options,
           level: p.user?.level || 1,
           socketId: null // Socket IDs are tracked in activeConnections, not stored in DB
-      })) || [];
+        })) || [];
 
-      console.log(`👥 [REJOINING DEBUG] Final player list:`, players);
+        console.log(`👥 [REJOINING DEBUG] Final player list:`, players);
 
-      // Notify all players in room
-      const isHost = userRole === 'host';
-      const joinEventData = {
-        player: {
-          id: user.id,
-          name: customLobbyName || user.display_name || 'Player',
+        // Notify all players in room
+        const isHost = userRole === 'host';
+        const joinEventData = {
+          player: {
+            id: user.id,
+            name: customLobbyName || user.display_name || 'Player',
+            isHost: isHost,
+            premiumTier: user.premium_tier || 'free',
+            role: user.role || 'user',
+            avatarUrl: user.avatar_url,
+            avatarStyle: user.avatar_style,
+            avatarSeed: user.avatar_seed,
+            avatarOptions: user.avatar_options,
+            level: user.level || 1,
+            socketId: socket.id
+          },
+          players: players,
+          room: updatedRoom
+        };
+
+        console.log(`📢 [REJOINING DEBUG] Broadcasting playerJoined event:`, {
+          playerId: joinEventData.player.id,
+          playerName: joinEventData.player.name,
+          isHost: joinEventData.player.isHost,
+          totalPlayers: players.length,
+          roomCode: data.roomCode
+        });
+
+        // Broadcast to OTHER players in room (not the joining player - they get roomJoined event instead)
+        socket.to(data.roomCode).emit('playerJoined', { ...joinEventData, roomVersion: Date.now() });
+
+        // Send success response to joining player
+        const joinSuccessData = {
+          roomCode: data.roomCode,
           isHost: isHost,
-          premiumTier: user.premium_tier || 'free',
-          role: user.role || 'user',
-          avatarUrl: user.avatar_url,
-          avatarStyle: user.avatar_style,
-          avatarSeed: user.avatar_seed,
-          avatarOptions: user.avatar_options,
-          level: user.level || 1,
-          socketId: socket.id
-        },
-        players: players,
-        room: updatedRoom
-      };
-      
-      console.log(`📢 [REJOINING DEBUG] Broadcasting playerJoined event:`, {
-        playerId: joinEventData.player.id,
-        playerName: joinEventData.player.name,
-        isHost: joinEventData.player.isHost,
-        totalPlayers: players.length,
-        roomCode: data.roomCode
-      });
-      
-      // Broadcast to OTHER players in room (not the joining player - they get roomJoined event instead)
-      socket.to(data.roomCode).emit('playerJoined', { ...joinEventData, roomVersion: Date.now() });
+          players: players,
+          room: updatedRoom,
+          roomVersion: Date.now()
+        };
 
-      // Send success response to joining player
-      const joinSuccessData = {
-        roomCode: data.roomCode,
-        isHost: isHost,
-        players: players,
-        room: updatedRoom,
-        roomVersion: Date.now()
-      };
-      
-      console.log(`✅ [REJOINING DEBUG] Sending roomJoined success:`, {
-        roomCode: joinSuccessData.roomCode,
-        isHost: joinSuccessData.isHost,
-        playerCount: joinSuccessData.players.length,
-        roomStatus: updatedRoom.status,
-        gameType: updatedRoom.current_game
-      });
-      
-      socket.emit('roomJoined', joinSuccessData);
+        console.log(`✅ [REJOINING DEBUG] Sending roomJoined success:`, {
+          roomCode: joinSuccessData.roomCode,
+          isHost: joinSuccessData.isHost,
+          playerCount: joinSuccessData.players.length,
+          roomStatus: updatedRoom.status,
+          gameType: updatedRoom.current_game
+        });
 
-      console.log(`🎉 [REJOINING SUCCESS] ${data.playerName} ${existingParticipant ? 'rejoined' : 'joined'} room ${data.roomCode}`);
-      
-      // Auto-update room status based on player states after rejoin
-      // This ensures room properly transitions back to lobby when players return from games
-      if (updatedRoom.status === 'in_game') {
-        console.log(`🔄 [REJOINING] Checking if room should return to lobby after player rejoin`);
-        await autoUpdateRoomStatusBasedOnPlayerStates(updatedRoom, players, 'player_rejoined');
-      }
+        socket.emit('roomJoined', joinSuccessData);
+
+        console.log(`🎉 [REJOINING SUCCESS] ${data.playerName} ${existingParticipant ? 'rejoined' : 'joined'} room ${data.roomCode}`);
+
+        // Auto-update room status based on player states after rejoin
+        // This ensures room properly transitions back to lobby when players return from games
+        if (updatedRoom.status === 'in_game') {
+          console.log(`🔄 [REJOINING] Checking if room should return to lobby after player rejoin`);
+          await autoUpdateRoomStatusBasedOnPlayerStates(updatedRoom, players, 'player_rejoined');
+        }
 
       } catch (error) {
         console.error('❌ [REJOINING ERROR] Room join/rejoin failed:', {
@@ -3266,7 +2969,7 @@ io.on('connection', async (socket) => {
           roomCode: roomCode,
           timestamp: new Date().toISOString()
         });
-        socket.emit('error', { 
+        socket.emit('error', {
           message: 'Failed to join room. Please try again.',
           code: 'JOIN_FAILED',
           debug: {
@@ -3281,7 +2984,7 @@ io.on('connection', async (socket) => {
     } catch (error) {
       // Outer catch for validation errors
       console.error('❌ [JOIN ROOM ERROR] Validation or setup error:', error);
-      socket.emit('error', { 
+      socket.emit('error', {
         message: 'Invalid request data',
         code: 'VALIDATION_ERROR'
       });
@@ -3343,32 +3046,32 @@ io.on('connection', async (socket) => {
     console.log(`🚀 [START GAME SERVER] Socket ID: ${socket.id}`);
     console.log(`🚀 [START GAME SERVER] Event data:`, data);
     console.log(`🚀 [START GAME SERVER] Timestamp:`, new Date().toISOString());
-    
+
     try {
       const connection = connectionManager.getConnection(socket.id);
-              console.log(`🚀 [START GAME SERVER] Connection lookup:`, {
-          socketId: socket.id,
-          hasConnection: !!connection,
-          userId: connection?.userId,
-          roomId: connection?.roomId,
-          totalActiveConnections: connectionManager.getStats().totalConnections
-        });
-        
-        const allConnections = Array.from(connectionManager.activeConnections.entries());
-        console.log(`🚀 [START GAME SERVER] All active connections:`, allConnections.map(([socketId, conn]) => ({
-          socketId,
-          userId: conn.userId,
-          username: conn.username,
-          roomId: conn.roomId,
-          isCurrentSocket: socketId === socket.id
-        })));
-      
+      console.log(`🚀 [START GAME SERVER] Connection lookup:`, {
+        socketId: socket.id,
+        hasConnection: !!connection,
+        userId: connection?.userId,
+        roomId: connection?.roomId,
+        totalActiveConnections: connectionManager.getStats().totalConnections
+      });
+
+      const allConnections = Array.from(connectionManager.activeConnections.entries());
+      console.log(`🚀 [START GAME SERVER] All active connections:`, allConnections.map(([socketId, conn]) => ({
+        socketId,
+        userId: conn.userId,
+        username: conn.username,
+        roomId: conn.roomId,
+        isCurrentSocket: socketId === socket.id
+      })));
+
       if (!connection?.roomId) {
         console.error(`❌ [START GAME SERVER] Connection has no roomId - cannot start game`);
         socket.emit('error', { message: 'Not in a room' });
         return;
       }
-    
+
       console.log(`🔍 [START GAME SERVER] Getting room data for code: ${data.roomCode}`);
       // Get room data
       const room = await db.getRoomByCode(data.roomCode);
@@ -3377,7 +3080,7 @@ io.on('connection', async (socket) => {
         socket.emit('error', { message: 'Room not found' });
         return;
       }
-      
+
       console.log(`✅ [START GAME SERVER] Room found:`, {
         id: room.id,
         room_code: room.room_code,
@@ -3385,19 +3088,19 @@ io.on('connection', async (socket) => {
         current_game: room.current_game,
         participants_count: room.participants?.length || 0
       });
-    
+
       console.log(`🚀 [DEBUG] Room participants:`, room.participants?.map(p => ({
         user_id: p.user_id,
         role: p.role,
         is_connected: p.is_connected,
         username: p.user?.username
       })));
-      
+
       // Verify user is host
-      const userParticipant = room.participants?.find(p => 
+      const userParticipant = room.participants?.find(p =>
         p.user_id === connection.userId && p.role === 'host'
       );
-      
+
       console.log(`🚀 [START GAME DEBUG] Looking for host with userId: ${connection.userId}`);
       console.log(`🚀 [START GAME DEBUG] Found participant:`, userParticipant ? {
         user_id: userParticipant.user_id,
@@ -3405,7 +3108,7 @@ io.on('connection', async (socket) => {
         username: userParticipant.user?.username,
         is_connected: userParticipant.is_connected
       } : 'NOT FOUND');
-      
+
       console.log(`🚀 [START GAME DEBUG] All participants:`, room.participants?.map(p => ({
         user_id: p.user_id,
         role: p.role,
@@ -3413,15 +3116,15 @@ io.on('connection', async (socket) => {
         is_connected: p.is_connected,
         isCurrentUser: p.user_id === connection.userId
       })));
-      
+
       if (!userParticipant) {
         console.error(`❌ [START GAME SERVER] User is not host or not found in room`);
         socket.emit('error', { message: 'Only the host can start the game' });
         return;
       }
-      
+
       console.log(`✅ [START GAME SERVER] Host validation passed - proceeding with game start`);
-    
+
       // Update room status and mark all connected participants as in_game
       await db.updateRoom(room.id, {
         status: 'in_game',
@@ -3480,9 +3183,9 @@ io.on('connection', async (socket) => {
       const gameProxy = gameProxies[room.current_game];
       if (!gameProxy) {
         socket.emit('error', { message: 'Game not supported' });
-      return;
-    }
-    
+        return;
+      }
+
       // Send game URLs to participants with delay for non-hosts
       const participants = room.participants?.filter(p =>
         p.is_connected === true
@@ -3546,17 +3249,17 @@ io.on('connection', async (socket) => {
         const gameUrl = `${gameProxy.path}?session=${sessionToken}${roleParam}`;
 
         console.log(`🔐 [SECURE URL] Game URL for ${p.user?.username} - session-based authentication`);
-        
+
         const delay = p.role === 'host' ? 0 : 2000; // 2 second delay for players
-        
+
         // Find the MOST RECENT socket ID for this user from connectionManager
         const userConnections = connectionManager.getUserConnections(p.user_id);
-        
+
         // Get the most recent connection (they're already sorted by activity)
         const userConnection = userConnections.length > 0 ? userConnections[0] : null;
-        
+
         const currentSocketId = userConnection ? userConnection.socketId : null;
-        
+
         console.log(`🚀 [START GAME DEBUG] Sending game event to ${p.user?.username}:`, {
           user_id: p.user_id,
           role: p.role,
@@ -3564,22 +3267,22 @@ io.on('connection', async (socket) => {
           is_connected: p.is_connected,
           hasUserConnection: !!userConnection,
           totalUserConnections: userConnections.length,
-          allUserSocketIds: userConnections.map(conn => conn.socketId), 
+          allUserSocketIds: userConnections.map(conn => conn.socketId),
           selectedSocketId: currentSocketId,
           gameUrl,
           delay
         });
-        
+
         if (currentSocketId) {
           setTimeout(() => {
             console.log(`📤 [START GAME DEBUG] Emitting gameStarted to ${p.user?.username} (${currentSocketId})`);
-          io.to(currentSocketId).emit('gameStarted', {
-            gameUrl,
-            gameType: room.current_game,
-            isHost: p.role === 'host',
-            roomCode: room.room_code,
-            roomVersion: Date.now()
-          });
+            io.to(currentSocketId).emit('gameStarted', {
+              gameUrl,
+              gameType: room.current_game,
+              isHost: p.role === 'host',
+              roomCode: room.room_code,
+              roomVersion: Date.now()
+            });
           }, delay);
         } else {
           console.error(`❌ [START GAME DEBUG] No socket connection found for ${p.user?.username} (${p.user_id})`);
@@ -3656,26 +3359,26 @@ io.on('connection', async (socket) => {
         // Send appropriate events based on whether host was transferred
         if (newHost) {
           // Send host transfer event first
-      io.to(data.roomCode).emit('hostTransferred', {
-        oldHostId: connection.userId,
-        newHostId: newHost.user_id,
-        newHostName: newHost.user?.display_name || 'Player',
-        reason: 'original_host_left',
-        players: allPlayers,
-        room: updatedRoom,
-        roomVersion: Date.now()
-      });
+          io.to(data.roomCode).emit('hostTransferred', {
+            oldHostId: connection.userId,
+            newHostId: newHost.user_id,
+            newHostName: newHost.user?.display_name || 'Player',
+            reason: 'original_host_left',
+            players: allPlayers,
+            room: updatedRoom,
+            roomVersion: Date.now()
+          });
           console.log(`👑 [LEAVE] Instantly transferred host to ${newHost.user?.display_name || 'Player'}`);
         }
 
         // Then send player left event
-      io.to(data.roomCode).emit('playerLeft', {
-        playerId: connection.userId,
-        players: allPlayers,
-        room: updatedRoom,
-        wasHost: isLeavingHost,
-        roomVersion: Date.now()
-      });
+        io.to(data.roomCode).emit('playerLeft', {
+          playerId: connection.userId,
+          players: allPlayers,
+          room: updatedRoom,
+          wasHost: isLeavingHost,
+          roomVersion: Date.now()
+        });
 
         // If no connected players left, mark room as abandoned
         const connectedPlayers = allPlayers.filter(p => p.isConnected);
@@ -3703,7 +3406,7 @@ io.on('connection', async (socket) => {
   socket.on('playerReturnToLobby', async (data) => {
     try {
       console.log(`🔄 Player returning to lobby: ${data.playerName} in room ${data.roomCode}`);
-      
+
       const connection = connectionManager.getConnection(socket.id);
       if (!connection?.roomId || !connection?.userId) {
         socket.emit('error', { message: 'Not in a room' });
@@ -3720,7 +3423,7 @@ io.on('connection', async (socket) => {
       // Mark this player as not in_game, connected to lobby, and in 'lobby' location
       await db.adminClient
         .from('room_members')
-        .update({ 
+        .update({
           in_game: false,
           is_connected: true,
           current_location: 'lobby',
@@ -3731,7 +3434,7 @@ io.on('connection', async (socket) => {
 
       // Get updated room data with all participants
       const updatedRoom = await db.getRoomByCode(data.roomCode);
-      
+
       // Notify all players about the status update
       io.to(data.roomCode).emit('playerStatusUpdated', {
         playerId: connection.userId,
@@ -3753,7 +3456,7 @@ io.on('connection', async (socket) => {
   socket.on('transferHost', async (data) => {
     try {
       console.log(`👑 Host transfer requested: ${data.targetUserId} in room ${data.roomCode}`);
-      
+
       const connection = connectionManager.getConnection(socket.id);
       if (!connection?.roomId || !connection?.userId) {
         socket.emit('error', { message: 'Not in a room' });
@@ -3833,7 +3536,7 @@ io.on('connection', async (socket) => {
         kickedBy: socket.id,
         timestamp: new Date().toISOString()
       });
-      
+
       const connection = connectionManager.getConnection(socket.id);
       if (!connection?.roomId || !connection?.userId) {
         console.log(`❌ [KICK DEBUG] Kicker not in a room:`, {
@@ -3871,7 +3574,7 @@ io.on('connection', async (socket) => {
             username: currentParticipant.user?.username
           } : 'NOT_FOUND'
         });
-        socket.emit('kickFailed', { 
+        socket.emit('kickFailed', {
           reason: 'Only the host can kick players',
           error: 'NOT_HOST',
           targetUserId: data.targetUserId
@@ -3886,7 +3589,7 @@ io.on('connection', async (socket) => {
           targetUserId: data.targetUserId,
           availableParticipants: room.participants?.map(p => p.user_id)
         });
-        socket.emit('kickFailed', { 
+        socket.emit('kickFailed', {
           reason: 'Target player not found in room',
           error: 'PLAYER_NOT_FOUND',
           targetUserId: data.targetUserId
@@ -3899,7 +3602,7 @@ io.on('connection', async (socket) => {
           targetUserId: data.targetUserId,
           targetRole: targetParticipant.role
         });
-        socket.emit('kickFailed', { 
+        socket.emit('kickFailed', {
           reason: 'Cannot kick the host',
           error: 'CANNOT_KICK_HOST',
           targetUserId: data.targetUserId
@@ -3980,7 +3683,7 @@ io.on('connection', async (socket) => {
       // Clear connection tracking for kicked player
       if (targetConnection) {
 
-        
+
         targetConnection.roomId = null;
         targetConnection.userId = null;
       }
@@ -3996,7 +3699,7 @@ io.on('connection', async (socket) => {
         roomCode: data?.roomCode,
         timestamp: new Date().toISOString()
       });
-      socket.emit('kickFailed', { 
+      socket.emit('kickFailed', {
         reason: 'Failed to kick player due to server error',
         error: 'SERVER_ERROR',
         targetUserId: data?.targetUserId
@@ -4008,7 +3711,7 @@ io.on('connection', async (socket) => {
   socket.on('changeRoomStatus', async (data) => {
     try {
       console.log(`🔄 Room status change requested: ${data.newStatus} for room ${data.roomCode}`);
-      
+
       const connection = connectionManager.getConnection(socket.id);
       if (!connection?.roomId || !connection?.userId) {
         socket.emit('error', { message: 'Not in a room' });
@@ -4038,7 +3741,7 @@ io.on('connection', async (socket) => {
 
       // Update room status in database
       const updateData = { status: data.newStatus };
-      
+
       // If changing back to lobby, also reset current game
       if (data.newStatus === 'lobby') {
         updateData.current_game = null;
@@ -4048,7 +3751,7 @@ io.on('connection', async (socket) => {
 
       // Get updated room data
       const updatedRoom = await db.getRoomByCode(data.roomCode);
-      
+
       // Notify all players about the status change
       io.to(data.roomCode).emit('roomStatusChanged', {
         oldStatus: room.status,
@@ -4070,7 +3773,7 @@ io.on('connection', async (socket) => {
   socket.on('autoUpdateRoomStatus', async (data) => {
     try {
       console.log(`🤖 Auto-updating room status: ${data.newStatus} for room ${data.roomCode} (reason: ${data.reason})`);
-      
+
       const connection = connectionManager.getConnection(socket.id);
       if (!connection?.roomId || !connection?.userId) {
         console.log(`❌ Auto status update failed: socket not in room`);
@@ -4114,7 +3817,7 @@ io.on('connection', async (socket) => {
 
       // Update room status in database
       const updateData = { status: serverStatus };
-      
+
       // If changing back to lobby, also reset current game
       if (serverStatus === 'lobby') {
         updateData.current_game = null;
@@ -4124,7 +3827,7 @@ io.on('connection', async (socket) => {
 
       // Get updated room data
       const updatedRoom = await db.getRoomByCode(data.roomCode);
-      
+
       // Notify all players about the automatic status change
       io.to(data.roomCode).emit('roomStatusChanged', {
         oldStatus: room.status,
@@ -4184,7 +3887,7 @@ io.on('connection', async (socket) => {
   socket.on('disconnect', async () => {
     try {
       console.log(`🔌 User disconnected: ${socket.id}`);
-      
+
       // Get and remove connection from manager
       const connection = connectionManager.removeConnection(socket.id);
       if (connection?.userId) {
@@ -4197,7 +3900,7 @@ io.on('connection', async (socket) => {
             .eq('status', 'accepted');
 
           if (friendships) {
-            const friendIds = friendships.map(f => 
+            const friendIds = friendships.map(f =>
               f.user_id === connection.userId ? f.friend_id : f.user_id
             );
             for (const friendId of friendIds) {
@@ -4210,7 +3913,7 @@ io.on('connection', async (socket) => {
         let isDisconnectingHost = false;
         let room = null;
         let disconnectingParticipant = null;
-        
+
         if (connection.roomId) {
           room = await db.getRoomById(connection.roomId);
           disconnectingParticipant = room?.participants?.find(p => p.user_id === connection.userId);
@@ -4219,7 +3922,7 @@ io.on('connection', async (socket) => {
 
         // Determine appropriate status based on room and player status
         let connectionStatus = 'disconnected';
-        
+
         if (room && disconnectingParticipant) {
           // If room is in_game and player is marked as in_game, they're likely in the external game
           if (room.status === 'in_game' && disconnectingParticipant.in_game === true) {
@@ -4233,8 +3936,8 @@ io.on('connection', async (socket) => {
 
         // Update participant connection status (this will also set the appropriate location)
         await db.updateParticipantConnection(
-          connection.userId, 
-          socket.id, 
+          connection.userId,
+          socket.id,
           connectionStatus
         );
 
@@ -4293,15 +3996,15 @@ io.on('connection', async (socket) => {
 
           // Send host transfer event first if host was transferred
           if (newHost) {
-          io.to(room.room_code).emit('hostTransferred', {
-            oldHostId: connection.userId,
-            newHostId: newHost.user_id,
-            newHostName: newHost.user?.display_name || 'Player',
-            reason: 'original_host_disconnected',
-            players: allPlayers,
-            room: updatedRoom,
-            roomVersion: Date.now()
-          });
+            io.to(room.room_code).emit('hostTransferred', {
+              oldHostId: connection.userId,
+              newHostId: newHost.user_id,
+              newHostName: newHost.user?.display_name || 'Player',
+              reason: 'original_host_disconnected',
+              players: allPlayers,
+              room: updatedRoom,
+              roomVersion: Date.now()
+            });
           }
 
           // Then send player disconnected event
@@ -4319,7 +4022,7 @@ io.on('connection', async (socket) => {
             // [ABANDON] Start grace period instead of immediate abandonment
             // This allows time for players to reconnect after returning from a game
             console.log(`⏳ [ABANDON] Room ${room.room_code} has no connected players - starting grace period`);
-            startAbandonmentGracePeriod(room.id, room.room_code);
+            roomLifecycleManager.startAbandonmentGracePeriod(room.id, room.room_code);
           }
         }
       }
@@ -4342,12 +4045,12 @@ app.get('/api/supabase-config', (req, res) => {
       url: process.env.SUPABASE_URL,
       anonKey: process.env.SUPABASE_ANON_KEY
     };
-    
+
     console.log('📡 [API] Providing Supabase config to frontend:', {
       url: config.url ? `${config.url.substring(0, 20)}...` : 'MISSING',
       anonKey: config.anonKey ? `${config.anonKey.substring(0, 20)}...` : 'MISSING'
     });
-    
+
     res.json(config);
   } catch (error) {
     console.error('❌ Error providing Supabase config:', error);
@@ -4380,8 +4083,8 @@ app.post('/api/admin/cleanup-rooms', async (req, res) => {
     res.json({
       success: true,
       ...result,
-      message: dryRun 
-        ? `Would clean ${result.wouldClean} rooms` 
+      message: dryRun
+        ? `Would clean ${result.wouldClean} rooms`
         : `Cleaned ${result.cleaned} rooms`
     });
   } catch (error) {
@@ -4605,11 +4308,11 @@ app.get('/api/game-sessions/:token', async (req, res) => {
 app.post('/api/admin/cleanup-now', async (req, res) => {
   try {
     console.log('🧹 Manual cleanup triggered');
-    
+
     // Run all cleanup tasks
     await db.cleanupStaleConnections();
     await db.refreshActiveRoomsView();
-    
+
     const roomCleanup = await db.cleanupInactiveRooms({
       maxAgeHours: 2,      // More aggressive for manual cleanup
       maxIdleMinutes: 15,  // More aggressive for manual cleanup
@@ -4639,11 +4342,11 @@ app.post('/api/admin/cleanup-now', async (req, res) => {
 setInterval(async () => {
   try {
     console.log('🧹 Running periodic cleanup...');
-    
+
     // Clean up stale connections
     await db.cleanupStaleConnections();
     await db.refreshActiveRoomsView();
-    
+
     // Clean up inactive rooms (less aggressive than manual)
     const roomCleanup = await db.cleanupInactiveRooms({
       maxAgeHours: 24,     // Rooms older than 24 hours
@@ -4652,11 +4355,11 @@ setInterval(async () => {
       includeCompleted: true,
       dryRun: false
     });
-    
+
     if (roomCleanup.cleaned > 0) {
       console.log(`🧹 Periodic cleanup: ${roomCleanup.cleaned} rooms cleaned`);
     }
-    
+
   } catch (error) {
     console.error('❌ Periodic cleanup error:', error);
   }
@@ -4666,11 +4369,11 @@ setInterval(async () => {
 setInterval(async () => {
   try {
     const hour = new Date().getHours();
-    
+
     // Run more aggressive cleanup during off-peak hours (2 AM - 6 AM)
     if (hour >= 2 && hour <= 6) {
       console.log('🌙 Running off-peak aggressive cleanup...');
-      
+
       const roomCleanup = await db.cleanupInactiveRooms({
         maxAgeHours: 12,     // More aggressive: 12 hours
         maxIdleMinutes: 30,  // More aggressive: 30 minutes
@@ -4678,7 +4381,7 @@ setInterval(async () => {
         includeCompleted: true,
         dryRun: false
       });
-      
+
       if (roomCleanup.cleaned > 0) {
         console.log(`🌙 Off-peak cleanup: ${roomCleanup.cleaned} rooms cleaned`);
       }
@@ -4691,10 +4394,10 @@ setInterval(async () => {
 // Graceful shutdown
 process.on('SIGTERM', async () => {
   console.log('🛑 SIGTERM received, shutting down gracefully...');
-  
+
   // Close all socket connections
   io.close();
-  
+
   // Close server
   server.close(() => {
     console.log('✅ Server closed');
@@ -4711,7 +4414,7 @@ app.use((err, req, res, next) => {
     method: req.method,
     timestamp: new Date().toISOString()
   });
-  
+
   if (req.path.startsWith('/api/')) {
     res.status(500).json({
       success: false,
@@ -4764,7 +4467,7 @@ const PORT = process.env.PORT || 3033;
 async function startServer() {
   try {
     // Load and setup game proxies from database
-    await setupGameProxies();
+    await proxyManager.setupGameProxies(app, server);
 
     // ===== GAME-SPECIFIC STATIC FILE SERVING & CATCH-ALL ROUTES =====
     // These must come BEFORE the main catch-all route to properly serve React apps
@@ -4868,7 +4571,7 @@ async function startServer() {
 // Start the server
 startServer();
 
-module.exports = { app, server, io }; 
+module.exports = { app, server, io };
 
 
 

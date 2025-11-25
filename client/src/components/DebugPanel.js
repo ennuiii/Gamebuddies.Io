@@ -23,7 +23,7 @@ const DebugPanel = () => {
           hostname: window.location.hostname,
           origin: window.location.origin,
           userAgent: navigator.userAgent.substring(0, 100) + '...',
-          serverUrl: process.env.REACT_APP_SERVER_URL
+          serverUrl: import.meta.env.REACT_APP_SERVER_URL
         }
       });
     };
@@ -75,10 +75,10 @@ const DebugPanel = () => {
   }, [keySequence]);
 
   // Show debug panel only in development or when URL contains debug=true or manually triggered
-  const shouldShow = process.env.NODE_ENV === 'development' || 
-                   window.location.search.includes('debug=true') ||
-                   window.location.search.includes('debug=1') ||
-                   isVisible; // Allow manual triggering via keyboard
+  const shouldShow = import.meta.env.MODE === 'development' ||
+    window.location.search.includes('debug=true') ||
+    window.location.search.includes('debug=1') ||
+    isVisible; // Allow manual triggering via keyboard
 
   if (!shouldShow) return null;
 
@@ -115,8 +115,8 @@ const DebugPanel = () => {
 
   if (!isVisible) {
     return (
-      <button 
-        style={toggleStyle} 
+      <button
+        style={toggleStyle}
         onClick={() => setIsVisible(true)}
         title="Show GameBuddies Debug Panel (or type 'debug')"
       >
@@ -129,7 +129,7 @@ const DebugPanel = () => {
     <div style={debugStyle}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
         <strong>🐛 GameBuddies Debug Panel</strong>
-        <button 
+        <button
           onClick={() => setIsVisible(false)}
           style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer' }}
         >
@@ -140,7 +140,7 @@ const DebugPanel = () => {
       <div style={{ marginBottom: '10px', fontSize: '10px', color: '#888' }}>
         💡 Tip: Type "debug" anywhere to show this panel
       </div>
-      
+
       <div style={{ marginBottom: '10px' }}>
         <strong>Current State:</strong>
         <pre style={{ margin: '5px 0', fontSize: '10px', whiteSpace: 'pre-wrap' }}>
