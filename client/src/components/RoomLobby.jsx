@@ -1743,15 +1743,13 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
                     >
                       {isStartingGame ? 'Starting...' : 'Start Game'}
                     </button>
-                    <button 
+                    <button
                       onClick={() => {
                         setSelectedGame(null);
-                        if (socket && socketIsConnected) {
-                          socket.emit('selectGame', { gameType: null });
-                        }
+                        // Just reset local state to show game picker
+                        // Server will be updated when user selects a new game
                       }}
                       className="change-game-btn"
-                      disabled={!socket || !socketIsConnected}
                       style={{ display: 'block', width: '100%', maxWidth: '400px', background: '#00d9ff', color: 'black' }}
                     >
                       Change Game
