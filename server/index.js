@@ -198,6 +198,62 @@ async function loadGameProxiesFromDatabase() {
 // Store proxy instances for WebSocket upgrade handling
 const proxyInstances = {};
 
+// [ABANDON] Grace period before marking rooms abandoned (prevents false abandonment during return-from-game)
+const abandonmentTimers = new Map();
+const ABANDONMENT_GRACE_PERIOD_MS = 10000; // 10 seconds
+
+function startAbandonmentGracePeriod(roomId, roomCode) {
+  // Clear any existing timer for this room
+  if (abandonmentTimers.has(roomId)) {
+    clearTimeout(abandonmentTimers.get(roomId));
+  }
+
+  console.log(`⏳ [ABANDON] Starting ${ABANDONMENT_GRACE_PERIOD_MS}ms grace period for room ${roomCode}`);
+
+  const timer = setTimeout(async () => {
+    abandonmentTimers.delete(roomId);
+
+    try {
+      // Re-check connected players after grace period
+      const { data: room, error } = await db.adminClient
+        .from('rooms')
+        .select('*, room_members!inner(*)')
+        .eq('id', roomId)
+        .single();
+
+      if (error) {
+        console.error(`❌ [ABANDON] Error checking room ${roomCode}:`, error);
+        return;
+      }
+
+      const connectedCount = room?.room_members?.filter(m => m.is_connected).length || 0;
+
+      if (connectedCount === 0 && room?.status !== 'abandoned') {
+        console.log(`🗑️ [ABANDON] Grace period expired, no reconnections - marking room ${roomCode} as abandoned`);
+        await db.adminClient
+          .from('rooms')
+          .update({ status: 'abandoned', updated_at: new Date().toISOString() })
+          .eq('id', roomId);
+        console.log(`✅ [ABANDON] Room ${roomCode} marked as abandoned`);
+      } else {
+        console.log(`✅ [ABANDON] Grace period: Room ${roomCode} has ${connectedCount} connected players, not abandoning`);
+      }
+    } catch (err) {
+      console.error(`❌ [ABANDON] Exception during grace period check for room ${roomCode}:`, err);
+    }
+  }, ABANDONMENT_GRACE_PERIOD_MS);
+
+  abandonmentTimers.set(roomId, timer);
+}
+
+function cancelAbandonmentGracePeriod(roomId, roomCode) {
+  if (abandonmentTimers.has(roomId)) {
+    console.log(`✅ [ABANDON] Cancelled grace period for room ${roomCode} - player reconnected`);
+    clearTimeout(abandonmentTimers.get(roomId));
+    abandonmentTimers.delete(roomId);
+  }
+}
+
 // Global WebSocket error suppression function
 const isNavigationError = (err) => {
   const suppressedCodes = ['ERR_STREAM_WRITE_AFTER_END', 'ECONNRESET', 'EPIPE', 'ENOTFOUND'];
@@ -2537,9 +2593,9 @@ io.on('connection', async (socket) => {
         return;
       }
       
-      console.log(`✅ [REJOINING DEBUG] Room found:`, { 
-        id: room.id, 
-        room_code: room.room_code, 
+      console.log(`✅ [REJOINING DEBUG] Room found:`, {
+        id: room.id,
+        room_code: room.room_code,
         status: room.status,
         connected_players: room.participants?.filter(p => p.is_connected === true).length || 0,
         max_players: room.max_players,
@@ -2548,6 +2604,9 @@ io.on('connection', async (socket) => {
         current_game: room.current_game,
         participants_count: room.participants?.length || 0
       });
+
+      // [ABANDON] Cancel any pending abandonment grace period when a player joins
+      cancelAbandonmentGracePeriod(room.id, room.room_code);
 
       // Enhanced participant debugging
       console.log(`👥 [REJOINING DEBUG] Current participants:`, 
@@ -2577,25 +2636,50 @@ io.on('connection', async (socket) => {
       
       // Check if room is still accepting players
       const isOriginalCreator = room.metadata?.created_by_name === data.playerName;
+
+      // [ABANDON] Quick check if this is a previous participant trying to rejoin an abandoned room
+      // This check happens BEFORE the full participant lookup to allow previous participants to rejoin
+      let isPreviousParticipant = false;
+      if (room.status === 'abandoned') {
+        // Check by supabaseUserId first (most reliable)
+        if (supabaseUserId) {
+          isPreviousParticipant = room.participants?.some(p => p.user_id === supabaseUserId) || false;
+        }
+        // Fallback: Check by name fields
+        if (!isPreviousParticipant && data.playerName) {
+          isPreviousParticipant = room.participants?.some(p =>
+            p.user?.username === data.playerName ||
+            p.user?.display_name === data.playerName ||
+            p.custom_lobby_name === data.playerName
+          ) || false;
+        }
+        if (isPreviousParticipant) {
+          console.log(`🔄 [ABANDON] Previous participant ${data.playerName} rejoining abandoned room ${roomCode}`);
+        }
+      }
+
       console.log(`🔍 [REJOINING DEBUG] Creator check:`, {
         playerName: data.playerName,
         createdByName: room.metadata?.created_by_name,
         isOriginalCreator,
+        isPreviousParticipant,
         roomStatus: room.status
       });
-      
-      // V2 Schema: Accept players when room status is 'lobby' or 'in_game', or if original creator is rejoining
-      if (room.status !== 'lobby' && room.status !== 'in_game' && !isOriginalCreator) {
-        console.log(`❌ [REJOINING DEBUG] Room not accepting players:`, {
+
+      // V2 Schema: Accept players when room status is 'lobby' or 'in_game', or if original creator/previous participant is rejoining
+      if (room.status !== 'lobby' && room.status !== 'in_game' && !isOriginalCreator && !isPreviousParticipant) {
+        console.log(`❌ [ABANDON] Room not accepting players:`, {
           status: room.status,
-          isOriginalCreator
+          isOriginalCreator,
+          isPreviousParticipant
         });
-        socket.emit('error', { 
+        socket.emit('error', {
           message: `Room is ${room.status} and not accepting new players.`,
           code: 'ROOM_NOT_ACCEPTING',
           debug: {
             room_status: room.status,
-            is_original_creator: isOriginalCreator
+            is_original_creator: isOriginalCreator,
+            is_previous_participant: isPreviousParticipant
           }
         });
         return;
@@ -3972,25 +4056,13 @@ io.on('connection', async (socket) => {
             roomVersion: Date.now()
           });
 
-          // Check if room is now empty (no connected players) and mark as abandoned
+          // Check if room is now empty (no connected players) - start grace period instead of immediate abandonment
           const connectedPlayers = updatedRoom?.participants?.filter(p => p.is_connected) || [];
           if (connectedPlayers.length === 0) {
-            console.log(`🗑️ [ROOM CLEANUP] Room ${room.room_code} has no connected players - marking as abandoned`);
-
-            // Mark room as abandoned
-            const { error: updateError } = await db.adminClient
-              .from('rooms')
-              .update({
-                status: 'abandoned',
-                updated_at: new Date().toISOString()
-              })
-              .eq('id', room.id);
-
-            if (updateError) {
-              console.error(`❌ [ROOM CLEANUP] Failed to mark room ${room.room_code} as abandoned:`, updateError);
-            } else {
-              console.log(`✅ [ROOM CLEANUP] Room ${room.room_code} marked as abandoned`);
-            }
+            // [ABANDON] Start grace period instead of immediate abandonment
+            // This allows time for players to reconnect after returning from a game
+            console.log(`⏳ [ABANDON] Room ${room.room_code} has no connected players - starting grace period`);
+            startAbandonmentGracePeriod(room.id, room.room_code);
           }
         }
       }
