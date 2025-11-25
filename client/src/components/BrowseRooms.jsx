@@ -168,27 +168,25 @@ const BrowseRooms = ({ onRoomSelected, onCancel }) => {
         <div className="browse-filters">
           <input
             type="text"
-            placeholder="Search room code or host..."
+            placeholder="🔍 Search room code or host..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="search-input"
           />
-          <label>
-            Filter by Game:
-            <select
-              value={selectedGame}
-              onChange={(e) => setSelectedGame(e.target.value)}
-            >
-              <option value="all">All Games</option>
-              {games.map(game => (
-                <option key={game.id} value={game.id}>
-                  {game.icon} {game.name}
-                </option>
-              ))}
-            </select>
-          </label>
+          <select
+            value={selectedGame}
+            onChange={(e) => setSelectedGame(e.target.value)}
+            className="game-filter"
+          >
+            <option value="all">🎮 All Games</option>
+            {games.map(game => (
+              <option key={game.id} value={game.id}>
+                {game.icon} {game.name}
+              </option>
+            ))}
+          </select>
           <button className="refresh-button" onClick={loadPublicRooms}>
-            🔄 Refresh
+            🔄
           </button>
         </div>
 
@@ -219,37 +217,29 @@ const BrowseRooms = ({ onRoomSelected, onCancel }) => {
 
         {!loading && !error && getFilteredRooms().length > 0 && (
           <div className="rooms-list">
-            {getFilteredRooms().map((room) => (
+            {getFilteredRooms().map((room) => {
+              const gameInfo = getGameInfo(room.current_game);
+              return (
               <div key={room.id} className={`room-card ${room.status}`}>
-                <div className="room-header">
-                  <div className="room-info">
-                    <h3 className="room-code">{room.room_code}</h3>
-                    {getStatusBadge(room)}
-                  </div>
-                  <div className="room-game">
-                    {room.current_game ? (
-                      <div className="game-display">
-                        {(() => {
-                          const gameInfo = getGameInfo(room.current_game);
-                          return (
-                            <>
-                              {gameInfo?.thumbnailUrl ? (
-                                <img
-                                  src={gameInfo.thumbnailUrl}
-                                  alt={gameInfo?.name || room.current_game}
-                                  className="game-thumbnail"
-                                />
-                              ) : (
-                                <span className="game-icon">{gameInfo?.icon || '🎮'}</span>
-                              )}
-                              <span className="game-name">{gameInfo?.name || room.current_game}</span>
-                            </>
-                          );
-                        })()}
-                      </div>
+                {/* Game header with thumbnail */}
+                <div className="room-card-header">
+                  <div className="game-section">
+                    {gameInfo?.thumbnailUrl ? (
+                      <img
+                        src={gameInfo.thumbnailUrl}
+                        alt={gameInfo?.name || room.current_game}
+                        className="game-thumbnail"
+                      />
                     ) : (
-                      <span className="no-game">No game selected</span>
+                      <div className="game-icon-box">{gameInfo?.icon || '🎮'}</div>
                     )}
+                    <div className="game-info">
+                      <span className="game-title">{gameInfo?.name || 'No Game Selected'}</span>
+                      <div className="room-meta">
+                        <span className="room-code">{room.room_code}</span>
+                        {getStatusBadge(room)}
+                      </div>
+                    </div>
                   </div>
                 </div>
 
@@ -286,7 +276,8 @@ const BrowseRooms = ({ onRoomSelected, onCancel }) => {
                   </button>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
 
