@@ -2082,7 +2082,7 @@ io.on('connection', async (socket) => {
   connectionManager.addConnection(socket.id);
 
   // Chat Handler (Lobby)
-  socket.on('chat:message', (data) => {
+  socket.on('chat:message', async (data) => {
     // Validate message exists and is a string
     if (!data.message || typeof data.message !== 'string') {
       return; // Silently ignore invalid messages
@@ -2094,12 +2094,35 @@ io.on('connection', async (socket) => {
       return; // Ignore empty messages
     }
 
-    // Sanitize player name (30 char limit)
-    const playerName = (data.playerName || 'Player').substring(0, 30);
-
     const rooms = Array.from(socket.rooms).filter(r => r !== socket.id);
     if (rooms.length > 0) {
       const roomCode = rooms[0];
+
+      // [CHAT] Look up actual player name from database instead of trusting client
+      // This ensures we use the proper name chain: custom_lobby_name || display_name || username
+      const connection = connectionManager.getConnection(socket.id);
+      let playerName = (data.playerName || 'Player').substring(0, 30); // Fallback to client-provided name
+
+      if (connection?.userId && connection?.roomId) {
+        try {
+          const { data: participant } = await db.adminClient
+            .from('room_members')
+            .select('custom_lobby_name, user:users(display_name, username)')
+            .eq('room_id', connection.roomId)
+            .eq('user_id', connection.userId)
+            .single();
+
+          if (participant) {
+            playerName = participant.custom_lobby_name
+              || participant.user?.display_name
+              || participant.user?.username
+              || playerName;
+          }
+        } catch (err) {
+          // Fall back to client-provided name on error
+          console.error('❌ [CHAT] Error looking up player name:', err.message);
+        }
+      }
 
       // Update DB activity (throttled to once per minute) to prevent cleanup
       const lastUpdate = roomActivityCache.get(roomCode) || 0;
