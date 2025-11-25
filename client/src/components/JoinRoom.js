@@ -1,5 +1,5 @@
-import React, { useState, useRef } from 'react';
-import io from 'socket.io-client';
+import React, { useState, useRef, useEffect } from 'react';
+import { useSocket } from '../contexts/LazySocketContext';
 import { useAuth } from '../contexts/AuthContext';
 import './JoinRoom.css';
 
@@ -12,7 +12,9 @@ const JoinRoom = ({ initialRoomCode = '', initialPlayerName = '', autoJoin = fal
   const [error, setError] = useState('');
   const isInviteLink = !!initialRoomCode; // Track if user came via invite link
   const { user, session } = useAuth();
+  const { socket, connectSocket, isConnected } = useSocket();
   const lastSubmitRef = useRef(0);
+  const joinListenersSetRef = useRef(false); // Track if listeners are set up
 
   const isAuthenticated = !!session?.user;
 
@@ -25,7 +27,7 @@ const JoinRoom = ({ initialRoomCode = '', initialPlayerName = '', autoJoin = fal
       return;
     }
     lastSubmitRef.current = now;
-    
+
     if (!roomCode.trim()) {
       setError('Please enter a room code');
       return;
@@ -76,59 +78,30 @@ const JoinRoom = ({ initialRoomCode = '', initialPlayerName = '', autoJoin = fal
 
     try {
       console.log('🚪 [JOIN DEBUG] Joining room:', roomCode.trim().toUpperCase());
-      
-      // Determine server URL based on environment
-      const getServerUrl = () => {
-        console.log('🔍 [JOIN DEBUG] Determining server URL...');
-        console.log('🔍 [JOIN DEBUG] window.location.hostname:', window.location.hostname);
-        console.log('🔍 [JOIN DEBUG] REACT_APP_SERVER_URL:', process.env.REACT_APP_SERVER_URL);
-        
-        if (process.env.REACT_APP_SERVER_URL) {
-          console.log('🔍 [JOIN DEBUG] Using REACT_APP_SERVER_URL:', process.env.REACT_APP_SERVER_URL);
-          return process.env.REACT_APP_SERVER_URL;
-        }
-        
-        // If running on Render.com (check for .onrender.com domain)
-        if (window.location.hostname.includes('onrender.com')) {
-          console.log('🔍 [JOIN DEBUG] Detected Render.com, using origin:', window.location.origin);
-          return window.location.origin;
-        }
-        
-        // If running on any production domain (not localhost)
-        if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-          console.log('🔍 [JOIN DEBUG] Detected production domain, using origin:', window.location.origin);
-          return window.location.origin;
-        }
-        
-        // For local development, connect to Render.com server
-        console.log('🔍 [JOIN DEBUG] Local development, using Render.com server');
-        return 'https://gamebuddies-io.onrender.com';
-      };
 
-      const serverUrl = getServerUrl();
-      console.log('🚪 [JOIN DEBUG] Connecting to server:', serverUrl);
+      // Use shared socket from LazySocketContext
+      // Ensure socket is connected
+      let activeSocket = socket;
+      if (!socket || !isConnected) {
+        console.log('🚪 [JOIN DEBUG] Socket not connected, connecting...');
+        activeSocket = connectSocket();
+      }
 
-      const socket = io(serverUrl, {
-        transports: ['websocket', 'polling'],
-        timeout: 10000
-      });
-
-      // Set up event handlers
-      socket.on('connect', () => {
+      // Function to emit join room event
+      const emitJoinRoom = () => {
         console.log('✅ [CLIENT] Connected to server, joining room...');
-        console.log('🔍 [CLIENT DEBUG] Socket ID:', socket.id);
+        console.log('🔍 [CLIENT DEBUG] Socket ID:', activeSocket.id);
         console.log('🔍 [CLIENT DEBUG] Room code:', roomCode.trim().toUpperCase());
         console.log('🔍 [CLIENT DEBUG] Player name:', playerName);
-        console.log('🔍 [CLIENT DEBUG] Server URL:', serverUrl);
         console.log('🚪 [JOIN DEBUG] Connected, sending joinRoom event');
-        
+
         const urlParams = new URLSearchParams(window.location.search);
         const isHostHint = urlParams.get('ishost') === 'true' || urlParams.get('role') === 'gm';
-        socket.emit('joinRoom', {
+        activeSocket.emit('joinRoom', {
           roomCode: roomCode.trim().toUpperCase(),
           playerName,
           customLobbyName,
-          supabaseUserId: session?.user?.id || null, // Send auth user ID if logged in
+          supabaseUserId: session?.user?.id || null,
           isHostHint
         });
         console.log('📤 [CLIENT] joinRoom event sent', {
@@ -137,84 +110,96 @@ const JoinRoom = ({ initialRoomCode = '', initialPlayerName = '', autoJoin = fal
           isAuthenticated,
           supabaseUserId: session?.user?.id
         });
-      });
+      };
 
-      socket.on('roomJoined', (data) => {
-        console.log('✅ [CLIENT] Room joined successfully:', data);
-        console.log('🔍 [CLIENT DEBUG] Join data:', {
-          roomCode: data.roomCode,
-          isHost: data.isHost,
-          playerCount: data.players?.length || 0,
-          room_id: data.room?.id
-        });
-        console.log('🚪 [JOIN DEBUG] Join successful, transitioning to lobby');
-        
-        if (onRoomJoined) {
-          onRoomJoined({
+      // Set up one-time event handlers (only if not already set)
+      if (!joinListenersSetRef.current) {
+        joinListenersSetRef.current = true;
+
+        const handleRoomJoined = (data) => {
+          console.log('✅ [CLIENT] Room joined successfully:', data);
+          console.log('🔍 [CLIENT DEBUG] Join data:', {
             roomCode: data.roomCode,
-            playerName,
-            isHost: !!data.isHost,
-            players: data.players,
-            room: data.room
+            isHost: data.isHost,
+            playerCount: data.players?.length || 0,
+            room_id: data.room?.id
           });
-        }
-        
-        // Delay socket disconnect to allow RoomLobby to establish its own connection
-        console.log('🚪 [JOIN DEBUG] Delaying socket cleanup to allow lobby connection');
-        setTimeout(() => {
-          console.log('🚪 [JOIN DEBUG] Cleaning up join socket after transition');
-          socket.disconnect();
-        }, 1000); // 1 second delay
-      });
+          console.log('🚪 [JOIN DEBUG] Join successful, transitioning to lobby');
 
-      socket.on('error', (error) => {
-        console.error('❌ [JOIN DEBUG] Join room error:', {
-          error: error.message || error,
-          code: error.code,
-          debug: error.debug,
-          roomCode: roomCode.trim().toUpperCase(),
-          playerName: playerName.trim(),
-          timestamp: new Date().toISOString()
-        });
-        
-        // Provide user-friendly error messages
-        let errorMessage = error.message;
-        switch (error.code) {
-          case 'ROOM_NOT_FOUND':
-            errorMessage = 'Room not found. Please check the room code and try again.';
-            console.error('🔍 [JOIN DEBUG] Room not found - may have been cleaned up');
-            break;
-          case 'ROOM_FULL':
-            errorMessage = 'This room is full. Please try joining a different room.';
-            break;
-          case 'ROOM_NOT_ACCEPTING':
-            errorMessage = 'This room is no longer accepting new players.';
-            break;
-          case 'DUPLICATE_PLAYER':
-            errorMessage = 'A player with this name is already in the room. Please choose a different name.';
-            break;
-          default:
-            errorMessage = errorMessage || 'Failed to join room. Please try again.';
-        }
-        
-        setError(errorMessage);
-        setIsJoining(false);
-        socket.disconnect();
-      });
+          // Clean up listeners
+          activeSocket.off('roomJoined', handleRoomJoined);
+          activeSocket.off('error', handleError);
+          joinListenersSetRef.current = false;
 
-      socket.on('connect_error', (error) => {
-        console.error('❌ Connection error:', error);
-        setError('Failed to connect to server. Please check your internet connection.');
-        setIsJoining(false);
-        socket.disconnect();
-      });
+          if (onRoomJoined) {
+            onRoomJoined({
+              roomCode: data.roomCode,
+              playerName,
+              isHost: !!data.isHost,
+              players: data.players,
+              room: data.room
+            });
+          }
+          // NO socket.disconnect() - shared socket stays connected for RoomLobby
+        };
+
+        const handleError = (error) => {
+          console.error('❌ [JOIN DEBUG] Join room error:', {
+            error: error.message || error,
+            code: error.code,
+            debug: error.debug,
+            roomCode: roomCode.trim().toUpperCase(),
+            playerName: playerName,
+            timestamp: new Date().toISOString()
+          });
+
+          // Clean up listeners
+          activeSocket.off('roomJoined', handleRoomJoined);
+          activeSocket.off('error', handleError);
+          joinListenersSetRef.current = false;
+
+          // Provide user-friendly error messages
+          let errorMessage = error.message;
+          switch (error.code) {
+            case 'ROOM_NOT_FOUND':
+              errorMessage = 'Room not found. Please check the room code and try again.';
+              console.error('🔍 [JOIN DEBUG] Room not found - may have been cleaned up');
+              break;
+            case 'ROOM_FULL':
+              errorMessage = 'This room is full. Please try joining a different room.';
+              break;
+            case 'ROOM_NOT_ACCEPTING':
+              errorMessage = 'This room is no longer accepting new players.';
+              break;
+            case 'DUPLICATE_PLAYER':
+              errorMessage = 'A player with this name is already in the room. Please choose a different name.';
+              break;
+            default:
+              errorMessage = errorMessage || 'Failed to join room. Please try again.';
+          }
+
+          setError(errorMessage);
+          setIsJoining(false);
+          // NO socket.disconnect() - shared socket stays connected
+        };
+
+        activeSocket.on('roomJoined', handleRoomJoined);
+        activeSocket.on('error', handleError);
+      }
+
+      // Wait for connection if needed, then emit join
+      if (activeSocket?.connected) {
+        emitJoinRoom();
+      } else {
+        activeSocket.once('connect', emitJoinRoom);
+      }
 
       // Timeout fallback
       setTimeout(() => {
         if (isJoining) {
           setError('Join request timed out. Please try again.');
           setIsJoining(false);
-          socket.disconnect();
+          joinListenersSetRef.current = false;
         }
       }, 15000);
 
@@ -222,6 +207,7 @@ const JoinRoom = ({ initialRoomCode = '', initialPlayerName = '', autoJoin = fal
       console.error('❌ Unexpected error:', error);
       setError('An unexpected error occurred. Please try again.');
       setIsJoining(false);
+      joinListenersSetRef.current = false;
     }
   };
 
