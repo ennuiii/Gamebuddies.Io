@@ -209,15 +209,15 @@
 
 /* Room card header - game first layout */
 .room-card-header {
-  padding-bottom: 1rem;
-  margin-bottom: 1rem;
+  padding-bottom: 0.75rem;
+  margin-bottom: 0.75rem;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .game-section {
   display: flex;
   gap: 1rem;
-  align-items: center;
+  align-items: flex-start;
 }
 
 .game-thumbnail {
@@ -268,10 +268,13 @@
 
 .room-code {
   font-family: 'Orbitron', monospace;
-  font-size: 1rem;
+  font-size: 0.85rem;
   font-weight: 700;
   color: #00d9ff;
-  text-shadow: 0 0 8px rgba(0, 217, 255, 0.5);
+  padding: 0.4rem 0.8rem;
+  background: rgba(0, 217, 255, 0.15);
+  border: 1px solid rgba(0, 217, 255, 0.4);
+  border-radius: 10px;
 }
 
 .status-badge {
@@ -298,8 +301,8 @@
 .room-details {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
-  margin-bottom: 1.5rem;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
 }
 
 .detail-item {
