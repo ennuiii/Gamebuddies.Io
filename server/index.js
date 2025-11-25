@@ -2103,31 +2103,38 @@ io.on('connection', async (socket) => {
       return; // Ignore empty messages
     }
 
-    const allRooms = Array.from(socket.rooms);
-    const rooms = allRooms.filter(r => r !== socket.id);
-    console.log('💬 [CHAT] Socket rooms:', {
-      socketId: socket.id,
-      allRooms: allRooms,
-      filteredRooms: rooms
-    });
+    // [CHAT] Get connection first - it has the correct roomCode
+    const connection = connectionManager.getConnection(socket.id);
 
-    if (rooms.length === 0) {
-      // Debug: Socket not in any room - likely a race condition or reconnection issue
-      console.warn('⚠️ [CHAT] Socket not in any room, message dropped. socketId:', socket.id);
-      return;
+    // Use connectionManager.roomCode as primary source (correctly set during join)
+    // This avoids the bug where user:xxx presence rooms were being picked instead
+    let roomCode = connection?.roomCode;
+
+    if (!roomCode) {
+      // Fallback: get from socket.rooms, filtering out socket.id AND user: presence rooms
+      const allRooms = Array.from(socket.rooms);
+      const lobbyRooms = allRooms.filter(r => r !== socket.id && !r.startsWith('user:'));
+
+      console.log('💬 [CHAT] No roomCode in connectionManager, checking socket.rooms:', {
+        socketId: socket.id,
+        allRooms: allRooms,
+        lobbyRooms: lobbyRooms
+      });
+
+      if (lobbyRooms.length === 0) {
+        console.warn('⚠️ [CHAT] Socket not in any lobby room, message dropped. socketId:', socket.id);
+        return;
+      }
+      roomCode = lobbyRooms[0];
     }
 
-    const roomCode = rooms[0];
-
-    // [CHAT] Look up actual player name from database instead of trusting client
-    // This ensures we use the proper name chain: custom_lobby_name || display_name || username
-    const connection = connectionManager.getConnection(socket.id);
     console.log('💬 [CHAT] Connection lookup:', {
       socketId: socket.id,
       hasConnection: !!connection,
       userId: connection?.userId,
       roomId: connection?.roomId,
-      roomCode: connection?.roomCode
+      roomCode: roomCode,
+      connectionRoomCode: connection?.roomCode
     });
 
     let playerName = (data.playerName || 'Player').substring(0, 30); // Fallback to client-provided name
