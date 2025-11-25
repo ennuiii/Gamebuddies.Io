@@ -3239,16 +3239,24 @@ io.on('connection', async (socket) => {
         const gameUrl = `${gameProxy.path}?session=${sessionToken}${roleParam}`;
 
         console.log(`🔐 [SECURE URL] Game URL for ${p.user?.username} - session-based authentication`);
-        
+
         const delay = p.role === 'host' ? 0 : 2000; // 2 second delay for players
-        
-        // Find the MOST RECENT socket ID for this user from connectionManager
-        const userConnections = connectionManager.getUserConnections(p.user_id);
-        
-        // Get the most recent connection (they're already sorted by activity)
-        const userConnection = userConnections.length > 0 ? userConnections[0] : null;
-        
-        const currentSocketId = userConnection ? userConnection.socketId : null;
+
+        // For the host, use the socket that sent the startGame event directly
+        // This is more reliable than looking up via getUserConnections which can fail
+        let currentSocketId;
+        if (p.role === 'host') {
+          currentSocketId = socket.id;
+          console.log(`🚀 [START GAME DEBUG] Using sender socket for host: ${socket.id}`);
+        } else {
+          // Find the MOST RECENT socket ID for this user from connectionManager
+          const userConnections = connectionManager.getUserConnections(p.user_id);
+
+          // Get the most recent connection (they're already sorted by activity)
+          const userConnection = userConnections.length > 0 ? userConnections[0] : null;
+
+          currentSocketId = userConnection ? userConnection.socketId : null;
+        }
         
         console.log(`🚀 [START GAME DEBUG] Sending game event to ${p.user?.username}:`, {
           user_id: p.user_id,
