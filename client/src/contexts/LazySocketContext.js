@@ -84,26 +84,6 @@ export const LazySocketProvider = ({ children }) => {
     authenticatedUserIdRef.current = null;
   }, []);
 
-  // Connect socket for an authenticated user (combines connect + identify)
-  // This is called when user logs in to enable friend presence
-  const connectForUser = useCallback((userId) => {
-    if (!userId) return null;
-
-    authenticatedUserIdRef.current = userId;
-
-    // Connect if not already connected
-    const sock = socketRef.current?.connected ? socketRef.current : connectSocket();
-
-    // If already connected, identify immediately
-    if (sock?.connected) {
-      console.log('👤 [LazySocketProvider] connectForUser - Already connected, identifying:', userId);
-      sock.emit('user:identify', userId);
-    }
-    // If connecting, identify will happen automatically in connect handler
-
-    return sock;
-  }, [connectSocket]);
-
   const attemptReconnection = useCallback(() => {
     if (reconnectionAttemptsRef.current >= maxReconnectionAttempts) {
       console.log('❌ [LazySocketProvider] Max reconnection attempts reached. Stopping reconnection.');
@@ -212,6 +192,26 @@ export const LazySocketProvider = ({ children }) => {
 
     return newSocket;
   }, [getServerUrl, isConnecting, isConnected, attemptReconnection]);
+
+  // Connect socket for an authenticated user (combines connect + identify)
+  // This is called when user logs in to enable friend presence
+  const connectForUser = useCallback((userId) => {
+    if (!userId) return null;
+
+    authenticatedUserIdRef.current = userId;
+
+    // Connect if not already connected
+    const sock = socketRef.current?.connected ? socketRef.current : connectSocket();
+
+    // If already connected, identify immediately
+    if (sock?.connected) {
+      console.log('👤 [LazySocketProvider] connectForUser - Already connected, identifying:', userId);
+      sock.emit('user:identify', userId);
+    }
+    // If connecting, identify will happen automatically in connect handler
+
+    return sock;
+  }, [connectSocket]);
 
   const disconnectSocket = useCallback(() => {
     if (socketRef.current) {
