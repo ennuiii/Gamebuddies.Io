@@ -92,18 +92,34 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
 
   // Chat Listeners
   useEffect(() => {
-    if (!activeSocket) return;
+    if (!activeSocket) {
+      console.log('💬 [CHAT CLIENT] No activeSocket, skipping chat listener setup');
+      return;
+    }
+
+    console.log('💬 [CHAT CLIENT] Setting up chat listener:', {
+      socketId: activeSocket.id,
+      connected: activeSocket.connected,
+      rooms: roomCode
+    });
 
     const handleChatMessage = (msg) => {
+      console.log('💬 [CHAT CLIENT] Received message:', {
+        from: msg.playerName,
+        messagePreview: msg.message?.substring(0, 30),
+        timestamp: msg.timestamp,
+        type: msg.type
+      });
       setMessages(prev => [...prev, msg]);
     };
 
     activeSocket.on('chat:message', handleChatMessage);
 
     return () => {
+      console.log('💬 [CHAT CLIENT] Cleaning up chat listener');
       activeSocket.off('chat:message', handleChatMessage);
     };
-  }, [activeSocket]);
+  }, [activeSocket, roomCode]);
 
   const handleSendMessage = (text) => {
     // Robust "Me" lookup
@@ -126,19 +142,27 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
 
     const nameToSend = me ? me.name : playerNameRef.current;
     
-    console.log('💬 [CHAT DEBUG] Sending as:', { 
-        nameToSend, 
-        foundMe: !!me, 
-        authId: user?.id, 
-        refId: currentUserIdRef.current, 
+    console.log('💬 [CHAT CLIENT] Preparing to send message:', {
+        nameToSend,
+        foundMe: !!me,
+        authId: user?.id,
+        refId: currentUserIdRef.current,
         propName: playerNameRef.current,
-        playersList: players.map(p => ({ id: p.id, name: p.name, level: p.level })) // Debug players state
+        hasActiveSocket: !!activeSocket,
+        socketConnected: activeSocket?.connected,
+        socketId: activeSocket?.id
     });
 
-    if (activeSocket) activeSocket.emit('chat:message', {
-      message: text,
-      playerName: nameToSend
-    });
+    if (activeSocket) {
+      console.log('💬 [CHAT CLIENT] Emitting chat:message event');
+      activeSocket.emit('chat:message', {
+        message: text,
+        playerName: nameToSend
+      });
+      console.log('💬 [CHAT CLIENT] Emit complete');
+    } else {
+      console.error('❌ [CHAT CLIENT] Cannot send - no activeSocket!');
+    }
   };
 
   const [gamesList, setGamesList] = useState([]);
