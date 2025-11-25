@@ -360,20 +360,38 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
     // Named event handlers for proper cleanup
     const handleConnect = () => {
       // This is mostly handled by SocketProvider, but we can log here if specific lobby actions are needed on raw connect
+      console.log('[RETURN] 🏠 RoomLobby handleConnect for room:', roomCodeRef.current);
       console.log('✅ [CLIENT] Connected to server in lobby (via RoomLobby listener for existing socket)');
       console.log('🔍 [CLIENT DEBUG] Socket ID:', socket.id);
       console.log('🔍 [CLIENT DEBUG] Room code:', roomCodeRef.current);
       console.log('🔍 [CLIENT DEBUG] Player name:', playerNameRef.current);
 
-      // Check if JoinRoom already joined this room to prevent double-joining
+      // [RETURN] Check if this is a return-from-game scenario
       const alreadyJoinedKey = `gb_joined_${roomCodeRef.current}`;
       const alreadyJoined = sessionStorage.getItem(alreadyJoinedKey);
+      const storedRoomCode = sessionStorage.getItem('gamebuddies_roomCode');
+      const isReturningFromGame = alreadyJoined || storedRoomCode === roomCodeRef.current;
 
-      if (alreadyJoined) {
-        console.log('🔄 [RoomLobby] Already joined via JoinRoom, requesting room state instead');
-        // Clear the flag now that we're handling it
-        sessionStorage.removeItem(alreadyJoinedKey);
+      console.log('[RETURN] 🔍 Checking return flags:', {
+        alreadyJoinedKey,
+        alreadyJoined,
+        storedRoomCode,
+        currentRoomCode: roomCodeRef.current,
+        isReturningFromGame
+      });
+
+      if (isReturningFromGame) {
+        console.log('[RETURN] 🔄 Return from game detected, using requestRoomState instead of joinRoom');
+        // Clear the flags now that we're handling it
+        if (alreadyJoined) sessionStorage.removeItem(alreadyJoinedKey);
+        // Don't clear gamebuddies_roomCode - might need it for future returns
+
         // Request current room state without creating a new participant
+        console.log('[RETURN] 📤 Emitting requestRoomState:', {
+          roomCode: roomCodeRef.current,
+          playerName: playerNameRef.current,
+          supabaseUserId: user?.id
+        });
         socket.emit('requestRoomState', {
           roomCode: roomCodeRef.current,
           playerName: playerNameRef.current,
@@ -383,7 +401,7 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       }
 
       // Join the room - this is the primary action once the socket is confirmed connected
-      console.log('📤 [LOBBY DEBUG] Sending joinRoom event...');
+      console.log('[RETURN] 📤 Normal join - Sending joinRoom event (no return flags found)');
       socket.emit('joinRoom', {
         roomCode: roomCodeRef.current,
         playerName: playerNameRef.current,
@@ -785,7 +803,15 @@ const RoomLobby = ({ roomCode, playerName, isHost, onLeave }) => {
       
       // Reset starting state since game is actually starting
       setIsStartingGame(false);
-      
+
+      // [RETURN] Save current room info for return detection
+      console.log('[RETURN] 💾 Saving session info before game redirect:', {
+        roomCode: roomCodeRef.current,
+        playerName: playerNameRef.current
+      });
+      sessionStorage.setItem('gamebuddies_roomCode', roomCodeRef.current);
+      sessionStorage.setItem('gamebuddies_playerName', playerNameRef.current);
+
       // Properly disconnect socket before navigation to prevent WebSocket errors
       if (socket) {
         console.log('🔌 [LOBBY DEBUG] Disconnecting socket before game redirect...');

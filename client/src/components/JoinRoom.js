@@ -54,6 +54,18 @@ const JoinRoom = ({ initialRoomCode = '', initialPlayerName = '', autoJoin = fal
       ? displayName.trim()
       : null;
 
+    // [RETURN] Log JoinRoom invocation for debugging
+    console.log('[RETURN] 🚪 JoinRoom handleSubmit called:', {
+      roomCode: roomCode.trim().toUpperCase(),
+      playerName,
+      customLobbyName,
+      isAuthenticated,
+      supabaseUserId: session?.user?.id || null,
+      autoJoin,
+      initialRoomCode,
+      initialPlayerName
+    });
+
     console.log('🚪 [JOIN DEBUG] Starting room join process:', {
       roomCode: roomCode.trim().toUpperCase(),
       playerName,
@@ -111,16 +123,21 @@ const JoinRoom = ({ initialRoomCode = '', initialPlayerName = '', autoJoin = fal
         console.log('🔍 [CLIENT DEBUG] Player name:', playerName);
         console.log('🔍 [CLIENT DEBUG] Server URL:', serverUrl);
         console.log('🚪 [JOIN DEBUG] Connected, sending joinRoom event');
-        
+
         const urlParams = new URLSearchParams(window.location.search);
         const isHostHint = urlParams.get('ishost') === 'true' || urlParams.get('role') === 'gm';
-        socket.emit('joinRoom', {
+
+        // [RETURN] Log exact data being sent to server
+        const joinData = {
           roomCode: roomCode.trim().toUpperCase(),
           playerName,
           customLobbyName,
-          supabaseUserId: session?.user?.id || null, // Send auth user ID if logged in
+          supabaseUserId: session?.user?.id || null,
           isHostHint
-        });
+        };
+        console.log('[RETURN] 📤 Sending joinRoom event:', joinData);
+
+        socket.emit('joinRoom', joinData);
         console.log('📤 [CLIENT] joinRoom event sent', {
           playerName,
           customLobbyName,
@@ -139,7 +156,8 @@ const JoinRoom = ({ initialRoomCode = '', initialPlayerName = '', autoJoin = fal
         });
         console.log('🚪 [JOIN DEBUG] Join successful, transitioning to lobby');
 
-        // Mark that we've joined this room to prevent RoomLobby from double-joining
+        // [RETURN] Mark that we've joined this room to prevent RoomLobby from double-joining
+        console.log('[RETURN] ✅ Join successful, setting flag:', `gb_joined_${data.roomCode}`);
         sessionStorage.setItem(`gb_joined_${data.roomCode}`, Date.now().toString());
 
         if (onRoomJoined) {

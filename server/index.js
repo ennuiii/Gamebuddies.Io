@@ -2439,6 +2439,16 @@ io.on('connection', async (socket) => {
       const roomCode = sanitize.roomCode(data.roomCode);
       const supabaseUserId = data.supabaseUserId || null;
 
+      // [RETURN] Comprehensive join request logging
+      console.log('[RETURN] 📨 joinRoom received:', {
+        roomCode,
+        playerName,
+        customLobbyName,
+        supabaseUserId,
+        socketId: socket.id,
+        isAuthenticated: !!supabaseUserId
+      });
+
       console.log(`🚪 [JOIN] Join request:`, {
         playerName,
         roomCode,
@@ -2565,12 +2575,53 @@ io.on('connection', async (socket) => {
       // Note: We no longer automatically reset in_game rooms to lobby when original creator rejoins
       // This allows players and GMs to join ongoing games
       
+      // [RETURN] Enhanced participant lookup with comprehensive logging
+      console.log('[RETURN] 🔍 Searching for existing participant:', {
+        supabaseUserId,
+        playerName: data.playerName,
+        roomParticipants: room.participants?.map(p => ({
+          user_id: p.user_id,
+          username: p.user?.username,
+          display_name: p.user?.display_name,
+          custom_lobby_name: p.custom_lobby_name,
+          is_connected: p.is_connected,
+          role: p.role
+        }))
+      });
+
       // Check for existing participant (disconnected or connected) to handle rejoining
       // If authenticated, match by user ID; otherwise match by username
-      const existingParticipant = supabaseUserId
+      let existingParticipant = supabaseUserId
         ? room.participants?.find(p => p.user_id === supabaseUserId)
         : room.participants?.find(p => p.user?.username === data.playerName);
-      
+
+      // [RETURN] FALLBACK: Also check by display_name or custom_lobby_name if not found
+      if (!existingParticipant) {
+        existingParticipant = room.participants?.find(p =>
+          p.user?.display_name === data.playerName ||
+          p.custom_lobby_name === data.playerName
+        );
+        if (existingParticipant) {
+          const matchedBy = existingParticipant.user?.display_name === data.playerName ? 'display_name' : 'custom_lobby_name';
+          console.log('[RETURN] ✅ Found existing participant by display_name/custom_lobby_name match:', {
+            matched_user_id: existingParticipant.user_id,
+            matched_by: matchedBy
+          });
+        }
+      }
+
+      if (existingParticipant) {
+        console.log('[RETURN] ✅ Existing participant found, will rejoin:', {
+          user_id: existingParticipant.user_id,
+          username: existingParticipant.user?.username,
+          display_name: existingParticipant.user?.display_name,
+          was_connected: existingParticipant.is_connected,
+          role: existingParticipant.role
+        });
+      } else {
+        console.log('[RETURN] ⚠️ No existing participant found, will create new');
+      }
+
       console.log(`🔍 [REJOINING DEBUG] Checking for existing participant:`, {
         searchingFor: data.playerName,
         existingParticipant: existingParticipant ? {
@@ -2888,9 +2939,11 @@ io.on('connection', async (socket) => {
   // Handle request for room state (without creating new participant)
   // Used when RoomLobby detects JoinRoom already joined this room
   socket.on('requestRoomState', async (data) => {
-    console.log(`📋 [REQUEST STATE] Received room state request:`, {
+    // [RETURN] Log room state request
+    console.log('[RETURN] 📨 requestRoomState received:', {
       roomCode: data.roomCode,
       playerName: data.playerName,
+      supabaseUserId: data.supabaseUserId,
       socketId: socket.id
     });
 
@@ -2923,12 +2976,27 @@ io.on('connection', async (socket) => {
         level: p.user?.level || 1
       })) || [];
 
-      // Update connection manager with the room info if user is found
+      // [RETURN] Find existing participant to update their connection
+      console.log('[RETURN] 🔍 Looking for existing participant in requestRoomState:', {
+        supabaseUserId: data.supabaseUserId,
+        playerName: data.playerName,
+        participants: room.participants?.map(p => ({
+          user_id: p.user_id,
+          username: p.user?.username,
+          display_name: p.user?.display_name
+        }))
+      });
+
       const existingParticipant = data.supabaseUserId
         ? room.participants?.find(p => p.user_id === data.supabaseUserId)
         : room.participants?.find(p => p.user?.username === data.playerName || p.user?.display_name === data.playerName);
 
       if (existingParticipant) {
+        console.log('[RETURN] ✅ Found existing participant, updating connection:', {
+          user_id: existingParticipant.user_id,
+          username: existingParticipant.user?.username
+        });
+
         // Update the connection to associate this socket with the existing user
         connectionManager.updateConnection(socket.id, {
           roomId: room.id,
@@ -2939,11 +3007,13 @@ io.on('connection', async (socket) => {
         // Update participant's socket ID and connection status in database
         await db.updateParticipantConnection(existingParticipant.user_id, socket.id, 'connected');
 
-        console.log(`📋 [REQUEST STATE] Associated socket with existing participant:`, {
+        console.log('[RETURN] ✅ Socket associated with existing participant:', {
           socketId: socket.id,
           userId: existingParticipant.user_id,
           roomId: room.id
         });
+      } else {
+        console.log('[RETURN] ⚠️ No existing participant found in requestRoomState');
       }
 
       socket.emit('roomState', {
@@ -2952,7 +3022,11 @@ io.on('connection', async (socket) => {
         roomCode: room.room_code
       });
 
-      console.log(`📋 [REQUEST STATE] Sent room state for ${data.roomCode} with ${players.length} players`);
+      console.log('[RETURN] ✅ Room state sent:', {
+        roomCode: data.roomCode,
+        playerCount: players.length,
+        players: players.map(p => ({ name: p.name, isConnected: p.isConnected }))
+      });
 
     } catch (error) {
       console.error('❌ [REQUEST STATE] Error:', error);
