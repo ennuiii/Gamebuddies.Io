@@ -61,6 +61,37 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
     fetchGames();
   }, [fetchGames]);
 
+  // Helper to get stored session info (defined before useEffect that needs it)
+  const getStoredSessionInfo = useCallback(() => {
+    const info = {
+      name: sessionStorage.getItem('gamebuddies_playerName') || '',
+      roomCode: sessionStorage.getItem('gamebuddies_roomCode') || '',
+      playerId: sessionStorage.getItem('gamebuddies_playerId') || null,
+      isHost: (sessionStorage.getItem('gamebuddies_isHost') || '') === 'true'
+    };
+
+    const raw = sessionStorage.getItem('gamebuddies:return-session');
+    if (raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        info.name = parsed.playerName || parsed.metadata?.name || parsed.gbPlayerName || info.name;
+        info.roomCode = (parsed.roomCode || parsed.gbRoomCode || info.roomCode || '').toUpperCase();
+        info.playerId = parsed.playerId || parsed.metadata?.playerId || info.playerId;
+        const parsedHost = parsed.isHost;
+        const parsedGbHost = parsed.gbIsHost;
+        if (parsedHost !== undefined) {
+          info.isHost = parsedHost === true || parsedHost === 'true';
+        } else if (parsedGbHost !== undefined) {
+          info.isHost = parsedGbHost === true || parsedGbHost === 'true';
+        }
+      } catch (err) {
+        console.warn('[HomePage] Failed to parse stored return session data:', err);
+      }
+    }
+
+    return info;
+  }, []);
+
   // F5 Refresh Persistence: Auto-rejoin room if session exists
   useEffect(() => {
     // Skip if already in lobby or processing URL params
@@ -109,36 +140,6 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
 
   const handleBrowseRoomsClick = useCallback(() => {
     setShowBrowseRooms(true);
-  }, []);
-
-  const getStoredSessionInfo = useCallback(() => {
-    const info = {
-      name: sessionStorage.getItem('gamebuddies_playerName') || '',
-      roomCode: sessionStorage.getItem('gamebuddies_roomCode') || '',
-      playerId: sessionStorage.getItem('gamebuddies_playerId') || null,
-      isHost: (sessionStorage.getItem('gamebuddies_isHost') || '') === 'true'
-    };
-
-    const raw = sessionStorage.getItem('gamebuddies:return-session');
-    if (raw) {
-      try {
-        const parsed = JSON.parse(raw);
-        info.name = parsed.playerName || parsed.metadata?.name || parsed.gbPlayerName || info.name;
-        info.roomCode = (parsed.roomCode || parsed.gbRoomCode || info.roomCode || '').toUpperCase();
-        info.playerId = parsed.playerId || parsed.metadata?.playerId || info.playerId;
-        const parsedHost = parsed.isHost;
-        const parsedGbHost = parsed.gbIsHost;
-        if (parsedHost !== undefined) {
-          info.isHost = parsedHost === true || parsedHost === 'true';
-        } else if (parsedGbHost !== undefined) {
-          info.isHost = parsedGbHost === true || parsedGbHost === 'true';
-        }
-      } catch (err) {
-        console.warn('[HomePage] Failed to parse stored return session data:', err);
-      }
-    }
-
-    return info;
   }, []);
 
   const persistSessionMetadata = useCallback((roomCode, name, isHost, playerId = null, sessionToken = null) => {
