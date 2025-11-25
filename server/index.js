@@ -2083,18 +2083,34 @@ io.on('connection', async (socket) => {
 
   // Chat Handler (Lobby)
   socket.on('chat:message', async (data) => {
+    console.log('💬 [CHAT] Received chat:message event:', {
+      socketId: socket.id,
+      dataKeys: Object.keys(data || {}),
+      messagePreview: data?.message?.substring?.(0, 50),
+      playerName: data?.playerName
+    });
+
     // Validate message exists and is a string
     if (!data.message || typeof data.message !== 'string') {
+      console.warn('⚠️ [CHAT] Invalid message format, ignoring. socketId:', socket.id);
       return; // Silently ignore invalid messages
     }
 
     // Enforce message length limit (500 chars) and trim whitespace
     const message = data.message.trim().substring(0, 500);
     if (message.length === 0) {
+      console.warn('⚠️ [CHAT] Empty message after trim, ignoring. socketId:', socket.id);
       return; // Ignore empty messages
     }
 
-    const rooms = Array.from(socket.rooms).filter(r => r !== socket.id);
+    const allRooms = Array.from(socket.rooms);
+    const rooms = allRooms.filter(r => r !== socket.id);
+    console.log('💬 [CHAT] Socket rooms:', {
+      socketId: socket.id,
+      allRooms: allRooms,
+      filteredRooms: rooms
+    });
+
     if (rooms.length === 0) {
       // Debug: Socket not in any room - likely a race condition or reconnection issue
       console.warn('⚠️ [CHAT] Socket not in any room, message dropped. socketId:', socket.id);
@@ -2106,6 +2122,14 @@ io.on('connection', async (socket) => {
     // [CHAT] Look up actual player name from database instead of trusting client
     // This ensures we use the proper name chain: custom_lobby_name || display_name || username
     const connection = connectionManager.getConnection(socket.id);
+    console.log('💬 [CHAT] Connection lookup:', {
+      socketId: socket.id,
+      hasConnection: !!connection,
+      userId: connection?.userId,
+      roomId: connection?.roomId,
+      roomCode: connection?.roomCode
+    });
+
     let playerName = (data.playerName || 'Player').substring(0, 30); // Fallback to client-provided name
 
     if (connection?.userId && connection?.roomId) {
@@ -2121,6 +2145,7 @@ io.on('connection', async (socket) => {
           playerName = participant.custom_lobby_name
             || participant.user?.display_name
             || 'Player';
+          console.log('💬 [CHAT] Resolved player name from DB:', playerName);
         }
       } catch (err) {
         // Fall back to client-provided name on error
@@ -2142,6 +2167,12 @@ io.on('connection', async (socket) => {
         });
     }
 
+    console.log('💬 [CHAT] Broadcasting to room:', {
+      roomCode: roomCode,
+      playerName: playerName,
+      messageLength: message.length
+    });
+
     io.to(roomCode).emit('chat:message', {
       id: crypto.randomUUID(),
       playerName: playerName,
@@ -2149,6 +2180,8 @@ io.on('connection', async (socket) => {
       timestamp: Date.now(),
       type: 'user'
     });
+
+    console.log('✅ [CHAT] Message broadcast complete to room:', roomCode);
   });
 
   // Minigame Handler (Lobby - Reflex)
