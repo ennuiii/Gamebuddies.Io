@@ -1,12 +1,13 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { useAuth } from './AuthContext';
-import socketService from '../utils/socket';
+import { useSocket } from './LazySocketContext';
 import { getSupabaseClient } from '../utils/supabase';
 
 const FriendContext = createContext({});
 
 export const FriendProvider = ({ children }) => {
   const { user, session } = useAuth();
+  const { socket, connectForUser } = useSocket();
   
   // Manage lobby state internally since URL doesn't always reflect it (e.g. Streamer Mode)
   const [lobbyInfo, setLobbyInfo] = useState({ roomCode: null, gameName: null, gameThumbnail: null });
@@ -69,7 +70,7 @@ export const FriendProvider = ({ children }) => {
     }
   }, [user, session]);
 
-  // Socket logic
+  // Socket logic - use shared socket from LazySocketContext
   useEffect(() => {
     if (!user) {
       setFriends([]);
@@ -78,74 +79,72 @@ export const FriendProvider = ({ children }) => {
       return;
     }
 
-    // Connect socket
-    const socket = socketService.connect();
+    // Connect and identify user using shared socket
+    connectForUser(user.id);
 
-    // Identify user to server
-    const identifyUser = () => {
-      console.log('👤 [FRIENDS] Identifying user to socket:', user.id);
-      socket.emit('user:identify', user.id);
-    };
-
-    if (socket.connected) {
-      identifyUser();
-    } else {
-      socket.on('connect', identifyUser);
+    // Wait for socket to be available before setting up listeners
+    if (!socket) {
+      return;
     }
 
-    // Listeners
-    socket.on('friend:list-online', ({ onlineUserIds }) => {
+    // Named handlers for proper cleanup
+    const handleListOnline = ({ onlineUserIds }) => {
       console.log('🟢 [FRIENDS] Received online list:', onlineUserIds);
       setOnlineFriends(new Set(onlineUserIds));
-    });
+    };
 
-    socket.on('friend:online', ({ userId }) => {
+    const handleFriendOnline = ({ userId }) => {
       console.log('🟢 [FRIENDS] Friend came online:', userId);
       setOnlineFriends(prev => {
         const newSet = new Set(prev);
         newSet.add(userId);
         return newSet;
       });
-    });
+    };
 
-    socket.on('friend:offline', ({ userId }) => {
+    const handleFriendOffline = ({ userId }) => {
       console.log('⚪ [FRIENDS] Friend went offline:', userId);
       setOnlineFriends(prev => {
         const next = new Set(prev);
         next.delete(userId);
         return next;
       });
-    });
+    };
 
-    socket.on('game:invite_received', (invite) => {
+    const handleGameInvite = (invite) => {
       console.log('💌 [FRIENDS] Game invite received:', invite);
       console.log('💌 [FRIENDS] Invite details - gameName:', invite.gameName, 'gameThumbnail:', invite.gameThumbnail);
       setGameInvites(prev => [...prev, { ...invite, id: Date.now() }]);
-      // You might want to trigger a toast notification here
-    });
+    };
 
-    // Refresh lists on updates
-    socket.on('friend:request_received', () => {
+    const handleRequestReceived = () => {
       fetchFriends();
-    });
+    };
 
-    socket.on('friend:accepted', () => {
+    const handleAccepted = () => {
       fetchFriends();
-    });
+    };
+
+    // Register event listeners
+    socket.on('friend:list-online', handleListOnline);
+    socket.on('friend:online', handleFriendOnline);
+    socket.on('friend:offline', handleFriendOffline);
+    socket.on('game:invite_received', handleGameInvite);
+    socket.on('friend:request_received', handleRequestReceived);
+    socket.on('friend:accepted', handleAccepted);
 
     // Initial fetch
     fetchFriends();
 
     return () => {
-      socket.off('connect', identifyUser);
-      socket.off('friend:list-online');
-      socket.off('friend:online');
-      socket.off('friend:offline');
-      socket.off('game:invite_received');
-      socket.off('friend:request_received');
-      socket.off('friend:accepted');
+      socket.off('friend:list-online', handleListOnline);
+      socket.off('friend:online', handleFriendOnline);
+      socket.off('friend:offline', handleFriendOffline);
+      socket.off('game:invite_received', handleGameInvite);
+      socket.off('friend:request_received', handleRequestReceived);
+      socket.off('friend:accepted', handleAccepted);
     };
-  }, [user, fetchFriends]);
+  }, [user, socket, connectForUser, fetchFriends]);
 
   // Actions
   const sendFriendRequest = async (username) => {
@@ -216,7 +215,12 @@ export const FriendProvider = ({ children }) => {
   const inviteFriend = (friendId, roomId, gameName, gameThumbnail = null) => {
     console.log('📨 [FRIENDS] inviteFriend called:', { friendId, roomId, gameName, gameThumbnail });
     console.log('📨 [FRIENDS] Current lobby state:', { currentLobbyGameName, currentLobbyThumbnail });
-    const socket = socketService.connect();
+
+    if (!socket) {
+      console.warn('📨 [FRIENDS] Cannot send invite - socket not connected');
+      return;
+    }
+
     const inviteData = {
       friendId,
       roomId,

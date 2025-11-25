@@ -61,6 +61,44 @@ const HomePage = ({ setIsInLobby, setLobbyLeaveFn }) => {
     fetchGames();
   }, [fetchGames]);
 
+  // F5 Refresh Persistence: Auto-rejoin room if session exists
+  useEffect(() => {
+    // Skip if already in lobby or processing URL params
+    if (inLobby || isRecoveringSession) {
+      return;
+    }
+
+    // Skip if URL has special params (they have their own handlers)
+    const params = new URLSearchParams(location.search);
+    if (params.has('join') || params.has('invite') || params.has('return') || params.has('session')) {
+      return;
+    }
+
+    // Skip if on /lobby/ROOMCODE path (has its own handler)
+    if (location.pathname.match(/^\/lobby\/[A-Za-z0-9-]+/i)) {
+      return;
+    }
+
+    // Check for stored session from F5 refresh
+    const storedSession = getStoredSessionInfo();
+    if (storedSession.roomCode && storedSession.name) {
+      console.log('[HomePage] 🔄 Found stored session after refresh, auto-rejoining:', storedSession.roomCode);
+
+      // Mark as processed to prevent re-triggering
+      const key = `auto-rejoin:${storedSession.roomCode}`;
+      if (processedLinksRef.current.has(key)) {
+        return;
+      }
+      processedLinksRef.current.add(key);
+
+      // Auto-join the room silently
+      setJoinRoomCode(storedSession.roomCode);
+      setPrefillName(storedSession.name);
+      setAutoJoin(true);
+      setShowJoinRoom(true);
+    }
+  }, [inLobby, isRecoveringSession, location.search, location.pathname, getStoredSessionInfo]);
+
   const handleCreateRoomClick = useCallback(() => {
     setShowCreateRoom(true);
   }, []);

@@ -1909,6 +1909,9 @@ const connectionManager = new ConnectionManager();
 const lobbyManager = new LobbyManager(io, db, connectionManager);
 const statusSyncManager = new StatusSyncManager(db, io, lobbyManager);
 
+// Expose connectionManager to routes (for admin dashboard stats)
+app.set('connectionManager', connectionManager);
+
 
 // API routers
 app.use('/api/v2/game', gameApiV2Router(io, db, connectionManager));

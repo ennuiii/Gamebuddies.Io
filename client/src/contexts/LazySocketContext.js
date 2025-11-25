@@ -20,6 +20,9 @@ export const LazySocketProvider = ({ children }) => {
   // Store last room info for auto-rejoin on reconnect
   const lastRoomRef = useRef(null);
 
+  // Track authenticated user for friend presence (socket stays connected for auth users)
+  const authenticatedUserIdRef = useRef(null);
+
   // Determine server URL based on environment
   const getServerUrl = useCallback(() => {
     // Prefer explicit env vars (support both names used in docs/code)
@@ -63,6 +66,43 @@ export const LazySocketProvider = ({ children }) => {
   const clearLastRoom = useCallback(() => {
     lastRoomRef.current = null;
   }, []);
+
+  // Identify user to server for friend presence tracking
+  const identifyUser = useCallback((userId) => {
+    if (!userId) return;
+
+    authenticatedUserIdRef.current = userId;
+
+    if (socketRef.current?.connected) {
+      console.log('👤 [LazySocketProvider] Identifying user to server:', userId);
+      socketRef.current.emit('user:identify', userId);
+    }
+  }, []);
+
+  // Clear authenticated user (on logout)
+  const clearAuthenticatedUser = useCallback(() => {
+    authenticatedUserIdRef.current = null;
+  }, []);
+
+  // Connect socket for an authenticated user (combines connect + identify)
+  // This is called when user logs in to enable friend presence
+  const connectForUser = useCallback((userId) => {
+    if (!userId) return null;
+
+    authenticatedUserIdRef.current = userId;
+
+    // Connect if not already connected
+    const sock = socketRef.current?.connected ? socketRef.current : connectSocket();
+
+    // If already connected, identify immediately
+    if (sock?.connected) {
+      console.log('👤 [LazySocketProvider] connectForUser - Already connected, identifying:', userId);
+      sock.emit('user:identify', userId);
+    }
+    // If connecting, identify will happen automatically in connect handler
+
+    return sock;
+  }, [connectSocket]);
 
   const attemptReconnection = useCallback(() => {
     if (reconnectionAttemptsRef.current >= maxReconnectionAttempts) {
@@ -120,6 +160,12 @@ export const LazySocketProvider = ({ children }) => {
       if (reconnectionTimeoutRef.current) {
         clearTimeout(reconnectionTimeoutRef.current);
         reconnectionTimeoutRef.current = null;
+      }
+
+      // Auto-identify user if authenticated (for friend presence on reconnect)
+      if (authenticatedUserIdRef.current) {
+        console.log('👤 [LazySocketProvider] Auto-identifying user on connect:', authenticatedUserIdRef.current);
+        newSocket.emit('user:identify', authenticatedUserIdRef.current);
       }
 
       // Auto-rejoin room if we were in one before disconnect
@@ -207,7 +253,11 @@ export const LazySocketProvider = ({ children }) => {
     disconnectSocket,
     setLastRoom,
     clearLastRoom,
-  }), [socket, socketId, isConnected, isConnecting, connectSocket, disconnectSocket, setLastRoom, clearLastRoom]);
+    // Friend presence functions
+    connectForUser,
+    identifyUser,
+    clearAuthenticatedUser,
+  }), [socket, socketId, isConnected, isConnecting, connectSocket, disconnectSocket, setLastRoom, clearLastRoom, connectForUser, identifyUser, clearAuthenticatedUser]);
 
   return <SocketContext.Provider value={value}>{children}</SocketContext.Provider>;
 };
