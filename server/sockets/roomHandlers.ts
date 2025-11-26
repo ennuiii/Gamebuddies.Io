@@ -25,6 +25,7 @@ interface RoomParticipant {
     level: number;
     role: string;
     external_id?: string;
+    is_guest?: boolean;
   };
 }
 
@@ -63,6 +64,7 @@ function mapParticipantsToPlayers(participants: RoomParticipant[] | undefined) {
     avatarSeed: p.user?.avatar_seed,
     avatarOptions: p.user?.avatar_options,
     level: p.user?.level || 1,
+    isGuest: p.user?.is_guest ?? false,
     socketId: null
   })) || [];
 }

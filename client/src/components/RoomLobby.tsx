@@ -27,6 +27,7 @@ interface Player {
   avatarSeed?: string;
   avatarOptions?: Record<string, unknown>;
   level: number;
+  isGuest?: boolean;
 }
 
 interface PlayerStatus {
@@ -947,7 +948,9 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
                       <span className="player-name">{player.name}</span>
                       <div className="player-badges">
                         <span className="level-badge-lobby">Lvl {player.level}</span>
-                        {player.role === 'admin' ? (
+                        {player.isGuest ? (
+                          <span className="guest-badge">GUEST</span>
+                        ) : player.role === 'admin' ? (
                           <span className="premium-badge lifetime">💻 ADMIN</span>
                         ) : player.premiumTier === 'lifetime' ? (
                           <span className="premium-badge lifetime">PREMIUM</span>
@@ -980,8 +983,8 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
                       </button>
                     </div>
                   )}
-                  {/* Add Friend Button - only show for other players who aren't already friends */}
-                  {isAuthenticated && user?.id !== player.id && (() => {
+                  {/* Add Friend Button - only show for logged-in players who aren't guests or already friends */}
+                  {isAuthenticated && user?.id !== player.id && !player.isGuest && (() => {
                     const friendStatus = getFriendshipStatus(player.id);
                     if (friendStatus === 'friends') return null;
                     if (friendStatus === 'sent') {

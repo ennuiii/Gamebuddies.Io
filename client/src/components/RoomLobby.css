@@ -631,6 +631,21 @@
   }
 }
 
+/* Guest Badge */
+.guest-badge {
+  display: inline-block;
+  padding: 0.4rem 1rem;
+  border-radius: 15px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  align-self: flex-start;
+  background: linear-gradient(135deg, #6c757d, #495057);
+  color: #fff;
+  box-shadow: 0 4px 15px rgba(108, 117, 125, 0.3);
+}
+
 /* Premium Indicator on Avatar - Hidden (using card border instead) */
 .premium-indicator {
   display: none;

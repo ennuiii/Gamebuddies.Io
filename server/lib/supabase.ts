@@ -201,7 +201,7 @@ class DatabaseService {
             last_ping,
             joined_at,
             custom_lobby_name,
-            user:users(username, display_name, premium_tier, role, avatar_url, avatar_style, avatar_seed, avatar_options, level)
+            user:users(username, display_name, premium_tier, role, avatar_url, avatar_style, avatar_seed, avatar_options, level, is_guest)
           )
         `)
         .eq('room_code', roomCode)
@@ -233,7 +233,7 @@ class DatabaseService {
             last_ping,
             joined_at,
             custom_lobby_name,
-            user:users(username, display_name, premium_tier, role, avatar_url, avatar_style, avatar_seed, avatar_options, level)
+            user:users(username, display_name, premium_tier, role, avatar_url, avatar_style, avatar_seed, avatar_options, level, is_guest)
           )
         `)
         .eq('id', roomId)
