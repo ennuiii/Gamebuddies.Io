@@ -157,10 +157,18 @@ export async function autoUpdateRoomStatusBasedOnPlayerStates(
       shouldUpdate = true;
       updateReason = 'Multiple players moved to active game';
     } else if (room.status === 'in_game' && (playerStats.lobby >= Math.ceil(allPlayers.length * 0.5))) {
-      // Majority of players returned to lobby from game
-      targetStatus = 'lobby';
-      shouldUpdate = true;
-      updateReason = 'Majority of players returned to lobby';
+      // Majority of players are in lobby - BUT only transition if HOST is also in lobby
+      // New players joining lobby shouldn't trigger transition while host is still in game
+      const host = allPlayers.find(p => p.isHost);
+      const hostIsInGame = host && (host.inGame || host.currentLocation === 'game');
+
+      if (!hostIsInGame) {
+        targetStatus = 'lobby';
+        shouldUpdate = true;
+        updateReason = 'Majority of players returned to lobby (host included)';
+      } else {
+        console.log(`⏸️ [Smart Room Update] Skipping transition - host is still in game`);
+      }
     } else if (reason === 'player_rejoined' && room.status === 'in_game') {
       // Player rejoined - check if we should transition to lobby
       const lobbyCount = playerStats.lobby || 0;
