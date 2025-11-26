@@ -827,22 +827,7 @@
   }
 }
 
-.selected-game-card::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.05), transparent);
-  animation: gameCardShine 4s linear infinite;
-  z-index: 0; /* Behind content */
-}
-
-@keyframes gameCardShine {
-  0% { left: -100%; }
-  100% { left: 100%; }
-}
+/* Removed distracting shine animation */
 
 .game-icon {
   font-size: 5rem;
@@ -978,7 +963,6 @@
 /* Start Game Button */
 .start-game-button {
   display: block;
-  margin: 2rem auto 0;
   padding: 1.5rem 4rem;
   font-size: 1.3rem;
   font-weight: 700;
@@ -1021,6 +1005,15 @@
 
 .start-game-button:active {
   transform: translateY(-2px) scale(1);
+}
+
+/* Game Controls Container */
+.game-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+  margin-top: 2rem;
 }
 
 /* Room Status Styles */

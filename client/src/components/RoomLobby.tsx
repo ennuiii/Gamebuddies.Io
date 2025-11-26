@@ -1056,7 +1056,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
                 </div>
               </div>
 
-              <div className="game-controls" style={{ marginTop: '2rem' }}>
+              <div className="game-controls">
                 {currentIsHost ? (
                   <>
                     <button
