@@ -519,13 +519,15 @@ export function registerRoomHandlers(
           // Update connection status
           await db.updateParticipantConnection(existingParticipant.user_id, socket.id, 'connected', customLobbyName);
 
-          // Auto-update room status if host
-          if (existingParticipant.role === 'host') {
+          // Auto-update room status if host - only if room is in lobby
+          // Don't change status if room is in_game (players may be playing external game)
+          if (existingParticipant.role === 'host' && room.status === 'lobby') {
             await autoUpdateRoomStatusByHost(io, db, room.id, existingParticipant.user_id, 'lobby');
           }
 
-          // Reset to lobby status
-          if (room.status === 'lobby' || room.status === 'in_game') {
+          // Only reset to lobby status if room is actually in lobby
+          // If room is in_game, preserve player's game state
+          if (room.status === 'lobby') {
             await db.adminClient
               .from('room_members')
               .update({ in_game: false, current_location: 'lobby' })
