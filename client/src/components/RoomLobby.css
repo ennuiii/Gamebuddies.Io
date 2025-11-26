@@ -464,31 +464,31 @@
     0 0 40px rgba(255, 0, 0, 0.2);
 }
 
-/* Animated border gradient - lifetime */
+/* Animated border gradient - lifetime (thicker, faster, brighter) */
 .player-card.premium-lifetime::before {
   content: '';
   position: absolute;
-  top: -4px;
-  left: -4px;
-  right: -4px;
-  bottom: -4px;
+  top: -3px;
+  left: -3px;
+  right: -3px;
+  bottom: -3px;
   height: auto;
   transform: none;
   transition: none;
-  border-radius: 24px;
+  border-radius: 23px;
   background: conic-gradient(
     from var(--angle, 0deg),
     #FFD700,
-    #FFA500,
-    #FF6B00,
-    #FFA500,
+    #FFC000,
+    #FF9500,
+    #FFC000,
     #FFD700
   );
   z-index: -2;
-  animation: spinBorder 4s linear infinite;
+  animation: spinBorder 2.5s linear infinite;
 }
 
-/* Inner mask - reveals only border edges */
+/* Inner mask - matches page background for glass effect to work */
 .player-card.premium-lifetime::after {
   content: '';
   position: absolute;
@@ -497,35 +497,35 @@
   right: 0;
   bottom: 0;
   border-radius: 20px;
-  background: rgba(18, 18, 35, 0.97);
+  background: #0a0a1a;
   z-index: -1;
 }
 
-/* Animated border gradient - admin */
+/* Animated border gradient - admin (thicker, faster, brighter) */
 .player-card.premium-admin::before {
   content: '';
   position: absolute;
-  top: -4px;
-  left: -4px;
-  right: -4px;
-  bottom: -4px;
+  top: -3px;
+  left: -3px;
+  right: -3px;
+  bottom: -3px;
   height: auto;
   transform: none;
   transition: none;
-  border-radius: 24px;
+  border-radius: 23px;
   background: conic-gradient(
     from var(--angle, 0deg),
-    #FF6666,
-    #FF3333,
-    #FF0000,
-    #FF3333,
-    #FF6666
+    #FF6B6B,
+    #FF4444,
+    #FF2222,
+    #FF4444,
+    #FF6B6B
   );
   z-index: -2;
-  animation: spinBorder 4s linear infinite;
+  animation: spinBorder 2.5s linear infinite;
 }
 
-/* Inner mask - reveals only border edges */
+/* Inner mask - matches page background for glass effect to work */
 .player-card.premium-admin::after {
   content: '';
   position: absolute;
@@ -534,7 +534,7 @@
   right: 0;
   bottom: 0;
   border-radius: 20px;
-  background: rgba(18, 18, 35, 0.97);
+  background: #0a0a1a;
   z-index: -1;
 }
 
@@ -556,31 +556,31 @@
     0 0 40px rgba(0, 255, 136, 0.2);
 }
 
-/* Animated border gradient - monthly */
+/* Animated border gradient - monthly (thicker, faster, brighter) */
 .player-card.premium-monthly::before {
   content: '';
   position: absolute;
-  top: -4px;
-  left: -4px;
-  right: -4px;
-  bottom: -4px;
+  top: -3px;
+  left: -3px;
+  right: -3px;
+  bottom: -3px;
   height: auto;
   transform: none;
   transition: none;
-  border-radius: 24px;
+  border-radius: 23px;
   background: conic-gradient(
     from var(--angle, 0deg),
-    #00d9ff,
-    #00ff88,
-    #00ffea,
-    #00ff88,
-    #00d9ff
+    #00E5FF,
+    #00FF99,
+    #00FFCC,
+    #00FF99,
+    #00E5FF
   );
   z-index: -2;
-  animation: spinBorder 4s linear infinite;
+  animation: spinBorder 2.5s linear infinite;
 }
 
-/* Inner mask - reveals only border edges */
+/* Inner mask - matches page background for glass effect to work */
 .player-card.premium-monthly::after {
   content: '';
   position: absolute;
@@ -589,7 +589,7 @@
   right: 0;
   bottom: 0;
   border-radius: 20px;
-  background: rgba(18, 18, 35, 0.97);
+  background: #0a0a1a;
   z-index: -1;
 }
 
