@@ -786,6 +786,15 @@
   width: 100%;
 }
 
+.game-section .section-title {
+  text-align: center;
+}
+
+.game-section .section-title::after {
+  left: 50%;
+  transform: translateX(-50%);
+}
+
 .selected-game-card {
   background: rgba(255, 255, 255, 0.05);
   backdrop-filter: blur(20px);

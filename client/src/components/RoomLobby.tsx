@@ -1027,15 +1027,6 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
           </div>
         </div>
 
-        <div className="lobby-extras">
-          <ChatWindow
-            messages={messages}
-            onSendMessage={handleSendMessage}
-            currentPlayerName={playerNameRef.current}
-          />
-          <TugOfWar playerName={playerNameRef.current} />
-        </div>
-
         <div className="game-section">
           <h3 className="section-title">Game Selection</h3>
           {!selectedGame ? (
@@ -1090,6 +1081,15 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
               </div>
             </>
           )}
+        </div>
+
+        <div className="lobby-extras">
+          <ChatWindow
+            messages={messages}
+            onSendMessage={handleSendMessage}
+            currentPlayerName={playerNameRef.current}
+          />
+          <TugOfWar playerName={playerNameRef.current} />
         </div>
       </div>
 
