@@ -517,6 +517,9 @@ export function registerRoomHandlers(
             roomCode: roomCode
           });
 
+          // Join socket room EARLY so we receive roomStatusChanged events
+          socket.join(roomCode);
+
           // Update connection status
           await db.updateParticipantConnection(existingParticipant.user_id, socket.id, 'connected', customLobbyName);
 

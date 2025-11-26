@@ -431,7 +431,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
       setPlayers(mappedPlayers);
       setRoomData(data.room);
       setRoomStatus(data.room?.status || 'waiting_for_players');
-      setSelectedGame(data.room?.game_type !== 'lobby' ? data.room.game_type : null);
+      setSelectedGame(data.room?.current_game || null);
       roomIdRef.current = data.room?.id;
 
       if (data.player) {
