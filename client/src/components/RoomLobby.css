@@ -466,7 +466,7 @@
     0 0 40px rgba(255, 0, 0, 0.2);
 }
 
-/* Animated border gradient */
+/* Animated border gradient - lifetime */
 .player-card.premium-lifetime::before {
   content: '';
   position: absolute;
@@ -474,25 +474,36 @@
   left: -4px;
   right: -4px;
   bottom: -4px;
+  height: auto;
+  transform: none;
+  transition: none;
   border-radius: 24px;
   background: conic-gradient(
     from var(--angle, 0deg),
-    #FFD700 0deg,
-    #FFA500 30deg,
-    #FF6B00 60deg,
-    #FF6B00 90deg,
-    transparent 135deg,
-    transparent 225deg,
-    #FFD700 270deg,
-    #FFA500 300deg,
-    #FF6B00 330deg,
-    #FFD700 360deg
+    #FFD700,
+    #FFA500,
+    #FF6B00,
+    #FFA500,
+    #FFD700
   );
-  z-index: -1;
+  z-index: -2;
   animation: spinBorder 4s linear infinite;
 }
 
-/* Admin Border Gradient */
+/* Inner mask - reveals only border edges */
+.player-card.premium-lifetime::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 20px;
+  background: rgba(15, 15, 35, 1);
+  z-index: -1;
+}
+
+/* Animated border gradient - admin */
 .player-card.premium-admin::before {
   content: '';
   position: absolute;
@@ -500,22 +511,33 @@
   left: -4px;
   right: -4px;
   bottom: -4px;
+  height: auto;
+  transform: none;
+  transition: none;
   border-radius: 24px;
   background: conic-gradient(
     from var(--angle, 0deg),
-    #FF3333 0deg,
-    #FF0000 30deg,
-    #CC0000 60deg,
-    #990000 90deg,
-    transparent 135deg,
-    transparent 225deg,
-    #FF3333 270deg,
-    #FF0000 300deg,
-    #CC0000 330deg,
-    #FF3333 360deg
+    #FF3333,
+    #FF0000,
+    #CC0000,
+    #FF0000,
+    #FF3333
   );
-  z-index: -1;
+  z-index: -2;
   animation: spinBorder 4s linear infinite;
+}
+
+/* Inner mask - reveals only border edges */
+.player-card.premium-admin::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 20px;
+  background: rgba(35, 15, 15, 1);
+  z-index: -1;
 }
 
 /* Ensure content is above the background layer */
@@ -537,20 +559,7 @@
     0 0 40px rgba(0, 255, 136, 0.2);
 }
 
-@keyframes spinBorder {
-  to {
-    --angle: 360deg;
-  }
-}
-
-/* Add this to register the property if not already present */
-@property --angle {
-  syntax: '<angle>';
-  initial-value: 0deg;
-  inherits: false;
-}
-
-/* Animated border gradient */
+/* Animated border gradient - monthly */
 .player-card.premium-monthly::before {
   content: '';
   position: absolute;
@@ -558,28 +567,33 @@
   left: -4px;
   right: -4px;
   bottom: -4px;
+  height: auto;
+  transform: none;
+  transition: none;
   border-radius: 24px;
   background: conic-gradient(
     from var(--angle, 0deg),
-    #00d9ff 0deg,
-    #00ff88 30deg,
-    #00ffea 60deg,
-    #00ffea 90deg,
-    transparent 135deg,
-    transparent 225deg,
-    #00d9ff 270deg,
-    #00ff88 300deg,
-    #00ffea 330deg,
-    #00d9ff 360deg
+    #00d9ff,
+    #00ff88,
+    #00ffea,
+    #00ff88,
+    #00d9ff
   );
-  z-index: -1;
+  z-index: -2;
   animation: spinBorder 4s linear infinite;
 }
 
-/* Ensure content is above the background layer */
-.player-card.premium-monthly > * {
-  position: relative;
-  z-index: 1;
+/* Inner mask - reveals only border edges */
+.player-card.premium-monthly::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 20px;
+  background: rgba(15, 15, 35, 1);
+  z-index: -1;
 }
 
 /* Register custom property for animation */
