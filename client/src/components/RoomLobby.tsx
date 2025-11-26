@@ -597,6 +597,21 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
       }
     };
 
+    // Handle room status changes (e.g., when host returns from external game)
+    const handleRoomStatusChanged = (data: any): void => {
+      console.log('📡 [ROOM STATUS] Room status changed:', data);
+      if (data.newStatus) {
+        setRoomStatus(data.newStatus);
+      }
+      if (data.players) {
+        setPlayers(data.players);
+      }
+      if (data.room) {
+        setRoomData(data.room);
+        setSelectedGame(data.room.current_game || null);
+      }
+    };
+
     socket.on(SERVER_EVENTS.ROOM.JOINED, handleRoomJoined);
     socket.on(SERVER_EVENTS.PLAYER.JOINED, handlePlayerJoined);
     socket.on(SERVER_EVENTS.PLAYER.LEFT, handlePlayerLeft);
@@ -606,6 +621,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
     socket.on(SERVER_EVENTS.HOST.TRANSFERRED, handleHostTransferred);
     socket.on(SERVER_EVENTS.PLAYER.KICKED, handlePlayerKicked);
     socket.on(SERVER_EVENTS.ERROR, handleError);
+    socket.on('roomStatusChanged', handleRoomStatusChanged);
 
     return () => {
       timerIntervalsRef.current.forEach((intervalId) => clearInterval(intervalId));
@@ -622,6 +638,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
         socket.off(SERVER_EVENTS.HOST.TRANSFERRED, handleHostTransferred);
         socket.off(SERVER_EVENTS.PLAYER.KICKED, handlePlayerKicked);
         socket.off(SERVER_EVENTS.ERROR, handleError);
+        socket.off('roomStatusChanged', handleRoomStatusChanged);
 
         if (socket.connected && roomCodeRef.current) {
           socket.emit(SOCKET_EVENTS.ROOM.LEAVE, { roomCode: roomCodeRef.current });

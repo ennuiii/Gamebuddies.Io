@@ -548,14 +548,20 @@ export function registerRoomHandlers(
                 // Clear the game start tracker since we're back in lobby
                 clearGameStart(room.id);
 
-                // Notify all players about the room status change
+                // Fetch fresh room data with all players
+                const updatedRoomForBroadcast = await db.getRoomByCode(room.room_code);
+                const allPlayersForBroadcast = mapParticipantsToPlayers(updatedRoomForBroadcast?.participants || []);
+
+                // Notify all players about the room status change WITH full player list
                 io.to(room.room_code).emit('roomStatusChanged', {
                   oldStatus: 'in_game',
                   newStatus: 'lobby',
                   changedBy: 'Host returned to lobby',
                   reason: 'host_returned_to_lobby',
                   isAutomatic: true,
-                  roomVersion: Date.now()
+                  roomVersion: Date.now(),
+                  players: allPlayersForBroadcast,
+                  room: updatedRoomForBroadcast
                 });
               } else {
                 await autoUpdateRoomStatusByHost(io, db, room.id, existingParticipant.user_id, 'lobby');

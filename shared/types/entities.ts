@@ -36,6 +36,7 @@ export interface Player {
   avatarOptions: Record<string, unknown> | null;
   level: number;
   socketId?: string;
+  isGuest?: boolean;
 }
 
 // Room Types
