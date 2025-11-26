@@ -646,7 +646,8 @@ export function registerRoomHandlers(
         console.log(`🎉 [SUCCESS] ${data.playerName} ${existingParticipant ? 'rejoined' : 'joined'} room ${data.roomCode}`);
 
         // Auto-update room status after rejoin
-        if (updatedRoom.status === 'in_game') {
+        // Skip if the rejoining player is marked as in_game (they're reconnecting from external game)
+        if (updatedRoom.status === 'in_game' && !existingParticipant?.in_game) {
           await autoUpdateRoomStatusBasedOnPlayerStates(io, db, updatedRoom as any, players as any, 'player_rejoined');
         }
 

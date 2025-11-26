@@ -167,7 +167,9 @@ export async function autoUpdateRoomStatusBasedOnPlayerStates(
       const gameCount = playerStats.game || 0;
 
       // If no players are actively in game anymore, switch to lobby
-      if (gameCount === 0 && lobbyCount > 0) {
+      // Must check BOTH gameCount (location) AND inGameCount (in_game flag)
+      // Players in external games have in_game=true but currentLocation may vary
+      if (gameCount === 0 && playerStats.inGameCount === 0 && lobbyCount > 0) {
         targetStatus = 'lobby';
         shouldUpdate = true;
         updateReason = 'All active players are in lobby after rejoin';
