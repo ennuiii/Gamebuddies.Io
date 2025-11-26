@@ -131,12 +131,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigateHome, onNavigateGames, isInLo
 
   return (
     <>
-      <motion.header
-        className="header"
-        initial={{ y: -100 }}
-        animate={{ y: 0 }}
-        transition={{ duration: 0.5 }}
-      >
+      <header className="header">
         <div className="container">
           <div className="header-content">
             <Link to="/" className="logo" onClick={handleHomeClick}>
@@ -216,7 +211,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigateHome, onNavigateGames, isInLo
             </div>
           </div>
         </div>
-      </motion.header>
+      </header>
     </>
   );
 };
