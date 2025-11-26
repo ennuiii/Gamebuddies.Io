@@ -556,7 +556,8 @@ export function registerRoomHandlers(
             user = await db.getOrCreateUser(
               `${socket.id}_${data.playerName}`,
               data.playerName,
-              data.playerName
+              data.playerName,
+              { is_guest: true }
             );
           }
 
