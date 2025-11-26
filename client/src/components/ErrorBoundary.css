@@ -1,0 +1,96 @@
+.error-boundary-fallback {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  padding: 2rem;
+  text-align: center;
+  background: rgba(255, 50, 50, 0.1);
+  border: 1px solid rgba(255, 50, 50, 0.3);
+  border-radius: 16px;
+  margin: 2rem;
+  backdrop-filter: blur(10px);
+}
+
+.error-boundary-fallback .error-icon {
+  font-size: 4rem;
+  margin-bottom: 1rem;
+}
+
+.error-boundary-fallback h2 {
+  color: #ff6b6b;
+  margin-bottom: 1rem;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.error-boundary-fallback p {
+  color: rgba(255, 255, 255, 0.7);
+  margin-bottom: 1.5rem;
+  max-width: 400px;
+  line-height: 1.5;
+}
+
+.error-boundary-fallback .error-actions {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.error-boundary-fallback button {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 1rem;
+  transition: all 0.3s ease;
+}
+
+.error-boundary-fallback .btn-retry {
+  background: linear-gradient(135deg, #4CAF50, #45a049);
+  color: white;
+  box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
+}
+
+.error-boundary-fallback .btn-retry:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(76, 175, 80, 0.4);
+}
+
+.error-boundary-fallback .btn-reload {
+  background: rgba(255, 255, 255, 0.1);
+  color: white;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.error-boundary-fallback .btn-reload:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateY(-2px);
+}
+
+@media (max-width: 480px) {
+  .error-boundary-fallback {
+    margin: 1rem;
+    padding: 1.5rem;
+  }
+
+  .error-boundary-fallback .error-icon {
+    font-size: 3rem;
+  }
+
+  .error-boundary-fallback h2 {
+    font-size: 1.25rem;
+  }
+
+  .error-boundary-fallback .error-actions {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .error-boundary-fallback button {
+    width: 100%;
+  }
+}

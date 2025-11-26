@@ -23,6 +23,7 @@ import AdminRoute from './components/AdminRoute';
 import DebugPanel from './components/DebugPanel';
 import FriendList from './components/FriendList';
 import GameInviteToast from './components/GameInviteToast';
+import ErrorBoundary from './components/ErrorBoundary';
 import './App.css';
 
 export interface HomePageProps {
@@ -84,31 +85,64 @@ function AppContent(): React.ReactElement {
       <Routes>
         <Route
           path="/"
-          element={<HomePage setIsInLobby={setIsInLobby} setLobbyLeaveFn={setLobbyLeaveFn} />}
+          element={
+            <ErrorBoundary>
+              <HomePage setIsInLobby={setIsInLobby} setLobbyLeaveFn={setLobbyLeaveFn} />
+            </ErrorBoundary>
+          }
         />
         <Route
           path="/lobby/:roomCode"
-          element={<HomePage setIsInLobby={setIsInLobby} setLobbyLeaveFn={setLobbyLeaveFn} />}
+          element={
+            <ErrorBoundary>
+              <HomePage setIsInLobby={setIsInLobby} setLobbyLeaveFn={setLobbyLeaveFn} />
+            </ErrorBoundary>
+          }
         />
-        <Route path="/login" element={<LoginPage />} />
+        <Route
+          path="/login"
+          element={
+            <ErrorBoundary>
+              <LoginPage />
+            </ErrorBoundary>
+          }
+        />
         <Route path="/auth/callback" element={<AuthCallback />} />
         <Route path="/password-reset" element={<PasswordReset />} />
-        <Route path="/premium" element={<Premium />} />
-        <Route path="/account" element={<Account />} />
+        <Route
+          path="/premium"
+          element={
+            <ErrorBoundary>
+              <Premium />
+            </ErrorBoundary>
+          }
+        />
+        <Route
+          path="/account"
+          element={
+            <ErrorBoundary>
+              <Account />
+            </ErrorBoundary>
+          }
+        />
         <Route
           path="/admin/affiliates"
           element={
-            <AdminRoute>
-              <AdminAffiliates />
-            </AdminRoute>
+            <ErrorBoundary>
+              <AdminRoute>
+                <AdminAffiliates />
+              </AdminRoute>
+            </ErrorBoundary>
           }
         />
         <Route
           path="/admin/dashboard"
           element={
-            <AdminRoute>
-              <AdminDashboard />
-            </AdminRoute>
+            <ErrorBoundary>
+              <AdminRoute>
+                <AdminDashboard />
+              </AdminRoute>
+            </ErrorBoundary>
           }
         />
         <Route path="/payment/success" element={<PaymentSuccess />} />
@@ -120,7 +154,11 @@ function AppContent(): React.ReactElement {
         <Route path="/terms" element={<Legal />} />
         <Route
           path="/*"
-          element={<HomePage setIsInLobby={setIsInLobby} setLobbyLeaveFn={setLobbyLeaveFn} />}
+          element={
+            <ErrorBoundary>
+              <HomePage setIsInLobby={setIsInLobby} setLobbyLeaveFn={setLobbyLeaveFn} />
+            </ErrorBoundary>
+          }
         />
       </Routes>
       <Footer />
@@ -136,7 +174,9 @@ function App(): React.ReactElement {
           <LazySocketProvider>
             <NotificationProvider>
               <FriendProvider>
-                <AppContent />
+                <ErrorBoundary>
+                  <AppContent />
+                </ErrorBoundary>
               </FriendProvider>
             </NotificationProvider>
           </LazySocketProvider>
