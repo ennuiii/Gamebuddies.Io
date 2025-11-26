@@ -46,11 +46,16 @@ class RoomLifecycleManager {
 
         interface RoomMember {
           is_connected: boolean;
+          in_game?: boolean;
+          current_location?: string;
         }
 
-        const connectedCount = (room?.room_members as RoomMember[] | undefined)?.filter((m: RoomMember) => m.is_connected).length || 0;
+        // Count players who are connected OR in game (in_game players don't have active sockets)
+        const activeCount = (room?.room_members as RoomMember[] | undefined)?.filter((m: RoomMember) =>
+          m.is_connected || m.in_game || m.current_location === 'game'
+        ).length || 0;
 
-        if (connectedCount === 0 && room?.status !== 'abandoned') {
+        if (activeCount === 0 && room?.status !== 'abandoned') {
           console.log(`🗑️ [ABANDON] Grace period expired, no reconnections - marking room ${roomCode} as abandoned`);
           await db.adminClient
             .from('rooms')
@@ -58,7 +63,7 @@ class RoomLifecycleManager {
             .eq('id', roomId);
           console.log(`✅ [ABANDON] Room ${roomCode} marked as abandoned`);
         } else {
-          console.log(`✅ [ABANDON] Grace period: Room ${roomCode} has ${connectedCount} connected players, not abandoning`);
+          console.log(`✅ [ABANDON] Grace period: Room ${roomCode} has ${activeCount} active players, not abandoning`);
         }
       } catch (err) {
         console.error(`❌ [ABANDON] Exception during grace period check for room ${roomCode}:`, err);

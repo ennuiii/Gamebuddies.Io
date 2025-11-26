@@ -255,11 +255,13 @@ export function initializeSocketIO(
             });
 
             // Check if room is now empty - start grace period
-            const connectedPlayers = updatedRoom?.participants?.filter(
-              (p: { is_connected: boolean }) => p.is_connected
+            // Count players who are connected OR in game (in_game players don't have active sockets)
+            const activePlayers = updatedRoom?.participants?.filter(
+              (p: { is_connected: boolean; in_game?: boolean; current_location?: string }) =>
+                p.is_connected || p.in_game || p.current_location === 'game'
             ) || [];
-            if (connectedPlayers.length === 0) {
-              console.log(`⏳ [ABANDON] Room ${room.room_code} has no connected players - starting grace period`);
+            if (activePlayers.length === 0) {
+              console.log(`⏳ [ABANDON] Room ${room.room_code} has no active players - starting grace period`);
               fullCtx.roomLifecycleManager.startAbandonmentGracePeriod(room.id, room.room_code);
             }
           }

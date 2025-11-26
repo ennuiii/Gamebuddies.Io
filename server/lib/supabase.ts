@@ -764,14 +764,19 @@ class DatabaseService {
       const roomsNeedingCleanup = roomsToCleanup.filter((room: any) => {
         const roomAge = Date.now() - new Date(room.created_at).getTime();
         const roomIdle = Date.now() - new Date(room.last_activity || room.created_at).getTime();
-        const hasConnectedPlayers = room.participants?.some((p: RoomMember) => p.is_connected);
-        const connectedPlayerCount = room.participants?.filter((p: RoomMember) => p.is_connected).length || 0;
+        // Check for players who are connected OR in game (in_game players don't have active sockets)
+        const hasActivePlayers = room.participants?.some((p: RoomMember) =>
+          p.is_connected || p.in_game || p.current_location === 'game'
+        );
+        const activePlayerCount = room.participants?.filter((p: RoomMember) =>
+          p.is_connected || p.in_game || p.current_location === 'game'
+        ).length || 0;
 
         const shouldCleanup = (
           // Too old
           roomAge > (maxAgeHours * 60 * 60 * 1000) ||
-          // Too idle and no connected players
-          (roomIdle > (maxIdleMinutes * 60 * 1000) && !hasConnectedPlayers)
+          // Too idle and no active players (connected OR in game)
+          (roomIdle > (maxIdleMinutes * 60 * 1000) && !hasActivePlayers)
         );
 
         // Enhanced debugging for each room
@@ -780,29 +785,31 @@ class DatabaseService {
           current_game: room.current_game,
           ageHours: Math.round(roomAge / (60 * 60 * 1000) * 100) / 100,
           idleMinutes: Math.round(roomIdle / (60 * 1000) * 100) / 100,
-          connectedPlayers: connectedPlayerCount,
-          hasConnectedPlayers,
+          activePlayers: activePlayerCount,
+          hasActivePlayers,
           shouldCleanup,
           reasons: {
             tooOld: roomAge > (maxAgeHours * 60 * 60 * 1000),
             tooIdle: roomIdle > (maxIdleMinutes * 60 * 1000),
-            noConnectedPlayers: !hasConnectedPlayers
+            noActivePlayers: !hasActivePlayers
           }
         });
 
-        // Special protection for active game rooms with connected players
-        if (room.status === 'in_game' && hasConnectedPlayers && room.current_game !== 'lobby') {
+        // Special protection for active game rooms with active players (connected OR in game)
+        if (room.status === 'in_game' && hasActivePlayers && room.current_game !== 'lobby') {
           console.log(`⚠️ [CLEANUP PROTECTION] Protecting active game room: ${room.room_code}`, {
             status: room.status,
             current_game: room.current_game,
-            connected_players: connectedPlayerCount,
+            active_players: activePlayerCount,
             participants: room.participants?.map((p: RoomMember) => ({
               username: p.user?.username || p.user?.display_name,
               is_connected: p.is_connected,
+              in_game: p.in_game,
+              current_location: p.current_location,
               last_ping: p.last_ping
             }))
           });
-          return false; // Don't cleanup active game rooms with connected players
+          return false; // Don't cleanup active game rooms with active players
         }
 
         return shouldCleanup;
@@ -816,7 +823,7 @@ class DatabaseService {
           current_game: r.current_game,
           age: Math.round((Date.now() - new Date(r.created_at).getTime()) / (60 * 60 * 1000)) + 'h',
           idle: Math.round((Date.now() - new Date(r.last_activity || r.created_at).getTime()) / (60 * 1000)) + 'm',
-          connected_players: r.participants?.filter((p: RoomMember) => p.is_connected).length || 0
+          active_players: r.participants?.filter((p: RoomMember) => p.is_connected || p.in_game || p.current_location === 'game').length || 0
         }))
       );
 
