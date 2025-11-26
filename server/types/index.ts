@@ -4,6 +4,7 @@ import type ConnectionManager from '../lib/connectionManager';
 import type LobbyManager from '../lib/lobbyManager';
 import type StatusSyncManager from '../lib/statusSyncManager';
 import type RoomLifecycleManager from '../lib/roomLifecycleManager';
+import type ProxyManager from '../lib/proxyManager';
 import type { DatabaseService } from '../lib/supabase';
 
 // ============ Server Context ============
@@ -16,6 +17,7 @@ export interface ServerContext {
   lobbyManager: LobbyManager;
   statusSyncManager: StatusSyncManager;
   roomLifecycleManager: RoomLifecycleManager;
+  proxyManager: ProxyManager;
 }
 
 // ============ Socket Handler Types ============

@@ -2,11 +2,7 @@ import crypto from 'crypto';
 import type { Socket } from 'socket.io';
 import type { ServerContext } from '../types';
 import { validators, sanitize } from '../lib/validation';
-import ProxyManager from '../lib/proxyManager';
 import { SOCKET_EVENTS, SERVER_EVENTS } from '../../shared/constants';
-
-// Create singleton proxy manager instance for game handlers
-const proxyManager = new ProxyManager();
 
 interface RoomParticipant {
   user_id: string;
@@ -44,7 +40,7 @@ export function registerGameHandlers(
   socket: Socket,
   ctx: ServerContext
 ): void {
-  const { io, db, connectionManager } = ctx;
+  const { io, db, connectionManager, proxyManager } = ctx;
 
   // Handle game selection
   socket.on(SOCKET_EVENTS.GAME.SELECT, async (data) => {
@@ -187,7 +183,13 @@ export function registerGameHandlers(
       // Get game proxy configuration
       const gameProxy = proxyManager.gameProxies[room.current_game || ''];
       if (!gameProxy) {
-        socket.emit('error', { message: 'Game not supported' });
+        console.error(`❌ [START GAME] No proxy found for game: "${room.current_game}"`);
+        console.error(`❌ [START GAME] Available proxies:`, Object.keys(proxyManager.gameProxies));
+        console.error(`❌ [START GAME] Hint: Ensure games table has is_external=true for this game`);
+        socket.emit('error', {
+          message: `Game "${room.current_game}" is not configured. Please check database settings.`,
+          code: 'GAME_NOT_CONFIGURED'
+        });
         return;
       }
 

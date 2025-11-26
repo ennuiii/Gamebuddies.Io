@@ -173,10 +173,14 @@ CREATE INDEX IF NOT EXISTS idx_api_requests_api_key_id ON api_requests(api_key_i
 CREATE INDEX IF NOT EXISTS idx_api_requests_requested_at ON api_requests(requested_at);
 
 -- Insert default games
-INSERT INTO games (id, name, display_name, description, base_url, min_players, max_players) VALUES
-('ddf', 'Der Dümmste Fliegt', 'Der Dümmste Fliegt', 'A fun trivia game where the dumbest flies!', '/ddf', 2, 10),
-('schooled', 'Schooled', 'Schooled', 'Test your knowledge in this educational game!', '/schooled', 2, 8)
-ON CONFLICT (id) DO NOTHING;
+INSERT INTO games (id, name, display_name, description, base_url, is_external, min_players, max_players, is_active) VALUES
+('ddf', 'Der Dümmste Fliegt', 'Der Dümmste Fliegt', 'A fun trivia game where the dumbest flies!', 'https://ddf-game.onrender.com', true, 2, 10, true),
+('schooled', 'Schooled', 'Schooled', 'Test your knowledge in this educational game!', 'https://schoolquizgame.onrender.com', true, 2, 8, true),
+('susd', 'SUS''D', 'SUS''D - Imposter Game', 'Find who''s acting suspicious in this social deduction game', 'https://susd-1.onrender.com', true, 4, 10, true)
+ON CONFLICT (id) DO UPDATE SET
+    base_url = EXCLUDED.base_url,
+    is_external = EXCLUDED.is_external,
+    is_active = EXCLUDED.is_active;
 
 -- Helper functions
 CREATE OR REPLACE FUNCTION generate_room_code()

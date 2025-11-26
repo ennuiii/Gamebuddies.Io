@@ -56,7 +56,8 @@ async function startServer(): Promise<void> {
       connectionManager,
       lobbyManager: null as any,
       statusSyncManager: null as any,
-      roomLifecycleManager
+      roomLifecycleManager,
+      proxyManager
     });
 
     // Update roomLifecycleManager with actual io instance
