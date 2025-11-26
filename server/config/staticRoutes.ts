@@ -45,8 +45,15 @@ const SERVER_ROOT = path.join(PROJECT_ROOT, 'server');
  * Must be called early in app setup
  */
 export function setupCoreStaticRoutes(app: Application): void {
-  // Serve static files from React build
-  app.use(express.static(path.join(PROJECT_ROOT, 'client/build')));
+  // Serve static files from React build (exclude socket.io and api paths)
+  app.use((req: Request, res: Response, next: NextFunction) => {
+    // Skip socket.io paths - let Socket.IO handle them
+    if (req.path.startsWith('/socket.io')) {
+      return next();
+    }
+    // Use static middleware for everything else
+    express.static(path.join(PROJECT_ROOT, 'client/build'))(req, res, next);
+  });
 
   // Serve static avatars
   app.use('/avatars', express.static(path.join(SERVER_ROOT, 'public/avatars')));
@@ -95,11 +102,27 @@ export function setupGameStaticRoutes(app: Application): void {
  * MUST be called LAST, after all other routes and proxies
  */
 export function setupCatchAllRoute(app: Application): void {
-  app.get('*', (req: Request, res: Response, next) => {
-    // Skip socket.io and API routes - they have their own handlers
-    if (req.path.startsWith('/socket.io') || req.path.startsWith('/api')) {
+  app.get('*', (req: Request, res: Response, next: NextFunction) => {
+    // Skip these paths - they have their own handlers
+    const skipPaths = [
+      '/socket.io',
+      '/api',
+      '/healthz',
+      '/health'
+    ];
+
+    // Check if path starts with any skip path (case insensitive)
+    const shouldSkip = skipPaths.some(skipPath =>
+      req.path.toLowerCase().startsWith(skipPath.toLowerCase())
+    );
+
+    // Also skip if it looks like a file request (has extension)
+    const hasExtension = /\.[a-zA-Z0-9]+$/.test(req.path);
+
+    if (shouldSkip || hasExtension) {
       return next();
     }
+
     res.sendFile(path.join(PROJECT_ROOT, 'client/build/index.html'));
   });
   console.log('✅ Catch-all route registered (after game routes & proxies)');
