@@ -443,28 +443,22 @@
 
 /* Host card - no special glow, premium badges take priority */
 
-/* Premium Player Card Styles - Animated Snake Border Effect */
+/* Premium Player Card Styles - Animated Border with Static Glow */
 .player-card.premium-lifetime {
   position: relative;
   border-radius: 20px;
   isolation: isolate;
   overflow: visible;
-  animation: glowPulseGold 2s ease-in-out infinite;
+  box-shadow:
+    0 0 15px rgba(255, 215, 0, 0.4),
+    0 0 30px rgba(255, 165, 0, 0.2);
+  transition: box-shadow 0.3s ease;
 }
 
-@keyframes glowPulseGold {
-  0%, 100% {
-    box-shadow:
-      0 0 20px rgba(255, 215, 0, 0.6),
-      0 0 40px rgba(255, 165, 0, 0.4),
-      0 0 60px rgba(255, 140, 0, 0.2);
-  }
-  50% {
-    box-shadow:
-      0 0 30px rgba(255, 215, 0, 0.8),
-      0 0 60px rgba(255, 165, 0, 0.5),
-      0 0 80px rgba(255, 140, 0, 0.3);
-  }
+.player-card.premium-lifetime:hover {
+  box-shadow:
+    0 0 25px rgba(255, 215, 0, 0.6),
+    0 0 50px rgba(255, 165, 0, 0.3);
 }
 
 .player-card.premium-admin {
@@ -472,22 +466,16 @@
   border-radius: 20px;
   isolation: isolate;
   overflow: visible;
-  animation: glowPulseRed 1.5s ease-in-out infinite;
+  box-shadow:
+    0 0 15px rgba(255, 50, 50, 0.5),
+    0 0 30px rgba(255, 0, 0, 0.3);
+  transition: box-shadow 0.3s ease;
 }
 
-@keyframes glowPulseRed {
-  0%, 100% {
-    box-shadow:
-      0 0 20px rgba(255, 50, 50, 0.7),
-      0 0 40px rgba(255, 0, 0, 0.5),
-      0 0 60px rgba(200, 0, 0, 0.3);
-  }
-  50% {
-    box-shadow:
-      0 0 35px rgba(255, 80, 80, 0.9),
-      0 0 70px rgba(255, 0, 0, 0.6),
-      0 0 100px rgba(200, 0, 0, 0.4);
-  }
+.player-card.premium-admin:hover {
+  box-shadow:
+    0 0 25px rgba(255, 50, 50, 0.7),
+    0 0 50px rgba(255, 0, 0, 0.4);
 }
 
 /* Animated border gradient - lifetime */
@@ -559,22 +547,16 @@
   border-radius: 20px;
   isolation: isolate;
   overflow: visible;
-  animation: glowPulseCyan 2s ease-in-out infinite;
+  box-shadow:
+    0 0 12px rgba(0, 217, 255, 0.4),
+    0 0 25px rgba(0, 200, 255, 0.2);
+  transition: box-shadow 0.3s ease;
 }
 
-@keyframes glowPulseCyan {
-  0%, 100% {
-    box-shadow:
-      0 0 15px rgba(0, 217, 255, 0.5),
-      0 0 30px rgba(0, 255, 200, 0.3),
-      0 0 45px rgba(0, 200, 255, 0.2);
-  }
-  50% {
-    box-shadow:
-      0 0 25px rgba(0, 217, 255, 0.7),
-      0 0 50px rgba(0, 255, 200, 0.4),
-      0 0 70px rgba(0, 200, 255, 0.3);
-  }
+.player-card.premium-monthly:hover {
+  box-shadow:
+    0 0 20px rgba(0, 217, 255, 0.6),
+    0 0 40px rgba(0, 200, 255, 0.3);
 }
 
 /* Animated border gradient - monthly/pro */
