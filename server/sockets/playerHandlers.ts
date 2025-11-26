@@ -235,7 +235,7 @@ export function registerPlayerHandlers(
       if (targetConnection?.socketId) {
         io.to(targetConnection.socketId).emit('playerKicked', {
           reason: 'You have been removed from the room by the host',
-          kickedBy: currentParticipant.user?.display_name || 'Player',
+          kickedBy: currentParticipant.custom_lobby_name || currentParticipant.user?.display_name || 'Player',
           roomCode: data.roomCode
         });
 
@@ -252,8 +252,8 @@ export function registerPlayerHandlers(
       // Notify remaining players
       io.to(data.roomCode).emit('playerKicked', {
         targetUserId: data.targetUserId,
-        targetName: targetParticipant.user?.display_name || 'Player',
-        kickedBy: currentParticipant.user?.display_name || 'Player',
+        targetName: targetParticipant.custom_lobby_name || targetParticipant.user?.display_name || 'Player',
+        kickedBy: currentParticipant.custom_lobby_name || currentParticipant.user?.display_name || 'Player',
         players: allPlayers,
         room: updatedRoom,
         isNotification: true,
