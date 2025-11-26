@@ -352,33 +352,33 @@ const HomePage: React.FC<HomePageProps> = ({ setIsInLobby, setLobbyLeaveFn }) =>
           />
         </motion.div>
       ) : (
-        <motion.div
-          key="home"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          transition={{ duration: 0.25, ease: 'easeInOut' }}
-        >
-          <div className="homepage">
-      <div className="background-animation">
-        <div className="floating-elements">
-          {[...Array(15)].map((_, i) => (
-            <div key={i} className={`floating-element element-${i + 1}`}></div>
-          ))}
-        </div>
-      </div>
+        <>
+          <div className="beta-disclaimer">
+            <div className="beta-disclaimer-content">
+              <span className="beta-badge">⚠️ BETA</span>
+              <span className="beta-text">
+                GameBuddies.io is currently in <strong>beta testing</strong>. Some features may not work
+                as expected.
+              </span>
+            </div>
+          </div>
+          <motion.div
+            key="home"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.25, ease: 'easeInOut' }}
+          >
+            <div className="homepage">
+              <div className="background-animation">
+                <div className="floating-elements">
+                  {[...Array(15)].map((_, i) => (
+                    <div key={i} className={`floating-element element-${i + 1}`}></div>
+                  ))}
+                </div>
+              </div>
 
-      <div className="beta-disclaimer">
-        <div className="beta-disclaimer-content">
-          <span className="beta-badge">⚠️ BETA</span>
-          <span className="beta-text">
-            GameBuddies.io is currently in <strong>beta testing</strong>. Some features may not work
-            as expected.
-          </span>
-        </div>
-      </div>
-
-      <section className="hero">
+              <section className="hero">
         <motion.div
           className="hero-content"
           initial={{ opacity: 0, y: 50 }}
@@ -499,23 +499,24 @@ const HomePage: React.FC<HomePageProps> = ({ setIsInLobby, setLobbyLeaveFn }) =>
         </div>
       </section>
 
-      {showCreateRoom && <CreateRoom onRoomCreated={handleRoomCreated} onCancel={handleCloseModals} />}
+              {showCreateRoom && <CreateRoom onRoomCreated={handleRoomCreated} onCancel={handleCloseModals} />}
 
-      {showJoinRoom && (
-        <JoinRoom
-          initialRoomCode={joinRoomCode}
-          initialPlayerName={prefillName}
-          autoJoin={autoJoin}
-          onRoomJoined={handleJoinRoom}
-          onCancel={handleCloseModals}
-        />
-      )}
+              {showJoinRoom && (
+                <JoinRoom
+                  initialRoomCode={joinRoomCode}
+                  initialPlayerName={prefillName}
+                  autoJoin={autoJoin}
+                  onRoomJoined={handleJoinRoom}
+                  onCancel={handleCloseModals}
+                />
+              )}
 
-      {showBrowseRooms && (
-        <BrowseRooms onRoomSelected={handleRoomSelected} onCancel={handleCloseModals} />
-      )}
-          </div>
-        </motion.div>
+              {showBrowseRooms && (
+                <BrowseRooms onRoomSelected={handleRoomSelected} onCancel={handleCloseModals} />
+              )}
+            </div>
+          </motion.div>
+        </>
       )}
     </AnimatePresence>
   );
