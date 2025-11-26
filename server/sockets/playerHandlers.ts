@@ -92,7 +92,33 @@ export function registerPlayerHandlers(
         .eq('user_id', connection.userId)
         .eq('room_id', room.id);
 
-      const updatedRoom = await db.getRoomByCode(data.roomCode);
+      let updatedRoom = await db.getRoomByCode(data.roomCode) as RoomWithParticipants;
+
+      // Check if returning player is the host
+      const returningPlayer = updatedRoom.participants?.find(p => p.user_id === connection.userId);
+      const isHost = returningPlayer?.role === 'host';
+
+      // If HOST returns and room is 'in_game', transition room to 'lobby'
+      if (isHost && updatedRoom.status === 'in_game') {
+        await db.updateRoom(updatedRoom.id, {
+          status: 'lobby',
+          current_game: null  // Clear game selection so host can pick new game
+        });
+
+        // Refetch room with updated status
+        updatedRoom = await db.getRoomByCode(data.roomCode) as RoomWithParticipants;
+
+        // Broadcast room status change to all players
+        io.to(data.roomCode).emit(SERVER_EVENTS.ROOM.STATUS_CHANGED, {
+          oldStatus: 'in_game',
+          newStatus: 'lobby',
+          room: updatedRoom,
+          reason: 'host_returned',
+          roomVersion: Date.now()
+        });
+
+        console.log(`🏠 Room ${data.roomCode} transitioned to lobby - host returned`);
+      }
 
       io.to(data.roomCode).emit(SERVER_EVENTS.PLAYER.STATUS_UPDATED, {
         playerId: connection.userId,
