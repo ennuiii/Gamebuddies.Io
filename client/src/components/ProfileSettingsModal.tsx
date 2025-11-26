@@ -1,0 +1,234 @@
+import React, { useState, useEffect, MouseEvent } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '../contexts/AuthContext';
+import { useSocket } from '../contexts/LazySocketContext';
+import { useNotification } from '../contexts/NotificationContext';
+import { useNavigate } from 'react-router-dom';
+import AvatarCustomizer from './AvatarCustomizer';
+import Avatar from './Avatar';
+import './ProfileSettingsModal.css';
+
+interface AvatarData {
+  avatar_style?: string;
+  avatar_seed?: string;
+  avatar_options?: Record<string, unknown>;
+}
+
+interface ProfileSettingsModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  roomCode?: string;
+  isPremium?: boolean;
+}
+
+const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
+  isOpen,
+  onClose,
+  roomCode,
+  isPremium: propIsPremium,
+}) => {
+  const { user, session, refreshUser, isPremium: authIsPremium } = useAuth();
+  const isPremium = propIsPremium !== undefined ? propIsPremium : authIsPremium;
+
+  const { socket } = useSocket();
+  const { addNotification } = useNotification();
+  const navigate = useNavigate();
+
+  const [showAvatarCustomizer, setShowAvatarCustomizer] = useState<boolean>(false);
+  const [avatarLoading, setAvatarLoading] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setShowAvatarCustomizer(false);
+    }
+  }, [isOpen]);
+
+  if (!isOpen) return null;
+
+  const handleOverlayClick = (e: MouseEvent<HTMLDivElement>): void => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
+  };
+
+  const handleSaveAvatar = async (avatarData: AvatarData): Promise<void> => {
+    console.log('🎨 [PROFILE MODAL] Saving avatar preferences:', avatarData);
+    setAvatarLoading(true);
+
+    try {
+      if (!session?.access_token) {
+        throw new Error('Not authenticated');
+      }
+
+      const requestBody = {
+        userId: user?.id,
+        ...avatarData,
+      };
+      console.log('🎨 [PROFILE MODAL] Request body:', requestBody);
+
+      const response = await fetch('/api/users/avatar', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify(requestBody),
+      });
+
+      console.log('🎨 [PROFILE MODAL] Response status:', response.status);
+      const data = await response.json();
+      console.log('🎨 [PROFILE MODAL] Response data:', data);
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to save avatar');
+      }
+
+      console.log('✅ [PROFILE MODAL] Avatar saved successfully');
+      setShowAvatarCustomizer(false);
+
+      if (refreshUser) {
+        console.log('🎨 [PROFILE MODAL] Refreshing user data...');
+        await refreshUser();
+        console.log('🎨 [PROFILE MODAL] User data refreshed');
+      }
+
+      if (socket && roomCode) {
+        console.log('🎨 [PROFILE MODAL] Socket available:', {
+          connected: socket.connected,
+          id: socket.id,
+          roomCode,
+        });
+
+        console.log('🎨 [PROFILE MODAL] Emitting profile_updated to socket:', {
+          roomCode,
+          userId: user?.id,
+          displayName: user?.display_name || user?.username,
+          avatarStyle: avatarData.avatar_style,
+          avatarSeed: avatarData.avatar_seed,
+          avatarOptions: avatarData.avatar_options,
+        });
+
+        socket.emit('profile_updated', {
+          roomCode,
+          userId: user?.id,
+          displayName: user?.display_name || user?.username,
+          avatarStyle: avatarData.avatar_style,
+          avatarSeed: avatarData.avatar_seed,
+          avatarOptions: avatarData.avatar_options,
+        });
+      } else {
+        console.warn('⚠️ [PROFILE MODAL] Cannot emit update: socket or roomCode missing', {
+          socket: !!socket,
+          roomCode,
+        });
+      }
+
+      addNotification('Avatar updated!', 'success');
+    } catch (error) {
+      console.error('❌ [PROFILE MODAL] Avatar save error:', error);
+      addNotification((error as Error).message || 'Failed to save avatar', 'error');
+    } finally {
+      setAvatarLoading(false);
+    }
+  };
+
+  const getCurrentAvatarDisplay = (): React.ReactElement => {
+    return (
+      <Avatar
+        avatarStyle={user?.avatar_style}
+        avatarSeed={user?.avatar_seed}
+        avatarOptions={user?.avatar_options}
+        name={user?.display_name || user?.username || 'User'}
+        size={80}
+        isPremium={isPremium}
+        className="avatar-preview-img"
+      />
+    );
+  };
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        className="profile-settings-overlay"
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        onClick={handleOverlayClick}
+      >
+        <motion.div
+          className="profile-settings-modal"
+          initial={{ opacity: 0, scale: 0.9, y: 20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.9, y: 20 }}
+          transition={{ duration: 0.3 }}
+        >
+          <div className="profile-settings-header">
+            <h2 className="profile-settings-title">Avatar Settings</h2>
+            <button className="close-button" onClick={onClose}>
+              <svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  d="M18 6L6 18M6 6l12 12"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
+          </div>
+
+          <div className="profile-settings-content">
+            {showAvatarCustomizer ? (
+              <div className="avatar-customizer-section">
+                <AvatarCustomizer
+                  currentStyle={user?.avatar_style}
+                  currentSeed={user?.avatar_seed}
+                  currentOptions={user?.avatar_options || {}}
+                  username={user?.username || user?.display_name}
+                  onSave={handleSaveAvatar}
+                  onCancel={() => setShowAvatarCustomizer(false)}
+                  loading={avatarLoading}
+                  isPremium={isPremium}
+                  userRole={user?.role}
+                />
+              </div>
+            ) : (
+              <div className="avatar-preview-section">
+                <div className="avatar-preview-container">{getCurrentAvatarDisplay()}</div>
+                <div className="avatar-preview-info">
+                  <span className="preview-label">Current Avatar</span>
+                  <button className="change-avatar-btn" onClick={() => setShowAvatarCustomizer(true)}>
+                    {user?.avatar_style ? 'Change Avatar' : 'Create Avatar'}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="profile-settings-footer">
+            <button
+              className="full-account-button"
+              onClick={() => {
+                onClose();
+                navigate('/account');
+              }}
+            >
+              Full Account Settings
+            </button>
+            <button className="done-button" onClick={onClose}>
+              Done
+            </button>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
+  );
+};
+
+export default ProfileSettingsModal;

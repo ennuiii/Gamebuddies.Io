@@ -1,0 +1,250 @@
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { useSocket } from '../contexts/LazySocketContext';
+import type { Player, RoomStatus } from '@shared/types';
+
+interface LocalState {
+  players: Player[];
+  roomStatus: RoomStatus | 'lobby';
+  currentPlayer: Player | null;
+  isLoading: boolean;
+  error: string | null;
+}
+
+interface JoinRoomResult {
+  success: boolean;
+  error?: string;
+  data?: unknown;
+}
+
+export const useLobbyState = (roomCode: string | null) => {
+  const { socket, isConnected } = useSocket();
+
+  const [localState, setLocalState] = useState<LocalState>({
+    players: [],
+    roomStatus: 'lobby',
+    currentPlayer: null,
+    isLoading: true,
+    error: null,
+  });
+  const [isOptimistic, setIsOptimistic] = useState(false);
+  const [pendingUpdates, setPendingUpdates] = useState<Map<string, unknown>>(new Map());
+
+  const roomCodeRef = useRef(roomCode);
+  const optimisticTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    roomCodeRef.current = roomCode;
+  }, [roomCode]);
+
+  const updatePlayerStatus = useCallback(
+    async (
+      status: string,
+      location: string,
+      _metadata: Record<string, unknown> = {}
+    ): Promise<boolean> => {
+      if (!socket || !isConnected) {
+        console.warn('⚠️ [LOBBY] Cannot update status - socket not connected');
+        return false;
+      }
+
+      const playerId = sessionStorage.getItem('gamebuddies_playerId');
+      const playerName = sessionStorage.getItem('gamebuddies_playerName');
+
+      if (!playerId || !playerName) {
+        console.warn('⚠️ [LOBBY] Cannot update status - player info not found');
+        return false;
+      }
+
+      try {
+        setIsOptimistic(true);
+        setLocalState((prev) => ({
+          ...prev,
+          currentPlayer: prev.currentPlayer
+            ? {
+                ...prev.currentPlayer,
+                isConnected: status !== 'disconnected',
+                inGame: status === 'in_game',
+                currentLocation: location as 'lobby' | 'game' | 'disconnected',
+              }
+            : null,
+        }));
+
+        const updateId = `${playerId}_${Date.now()}`;
+        setPendingUpdates((prev) => new Map(prev.set(updateId, { status, location })));
+
+        if (optimisticTimeout.current) {
+          clearTimeout(optimisticTimeout.current);
+        }
+
+        optimisticTimeout.current = setTimeout(() => {
+          console.warn('⚠️ [LOBBY] Optimistic update timeout - reverting to server state');
+          setIsOptimistic(false);
+          setPendingUpdates((prev) => {
+            const newMap = new Map(prev);
+            newMap.delete(updateId);
+            return newMap;
+          });
+        }, 5000);
+
+        return true;
+      } catch (error) {
+        console.error('❌ [LOBBY] Failed to update player status:', error);
+        setIsOptimistic(false);
+        return false;
+      }
+    },
+    [socket, isConnected]
+  );
+
+  useEffect(() => {
+    if (!isConnected) {
+      setLocalState((prev) => ({
+        ...prev,
+        error: 'Connection lost',
+        isLoading: !prev.players.length,
+      }));
+    } else if (localState.error === 'Connection lost') {
+      setLocalState((prev) => ({
+        ...prev,
+        error: null,
+        isLoading: false,
+      }));
+    }
+  }, [isConnected, localState.error]);
+
+  const joinRoom = useCallback(
+    async (playerName: string): Promise<JoinRoomResult> => {
+      if (!socket || !isConnected || !roomCodeRef.current) {
+        return { success: false, error: 'Not connected to server' };
+      }
+
+      setLocalState((prev) => ({ ...prev, isLoading: true }));
+
+      return new Promise((resolve) => {
+        const timeout = setTimeout(() => {
+          resolve({ success: false, error: 'Join timeout' });
+        }, 10000);
+
+        socket.once('roomJoined', (data) => {
+          clearTimeout(timeout);
+          setLocalState((prev) => ({
+            ...prev,
+            isLoading: false,
+            error: null,
+          }));
+          resolve({ success: true, data });
+        });
+
+        socket.once('error', (error) => {
+          clearTimeout(timeout);
+          setLocalState((prev) => ({
+            ...prev,
+            isLoading: false,
+            error: error.message || 'Failed to join room',
+          }));
+          resolve({ success: false, error: error.message });
+        });
+
+        socket.emit('joinRoom', {
+          roomCode: roomCodeRef.current!,
+          playerName,
+        });
+      });
+    },
+    [socket, isConnected]
+  );
+
+  const leaveRoom = useCallback(() => {
+    if (socket && isConnected && roomCodeRef.current) {
+      socket.emit('leaveRoom', { roomCode: roomCodeRef.current });
+    }
+
+    setLocalState({
+      players: [],
+      roomStatus: 'lobby',
+      currentPlayer: null,
+      isLoading: false,
+      error: null,
+    });
+    setIsOptimistic(false);
+    setPendingUpdates(new Map());
+  }, [socket, isConnected]);
+
+  const returnToLobby = useCallback(async (): Promise<boolean> => {
+    console.log('[LOBBY] Return to lobby');
+    return false;
+  }, []);
+
+  const getPlayerById = useCallback(
+    (playerId: string): Player | undefined => {
+      return localState.players.find((p) => p.id === playerId);
+    },
+    [localState.players]
+  );
+
+  const getPlayerByName = useCallback(
+    (playerName: string): Player | undefined => {
+      return localState.players.find((p) => p.name === playerName);
+    },
+    [localState.players]
+  );
+
+  const isHost = useCallback(
+    (playerId: string): boolean => {
+      const player = getPlayerById(playerId);
+      return player?.isHost || false;
+    },
+    [getPlayerById]
+  );
+
+  const getCurrentPlayer = useCallback((): Player | null => {
+    const playerId = sessionStorage.getItem('gamebuddies_playerId');
+    if (!playerId) return localState.currentPlayer;
+    return getPlayerById(playerId) || localState.currentPlayer;
+  }, [getPlayerById, localState.currentPlayer]);
+
+  useEffect(() => {
+    return () => {
+      if (optimisticTimeout.current) {
+        clearTimeout(optimisticTimeout.current);
+      }
+    };
+  }, []);
+
+  return {
+    players: localState.players,
+    roomStatus: localState.roomStatus,
+    currentPlayer: getCurrentPlayer(),
+    isLoading: localState.isLoading,
+    error: localState.error,
+    isOptimistic,
+    hasPendingUpdates: pendingUpdates.size > 0,
+
+    connectedPlayers: localState.players.filter((p) => p.isConnected),
+    playersInGame: localState.players.filter((p) => p.inGame),
+    playersInLobby: localState.players.filter((p) => p.currentLocation === 'lobby'),
+
+    updatePlayerStatus,
+    joinRoom,
+    leaveRoom,
+    returnToLobby,
+
+    getPlayerById,
+    getPlayerByName,
+    isHost,
+    isCurrentPlayerHost: (): boolean => {
+      const current = getCurrentPlayer();
+      return current?.isHost || false;
+    },
+
+    canStartGame: (): boolean => {
+      const current = getCurrentPlayer();
+      return !!(current?.isHost && localState.players.length >= 2 && localState.roomStatus === 'lobby');
+    },
+
+    canReturnToLobby: (): boolean => {
+      const current = getCurrentPlayer();
+      return !!(current?.inGame || current?.currentLocation === 'game');
+    },
+  };
+};
