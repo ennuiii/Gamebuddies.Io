@@ -56,7 +56,7 @@
   border-radius: 2px;
 }
 
-.games-grid {
+.game-picker-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: 1rem;
@@ -65,21 +65,21 @@
 
 /* Ensure at least 2 columns on large mobile+ */
 @media (min-width: 480px) {
-  .games-grid {
+  .game-picker-grid {
     grid-template-columns: repeat(2, 1fr);
   }
 }
 
 /* 3 columns on larger screens */
 @media (min-width: 768px) {
-  .games-grid {
+  .game-picker-grid {
     grid-template-columns: repeat(3, 1fr);
   }
 }
 
 /* 4 columns on wide screens */
 @media (min-width: 1024px) {
-  .games-grid {
+  .game-picker-grid {
     grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
   }
 }
@@ -187,7 +187,7 @@
 
 /* Mobile: single column */
 @media (max-width: 479px) {
-  .games-grid {
+  .game-picker-grid {
     grid-template-columns: 1fr;
     gap: 0.75rem;
   }

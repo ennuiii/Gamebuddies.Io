@@ -149,7 +149,7 @@ const GamePicker: React.FC<GamePickerProps> = ({ onGameSelect, isHost, disabled 
         </div>
       )}
       <h3 className="picker-title">Select a Game</h3>
-      <div className="games-grid">
+      <div className="game-picker-grid">
         {games.map((game) => {
           console.log('[GamePicker] 🎮 Rendering game:', game.id, game.name);
           return (
