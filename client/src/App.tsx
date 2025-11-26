@@ -1,5 +1,6 @@
 import React, { useState, useCallback, Dispatch, SetStateAction, Suspense, lazy } from 'react';
-import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
+import { AnimatePresence } from 'framer-motion';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { LazySocketProvider } from './contexts/LazySocketContext';
 import { NotificationProvider } from './contexts/NotificationContext';
@@ -19,6 +20,7 @@ import DebugPanel from './components/DebugPanel';
 import FriendList from './components/FriendList';
 import GameInviteToast from './components/GameInviteToast';
 import ErrorBoundary from './components/ErrorBoundary';
+import PageTransition from './components/PageTransition';
 import './App.css';
 
 // Lazy-loaded pages (code splitting)
@@ -44,6 +46,7 @@ function AppContent(): React.ReactElement {
   const [isInLobby, setIsInLobby] = useState<boolean>(false);
   const [lobbyLeaveFn, setLobbyLeaveFn] = useState<(() => void) | null>(null);
   const navigate = useNavigate();
+  const location = useLocation();
 
   console.log('🏠 [APP DEBUG] App component rendering:', {
     timestamp: new Date().toISOString(),
@@ -92,85 +95,159 @@ function AppContent(): React.ReactElement {
       <FriendList />
       <GameInviteToast />
       <Suspense fallback={<PageLoadingFallback />}>
-        <Routes>
-        <Route
-          path="/"
-          element={
-            <ErrorBoundary>
-              <HomePage setIsInLobby={setIsInLobby} setLobbyLeaveFn={setLobbyLeaveFn} />
-            </ErrorBoundary>
-          }
-        />
-        <Route
-          path="/lobby/:roomCode"
-          element={
-            <ErrorBoundary>
-              <HomePage setIsInLobby={setIsInLobby} setLobbyLeaveFn={setLobbyLeaveFn} />
-            </ErrorBoundary>
-          }
-        />
-        <Route
-          path="/login"
-          element={
-            <ErrorBoundary>
-              <LoginPage />
-            </ErrorBoundary>
-          }
-        />
-        <Route path="/auth/callback" element={<AuthCallback />} />
-        <Route path="/password-reset" element={<PasswordReset />} />
-        <Route
-          path="/premium"
-          element={
-            <ErrorBoundary>
-              <Premium />
-            </ErrorBoundary>
-          }
-        />
-        <Route
-          path="/account"
-          element={
-            <ErrorBoundary>
-              <Account />
-            </ErrorBoundary>
-          }
-        />
-        <Route
-          path="/admin/affiliates"
-          element={
-            <ErrorBoundary>
-              <AdminRoute>
-                <AdminAffiliates />
-              </AdminRoute>
-            </ErrorBoundary>
-          }
-        />
-        <Route
-          path="/admin/dashboard"
-          element={
-            <ErrorBoundary>
-              <AdminRoute>
-                <AdminDashboard />
-              </AdminRoute>
-            </ErrorBoundary>
-          }
-        />
-        <Route path="/payment/success" element={<PaymentSuccess />} />
-        <Route path="/payment/cancel" element={<PaymentCancel />} />
-        <Route path="/legal" element={<Legal />} />
-        <Route path="/impressum" element={<Legal />} />
-        <Route path="/privacy" element={<Legal />} />
-        <Route path="/datenschutz" element={<Legal />} />
-        <Route path="/terms" element={<Legal />} />
-        <Route
-          path="/*"
-          element={
-            <ErrorBoundary>
-              <HomePage setIsInLobby={setIsInLobby} setLobbyLeaveFn={setLobbyLeaveFn} />
-            </ErrorBoundary>
-          }
-        />
-        </Routes>
+        <AnimatePresence mode="wait">
+          <Routes location={location} key={location.pathname}>
+            <Route
+              path="/"
+              element={
+                <PageTransition>
+                  <ErrorBoundary>
+                    <HomePage setIsInLobby={setIsInLobby} setLobbyLeaveFn={setLobbyLeaveFn} />
+                  </ErrorBoundary>
+                </PageTransition>
+              }
+            />
+            <Route
+              path="/lobby/:roomCode"
+              element={
+                <PageTransition>
+                  <ErrorBoundary>
+                    <HomePage setIsInLobby={setIsInLobby} setLobbyLeaveFn={setLobbyLeaveFn} />
+                  </ErrorBoundary>
+                </PageTransition>
+              }
+            />
+            <Route
+              path="/login"
+              element={
+                <PageTransition>
+                  <ErrorBoundary>
+                    <LoginPage />
+                  </ErrorBoundary>
+                </PageTransition>
+              }
+            />
+            <Route path="/auth/callback" element={<AuthCallback />} />
+            <Route
+              path="/password-reset"
+              element={
+                <PageTransition>
+                  <PasswordReset />
+                </PageTransition>
+              }
+            />
+            <Route
+              path="/premium"
+              element={
+                <PageTransition>
+                  <ErrorBoundary>
+                    <Premium />
+                  </ErrorBoundary>
+                </PageTransition>
+              }
+            />
+            <Route
+              path="/account"
+              element={
+                <PageTransition>
+                  <ErrorBoundary>
+                    <Account />
+                  </ErrorBoundary>
+                </PageTransition>
+              }
+            />
+            <Route
+              path="/admin/affiliates"
+              element={
+                <PageTransition>
+                  <ErrorBoundary>
+                    <AdminRoute>
+                      <AdminAffiliates />
+                    </AdminRoute>
+                  </ErrorBoundary>
+                </PageTransition>
+              }
+            />
+            <Route
+              path="/admin/dashboard"
+              element={
+                <PageTransition>
+                  <ErrorBoundary>
+                    <AdminRoute>
+                      <AdminDashboard />
+                    </AdminRoute>
+                  </ErrorBoundary>
+                </PageTransition>
+              }
+            />
+            <Route
+              path="/payment/success"
+              element={
+                <PageTransition>
+                  <PaymentSuccess />
+                </PageTransition>
+              }
+            />
+            <Route
+              path="/payment/cancel"
+              element={
+                <PageTransition>
+                  <PaymentCancel />
+                </PageTransition>
+              }
+            />
+            <Route
+              path="/legal"
+              element={
+                <PageTransition>
+                  <Legal />
+                </PageTransition>
+              }
+            />
+            <Route
+              path="/impressum"
+              element={
+                <PageTransition>
+                  <Legal />
+                </PageTransition>
+              }
+            />
+            <Route
+              path="/privacy"
+              element={
+                <PageTransition>
+                  <Legal />
+                </PageTransition>
+              }
+            />
+            <Route
+              path="/datenschutz"
+              element={
+                <PageTransition>
+                  <Legal />
+                </PageTransition>
+              }
+            />
+            <Route
+              path="/terms"
+              element={
+                <PageTransition>
+                  <Legal />
+                </PageTransition>
+              }
+            />
+            <Route
+              path="/*"
+              element={
+                <PageTransition>
+                  <ErrorBoundary>
+                    <HomePage setIsInLobby={setIsInLobby} setLobbyLeaveFn={setLobbyLeaveFn} />
+                  </ErrorBoundary>
+                </PageTransition>
+              }
+            />
+          </Routes>
+        </AnimatePresence>
       </Suspense>
       <Footer />
     </div>
