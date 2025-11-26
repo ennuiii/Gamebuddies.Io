@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import type { Socket } from 'socket.io';
 import type { ServerContext, GameState } from '../types';
+import { SOCKET_EVENTS, SERVER_EVENTS } from '../../shared/constants';
 
 /**
  * Register chat and minigame handlers
@@ -14,7 +15,7 @@ export function registerChatHandlers(
   const { roomActivityCache, tugOfWarState, tugOfWarTeams } = gameState;
 
   // Chat Handler (Lobby)
-  socket.on('chat:message', async (data) => {
+  socket.on(SOCKET_EVENTS.CHAT.MESSAGE, async (data) => {
     console.log('💬 [CHAT] Received chat:message event:', {
       socketId: socket.id,
       dataKeys: Object.keys(data || {}),
@@ -109,7 +110,7 @@ export function registerChatHandlers(
       messageLength: message.length
     });
 
-    io.to(roomCode).emit('chat:message', {
+    io.to(roomCode).emit(SERVER_EVENTS.CHAT.MESSAGE, {
       id: crypto.randomUUID(),
       playerName: playerName,
       message: message,
@@ -121,7 +122,7 @@ export function registerChatHandlers(
   });
 
   // Minigame Handler (Lobby - Reflex)
-  socket.on('minigame:click', (data) => {
+  socket.on(SOCKET_EVENTS.MINIGAME.CLICK, (data) => {
     // Validate and bound score data to prevent fake scores
     const score = typeof data.score === 'number' ? Math.max(0, Math.min(data.score, 10000)) : 0;
     const time = typeof data.time === 'number' ? Math.max(0, Math.min(data.time, 60000)) : 0;
@@ -130,7 +131,7 @@ export function registerChatHandlers(
     const rooms = Array.from(socket.rooms).filter(r => r !== socket.id);
     if (rooms.length > 0) {
       const roomCode = rooms[0];
-      io.to(roomCode).emit('minigame:leaderboard-update', {
+      io.to(roomCode).emit(SERVER_EVENTS.MINIGAME.LEADERBOARD_UPDATE, {
         playerId: data.playerId || socket.id,
         playerName: playerName,
         score: score,
@@ -140,7 +141,7 @@ export function registerChatHandlers(
   });
 
   // Tug of War Handler (Lobby - Multiplayer)
-  socket.on('tugOfWar:pull', (data) => {
+  socket.on(SOCKET_EVENTS.MINIGAME.TUG_PULL, (data) => {
     const playerConnection = connectionManager.getConnection(socket.id);
 
     let roomCode = playerConnection?.roomCode;
@@ -201,7 +202,7 @@ export function registerChatHandlers(
     }
 
     // Broadcast update to everyone
-    io.to(roomCode).emit('tugOfWar:update', {
+    io.to(roomCode).emit(SERVER_EVENTS.MINIGAME.TUG_UPDATE, {
       position: state.position,
       redWins: state.redWins,
       blueWins: state.blueWins,
@@ -211,6 +212,6 @@ export function registerChatHandlers(
     });
 
     // Tell the specific user their team
-    socket.emit('tugOfWar:yourTeam', { team: playerTeam });
+    socket.emit(SERVER_EVENTS.MINIGAME.TUG_YOUR_TEAM, { team: playerTeam });
   });
 }

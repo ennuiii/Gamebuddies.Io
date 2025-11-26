@@ -1,5 +1,6 @@
 import type { Socket } from 'socket.io';
 import type { ServerContext } from '../types';
+import { SOCKET_EVENTS } from '../../shared/constants';
 
 /**
  * Register connection-related handlers (heartbeat)
@@ -11,7 +12,7 @@ export function registerConnectionHandlers(
   const { db, connectionManager } = ctx;
 
   // Handle heartbeat to keep connection active
-  socket.on('heartbeat', async () => {
+  socket.on(SOCKET_EVENTS.CONNECTION.HEARTBEAT, async () => {
     const connection = connectionManager.getConnection(socket.id);
     if (connection) {
       // Update memory state

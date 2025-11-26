@@ -1,6 +1,7 @@
 import React, { useState, useRef, FormEvent, ChangeEvent } from 'react';
 import { useSocket } from '../contexts/LazySocketContext';
 import { useAuth } from '../contexts/AuthContext';
+import { SOCKET_EVENTS, SERVER_EVENTS } from '@shared/constants';
 import './CreateRoom.css';
 
 const DEBOUNCE_MS = 1000;
@@ -110,8 +111,8 @@ const CreateRoom: React.FC<CreateRoomProps> = ({ onRoomCreated, onCancel }) => {
       console.log('🔍 [CLIENT DEBUG] Player name:', serverPlayerName.trim());
 
       const cleanup = (): void => {
-        activeSocket.off('roomCreated', handleRoomCreated);
-        activeSocket.off('error', handleError);
+        activeSocket.off(SERVER_EVENTS.ROOM.CREATED, handleRoomCreated);
+        activeSocket.off(SERVER_EVENTS.ERROR, handleError);
       };
 
       const handleRoomCreated = (data: { roomCode: string; room: unknown }): void => {
@@ -138,10 +139,10 @@ const CreateRoom: React.FC<CreateRoomProps> = ({ onRoomCreated, onCancel }) => {
         setIsCreating(false);
       };
 
-      activeSocket.on('roomCreated', handleRoomCreated);
-      activeSocket.on('error', handleError);
+      activeSocket.on(SERVER_EVENTS.ROOM.CREATED, handleRoomCreated);
+      activeSocket.on(SERVER_EVENTS.ERROR, handleError);
 
-      activeSocket.emit('createRoom', {
+      activeSocket.emit(SOCKET_EVENTS.ROOM.CREATE, {
         playerName: serverPlayerName,
         customLobbyName: serverCustomLobbyName,
         streamerMode,

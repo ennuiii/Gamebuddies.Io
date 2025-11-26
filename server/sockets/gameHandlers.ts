@@ -3,6 +3,7 @@ import type { Socket } from 'socket.io';
 import type { ServerContext } from '../types';
 import { validators, sanitize } from '../lib/validation';
 import ProxyManager from '../lib/proxyManager';
+import { SOCKET_EVENTS, SERVER_EVENTS } from '../../shared/constants';
 
 // Create singleton proxy manager instance for game handlers
 const proxyManager = new ProxyManager();
@@ -46,7 +47,7 @@ export function registerGameHandlers(
   const { io, db, connectionManager } = ctx;
 
   // Handle game selection
-  socket.on('selectGame', async (data) => {
+  socket.on(SOCKET_EVENTS.GAME.SELECT, async (data) => {
     try {
       const connection = connectionManager.getConnection(socket.id);
       console.log(`🎮 [DEBUG] Game selection from socket: ${socket.id}`);
@@ -78,7 +79,7 @@ export function registerGameHandlers(
       });
 
       // Notify all players
-      io.to(updatedRoom.room_code).emit('gameSelected', {
+      io.to(updatedRoom.room_code).emit(SERVER_EVENTS.GAME.SELECTED, {
         gameType: validatedData.gameType,
         settings: cleanSettings,
         roomVersion: Date.now()
@@ -93,7 +94,7 @@ export function registerGameHandlers(
   });
 
   // Handle game start
-  socket.on('startGame', async (data) => {
+  socket.on(SOCKET_EVENTS.GAME.START, async (data) => {
     console.log(`🚀 [START GAME] ============ START GAME EVENT RECEIVED ============`);
     console.log(`🚀 [START GAME] Socket ID: ${socket.id}, Timestamp: ${new Date().toISOString()}`);
 
@@ -173,7 +174,7 @@ export function registerGameHandlers(
         level: p.user?.level || 1
       })) || [];
 
-      io.to(room.room_code).emit('playerStatusUpdated', {
+      io.to(room.room_code).emit(SERVER_EVENTS.PLAYER.STATUS_UPDATED, {
         status: 'game',
         reason: 'game_started',
         players: allPlayersForBroadcast,
@@ -261,7 +262,7 @@ export function registerGameHandlers(
         if (currentSocketId) {
           setTimeout(() => {
             console.log(`📤 [START GAME] Emitting gameStarted to ${p.user?.username} (${currentSocketId})`);
-            io.to(currentSocketId).emit('gameStarted', {
+            io.to(currentSocketId).emit(SERVER_EVENTS.GAME.STARTED, {
               gameUrl,
               gameType: room.current_game,
               isHost: p.role === 'host',

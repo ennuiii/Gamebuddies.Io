@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, MouseEvent, ChangeEvent } from 'react';
 import { useSocket } from '../contexts/LazySocketContext';
+import { SOCKET_EVENTS, SERVER_EVENTS } from '@shared/constants';
 import './BrowseRooms.css';
 
 interface Game {
@@ -136,7 +137,7 @@ const BrowseRooms: React.FC<BrowseRoomsProps> = ({ onRoomSelected, onCancel }) =
         return;
       }
 
-      activeSocket.emit('getPublicRooms', { gameType: selectedGame });
+      activeSocket.emit(SOCKET_EVENTS.ROOM.GET_PUBLIC, { gameType: selectedGame });
 
       const handleRoomsList = (data: { rooms?: Room[] }): void => {
         console.log('🔍 [BROWSER DEBUG] Received rooms list:', data);
@@ -149,17 +150,17 @@ const BrowseRooms: React.FC<BrowseRoomsProps> = ({ onRoomSelected, onCancel }) =
         setRooms(data.rooms || []);
         setLoading(false);
         setError('');
-        activeSocket.off('publicRoomsList', handleRoomsList);
+        activeSocket.off(SERVER_EVENTS.ROOM.PUBLIC_LIST, handleRoomsList);
       };
 
       const handleError = (err: { message?: string }): void => {
         setError(err.message || 'Failed to load rooms');
         setLoading(false);
-        activeSocket.off('error', handleError);
+        activeSocket.off(SERVER_EVENTS.ERROR, handleError);
       };
 
-      activeSocket.on('publicRoomsList', handleRoomsList);
-      activeSocket.on('error', handleError);
+      activeSocket.on(SERVER_EVENTS.ROOM.PUBLIC_LIST, handleRoomsList);
+      activeSocket.on(SERVER_EVENTS.ERROR, handleError);
     } catch (err) {
       setError('Failed to load rooms');
       setLoading(false);

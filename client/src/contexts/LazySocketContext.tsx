@@ -13,6 +13,7 @@ import type {
   ClientToServerEvents,
   ServerToClientEvents,
 } from '@shared/types';
+import { SOCKET_EVENTS } from '@shared/constants';
 
 type TypedSocket = Socket<ServerToClientEvents, ClientToServerEvents>;
 
@@ -109,7 +110,7 @@ export const LazySocketProvider: React.FC<LazySocketProviderProps> = ({ children
 
     if (socketRef.current?.connected) {
       console.log('👤 [LazySocketProvider] Identifying user to server:', userId);
-      socketRef.current.emit('user:identify', userId);
+      socketRef.current.emit(SOCKET_EVENTS.USER.IDENTIFY, userId);
     }
   }, []);
 
@@ -184,7 +185,7 @@ export const LazySocketProvider: React.FC<LazySocketProviderProps> = ({ children
           '👤 [LazySocketProvider] Auto-identifying user on connect:',
           authenticatedUserIdRef.current
         );
-        newSocket.emit('user:identify', authenticatedUserIdRef.current);
+        newSocket.emit(SOCKET_EVENTS.USER.IDENTIFY, authenticatedUserIdRef.current);
       }
 
       if (wasReconnecting && lastRoomRef.current) {
@@ -192,7 +193,7 @@ export const LazySocketProvider: React.FC<LazySocketProviderProps> = ({ children
           '🔄 [LazySocketProvider] Auto-rejoining room after reconnect:',
           lastRoomRef.current.roomCode
         );
-        newSocket.emit('joinRoom', {
+        newSocket.emit(SOCKET_EVENTS.ROOM.JOIN, {
           roomCode: lastRoomRef.current.roomCode,
           playerName: lastRoomRef.current.playerName,
           customLobbyName: lastRoomRef.current.customLobbyName,
@@ -240,7 +241,7 @@ export const LazySocketProvider: React.FC<LazySocketProviderProps> = ({ children
 
       if (sock?.connected) {
         console.log('👤 [LazySocketProvider] connectForUser - Already connected, identifying:', userId);
-        sock.emit('user:identify', userId);
+        sock.emit(SOCKET_EVENTS.USER.IDENTIFY, userId);
       }
 
       return sock;

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, MouseEvent, TouchEvent } from 'react';
 import { useSocket } from '../contexts/LazySocketContext';
+import { SOCKET_EVENTS, SERVER_EVENTS } from '@shared/constants';
 import './TugOfWar.css';
 
 interface GameState {
@@ -46,12 +47,12 @@ const TugOfWar: React.FC<TugOfWarProps> = ({ playerName }) => {
       }
     };
 
-    activeSocket.on('tugOfWar:update', handleUpdate);
-    activeSocket.on('tugOfWar:yourTeam', handleYourTeam);
+    activeSocket.on(SERVER_EVENTS.MINIGAME.TUG_UPDATE, handleUpdate);
+    activeSocket.on(SERVER_EVENTS.MINIGAME.TUG_YOUR_TEAM, handleYourTeam);
 
     return () => {
-      activeSocket.off('tugOfWar:update', handleUpdate);
-      activeSocket.off('tugOfWar:yourTeam', handleYourTeam);
+      activeSocket.off(SERVER_EVENTS.MINIGAME.TUG_UPDATE, handleUpdate);
+      activeSocket.off(SERVER_EVENTS.MINIGAME.TUG_YOUR_TEAM, handleYourTeam);
     };
   }, [activeSocket]);
 
@@ -65,7 +66,7 @@ const TugOfWar: React.FC<TugOfWarProps> = ({ playerName }) => {
     setIsPulling(true);
     setTimeout(() => setIsPulling(false), 100);
 
-    activeSocket.emit('tugOfWar:pull', {
+    activeSocket.emit(SOCKET_EVENTS.MINIGAME.TUG_PULL, {
       team: myTeam,
       playerName,
     });

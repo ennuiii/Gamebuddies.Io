@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback, Rea
 import { useAuth } from './AuthContext';
 import { useSocket } from './LazySocketContext';
 import type { GameInviteReceivedPayload } from '@shared/types';
+import { SOCKET_EVENTS, SERVER_EVENTS } from '@shared/constants';
 
 export interface Friend {
   id: string;
@@ -183,22 +184,22 @@ export const FriendProvider: React.FC<FriendProviderProps> = ({ children }) => {
       fetchFriends();
     };
 
-    socket.on('friend:list-online', handleListOnline);
-    socket.on('friend:online', handleFriendOnline);
-    socket.on('friend:offline', handleFriendOffline);
-    socket.on('game:invite_received', handleGameInvite);
-    socket.on('friend:request_received', handleRequestReceived);
-    socket.on('friend:accepted', handleAccepted);
+    socket.on(SERVER_EVENTS.FRIEND.LIST_ONLINE, handleListOnline);
+    socket.on(SERVER_EVENTS.FRIEND.ONLINE, handleFriendOnline);
+    socket.on(SERVER_EVENTS.FRIEND.OFFLINE, handleFriendOffline);
+    socket.on(SERVER_EVENTS.GAME.INVITE_RECEIVED, handleGameInvite);
+    socket.on(SERVER_EVENTS.FRIEND.REQUEST_RECEIVED, handleRequestReceived);
+    socket.on(SERVER_EVENTS.FRIEND.ACCEPTED, handleAccepted);
 
     fetchFriends();
 
     return () => {
-      socket.off('friend:list-online', handleListOnline);
-      socket.off('friend:online', handleFriendOnline);
-      socket.off('friend:offline', handleFriendOffline);
-      socket.off('game:invite_received', handleGameInvite);
-      socket.off('friend:request_received', handleRequestReceived);
-      socket.off('friend:accepted', handleAccepted);
+      socket.off(SERVER_EVENTS.FRIEND.LIST_ONLINE, handleListOnline);
+      socket.off(SERVER_EVENTS.FRIEND.ONLINE, handleFriendOnline);
+      socket.off(SERVER_EVENTS.FRIEND.OFFLINE, handleFriendOffline);
+      socket.off(SERVER_EVENTS.GAME.INVITE_RECEIVED, handleGameInvite);
+      socket.off(SERVER_EVENTS.FRIEND.REQUEST_RECEIVED, handleRequestReceived);
+      socket.off(SERVER_EVENTS.FRIEND.ACCEPTED, handleAccepted);
     };
   }, [user, socket, connectForUser, fetchFriends]);
 
@@ -306,7 +307,7 @@ export const FriendProvider: React.FC<FriendProviderProps> = ({ children }) => {
       gameThumbnail: gameThumbnail || undefined,
     };
     console.log('📨 [FRIENDS] Emitting game:invite with data:', inviteData);
-    socket.emit('game:invite', inviteData);
+    socket.emit(SOCKET_EVENTS.GAME.INVITE, inviteData);
   };
 
   const dismissInvite = (inviteId: number): void => {

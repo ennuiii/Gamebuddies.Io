@@ -2,6 +2,7 @@ import type { Socket } from 'socket.io';
 import type { ServerContext } from '../types';
 import { validators, sanitize, rateLimits } from '../lib/validation';
 import { autoUpdateRoomStatusByHost, autoUpdateRoomStatusBasedOnPlayerStates } from '../services/roomStatusService';
+import { SOCKET_EVENTS, SERVER_EVENTS } from '../../shared/constants';
 
 interface RoomParticipant {
   id: string;
@@ -79,7 +80,7 @@ export function registerRoomHandlers(
   const { io, db, connectionManager, roomLifecycleManager } = ctx;
 
   // Handle room creation
-  socket.on('createRoom', async (data) => {
+  socket.on(SOCKET_EVENTS.ROOM.CREATE, async (data) => {
     try {
       // Validate input
       const validation = await validators.createRoom(data);
@@ -199,7 +200,7 @@ export function registerRoomHandlers(
       });
 
       // Send success response
-      socket.emit('roomCreated', {
+      socket.emit(SERVER_EVENTS.ROOM.CREATED, {
         roomCode: room.room_code,
         isHost: true,
         room: {
@@ -235,7 +236,7 @@ export function registerRoomHandlers(
   });
 
   // Handle getting public rooms for browsing
-  socket.on('getPublicRooms', async (data) => {
+  socket.on(SOCKET_EVENTS.ROOM.GET_PUBLIC, async (data) => {
     try {
       console.log('🔍 [PUBLIC ROOMS] Fetching public rooms...', data);
       const { gameType } = data || {};
@@ -288,7 +289,7 @@ export function registerRoomHandlers(
       });
 
       console.log(`✅ [PUBLIC ROOMS] Found ${activeRooms.length} active public rooms`);
-      socket.emit('publicRoomsList', { rooms: activeRooms });
+      socket.emit(SERVER_EVENTS.ROOM.PUBLIC_LIST, { rooms: activeRooms });
 
     } catch (error) {
       console.error('❌ [PUBLIC ROOMS] Error:', error);
@@ -300,7 +301,7 @@ export function registerRoomHandlers(
   });
 
   // Handle socket room joining for listening only
-  socket.on('joinSocketRoom', (data) => {
+  socket.on(SOCKET_EVENTS.ROOM.JOIN_SOCKET, (data) => {
     try {
       const roomCode = sanitize.roomCode(data?.roomCode);
       if (!roomCode || roomCode.length !== 6) {
@@ -324,7 +325,7 @@ export function registerRoomHandlers(
   });
 
   // Handle room joining
-  socket.on('joinRoom', async (data) => {
+  socket.on(SOCKET_EVENTS.ROOM.JOIN, async (data) => {
     try {
       // Validate input
       const validation = await validators.joinRoom(data);
@@ -490,7 +491,7 @@ export function registerRoomHandlers(
 
               userRole = 'host';
 
-              io.to(room.room_code).emit('hostTransferred', {
+              io.to(room.room_code).emit(SERVER_EVENTS.HOST.TRANSFERRED, {
                 oldHostId: currentHostParticipant.user_id,
                 newHostId: existingParticipant.user_id,
                 newHostName: existingParticipant.user?.display_name || 'Player',
@@ -629,10 +630,10 @@ export function registerRoomHandlers(
         };
 
         // Broadcast to other players
-        socket.to(data.roomCode).emit('playerJoined', { ...joinEventData, roomVersion: Date.now() });
+        socket.to(data.roomCode).emit(SERVER_EVENTS.PLAYER.JOINED, { ...joinEventData, roomVersion: Date.now() });
 
         // Send success response to joining player
-        socket.emit('roomJoined', {
+        socket.emit(SERVER_EVENTS.ROOM.JOINED, {
           roomCode: data.roomCode,
           isHost: isHost,
           players: players,
@@ -663,7 +664,7 @@ export function registerRoomHandlers(
   });
 
   // Handle leaving room
-  socket.on('leaveRoom', async (data) => {
+  socket.on(SOCKET_EVENTS.ROOM.LEAVE, async (data) => {
     try {
       const connection = connectionManager.getConnection(socket.id);
       if (!connection?.roomId || !connection?.userId) {
@@ -694,7 +695,7 @@ export function registerRoomHandlers(
 
         // Send host transfer event if applicable
         if (newHost) {
-          io.to(data.roomCode).emit('hostTransferred', {
+          io.to(data.roomCode).emit(SERVER_EVENTS.HOST.TRANSFERRED, {
             oldHostId: connection.userId,
             newHostId: newHost.user_id,
             newHostName: newHost.user?.display_name || 'Player',
@@ -706,7 +707,7 @@ export function registerRoomHandlers(
         }
 
         // Send player left event
-        io.to(data.roomCode).emit('playerLeft', {
+        io.to(data.roomCode).emit(SERVER_EVENTS.PLAYER.LEFT, {
           playerId: connection.userId,
           players: allPlayers,
           room: updatedRoom,

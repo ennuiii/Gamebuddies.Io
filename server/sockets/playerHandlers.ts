@@ -1,6 +1,7 @@
 import type { Socket } from 'socket.io';
 import type { ServerContext } from '../types';
 import { sanitize } from '../lib/validation';
+import { SOCKET_EVENTS, SERVER_EVENTS } from '../../shared/constants';
 
 interface RoomParticipant {
   user_id: string;
@@ -63,7 +64,7 @@ export function registerPlayerHandlers(
   const { io, db, connectionManager } = ctx;
 
   // Handle individual player return to lobby
-  socket.on('playerReturnToLobby', async (data) => {
+  socket.on(SOCKET_EVENTS.PLAYER.RETURN_TO_LOBBY, async (data) => {
     try {
       console.log(`🔄 Player returning to lobby: ${data.playerName} in room ${data.roomCode}`);
 
@@ -93,7 +94,7 @@ export function registerPlayerHandlers(
 
       const updatedRoom = await db.getRoomByCode(data.roomCode);
 
-      io.to(data.roomCode).emit('playerStatusUpdated', {
+      io.to(data.roomCode).emit(SERVER_EVENTS.PLAYER.STATUS_UPDATED, {
         playerId: connection.userId,
         playerName: data.playerName,
         status: 'lobby',
@@ -110,7 +111,7 @@ export function registerPlayerHandlers(
   });
 
   // Handle manual host transfer
-  socket.on('transferHost', async (data) => {
+  socket.on(SOCKET_EVENTS.PLAYER.TRANSFER_HOST, async (data) => {
     try {
       console.log(`👑 Host transfer requested: ${data.targetUserId} in room ${data.roomCode}`);
 
@@ -146,7 +147,7 @@ export function registerPlayerHandlers(
       const updatedRoom = await db.getRoomByCode(data.roomCode) as RoomWithParticipants;
       const allPlayers = mapParticipantsToPlayers(updatedRoom.participants);
 
-      io.to(data.roomCode).emit('hostTransferred', {
+      io.to(data.roomCode).emit(SERVER_EVENTS.HOST.TRANSFERRED, {
         oldHostId: connection.userId,
         newHostId: data.targetUserId,
         newHostName: targetParticipant.user?.display_name || 'Player',
@@ -164,7 +165,7 @@ export function registerPlayerHandlers(
   });
 
   // Handle player kick
-  socket.on('kickPlayer', async (data) => {
+  socket.on(SOCKET_EVENTS.PLAYER.KICK, async (data) => {
     try {
       console.log(`👢 [KICK] Kick player requested:`, {
         targetUserId: data.targetUserId,
@@ -179,7 +180,7 @@ export function registerPlayerHandlers(
 
       const room = await db.getRoomByCode(data.roomCode) as RoomWithParticipants | null;
       if (!room) {
-        socket.emit('kickFailed', {
+        socket.emit(SERVER_EVENTS.PLAYER.KICK_FAILED, {
           reason: 'Room not found',
           error: 'ROOM_NOT_FOUND',
           targetUserId: data.targetUserId
@@ -190,7 +191,7 @@ export function registerPlayerHandlers(
       // Verify kicker is host
       const currentParticipant = room.participants?.find(p => p.user_id === connection.userId);
       if (!currentParticipant || currentParticipant.role !== 'host') {
-        socket.emit('kickFailed', {
+        socket.emit(SERVER_EVENTS.PLAYER.KICK_FAILED, {
           reason: 'Only the host can kick players',
           error: 'NOT_HOST',
           targetUserId: data.targetUserId
@@ -201,7 +202,7 @@ export function registerPlayerHandlers(
       // Verify target exists and is not host
       const targetParticipant = room.participants?.find(p => p.user_id === data.targetUserId);
       if (!targetParticipant) {
-        socket.emit('kickFailed', {
+        socket.emit(SERVER_EVENTS.PLAYER.KICK_FAILED, {
           reason: 'Target player not found in room',
           error: 'PLAYER_NOT_FOUND',
           targetUserId: data.targetUserId
@@ -210,7 +211,7 @@ export function registerPlayerHandlers(
       }
 
       if (targetParticipant.role === 'host') {
-        socket.emit('kickFailed', {
+        socket.emit(SERVER_EVENTS.PLAYER.KICK_FAILED, {
           reason: 'Cannot kick the host',
           error: 'CANNOT_KICK_HOST',
           targetUserId: data.targetUserId
@@ -233,7 +234,7 @@ export function registerPlayerHandlers(
 
       // Notify kicked player
       if (targetConnection?.socketId) {
-        io.to(targetConnection.socketId).emit('playerKicked', {
+        io.to(targetConnection.socketId).emit(SERVER_EVENTS.PLAYER.KICKED, {
           reason: 'You have been removed from the room by the host',
           kickedBy: currentParticipant.custom_lobby_name || currentParticipant.user?.display_name || 'Player',
           roomCode: data.roomCode
@@ -250,7 +251,7 @@ export function registerPlayerHandlers(
       const allPlayers = mapParticipantsToPlayers(updatedRoom.participants);
 
       // Notify remaining players
-      io.to(data.roomCode).emit('playerKicked', {
+      io.to(data.roomCode).emit(SERVER_EVENTS.PLAYER.KICKED, {
         targetUserId: data.targetUserId,
         targetName: targetParticipant.custom_lobby_name || targetParticipant.user?.display_name || 'Player',
         kickedBy: currentParticipant.custom_lobby_name || currentParticipant.user?.display_name || 'Player',
@@ -270,7 +271,7 @@ export function registerPlayerHandlers(
 
     } catch (error) {
       console.error('❌ [KICK ERROR] Error kicking player:', error);
-      socket.emit('kickFailed', {
+      socket.emit(SERVER_EVENTS.PLAYER.KICK_FAILED, {
         reason: 'Failed to kick player due to server error',
         error: 'SERVER_ERROR',
         targetUserId: data?.targetUserId
@@ -279,7 +280,7 @@ export function registerPlayerHandlers(
   });
 
   // Handle room status change
-  socket.on('changeRoomStatus', async (data) => {
+  socket.on(SOCKET_EVENTS.STATUS.CHANGE, async (data) => {
     try {
       console.log(`🔄 Room status change requested: ${data.newStatus} for room ${data.roomCode}`);
 
@@ -316,7 +317,7 @@ export function registerPlayerHandlers(
 
       const updatedRoom = await db.getRoomByCode(data.roomCode);
 
-      io.to(data.roomCode).emit('roomStatusChanged', {
+      io.to(data.roomCode).emit(SERVER_EVENTS.ROOM.STATUS_CHANGED, {
         oldStatus: room.status,
         newStatus: data.newStatus,
         room: updatedRoom,
@@ -333,7 +334,7 @@ export function registerPlayerHandlers(
   });
 
   // Handle automatic room status updates
-  socket.on('autoUpdateRoomStatus', async (data) => {
+  socket.on(SOCKET_EVENTS.STATUS.AUTO_UPDATE, async (data) => {
     try {
       console.log(`🤖 Auto-updating room status: ${data.newStatus} for room ${data.roomCode}`);
 
@@ -381,7 +382,7 @@ export function registerPlayerHandlers(
 
       const updatedRoom = await db.getRoomByCode(data.roomCode);
 
-      io.to(data.roomCode).emit('roomStatusChanged', {
+      io.to(data.roomCode).emit(SERVER_EVENTS.ROOM.STATUS_CHANGED, {
         oldStatus: room.status,
         newStatus: serverStatus,
         room: updatedRoom,
@@ -399,7 +400,7 @@ export function registerPlayerHandlers(
   });
 
   // Handle profile updates
-  socket.on('profile_updated', async (data) => {
+  socket.on(SOCKET_EVENTS.PLAYER.PROFILE_UPDATED, async (data) => {
     try {
       const roomCode = sanitize.roomCode(data?.roomCode);
       if (!roomCode || roomCode.length !== 6) {

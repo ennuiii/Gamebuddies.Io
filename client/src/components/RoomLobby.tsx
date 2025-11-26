@@ -3,6 +3,7 @@ import { useSocket } from '../contexts/LazySocketContext';
 import { useNotification } from '../contexts/NotificationContext';
 import { useAuth } from '../contexts/AuthContext';
 import { useFriends } from '../contexts/FriendContext';
+import { SOCKET_EVENTS, SERVER_EVENTS } from '@shared/constants';
 import GamePicker from './GamePicker';
 import ChatWindow from './ChatWindow';
 import TugOfWar from './TugOfWar';
@@ -164,7 +165,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
 
   useEffect(() => {
     if (!activeSocket || !roomCode) return;
-    activeSocket.emit('joinSocketRoom', { roomCode });
+    activeSocket.emit(SOCKET_EVENTS.ROOM.JOIN_SOCKET, { roomCode });
   }, [activeSocket, roomCode]);
 
   // Fetch games list
@@ -305,10 +306,10 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
       setMessages((prev) => [...prev, msg]);
     };
 
-    activeSocket.on('chat:message', handleChatMessage);
+    activeSocket.on(SERVER_EVENTS.CHAT.MESSAGE, handleChatMessage);
 
     return () => {
-      activeSocket.off('chat:message', handleChatMessage);
+      activeSocket.off(SERVER_EVENTS.CHAT.MESSAGE, handleChatMessage);
     };
   }, [activeSocket, roomCode]);
 
@@ -327,7 +328,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
     const nameToSend = me ? me.name : playerNameRef.current;
 
     if (activeSocket) {
-      activeSocket.emit('chat:message', { message: text, playerName: nameToSend });
+      activeSocket.emit(SOCKET_EVENTS.CHAT.MESSAGE, { message: text, playerName: nameToSend });
     }
   };
 
@@ -393,7 +394,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
     setIsLoading(true);
 
     const handleConnect = (): void => {
-      socket.emit('joinRoom', {
+      socket.emit(SOCKET_EVENTS.ROOM.JOIN, {
         roomCode: roomCodeRef.current,
         playerName: playerNameRef.current,
         supabaseUserId: userRef.current?.id,
@@ -551,7 +552,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
       let shouldRedirect = false;
 
       if (userFriendlyMessage === 'Not in a room') {
-        socket.emit('joinRoom', {
+        socket.emit(SOCKET_EVENTS.ROOM.JOIN, {
           roomCode: roomCodeRef.current,
           playerName: playerNameRef.current,
           supabaseUserId: user?.id,
@@ -585,15 +586,15 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
       }
     };
 
-    socket.on('roomJoined', handleRoomJoined);
-    socket.on('playerJoined', handlePlayerJoined);
-    socket.on('playerLeft', handlePlayerLeft);
-    socket.on('playerDisconnected', handlePlayerDisconnected);
-    socket.on('gameSelected', handleGameSelected);
-    socket.on('gameStarted', handleGameStarted);
-    socket.on('hostTransferred', handleHostTransferred);
-    socket.on('playerKicked', handlePlayerKicked);
-    socket.on('error', handleError);
+    socket.on(SERVER_EVENTS.ROOM.JOINED, handleRoomJoined);
+    socket.on(SERVER_EVENTS.PLAYER.JOINED, handlePlayerJoined);
+    socket.on(SERVER_EVENTS.PLAYER.LEFT, handlePlayerLeft);
+    socket.on(SERVER_EVENTS.PLAYER.DISCONNECTED, handlePlayerDisconnected);
+    socket.on(SERVER_EVENTS.GAME.SELECTED, handleGameSelected);
+    socket.on(SERVER_EVENTS.GAME.STARTED, handleGameStarted);
+    socket.on(SERVER_EVENTS.HOST.TRANSFERRED, handleHostTransferred);
+    socket.on(SERVER_EVENTS.PLAYER.KICKED, handlePlayerKicked);
+    socket.on(SERVER_EVENTS.ERROR, handleError);
 
     return () => {
       timerIntervalsRef.current.forEach((intervalId) => clearInterval(intervalId));
@@ -601,18 +602,18 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
       setDisconnectedTimers(new Map());
 
       if (socket) {
-        socket.off('roomJoined', handleRoomJoined);
-        socket.off('playerJoined', handlePlayerJoined);
-        socket.off('playerLeft', handlePlayerLeft);
-        socket.off('playerDisconnected', handlePlayerDisconnected);
-        socket.off('gameSelected', handleGameSelected);
-        socket.off('gameStarted', handleGameStarted);
-        socket.off('hostTransferred', handleHostTransferred);
-        socket.off('playerKicked', handlePlayerKicked);
-        socket.off('error', handleError);
+        socket.off(SERVER_EVENTS.ROOM.JOINED, handleRoomJoined);
+        socket.off(SERVER_EVENTS.PLAYER.JOINED, handlePlayerJoined);
+        socket.off(SERVER_EVENTS.PLAYER.LEFT, handlePlayerLeft);
+        socket.off(SERVER_EVENTS.PLAYER.DISCONNECTED, handlePlayerDisconnected);
+        socket.off(SERVER_EVENTS.GAME.SELECTED, handleGameSelected);
+        socket.off(SERVER_EVENTS.GAME.STARTED, handleGameStarted);
+        socket.off(SERVER_EVENTS.HOST.TRANSFERRED, handleHostTransferred);
+        socket.off(SERVER_EVENTS.PLAYER.KICKED, handlePlayerKicked);
+        socket.off(SERVER_EVENTS.ERROR, handleError);
 
         if (socket.connected && roomCodeRef.current) {
-          socket.emit('leaveRoom', { roomCode: roomCodeRef.current });
+          socket.emit(SOCKET_EVENTS.ROOM.LEAVE, { roomCode: roomCodeRef.current });
         }
       }
     };
@@ -622,7 +623,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
   useEffect(() => {
     if (!socket) return;
     const interval = setInterval(() => {
-      if (socket.connected) socket.emit('heartbeat');
+      if (socket.connected) socket.emit(SOCKET_EVENTS.CONNECTION.HEARTBEAT);
     }, 30000);
     return () => clearInterval(interval);
   }, [socket]);
@@ -630,7 +631,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
   const handleGameSelect = useCallback(
     (gameType: string): void => {
       if (socket && socketIsConnected && currentIsHost) {
-        socket.emit('selectGame', { gameType });
+        socket.emit(SOCKET_EVENTS.GAME.SELECT, { gameType });
       }
     },
     [socket, socketIsConnected, currentIsHost]
@@ -641,7 +642,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
     if (socket && socketIsConnected && currentIsHost) {
       setIsStartingGame(true);
       addNotification('Starting game...', 'info');
-      socket.emit('startGame', { roomCode: roomCodeRef.current });
+      socket.emit(SOCKET_EVENTS.GAME.START, { roomCode: roomCodeRef.current });
       setTimeout(() => setIsStartingGame(false), 5000);
     } else {
       if (!currentIsHost) {
@@ -655,7 +656,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
   const handleLeaveRoom = useCallback((): void => {
     if (clearLastRoom) clearLastRoom();
     if (socket && socketIsConnected) {
-      socket.emit('leaveRoom', { roomCode: roomCodeRef.current });
+      socket.emit(SOCKET_EVENTS.ROOM.LEAVE, { roomCode: roomCodeRef.current });
     }
     if (onLeave) onLeave();
   }, [socket, socketIsConnected, onLeave, clearLastRoom]);
@@ -663,7 +664,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
   const handleTransferHost = useCallback(
     (targetPlayerId: string): void => {
       if (socket && socketIsConnected && currentIsHost) {
-        socket.emit('transferHost', {
+        socket.emit(SOCKET_EVENTS.PLAYER.TRANSFER_HOST, {
           roomCode: roomCodeRef.current,
           targetUserId: targetPlayerId,
         });
@@ -677,7 +678,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
       if (socket && socketIsConnected && currentIsHost) {
         const confirmed = window.confirm(`Are you sure you want to kick ${targetPlayerName} from the room?`);
         if (confirmed) {
-          socket.emit('kickPlayer', {
+          socket.emit(SOCKET_EVENTS.PLAYER.KICK, {
             roomCode: roomCodeRef.current,
             targetUserId: targetPlayerId,
           });

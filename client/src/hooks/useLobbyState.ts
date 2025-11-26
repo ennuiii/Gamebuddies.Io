@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSocket } from '../contexts/LazySocketContext';
 import type { Player, RoomStatus } from '@shared/types';
+import { SOCKET_EVENTS, SERVER_EVENTS } from '@shared/constants';
 
 interface LocalState {
   players: Player[];
@@ -125,7 +126,7 @@ export const useLobbyState = (roomCode: string | null) => {
           resolve({ success: false, error: 'Join timeout' });
         }, 10000);
 
-        socket.once('roomJoined', (data) => {
+        socket.once(SERVER_EVENTS.ROOM.JOINED, (data) => {
           clearTimeout(timeout);
           setLocalState((prev) => ({
             ...prev,
@@ -135,7 +136,7 @@ export const useLobbyState = (roomCode: string | null) => {
           resolve({ success: true, data });
         });
 
-        socket.once('error', (error) => {
+        socket.once(SERVER_EVENTS.ERROR, (error) => {
           clearTimeout(timeout);
           setLocalState((prev) => ({
             ...prev,
@@ -145,7 +146,7 @@ export const useLobbyState = (roomCode: string | null) => {
           resolve({ success: false, error: error.message });
         });
 
-        socket.emit('joinRoom', {
+        socket.emit(SOCKET_EVENTS.ROOM.JOIN, {
           roomCode: roomCodeRef.current!,
           playerName,
         });
@@ -156,7 +157,7 @@ export const useLobbyState = (roomCode: string | null) => {
 
   const leaveRoom = useCallback(() => {
     if (socket && isConnected && roomCodeRef.current) {
-      socket.emit('leaveRoom', { roomCode: roomCodeRef.current });
+      socket.emit(SOCKET_EVENTS.ROOM.LEAVE, { roomCode: roomCodeRef.current });
     }
 
     setLocalState({

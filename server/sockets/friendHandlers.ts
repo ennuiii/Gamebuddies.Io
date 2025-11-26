@@ -1,6 +1,7 @@
 import type { Socket } from 'socket.io';
 import type { ServerContext } from '../types';
 import { sanitize } from '../lib/validation';
+import { SOCKET_EVENTS, SERVER_EVENTS } from '../../shared/constants';
 
 // Extend Socket type to include userId
 declare module 'socket.io' {
@@ -19,7 +20,7 @@ export function registerFriendHandlers(
   const { io, db, connectionManager } = ctx;
 
   // Friend System: Identify User (Central Server Implementation)
-  socket.on('user:identify', async (userId: string) => {
+  socket.on(SOCKET_EVENTS.USER.IDENTIFY, async (userId: string) => {
     if (!userId) return;
 
     // Join user-specific room for targeting
@@ -59,12 +60,12 @@ export function registerFriendHandlers(
         if (isOnline) {
           onlineFriends.push(friendId);
           // Notify this friend that user is online
-          io.to(friendRoom).emit('friend:online', { userId });
+          io.to(friendRoom).emit(SERVER_EVENTS.FRIEND.ONLINE, { userId });
         }
       }
 
       // Send online friends list to this user
-      socket.emit('friend:list-online', { onlineUserIds: onlineFriends });
+      socket.emit(SERVER_EVENTS.FRIEND.LIST_ONLINE, { onlineUserIds: onlineFriends });
 
     } catch (error) {
       console.error('Error in user:identify:', error);
@@ -72,7 +73,7 @@ export function registerFriendHandlers(
   });
 
   // Friend System: Game Invite
-  socket.on('game:invite', (data) => {
+  socket.on(SOCKET_EVENTS.GAME.INVITE, (data) => {
     // Validate targetUserId exists and is a string (client sends targetUserId, not friendId)
     if (!data?.targetUserId || typeof data.targetUserId !== 'string') {
       return;
@@ -91,7 +92,7 @@ export function registerFriendHandlers(
     };
 
     console.log('📨 [SERVER] Forwarding game:invite_received to user:', data.targetUserId, 'with data:', forwardData);
-    io.to(`user:${data.targetUserId}`).emit('game:invite_received', forwardData);
+    io.to(`user:${data.targetUserId}`).emit(SERVER_EVENTS.GAME.INVITE_RECEIVED, forwardData);
   });
 }
 
@@ -116,7 +117,7 @@ export async function notifyFriendsOffline(
         f.user_id === userId ? f.friend_id : f.user_id
       );
       for (const friendId of friendIds) {
-        io.to(`user:${friendId}`).emit('friend:offline', { userId });
+        io.to(`user:${friendId}`).emit(SERVER_EVENTS.FRIEND.OFFLINE, { userId });
       }
     }
   } catch (e) {

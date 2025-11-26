@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, FormEvent, ChangeEvent } from 'react';
 import { useSocket } from '../contexts/LazySocketContext';
 import { useAuth } from '../contexts/AuthContext';
+import { SOCKET_EVENTS, SERVER_EVENTS } from '@shared/constants';
 import './JoinRoom.css';
 
 const DEBOUNCE_MS = 1000;
@@ -114,7 +115,7 @@ const JoinRoom: React.FC<JoinRoomProps> = ({
 
         const urlParams = new URLSearchParams(window.location.search);
         const isHostHint = urlParams.get('ishost') === 'true' || urlParams.get('role') === 'gm';
-        activeSocket?.emit('joinRoom', {
+        activeSocket?.emit(SOCKET_EVENTS.ROOM.JOIN, {
           roomCode: roomCode.trim().toUpperCase(),
           playerName,
           customLobbyName,
@@ -146,8 +147,8 @@ const JoinRoom: React.FC<JoinRoomProps> = ({
           });
           console.log('🚪 [JOIN DEBUG] Join successful, transitioning to lobby');
 
-          activeSocket?.off('roomJoined', handleRoomJoined);
-          activeSocket?.off('error', handleError);
+          activeSocket?.off(SERVER_EVENTS.ROOM.JOINED, handleRoomJoined);
+          activeSocket?.off(SERVER_EVENTS.ERROR, handleError);
           joinListenersSetRef.current = false;
 
           if (onRoomJoined) {
@@ -171,8 +172,8 @@ const JoinRoom: React.FC<JoinRoomProps> = ({
             timestamp: new Date().toISOString(),
           });
 
-          activeSocket?.off('roomJoined', handleRoomJoined);
-          activeSocket?.off('error', handleError);
+          activeSocket?.off(SERVER_EVENTS.ROOM.JOINED, handleRoomJoined);
+          activeSocket?.off(SERVER_EVENTS.ERROR, handleError);
           joinListenersSetRef.current = false;
 
           let errorMessage = error.message;
@@ -199,8 +200,8 @@ const JoinRoom: React.FC<JoinRoomProps> = ({
           setIsJoining(false);
         };
 
-        activeSocket.on('roomJoined', handleRoomJoined);
-        activeSocket.on('error', handleError);
+        activeSocket.on(SERVER_EVENTS.ROOM.JOINED, handleRoomJoined);
+        activeSocket.on(SERVER_EVENTS.ERROR, handleError);
       }
 
       if (activeSocket?.connected) {

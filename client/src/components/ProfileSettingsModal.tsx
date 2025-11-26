@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useSocket } from '../contexts/LazySocketContext';
 import { useNotification } from '../contexts/NotificationContext';
 import { useNavigate } from 'react-router-dom';
+import { SOCKET_EVENTS } from '@shared/constants';
 import AvatarCustomizer from './AvatarCustomizer';
 import Avatar from './Avatar';
 import './ProfileSettingsModal.css';
@@ -108,7 +109,7 @@ const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
           avatarOptions: avatarData.avatar_options,
         });
 
-        socket.emit('profile_updated', {
+        socket.emit(SOCKET_EVENTS.PLAYER.PROFILE_UPDATED, {
           roomCode,
           userId: user?.id,
           displayName: user?.display_name || user?.username,
