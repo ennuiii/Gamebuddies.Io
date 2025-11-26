@@ -102,7 +102,12 @@
 }
 
 /* Game filter dropdown */
-.game-filter {
+.game-filter-dropdown {
+  position: relative;
+  min-width: 180px;
+}
+
+.game-filter-trigger {
   height: 48px;
   padding: 0 1rem;
   background: rgba(255, 255, 255, 0.1);
@@ -112,19 +117,103 @@
   font-size: 1rem;
   cursor: pointer;
   min-width: 180px;
+  width: 100%;
   transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
 }
 
-.game-filter:hover,
-.game-filter:focus {
+.game-filter-trigger:hover,
+.game-filter-trigger:focus {
   border-color: var(--secondary-color);
   background: rgba(255, 255, 255, 0.15);
   outline: none;
 }
 
-.game-filter option {
+.trigger-content {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.dropdown-arrow {
+  font-size: 0.7rem;
+  color: var(--text-secondary);
+  transition: transform 0.2s ease;
+}
+
+.game-filter-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
   background: #1a1a2e;
-  color: white;
+  border: 2px solid rgba(0, 217, 255, 0.4);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  z-index: 100;
+  max-height: 300px;
+  overflow-y: auto;
+  animation: dropdownFadeIn 0.2s ease;
+}
+
+@keyframes dropdownFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.game-filter-option {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  color: var(--text-primary);
+}
+
+.game-filter-option:first-child {
+  border-radius: 10px 10px 0 0;
+}
+
+.game-filter-option:last-child {
+  border-radius: 0 0 10px 10px;
+}
+
+.game-filter-option:hover {
+  background: rgba(0, 217, 255, 0.15);
+}
+
+.game-filter-option.selected {
+  background: rgba(0, 217, 255, 0.2);
+  border-left: 3px solid var(--secondary-color);
+}
+
+.dropdown-thumbnail {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  object-fit: cover;
+  border: 1px solid rgba(0, 217, 255, 0.3);
+  flex-shrink: 0;
+}
+
+.dropdown-icon {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  flex-shrink: 0;
 }
 
 .refresh-button {

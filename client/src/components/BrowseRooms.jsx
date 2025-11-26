@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useSocket } from '../contexts/LazySocketContext';
 import './BrowseRooms.css';
 
@@ -9,7 +9,23 @@ const BrowseRooms = ({ onRoomSelected, onCancel }) => {
   const [selectedGame, setSelectedGame] = useState('all');
   const [games, setGames] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
   const { socket, connectSocket } = useSocket();
+
+  // Get selected game info for dropdown trigger display
+  const selectedGameInfo = games.find(g => g.id === selectedGame);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setDropdownOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Helper to get game info for thumbnail display
   const getGameInfo = (gameId) => {
@@ -173,18 +189,55 @@ const BrowseRooms = ({ onRoomSelected, onCancel }) => {
             onChange={(e) => setSearchQuery(e.target.value)}
             className="search-input"
           />
-          <select
-            value={selectedGame}
-            onChange={(e) => setSelectedGame(e.target.value)}
-            className="game-filter"
-          >
-            <option value="all">🎮 All Games</option>
-            {games.map(game => (
-              <option key={game.id} value={game.id}>
-                {game.icon} {game.name}
-              </option>
-            ))}
-          </select>
+          <div className="game-filter-dropdown" ref={dropdownRef}>
+            <button
+              className="game-filter-trigger"
+              onClick={() => setDropdownOpen(!dropdownOpen)}
+              type="button"
+            >
+              {selectedGame === 'all' ? (
+                <span className="trigger-content">
+                  <span className="dropdown-icon">🎮</span>
+                  <span>All Games</span>
+                </span>
+              ) : (
+                <span className="trigger-content">
+                  {selectedGameInfo?.thumbnailUrl ? (
+                    <img src={selectedGameInfo.thumbnailUrl} alt="" className="dropdown-thumbnail" />
+                  ) : (
+                    <span className="dropdown-icon">{selectedGameInfo?.icon || '🎮'}</span>
+                  )}
+                  <span>{selectedGameInfo?.name || 'Select Game'}</span>
+                </span>
+              )}
+              <span className="dropdown-arrow">{dropdownOpen ? '▲' : '▼'}</span>
+            </button>
+            {dropdownOpen && (
+              <div className="game-filter-menu">
+                <div
+                  className={`game-filter-option ${selectedGame === 'all' ? 'selected' : ''}`}
+                  onClick={() => { setSelectedGame('all'); setDropdownOpen(false); }}
+                >
+                  <span className="dropdown-icon">🎮</span>
+                  <span>All Games</span>
+                </div>
+                {games.map(game => (
+                  <div
+                    key={game.id}
+                    className={`game-filter-option ${selectedGame === game.id ? 'selected' : ''}`}
+                    onClick={() => { setSelectedGame(game.id); setDropdownOpen(false); }}
+                  >
+                    {game.thumbnailUrl ? (
+                      <img src={game.thumbnailUrl} alt="" className="dropdown-thumbnail" />
+                    ) : (
+                      <span className="dropdown-icon">{game.icon || '🎮'}</span>
+                    )}
+                    <span>{game.name}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
           <button className="refresh-button" onClick={loadPublicRooms}>
             🔄
           </button>
