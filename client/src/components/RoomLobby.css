@@ -447,7 +447,6 @@
 .player-card.premium-lifetime {
   position: relative;
   border-radius: 20px;
-  background: rgba(15, 15, 35, 1);
   isolation: isolate;
   overflow: visible;
   box-shadow:
@@ -458,7 +457,6 @@
 .player-card.premium-admin {
   position: relative;
   border-radius: 20px;
-  background: rgba(35, 15, 15, 1);
   isolation: isolate;
   overflow: visible;
   box-shadow:
@@ -499,7 +497,8 @@
   right: 0;
   bottom: 0;
   border-radius: 20px;
-  background: rgba(15, 15, 35, 1);
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(20px);
   z-index: -1;
 }
 
@@ -517,11 +516,11 @@
   border-radius: 24px;
   background: conic-gradient(
     from var(--angle, 0deg),
+    #FF6666,
     #FF3333,
     #FF0000,
-    #CC0000,
-    #FF0000,
-    #FF3333
+    #FF3333,
+    #FF6666
   );
   z-index: -2;
   animation: spinBorder 4s linear infinite;
@@ -536,7 +535,8 @@
   right: 0;
   bottom: 0;
   border-radius: 20px;
-  background: rgba(35, 15, 15, 1);
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(20px);
   z-index: -1;
 }
 
@@ -551,7 +551,6 @@
 .player-card.premium-monthly {
   position: relative;
   border-radius: 20px;
-  background: rgba(15, 15, 35, 1);
   isolation: isolate;
   overflow: visible;
   box-shadow:
@@ -592,7 +591,8 @@
   right: 0;
   bottom: 0;
   border-radius: 20px;
-  background: rgba(15, 15, 35, 1);
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(20px);
   z-index: -1;
 }
 
