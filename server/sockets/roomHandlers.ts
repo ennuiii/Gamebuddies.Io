@@ -519,21 +519,42 @@ export function registerRoomHandlers(
           // Update connection status
           await db.updateParticipantConnection(existingParticipant.user_id, socket.id, 'connected', customLobbyName);
 
-          // Auto-update room status if host - only if room is in lobby
-          // Don't change status if room is in_game (players may be playing external game)
-          if (existingParticipant.role === 'host' && room.status === 'lobby') {
-            await autoUpdateRoomStatusByHost(io, db, room.id, existingParticipant.user_id, 'lobby');
-          }
+          // Handle room status transitions based on who is rejoining
+          if (existingParticipant.role === 'host') {
+            // HOST returning to lobby - always transition room to lobby
+            // This handles both: room already in lobby, or host returning from external game
+            await db.adminClient
+              .from('room_members')
+              .update({ in_game: false, current_location: 'lobby' })
+              .eq('user_id', existingParticipant.user_id)
+              .eq('room_id', room.id);
 
-          // Only reset to lobby status if room is actually in lobby
-          // If room is in_game, preserve player's game state
-          if (room.status === 'lobby') {
+            // Transition room to lobby if it was in_game
+            if (room.status === 'in_game') {
+              console.log(`🎮 [RETURN] Host ${existingParticipant.user_id} returned to lobby - transitioning room from in_game to lobby`);
+              await db.updateRoom(room.id, { status: 'lobby', current_game: null });
+
+              // Notify all players about the room status change
+              io.to(room.room_code).emit('roomStatusChanged', {
+                oldStatus: 'in_game',
+                newStatus: 'lobby',
+                changedBy: 'Host returned to lobby',
+                reason: 'host_returned_to_lobby',
+                isAutomatic: true,
+                roomVersion: Date.now()
+              });
+            } else {
+              await autoUpdateRoomStatusByHost(io, db, room.id, existingParticipant.user_id, 'lobby');
+            }
+          } else if (room.status === 'lobby') {
+            // Non-host player joining lobby room - update their status
             await db.adminClient
               .from('room_members')
               .update({ in_game: false, current_location: 'lobby' })
               .eq('user_id', existingParticipant.user_id)
               .eq('room_id', room.id);
           }
+          // Non-host players joining in_game room: preserve their in_game state
 
         } else {
           // New participant
