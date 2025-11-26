@@ -523,9 +523,10 @@ export function registerRoomHandlers(
           if (existingParticipant.role === 'host') {
             // HOST returning to lobby - always transition room to lobby
             // This handles both: room already in lobby, or host returning from external game
+            // Include is_connected: true to ensure host shows as online even with brief reconnects
             await db.adminClient
               .from('room_members')
-              .update({ in_game: false, current_location: 'lobby' })
+              .update({ in_game: false, current_location: 'lobby', is_connected: true })
               .eq('user_id', existingParticipant.user_id)
               .eq('room_id', room.id);
 
@@ -548,9 +549,10 @@ export function registerRoomHandlers(
             }
           } else if (room.status === 'lobby') {
             // Non-host player joining lobby room - update their status
+            // Include is_connected: true to ensure player shows as online
             await db.adminClient
               .from('room_members')
-              .update({ in_game: false, current_location: 'lobby' })
+              .update({ in_game: false, current_location: 'lobby', is_connected: true })
               .eq('user_id', existingParticipant.user_id)
               .eq('room_id', room.id);
           }
