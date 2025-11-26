@@ -73,24 +73,25 @@ export function registerFriendHandlers(
 
   // Friend System: Game Invite
   socket.on('game:invite', (data) => {
-    // Validate friendId exists and is a string
-    if (!data?.friendId || typeof data.friendId !== 'string') {
+    // Validate targetUserId exists and is a string (client sends targetUserId, not friendId)
+    if (!data?.targetUserId || typeof data.targetUserId !== 'string') {
       return;
     }
 
     console.log('📨 [SERVER] game:invite received:', data);
 
     // Forward invite to specific friend with sanitized data
+    // Note: client sends roomCode, we forward as roomId for consistency
     const forwardData = {
-      roomId: sanitize.roomCode(data.roomId) || '',
+      roomId: sanitize.roomCode(data.roomCode) || '',
       gameName: (data.gameName || '').substring(0, 50),
       gameThumbnail: (data.gameThumbnail || '').substring(0, 200),
       hostName: (data.hostName || 'Host').substring(0, 30),
       senderId: socket.userId
     };
 
-    console.log('📨 [SERVER] Forwarding game:invite_received to user:', data.friendId, 'with data:', forwardData);
-    io.to(`user:${data.friendId}`).emit('game:invite_received', forwardData);
+    console.log('📨 [SERVER] Forwarding game:invite_received to user:', data.targetUserId, 'with data:', forwardData);
+    io.to(`user:${data.targetUserId}`).emit('game:invite_received', forwardData);
   });
 }
 
