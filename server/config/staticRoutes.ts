@@ -1,4 +1,4 @@
-import express, { Application, Request, Response } from 'express';
+import express, { Application, Request, Response, NextFunction } from 'express';
 import path from 'path';
 
 interface GameStaticConfig {
@@ -95,7 +95,11 @@ export function setupGameStaticRoutes(app: Application): void {
  * MUST be called LAST, after all other routes and proxies
  */
 export function setupCatchAllRoute(app: Application): void {
-  app.get('*', (req: Request, res: Response) => {
+  app.get('*', (req: Request, res: Response, next) => {
+    // Skip socket.io and API routes - they have their own handlers
+    if (req.path.startsWith('/socket.io') || req.path.startsWith('/api')) {
+      return next();
+    }
     res.sendFile(path.join(PROJECT_ROOT, 'client/build/index.html'));
   });
   console.log('✅ Catch-all route registered (after game routes & proxies)');
