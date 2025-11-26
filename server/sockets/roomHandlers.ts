@@ -623,14 +623,9 @@ export function registerRoomHandlers(
           userRole = isOriginalCreator ? 'host' : 'player';
           await db.addParticipant(room.id, user.id, socket.id, userRole, customLobbyName);
 
-          // If joining in_game room, mark as in_game
-          if (room.status === 'in_game') {
-            await db.adminClient
-              .from('room_members')
-              .update({ in_game: true, current_location: 'game' })
-              .eq('user_id', user.id)
-              .eq('room_id', room.id);
-          }
+          // Note: New players joining while game is in progress stay in lobby
+          // They're waiting for host to return, not actually in the game
+          // addParticipant sets sensible defaults: in_game: false, current_location: 'lobby'
 
           // Clean up stale connections
           const userConnections = connectionManager.getUserConnections(user.id)
