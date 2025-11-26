@@ -63,24 +63,10 @@
   width: 100%;
 }
 
-/* Ensure at least 2 columns on large mobile+ */
+/* Max 2 columns on screens 480px+ */
 @media (min-width: 480px) {
   .game-picker-grid {
     grid-template-columns: repeat(2, 1fr);
-  }
-}
-
-/* 3 columns on larger screens */
-@media (min-width: 768px) {
-  .game-picker-grid {
-    grid-template-columns: repeat(3, 1fr);
-  }
-}
-
-/* Max 3 columns on wide screens */
-@media (min-width: 1024px) {
-  .game-picker-grid {
-    grid-template-columns: repeat(3, 1fr);
   }
 }
 
