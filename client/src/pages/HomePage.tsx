@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, Dispatch, SetStateAction } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { useSocket } from '../contexts/LazySocketContext';
@@ -334,19 +334,32 @@ const HomePage: React.FC<HomePageProps> = ({ setIsInLobby, setLobbyLeaveFn }) =>
     getStoredSessionInfo,
   ]);
 
-  if (inLobby && currentRoom) {
-    return (
-      <RoomLobby
-        roomCode={currentRoom.roomCode}
-        playerName={playerName}
-        isHost={currentRoom.isHost || false}
-        onLeave={handleLeaveLobby}
-      />
-    );
-  }
-
   return (
-    <div className="homepage">
+    <AnimatePresence mode="wait">
+      {inLobby && currentRoom ? (
+        <motion.div
+          key="lobby"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20 }}
+          transition={{ duration: 0.25, ease: 'easeInOut' }}
+        >
+          <RoomLobby
+            roomCode={currentRoom.roomCode}
+            playerName={playerName}
+            isHost={currentRoom.isHost || false}
+            onLeave={handleLeaveLobby}
+          />
+        </motion.div>
+      ) : (
+        <motion.div
+          key="home"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20 }}
+          transition={{ duration: 0.25, ease: 'easeInOut' }}
+        >
+          <div className="homepage">
       <div className="background-animation">
         <div className="floating-elements">
           {[...Array(15)].map((_, i) => (
@@ -501,7 +514,10 @@ const HomePage: React.FC<HomePageProps> = ({ setIsInLobby, setLobbyLeaveFn }) =>
       {showBrowseRooms && (
         <BrowseRooms onRoomSelected={handleRoomSelected} onCancel={handleCloseModals} />
       )}
-    </div>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 };
 
