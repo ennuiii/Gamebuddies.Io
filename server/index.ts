@@ -32,9 +32,6 @@ async function startServer(): Promise<void> {
     console.log('🚀 Starting GameBuddies Server v2.1.0...');
     console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
 
-    // Create HTTP server
-    const server = http.createServer();
-
     // Create proxy manager instance
     const proxyManager = new ProxyManager();
 
@@ -45,14 +42,20 @@ async function startServer(): Promise<void> {
     // Create placeholder for roomLifecycleManager (will be updated with io)
     const roomLifecycleManager = new RoomLifecycleManager(null as any);
 
-    // Initialize Socket.IO with handlers
-    // Note: LobbyManager and StatusSyncManager need io, so they're created inside initializeSocketIO
-    // For now, pass null placeholders - the socket handlers create what they need
+    // Create Express app first (needed for http.createServer)
+    // Note: We pass null for io initially, it will be set up after
+    const app = createApp(null as any, db, connectionManager);
+
+    // Create HTTP server with Express app attached
+    // This is the correct pattern for Express + Socket.IO
+    const server = http.createServer(app);
+
+    // Initialize Socket.IO with handlers (attaches to server)
     const io = initializeSocketIO(server, {
       db,
       connectionManager,
-      lobbyManager: null as any, // Created internally if needed
-      statusSyncManager: null as any, // Created internally if needed
+      lobbyManager: null as any,
+      statusSyncManager: null as any,
       roomLifecycleManager
     });
 
@@ -60,15 +63,8 @@ async function startServer(): Promise<void> {
     (roomLifecycleManager as any).io = io;
 
     // Create managers that depend on io
-    // Note: These managers are created but not used directly - socket handlers create their own as needed
     const lobbyManager = new LobbyManager(io, db as any, connectionManager);
     const statusSyncManager = new StatusSyncManager(db as any, io, lobbyManager as any);
-
-    // Create Express app with io for routes that need it
-    const app = createApp(io, db, connectionManager);
-
-    // Attach app to server
-    server.on('request', app);
 
     // Load and setup game proxies from database
     console.log('🎮 Setting up game proxies...');
