@@ -268,7 +268,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
         .from('room_members')
         .select(
           `user_id, role, is_connected, in_game, current_location, last_ping,
-          user:users(username, display_name, premium_tier, avatar_url, avatar_style, avatar_seed, avatar_options, level)`
+          user:users(username, display_name, premium_tier, avatar_url, avatar_style, avatar_seed, avatar_options, level, is_guest)`
         )
         .eq('room_id', roomIdRef.current);
 
@@ -290,6 +290,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
           avatarSeed: member.user?.avatar_seed,
           avatarOptions: member.user?.avatar_options,
           level: member.user?.level || 1,
+          isGuest: member.user?.is_guest ?? false,
         })) || [];
 
       setPlayers(mappedPlayers);
@@ -424,6 +425,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
           avatarSeed: p.avatarSeed,
           avatarOptions: p.avatarOptions,
           level: p.level || 1,
+          isGuest: p.isGuest ?? false,
         })) || [];
 
       setPlayers(mappedPlayers);
