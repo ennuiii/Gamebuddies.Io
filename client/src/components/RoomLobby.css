@@ -449,9 +449,22 @@
   border-radius: 20px;
   isolation: isolate;
   overflow: visible;
-  box-shadow:
-    0 0 20px rgba(255, 215, 0, 0.4),
-    0 0 40px rgba(255, 165, 0, 0.2);
+  animation: glowPulseGold 2s ease-in-out infinite;
+}
+
+@keyframes glowPulseGold {
+  0%, 100% {
+    box-shadow:
+      0 0 20px rgba(255, 215, 0, 0.6),
+      0 0 40px rgba(255, 165, 0, 0.4),
+      0 0 60px rgba(255, 140, 0, 0.2);
+  }
+  50% {
+    box-shadow:
+      0 0 30px rgba(255, 215, 0, 0.8),
+      0 0 60px rgba(255, 165, 0, 0.5),
+      0 0 80px rgba(255, 140, 0, 0.3);
+  }
 }
 
 .player-card.premium-admin {
@@ -459,63 +472,78 @@
   border-radius: 20px;
   isolation: isolate;
   overflow: visible;
-  box-shadow:
-    0 0 20px rgba(255, 51, 51, 0.4),
-    0 0 40px rgba(255, 0, 0, 0.2);
+  animation: glowPulseRed 1.5s ease-in-out infinite;
 }
 
-/* Animated border gradient - lifetime (thicker, faster, brighter) */
+@keyframes glowPulseRed {
+  0%, 100% {
+    box-shadow:
+      0 0 20px rgba(255, 50, 50, 0.7),
+      0 0 40px rgba(255, 0, 0, 0.5),
+      0 0 60px rgba(200, 0, 0, 0.3);
+  }
+  50% {
+    box-shadow:
+      0 0 35px rgba(255, 80, 80, 0.9),
+      0 0 70px rgba(255, 0, 0, 0.6),
+      0 0 100px rgba(200, 0, 0, 0.4);
+  }
+}
+
+/* Animated border gradient - lifetime */
 .player-card.premium-lifetime::before {
   content: '';
   position: absolute;
-  inset: -3px;
+  inset: -4px;
   height: auto;
   transform: none;
   transition: none;
-  border-radius: 23px;
+  border-radius: 24px;
   background: conic-gradient(
     from var(--angle, 0deg),
     #FFD700,
-    #FFC000,
-    #FF9500,
-    #FFC000,
+    #FFAA00,
+    #FF8C00,
+    #FF6600,
+    #FF8C00,
+    #FFAA00,
     #FFD700
   );
   z-index: -1;
-  animation: spinBorder 2.5s linear infinite;
-  /* Mask to cut out center - only show border ring */
+  animation: spinBorder 2s linear infinite;
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   mask-composite: exclude;
-  padding: 3px;
+  padding: 4px;
 }
 
-/* Animated border gradient - admin (thicker, faster, brighter) */
+/* Animated border gradient - admin (faster, more intense) */
 .player-card.premium-admin::before {
   content: '';
   position: absolute;
-  inset: -3px;
+  inset: -4px;
   height: auto;
   transform: none;
   transition: none;
-  border-radius: 23px;
+  border-radius: 24px;
   background: conic-gradient(
     from var(--angle, 0deg),
-    #FF6B6B,
     #FF4444,
-    #FF2222,
-    #FF4444,
-    #FF6B6B
+    #FF0000,
+    #CC0000,
+    #FF0000,
+    #FF6666,
+    #FF0000,
+    #FF4444
   );
   z-index: -1;
-  animation: spinBorder 2.5s linear infinite;
-  /* Mask to cut out center - only show border ring */
+  animation: spinBorder 1.5s linear infinite;
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   mask-composite: exclude;
-  padding: 3px;
+  padding: 4px;
 }
 
 /* Ensure content is above the background layer */
@@ -531,12 +559,25 @@
   border-radius: 20px;
   isolation: isolate;
   overflow: visible;
-  box-shadow:
-    0 0 20px rgba(0, 217, 255, 0.4),
-    0 0 40px rgba(0, 255, 136, 0.2);
+  animation: glowPulseCyan 2s ease-in-out infinite;
 }
 
-/* Animated border gradient - monthly (thicker, faster, brighter) */
+@keyframes glowPulseCyan {
+  0%, 100% {
+    box-shadow:
+      0 0 15px rgba(0, 217, 255, 0.5),
+      0 0 30px rgba(0, 255, 200, 0.3),
+      0 0 45px rgba(0, 200, 255, 0.2);
+  }
+  50% {
+    box-shadow:
+      0 0 25px rgba(0, 217, 255, 0.7),
+      0 0 50px rgba(0, 255, 200, 0.4),
+      0 0 70px rgba(0, 200, 255, 0.3);
+  }
+}
+
+/* Animated border gradient - monthly/pro */
 .player-card.premium-monthly::before {
   content: '';
   position: absolute;
@@ -548,14 +589,15 @@
   background: conic-gradient(
     from var(--angle, 0deg),
     #00E5FF,
-    #00FF99,
-    #00FFCC,
-    #00FF99,
+    #00FFAA,
+    #00FFD4,
+    #00FFAA,
+    #00D4FF,
+    #00AAFF,
     #00E5FF
   );
   z-index: -1;
   animation: spinBorder 2.5s linear infinite;
-  /* Mask to cut out center - only show border ring */
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
