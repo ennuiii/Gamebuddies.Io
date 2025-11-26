@@ -164,3 +164,91 @@
   background: rgba(255, 255, 255, 0.1);
   color: #94a3b8;
 }
+
+/* Responsive - Tablet */
+@media (max-width: 767px) {
+  .game-invite-container {
+    right: 15px;
+    top: 80px;
+  }
+
+  .game-invite-toast {
+    width: 300px;
+    padding: 14px;
+  }
+
+  .invite-icon {
+    font-size: 20px;
+  }
+
+  .invite-title {
+    font-size: 12px;
+  }
+
+  .game-name-display {
+    font-size: 14px;
+  }
+
+  .game-thumbnail {
+    width: 40px;
+    height: 40px;
+  }
+}
+
+/* Responsive - Mobile */
+@media (max-width: 479px) {
+  .game-invite-container {
+    right: 10px;
+    left: 10px;
+    top: 70px;
+  }
+
+  .game-invite-toast {
+    width: 100%;
+    max-width: none;
+    padding: 12px;
+  }
+
+  .invite-header {
+    margin-bottom: 6px;
+  }
+
+  .invite-icon {
+    font-size: 18px;
+    margin-right: 8px;
+  }
+
+  .invite-title {
+    font-size: 11px;
+    letter-spacing: 1px;
+  }
+
+  .invite-message {
+    font-size: 13px;
+    margin-bottom: 6px;
+  }
+
+  .game-info-row {
+    padding: 8px 10px;
+    margin-bottom: 12px;
+    gap: 10px;
+  }
+
+  .game-thumbnail {
+    width: 36px;
+    height: 36px;
+  }
+
+  .game-name-display {
+    font-size: 13px;
+  }
+
+  .invite-actions {
+    gap: 8px;
+  }
+
+  .invite-actions button {
+    padding: 8px;
+    font-size: 12px;
+  }
+}

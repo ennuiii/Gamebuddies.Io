@@ -180,3 +180,92 @@
   transform: translateY(4px);
   box-shadow: 0 2px 0 rgba(0,0,0,0.2) !important; /* Use !important to override team color shadow */
 }
+
+/* Responsive - Tablet */
+@media (max-width: 767px) {
+  .tug-of-war {
+    height: 350px;
+    margin-top: 1.5rem;
+  }
+
+  .tow-header {
+    padding: 0.75rem 1rem;
+  }
+
+  .tow-header h3 {
+    font-size: 0.9rem;
+  }
+
+  .tow-scores {
+    font-size: 1rem;
+  }
+
+  .tow-arena {
+    padding: 0 1.5rem;
+  }
+
+  .tow-controls {
+    padding: 1rem;
+  }
+
+  .pull-btn {
+    padding: 0.875rem;
+    font-size: 1rem;
+  }
+}
+
+/* Responsive - Mobile */
+@media (max-width: 479px) {
+  .tug-of-war {
+    height: 280px;
+    margin-top: 1rem;
+    border-radius: 12px;
+  }
+
+  .tow-header {
+    padding: 0.6rem 0.75rem;
+  }
+
+  .tow-header h3 {
+    font-size: 0.8rem;
+    letter-spacing: 0.5px;
+  }
+
+  .tow-scores {
+    font-size: 0.9rem;
+    gap: 0.5rem;
+  }
+
+  .tow-arena {
+    padding: 0 1rem;
+  }
+
+  .rope-track {
+    height: 10px;
+  }
+
+  .knot {
+    width: 16px;
+    height: 16px;
+  }
+
+  .winner-overlay {
+    font-size: 1.5rem;
+  }
+
+  .tow-controls {
+    padding: 0.75rem;
+  }
+
+  .team-indicator {
+    font-size: 0.8rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .pull-btn {
+    padding: 0.75rem;
+    font-size: 0.9rem;
+    max-width: 160px;
+    letter-spacing: 1px;
+  }
+}

@@ -152,26 +152,81 @@
   font-style: italic;
 }
 
-/* Responsive */
-@media (max-width: 600px) {
+/* Responsive - Tablet */
+@media (max-width: 767px) {
+  .payment-result-page {
+    padding: 100px 15px 50px;
+  }
+
   .result-container {
-    padding: 2rem 1.5rem;
+    padding: 2.5rem 1.5rem;
+    border-radius: 16px;
   }
 
   .result-container h1 {
-    font-size: 2rem;
+    font-size: 2.2rem;
+  }
+
+  .result-message {
+    font-size: 1.1rem;
   }
 
   .result-icon {
-    font-size: 4rem;
+    font-size: 4.5rem;
+  }
+}
+
+/* Responsive - Mobile */
+@media (max-width: 479px) {
+  .payment-result-page {
+    padding: 80px 12px 40px;
+  }
+
+  .result-container {
+    padding: 1.75rem 1.25rem;
+    border-radius: 12px;
+  }
+
+  .result-container h1 {
+    font-size: 1.75rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .result-message {
+    font-size: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .result-icon {
+    font-size: 3.5rem;
+    margin-bottom: 1rem;
+  }
+
+  .result-details {
+    padding: 1rem;
+    margin: 1.5rem 0;
+    border-radius: 10px;
+  }
+
+  .result-details ul li {
+    font-size: 0.95rem;
   }
 
   .result-actions {
     flex-direction: column;
+    gap: 0.75rem;
+    margin: 1.5rem 0;
   }
 
   .primary-button,
   .secondary-button {
     width: 100%;
+    padding: 0.875rem 1.5rem;
+    font-size: 0.95rem;
+  }
+
+  .redirect-notice {
+    margin-top: 1.5rem;
+    font-size: 0.85rem;
   }
 }

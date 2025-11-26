@@ -63,8 +63,8 @@
   width: 100%;
 }
 
-/* Ensure at least 2 columns on medium+ screens */
-@media (min-width: 500px) {
+/* Ensure at least 2 columns on large mobile+ */
+@media (min-width: 480px) {
   .games-grid {
     grid-template-columns: repeat(2, 1fr);
   }
@@ -186,7 +186,7 @@
 }
 
 /* Mobile: single column */
-@media (max-width: 499px) {
+@media (max-width: 479px) {
   .games-grid {
     grid-template-columns: 1fr;
     gap: 0.75rem;
@@ -199,6 +199,11 @@
 
   .game-icon {
     height: 50px;
+  }
+
+  .picker-title {
+    font-size: 1.5rem;
+    margin-bottom: 1.5rem;
   }
 }
 

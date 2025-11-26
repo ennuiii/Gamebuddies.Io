@@ -338,3 +338,103 @@
   margin-top: 40px;
   font-style: italic;
 }
+
+/* Responsive - Tablet */
+@media (max-width: 767px) {
+  .friend-list-toggle {
+    bottom: 15px;
+    right: 15px;
+    width: 55px;
+    height: 55px;
+    font-size: 24px;
+  }
+
+  .friend-list-container {
+    bottom: 80px;
+    right: 15px;
+    width: 300px;
+    height: 450px;
+  }
+}
+
+/* Responsive - Mobile: Bottom Sheet Drawer */
+@media (max-width: 479px) {
+  .friend-list-toggle {
+    bottom: 12px;
+    right: 12px;
+    width: 50px;
+    height: 50px;
+    font-size: 22px;
+  }
+
+  .friend-list-container {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    top: auto;
+    width: 100%;
+    height: auto;
+    max-height: 75vh;
+    border-radius: 20px 20px 0 0;
+    animation: slideUpMobile 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @keyframes slideUpMobile {
+    from {
+      opacity: 0;
+      transform: translateY(100%);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Drag handle indicator */
+  .friend-list-header::before {
+    content: '';
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 40px;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.3);
+    border-radius: 2px;
+  }
+
+  .friend-list-header {
+    position: relative;
+    padding-top: 20px;
+  }
+
+  .friend-tabs button {
+    font-size: 11px;
+    padding: 10px 5px;
+  }
+
+  .friend-item {
+    padding: 10px 8px;
+  }
+
+  .avatar-wrapper img {
+    width: 36px;
+    height: 36px;
+  }
+
+  .info .username {
+    font-size: 13px;
+  }
+
+  .actions button {
+    padding: 5px 10px;
+    font-size: 10px;
+  }
+
+  .add-friend-section input,
+  .add-friend-section button {
+    padding: 10px;
+    font-size: 13px;
+  }
+}

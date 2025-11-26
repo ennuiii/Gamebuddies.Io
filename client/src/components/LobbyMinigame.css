@@ -187,3 +187,94 @@
   text-align: center;
   margin-top: 1rem;
 }
+
+/* Responsive - Tablet */
+@media (max-width: 767px) {
+  .lobby-minigame {
+    height: 350px;
+    margin-top: 1.5rem;
+  }
+
+  .minigame-header {
+    padding: 0.75rem 1rem;
+  }
+
+  .minigame-header h3 {
+    font-size: 0.9rem;
+  }
+
+  .minigame-stats {
+    gap: 0.5rem;
+  }
+
+  .my-score, .game-timer {
+    font-size: 0.8rem;
+    padding: 0.25rem 0.6rem;
+  }
+
+  .minigame-leaderboard {
+    height: 100px;
+    padding: 0.6rem;
+  }
+}
+
+/* Responsive - Mobile */
+@media (max-width: 479px) {
+  .lobby-minigame {
+    height: 300px;
+    margin-top: 1rem;
+    border-radius: 12px;
+  }
+
+  .minigame-header {
+    padding: 0.6rem 0.75rem;
+  }
+
+  .minigame-header h3 {
+    font-size: 0.8rem;
+    letter-spacing: 0.5px;
+  }
+
+  .my-score, .game-timer {
+    font-size: 0.75rem;
+    padding: 0.2rem 0.5rem;
+  }
+
+  .game-dot {
+    width: 35px;
+    height: 35px;
+  }
+
+  .start-overlay,
+  .game-over-overlay {
+    font-size: 1rem;
+  }
+
+  .game-over-overlay h4 {
+    font-size: 1.4rem;
+  }
+
+  .game-over-overlay p {
+    font-size: 0.95rem;
+  }
+
+  .game-over-overlay button {
+    padding: 0.6rem 1.2rem;
+    font-size: 0.9rem;
+  }
+
+  .minigame-leaderboard {
+    height: 90px;
+    padding: 0.5rem;
+  }
+
+  .minigame-leaderboard h4 {
+    font-size: 0.7rem;
+    margin-bottom: 0.3rem;
+  }
+
+  .minigame-leaderboard li {
+    font-size: 0.8rem;
+    padding: 0.2rem 0;
+  }
+}

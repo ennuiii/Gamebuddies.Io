@@ -292,8 +292,8 @@
   box-shadow: 0 0 10px rgba(0, 217, 255, 0.5);
 }
 
-/* Responsive */
-@media (max-width: 768px) {
+/* Responsive - Tablet */
+@media (max-width: 767px) {
   .logo {
     font-size: 1.5rem;
   }
@@ -325,7 +325,8 @@
   }
 }
 
-@media (max-width: 600px) {
+/* Responsive - Mobile */
+@media (max-width: 479px) {
   .nav {
     display: none;
   }

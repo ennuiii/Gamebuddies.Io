@@ -151,3 +151,98 @@
   border-top: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+/* Responsive - Tablet */
+@media (max-width: 767px) {
+  .mascot-customizer {
+    gap: 1.25rem;
+  }
+
+  .mascot-preview-area {
+    padding: 1.5rem;
+  }
+
+  .mascot-controls {
+    max-height: 350px;
+  }
+
+  .options-grid {
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+    gap: 0.75rem;
+  }
+
+  .img-wrapper {
+    width: 70px;
+    height: 70px;
+  }
+
+  .mascot-option-btn .option-label {
+    font-size: 0.8rem;
+  }
+}
+
+/* Responsive - Mobile */
+@media (max-width: 479px) {
+  .mascot-customizer {
+    gap: 1rem;
+  }
+
+  .mascot-preview-area {
+    padding: 1rem;
+  }
+
+  .mascot-preview-wrapper {
+    padding: 6px;
+    margin-bottom: 0.75rem;
+  }
+
+  .mascot-helper-text {
+    font-size: 0.8rem;
+  }
+
+  .mascot-controls {
+    max-height: 300px;
+    padding: 0.25rem;
+  }
+
+  .options-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0.5rem;
+  }
+
+  .mascot-option-btn {
+    padding: 0.5rem;
+    border-radius: 10px;
+    gap: 0.3rem;
+  }
+
+  .img-wrapper {
+    width: 56px;
+    height: 56px;
+  }
+
+  .premium-badge-icon {
+    width: 16px;
+    height: 16px;
+    font-size: 10px;
+    top: 2px;
+    right: 2px;
+  }
+
+  .lock-overlay {
+    font-size: 1.5rem;
+  }
+
+  .mascot-option-btn .option-label {
+    font-size: 0.7rem;
+  }
+
+  .mascot-actions {
+    flex-direction: column;
+    gap: 0.75rem;
+    padding-top: 1rem;
+  }
+
+  .mascot-actions button {
+    width: 100%;
+  }
+}
