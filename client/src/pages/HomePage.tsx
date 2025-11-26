@@ -352,17 +352,7 @@ const HomePage: React.FC<HomePageProps> = ({ setIsInLobby, setLobbyLeaveFn }) =>
           />
         </motion.div>
       ) : (
-        <>
-          <div className="beta-disclaimer">
-            <div className="beta-disclaimer-content">
-              <span className="beta-badge">⚠️ BETA</span>
-              <span className="beta-text">
-                GameBuddies.io is currently in <strong>beta testing</strong>. Some features may not work
-                as expected.
-              </span>
-            </div>
-          </div>
-          <motion.div
+        <motion.div
             key="home"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -516,7 +506,6 @@ const HomePage: React.FC<HomePageProps> = ({ setIsInLobby, setLobbyLeaveFn }) =>
               )}
             </div>
           </motion.div>
-        </>
       )}
     </AnimatePresence>
   );

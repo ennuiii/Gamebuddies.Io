@@ -91,6 +91,16 @@ function AppContent(): React.ReactElement {
         isInLobby={isInLobby}
       />
       <Notification />
+      {(location.pathname === '/' || location.pathname.startsWith('/lobby/')) && (
+        <div className="beta-disclaimer">
+          <div className="beta-disclaimer-content">
+            <span className="beta-badge">⚠️ BETA</span>
+            <span className="beta-text">
+              GameBuddies.io is currently in <strong>beta testing</strong>. Some features may not work as expected.
+            </span>
+          </div>
+        </div>
+      )}
       <DebugPanel />
       <FriendList />
       <GameInviteToast />
