@@ -858,7 +858,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
               return (
                 <div
                   key={player.id}
-                  className={`player-card ${player.isHost ? 'host' : ''} ${playerStatus.status} ${isDisconnectedWithTimer ? 'disconnecting' : ''}`}
+                  className={`player-card ${player.isHost ? 'host' : ''} ${playerStatus.status} ${isDisconnectedWithTimer ? 'disconnecting' : ''} ${player.role === 'admin' ? 'premium-admin' : player.premiumTier === 'lifetime' ? 'premium-lifetime' : player.premiumTier === 'monthly' ? 'premium-monthly' : ''}`}
                 >
                   <div className="player-card-content">
                     <div className="player-avatar">
@@ -877,6 +877,13 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
                       <span className="player-name">{player.name}</span>
                       <div className="player-badges">
                         <span className="level-badge-lobby">Lvl {player.level}</span>
+                        {player.role === 'admin' ? (
+                          <span className="premium-badge lifetime">💻 ADMIN</span>
+                        ) : player.premiumTier === 'lifetime' ? (
+                          <span className="premium-badge lifetime">PREMIUM</span>
+                        ) : player.premiumTier === 'monthly' ? (
+                          <span className="premium-badge monthly">PRO</span>
+                        ) : null}
                         {player.isHost && <span className="host-badge">Host</span>}
                         <span
                           className="status-badge"
