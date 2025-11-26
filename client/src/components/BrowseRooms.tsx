@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, MouseEvent, ChangeEvent } from 'react';
 import { useSocket } from '../contexts/LazySocketContext';
 import { SOCKET_EVENTS, SERVER_EVENTS } from '@shared/constants';
+import { RoomCardSkeletonList } from './Skeleton';
 import './BrowseRooms.css';
 
 interface Game {
@@ -295,12 +296,7 @@ const BrowseRooms: React.FC<BrowseRoomsProps> = ({ onRoomSelected, onCancel }) =
           </button>
         </div>
 
-        {loading && (
-          <div className="loading-state">
-            <div className="spinner"></div>
-            <p>Loading rooms...</p>
-          </div>
-        )}
+        {loading && <RoomCardSkeletonList count={3} />}
 
         {error && <div className="error-message">{error}</div>}
 

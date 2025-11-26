@@ -1,4 +1,5 @@
 import React, { useState, useRef, FormEvent, ChangeEvent } from 'react';
+import { ChatMessageSkeletonList } from './Skeleton';
 import './ChatWindow.css';
 
 interface ChatMessage {
@@ -12,9 +13,10 @@ interface ChatWindowProps {
   messages: ChatMessage[];
   onSendMessage: (message: string) => void;
   currentPlayerName: string;
+  isLoading?: boolean;
 }
 
-const ChatWindow: React.FC<ChatWindowProps> = ({ messages, onSendMessage, currentPlayerName }) => {
+const ChatWindow: React.FC<ChatWindowProps> = ({ messages, onSendMessage, currentPlayerName, isLoading = false }) => {
   const [newMessage, setNewMessage] = useState<string>('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -32,20 +34,24 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ messages, onSendMessage, curren
         <h3>Lobby Chat</h3>
       </div>
       <div className="chat-messages">
-        {messages.map((msg, index) => {
-          const isMe = msg.playerName === currentPlayerName;
-          const isSystem = msg.type === 'system';
+        {isLoading && messages.length === 0 ? (
+          <ChatMessageSkeletonList count={3} />
+        ) : (
+          messages.map((msg, index) => {
+            const isMe = msg.playerName === currentPlayerName;
+            const isSystem = msg.type === 'system';
 
-          return (
-            <div
-              key={msg.id || index}
-              className={`chat-message ${isMe ? 'me' : ''} ${isSystem ? 'system' : ''}`}
-            >
-              {!isSystem && <span className="chat-sender">{msg.playerName}</span>}
-              <span className="chat-text">{msg.message}</span>
-            </div>
-          );
-        })}
+            return (
+              <div
+                key={msg.id || index}
+                className={`chat-message ${isMe ? 'me' : ''} ${isSystem ? 'system' : ''}`}
+              >
+                {!isSystem && <span className="chat-sender">{msg.playerName}</span>}
+                <span className="chat-text">{msg.message}</span>
+              </div>
+            );
+          })
+        )}
         <div ref={messagesEndRef} />
       </div>
       <form className="chat-input-form" onSubmit={handleSubmit}>

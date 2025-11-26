@@ -1,5 +1,6 @@
 import React, { useState, FormEvent, ChangeEvent } from 'react';
 import { useFriends, Friend, PendingRequest } from '../contexts/FriendContext';
+import { FriendItemSkeletonList } from './Skeleton';
 import './FriendList.css';
 
 interface AddResult {
@@ -48,6 +49,7 @@ const FriendList: React.FC = () => {
     currentRoomCode,
     currentLobbyGameName,
     currentLobbyThumbnail,
+    loading,
   } = useFriends();
 
   const [isOpen, setIsOpen] = useState<boolean>(false);
@@ -116,7 +118,9 @@ const FriendList: React.FC = () => {
       <div className="friend-list-content">
         {activeTab === 'online' && (
           <div className="list online-list">
-            {onlineList.length === 0 ? (
+            {loading ? (
+              <FriendItemSkeletonList count={3} showInvite={isCurrentlyInLobby} />
+            ) : onlineList.length === 0 ? (
               <p className="empty">No friends online</p>
             ) : (
               onlineList.map((friend) => (
@@ -143,17 +147,21 @@ const FriendList: React.FC = () => {
               onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
               className="friend-search"
             />
-            {allList.map((friend) => (
-              <FriendItem
-                key={friend.friendshipId || friend.id}
-                friend={friend}
-                isOnline={onlineFriends.has(friend.id)}
-                onInvite={() =>
-                  inviteFriend(friend.id, currentRoomCode, currentLobbyGameName, currentLobbyThumbnail)
-                }
-                isCurrentlyInLobby={isCurrentlyInLobby}
-              />
-            ))}
+            {loading ? (
+              <FriendItemSkeletonList count={3} />
+            ) : (
+              allList.map((friend) => (
+                <FriendItem
+                  key={friend.friendshipId || friend.id}
+                  friend={friend}
+                  isOnline={onlineFriends.has(friend.id)}
+                  onInvite={() =>
+                    inviteFriend(friend.id, currentRoomCode, currentLobbyGameName, currentLobbyThumbnail)
+                  }
+                  isCurrentlyInLobby={isCurrentlyInLobby}
+                />
+              ))
+            )}
           </div>
         )}
 
