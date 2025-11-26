@@ -549,8 +549,8 @@ export function registerRoomHandlers(
                 clearGameStart(room.id);
 
                 // Fetch fresh room data with all players
-                const updatedRoomForBroadcast = await db.getRoomByCode(room.room_code);
-                const allPlayersForBroadcast = mapParticipantsToPlayers(updatedRoomForBroadcast?.participants || []);
+                const updatedRoomForBroadcast = await db.getRoomByCode(room.room_code) as RoomWithParticipants | null;
+                const allPlayersForBroadcast = mapParticipantsToPlayers(updatedRoomForBroadcast?.participants);
 
                 // Notify all players about the room status change WITH full player list
                 io.to(room.room_code).emit('roomStatusChanged', {

@@ -21,6 +21,7 @@ interface RoomParticipant {
     level: number;
     role: string;
     username: string;
+    is_guest?: boolean;
   };
 }
 
