@@ -443,164 +443,48 @@
 
 /* Host card - no special glow, premium badges take priority */
 
-/* Premium Player Card Styles - Animated Border with Static Glow */
-.player-card.premium-lifetime {
-  position: relative;
-  border-radius: 20px;
-  isolation: isolate;
-  overflow: visible;
+/* Premium Player Card Styles - Avatar Glow Effect */
+
+/* Premium avatar glow - Lifetime (Gold) */
+.player-card.premium-lifetime .player-avatar {
   box-shadow:
-    0 0 15px rgba(255, 215, 0, 0.4),
-    0 0 30px rgba(255, 165, 0, 0.2);
+    0 0 15px rgba(255, 215, 0, 0.6),
+    0 0 30px rgba(255, 165, 0, 0.3);
   transition: box-shadow 0.3s ease;
 }
 
-.player-card.premium-lifetime:hover {
+.player-card.premium-lifetime:hover .player-avatar {
   box-shadow:
-    0 0 25px rgba(255, 215, 0, 0.6),
-    0 0 50px rgba(255, 165, 0, 0.3);
+    0 0 20px rgba(255, 215, 0, 0.8),
+    0 0 40px rgba(255, 165, 0, 0.4);
 }
 
-.player-card.premium-admin {
-  position: relative;
-  border-radius: 20px;
-  isolation: isolate;
-  overflow: visible;
+/* Premium avatar glow - Admin (Red) */
+.player-card.premium-admin .player-avatar {
   box-shadow:
-    0 0 15px rgba(255, 50, 50, 0.5),
+    0 0 15px rgba(255, 50, 50, 0.6),
     0 0 30px rgba(255, 0, 0, 0.3);
   transition: box-shadow 0.3s ease;
 }
 
-.player-card.premium-admin:hover {
+.player-card.premium-admin:hover .player-avatar {
   box-shadow:
-    0 0 25px rgba(255, 50, 50, 0.7),
-    0 0 50px rgba(255, 0, 0, 0.4);
+    0 0 20px rgba(255, 50, 50, 0.8),
+    0 0 40px rgba(255, 0, 0, 0.4);
 }
 
-/* Animated border gradient - lifetime */
-.player-card.premium-lifetime::before {
-  content: '';
-  position: absolute;
-  inset: -4px;
-  height: auto;
-  transform: none;
-  transition: none;
-  border-radius: 24px;
-  background: conic-gradient(
-    from var(--angle, 0deg),
-    #FFD700,
-    #FFAA00,
-    #FF8C00,
-    #FF6600,
-    #FF8C00,
-    #FFAA00,
-    #FFD700
-  );
-  z-index: -1;
-  animation: spinBorder 2s linear infinite;
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  mask-composite: exclude;
-  padding: 4px;
-}
-
-/* Animated border gradient - admin (faster, more intense) */
-.player-card.premium-admin::before {
-  content: '';
-  position: absolute;
-  inset: -4px;
-  height: auto;
-  transform: none;
-  transition: none;
-  border-radius: 24px;
-  background: conic-gradient(
-    from var(--angle, 0deg),
-    #FF4444,
-    #FF0000,
-    #CC0000,
-    #FF0000,
-    #FF6666,
-    #FF0000,
-    #FF4444
-  );
-  z-index: -1;
-  animation: spinBorder 1.5s linear infinite;
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  mask-composite: exclude;
-  padding: 4px;
-}
-
-/* Ensure content is above the background layer */
-.player-card.premium-lifetime > *,
-.player-card.premium-admin > *,
-.player-card.premium-monthly > * {
-  position: relative;
-  z-index: 1;
-}
-
-.player-card.premium-monthly {
-  position: relative;
-  border-radius: 20px;
-  isolation: isolate;
-  overflow: visible;
+/* Premium avatar glow - Monthly/Pro (Cyan) */
+.player-card.premium-monthly .player-avatar {
   box-shadow:
-    0 0 12px rgba(0, 217, 255, 0.4),
-    0 0 25px rgba(0, 200, 255, 0.2);
+    0 0 12px rgba(0, 217, 255, 0.5),
+    0 0 25px rgba(0, 200, 255, 0.25);
   transition: box-shadow 0.3s ease;
 }
 
-.player-card.premium-monthly:hover {
+.player-card.premium-monthly:hover .player-avatar {
   box-shadow:
-    0 0 20px rgba(0, 217, 255, 0.6),
-    0 0 40px rgba(0, 200, 255, 0.3);
-}
-
-/* Animated border gradient - monthly/pro */
-.player-card.premium-monthly::before {
-  content: '';
-  position: absolute;
-  inset: -3px;
-  height: auto;
-  transform: none;
-  transition: none;
-  border-radius: 23px;
-  background: conic-gradient(
-    from var(--angle, 0deg),
-    #00E5FF,
-    #00FFAA,
-    #00FFD4,
-    #00FFAA,
-    #00D4FF,
-    #00AAFF,
-    #00E5FF
-  );
-  z-index: -1;
-  animation: spinBorder 2.5s linear infinite;
-  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-  mask-composite: exclude;
-  padding: 3px;
-}
-
-/* Register custom property for animation */
-@property --angle {
-  syntax: '<angle>';
-  initial-value: 0deg;
-  inherits: false;
-}
-
-@keyframes spinBorder {
-  from {
-    --angle: 0deg;
-  }
-  to {
-    --angle: 360deg;
-  }
+    0 0 18px rgba(0, 217, 255, 0.7),
+    0 0 35px rgba(0, 200, 255, 0.35);
 }
 
 .player-card-content {
@@ -1340,6 +1224,52 @@
 
 .kick-player-btn:hover {
   box-shadow: 0 6px 15px rgba(244, 67, 54, 0.4);
+}
+
+/* Friend Actions */
+.player-friend-actions {
+  display: flex;
+  justify-content: center;
+  margin-top: 0.75rem;
+}
+
+.add-friend-btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  background: linear-gradient(135deg, #00d9ff, #00a8ff);
+  color: white;
+  box-shadow: 0 3px 10px rgba(0, 217, 255, 0.3);
+}
+
+.add-friend-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 15px rgba(0, 217, 255, 0.4);
+}
+
+.add-friend-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.add-friend-btn.pending {
+  background: linear-gradient(135deg, #f39c12, #e67e22);
+  box-shadow: 0 3px 10px rgba(243, 156, 18, 0.3);
+}
+
+.add-friend-btn.accept {
+  background: linear-gradient(135deg, #2ecc71, #27ae60);
+  box-shadow: 0 3px 10px rgba(46, 204, 113, 0.3);
+}
+
+.add-friend-btn.accept:hover:not(:disabled) {
+  box-shadow: 0 6px 15px rgba(46, 204, 113, 0.4);
 }
 
 /* Error Message */

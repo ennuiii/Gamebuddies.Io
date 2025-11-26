@@ -117,7 +117,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
   const activeSocket = socket || socketRef?.current;
   const { addNotification } = useNotification();
   const { user, isAuthenticated, isPremium } = useAuth();
-  const { updateLobbyInfo } = useFriends();
+  const { updateLobbyInfo, friends, pendingRequests, sendFriendRequestById, acceptFriendRequest } = useFriends();
 
   const [players, setPlayers] = useState<Player[]>([]);
   const [selectedGame, setSelectedGame] = useState<string | null>(null);
@@ -133,6 +133,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [imageError, setImageError] = useState<boolean>(false);
   const [gamesList, setGamesList] = useState<GameInfo[]>([]);
+  const [sendingFriendRequest, setSendingFriendRequest] = useState<Set<string>>(new Set());
 
   const roomCodeRef = useRef<string>(roomCode);
   const playerNameRef = useRef<string>(playerName);
@@ -724,6 +725,75 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
     );
   }, [players]);
 
+  // Get friendship status for a player
+  const getFriendshipStatus = useCallback((playerId: string): 'friends' | 'sent' | 'received' | 'none' => {
+    // Check if already friends
+    if (friends.some(f => f.id === playerId || f.user_id === playerId || f.friend_id === playerId)) {
+      return 'friends';
+    }
+    // Check pending requests
+    const pending = pendingRequests.find(p =>
+      p.user?.username === players.find(pl => pl.id === playerId)?.name ||
+      p.from_user_id === playerId ||
+      (p.type === 'sent' && p.user?.username === players.find(pl => pl.id === playerId)?.name)
+    );
+    if (pending) {
+      return pending.type || (pending.from_user_id ? 'received' : 'sent');
+    }
+    return 'none';
+  }, [friends, pendingRequests, players]);
+
+  // Handle sending friend request
+  const handleSendFriendRequest = useCallback(async (playerId: string, playerNameText: string): Promise<void> => {
+    if (sendingFriendRequest.has(playerId)) return;
+
+    setSendingFriendRequest(prev => new Set(prev).add(playerId));
+    try {
+      const result = await sendFriendRequestById(playerId);
+      if (result.success) {
+        addNotification(`Friend request sent to ${playerNameText}!`, 'success');
+      } else {
+        addNotification(result.error || 'Failed to send friend request', 'error');
+      }
+    } catch (err) {
+      addNotification('Failed to send friend request', 'error');
+    } finally {
+      setSendingFriendRequest(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(playerId);
+        return newSet;
+      });
+    }
+  }, [sendFriendRequestById, sendingFriendRequest, addNotification]);
+
+  // Handle accepting friend request
+  const handleAcceptFriendRequest = useCallback(async (playerId: string, playerNameText: string): Promise<void> => {
+    // Find the pending request from this player
+    const request = pendingRequests.find(p =>
+      p.from_user_id === playerId ||
+      (p.type === 'received' && p.user?.username === players.find(pl => pl.id === playerId)?.name)
+    );
+    if (!request) return;
+
+    setSendingFriendRequest(prev => new Set(prev).add(playerId));
+    try {
+      const result = await acceptFriendRequest(request.id);
+      if (result.success) {
+        addNotification(`You are now friends with ${playerNameText}!`, 'success');
+      } else {
+        addNotification(result.error || 'Failed to accept friend request', 'error');
+      }
+    } catch (err) {
+      addNotification('Failed to accept friend request', 'error');
+    } finally {
+      setSendingFriendRequest(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(playerId);
+        return newSet;
+      });
+    }
+  }, [acceptFriendRequest, pendingRequests, players, addNotification]);
+
   const playersWithStatus: PlayerWithStatus[] = useMemo(() => {
     return players.map((player) => ({
       ...player,
@@ -910,6 +980,44 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
                       </button>
                     </div>
                   )}
+                  {/* Add Friend Button - only show for other players who aren't already friends */}
+                  {isAuthenticated && user?.id !== player.id && (() => {
+                    const friendStatus = getFriendshipStatus(player.id);
+                    if (friendStatus === 'friends') return null;
+                    if (friendStatus === 'sent') {
+                      return (
+                        <div className="player-friend-actions">
+                          <button className="add-friend-btn pending" disabled>
+                            ⏳ Request Sent
+                          </button>
+                        </div>
+                      );
+                    }
+                    if (friendStatus === 'received') {
+                      return (
+                        <div className="player-friend-actions">
+                          <button
+                            className="add-friend-btn accept"
+                            onClick={() => handleAcceptFriendRequest(player.id, player.name)}
+                            disabled={sendingFriendRequest.has(player.id)}
+                          >
+                            {sendingFriendRequest.has(player.id) ? '...' : '✓ Accept Friend'}
+                          </button>
+                        </div>
+                      );
+                    }
+                    return (
+                      <div className="player-friend-actions">
+                        <button
+                          className="add-friend-btn"
+                          onClick={() => handleSendFriendRequest(player.id, player.name)}
+                          disabled={sendingFriendRequest.has(player.id)}
+                        >
+                          {sendingFriendRequest.has(player.id) ? '...' : '➕ Add Friend'}
+                        </button>
+                      </div>
+                    );
+                  })()}
                 </div>
               );
             })}

@@ -120,30 +120,48 @@ router.get('/pending', requireAuth, async (req: AuthenticatedRequest, res: Respo
 });
 
 // POST /api/friends/request
-// Send a friend request by username
+// Send a friend request by username or userId
 router.post('/request', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user!.id;
-    const { username } = req.body;
+    const { username, targetUserId } = req.body;
 
-    if (!username) {
-      res.status(400).json({ error: 'Username is required' });
+    if (!username && !targetUserId) {
+      res.status(400).json({ error: 'Username or targetUserId is required' });
       return;
     }
 
-    // Find target user
-    const { data: targetUser, error: userError } = await supabaseAdmin
-      .from('users')
-      .select('id')
-      .eq('username', username)
-      .single();
+    let targetUser: { id: string } | null = null;
 
-    if (userError || !targetUser) {
-      res.status(404).json({ error: 'User not found' });
-      return;
+    if (targetUserId) {
+      // Find target user by ID
+      const { data, error } = await supabaseAdmin
+        .from('users')
+        .select('id')
+        .eq('id', targetUserId)
+        .single();
+
+      if (error || !data) {
+        res.status(404).json({ error: 'User not found' });
+        return;
+      }
+      targetUser = data as { id: string };
+    } else {
+      // Find target user by username
+      const { data, error } = await supabaseAdmin
+        .from('users')
+        .select('id')
+        .eq('username', username)
+        .single();
+
+      if (error || !data) {
+        res.status(404).json({ error: 'User not found' });
+        return;
+      }
+      targetUser = data as { id: string };
     }
 
-    if ((targetUser as { id: string }).id === userId) {
+    if (targetUser.id === userId) {
       res.status(400).json({ error: 'Cannot add yourself as a friend' });
       return;
     }
@@ -152,7 +170,7 @@ router.post('/request', requireAuth, async (req: AuthenticatedRequest, res: Resp
     const { data: existing } = await supabaseAdmin
       .from('friendships')
       .select('*')
-      .or(`and(user_id.eq.${userId},friend_id.eq.${(targetUser as { id: string }).id}),and(user_id.eq.${(targetUser as { id: string }).id},friend_id.eq.${userId})`)
+      .or(`and(user_id.eq.${userId},friend_id.eq.${targetUser.id}),and(user_id.eq.${targetUser.id},friend_id.eq.${userId})`)
       .single();
 
     if (existing) {
@@ -176,7 +194,7 @@ router.post('/request', requireAuth, async (req: AuthenticatedRequest, res: Resp
       .from('friendships')
       .insert({
         user_id: userId,
-        friend_id: (targetUser as { id: string }).id,
+        friend_id: targetUser.id,
         status: 'pending'
       });
 

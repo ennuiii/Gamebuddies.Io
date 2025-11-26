@@ -49,6 +49,7 @@ interface FriendContextValue {
   loading: boolean;
   gameInvites: GameInvite[];
   sendFriendRequest: (username: string) => Promise<ActionResult>;
+  sendFriendRequestById: (targetUserId: string) => Promise<ActionResult>;
   acceptFriendRequest: (requestId: string) => Promise<ActionResult>;
   rejectFriendRequest: (requestId: string) => Promise<ActionResult>;
   removeFriend: (friendshipId: string) => Promise<ActionResult>;
@@ -222,6 +223,27 @@ export const FriendProvider: React.FC<FriendProviderProps> = ({ children }) => {
     }
   };
 
+  const sendFriendRequestById = async (targetUserId: string): Promise<ActionResult> => {
+    try {
+      const res = await fetch('/api/friends/request', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${session?.access_token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ targetUserId }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      fetchFriends();
+      return { success: true, message: data.message };
+    } catch (error) {
+      return { success: false, error: (error as Error).message };
+    }
+  };
+
   const acceptFriendRequest = async (requestId: string): Promise<ActionResult> => {
     try {
       const res = await fetch(`/api/friends/${requestId}/accept`, {
@@ -298,6 +320,7 @@ export const FriendProvider: React.FC<FriendProviderProps> = ({ children }) => {
     loading,
     gameInvites,
     sendFriendRequest,
+    sendFriendRequestById,
     acceptFriendRequest,
     rejectFriendRequest,
     removeFriend,
