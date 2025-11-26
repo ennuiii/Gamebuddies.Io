@@ -3,6 +3,7 @@ import type { ServerContext } from '../types';
 import { validators, sanitize, rateLimits } from '../lib/validation';
 import { autoUpdateRoomStatusByHost, autoUpdateRoomStatusBasedOnPlayerStates } from '../services/roomStatusService';
 import { SOCKET_EVENTS, SERVER_EVENTS } from '../../shared/constants';
+import { getGameStartTime, clearGameStart, isGameStartRecent } from '../lib/gameStartTracker';
 
 interface RoomParticipant {
   id: string;
@@ -521,31 +522,44 @@ export function registerRoomHandlers(
 
           // Handle room status transitions based on who is rejoining
           if (existingParticipant.role === 'host') {
-            // HOST returning to lobby - always transition room to lobby
-            // This handles both: room already in lobby, or host returning from external game
-            // Include is_connected: true to ensure host shows as online even with brief reconnects
-            await db.adminClient
-              .from('room_members')
-              .update({ in_game: false, current_location: 'lobby', is_connected: true })
-              .eq('user_id', existingParticipant.user_id)
-              .eq('room_id', room.id);
+            // Check if game started recently - if so, host is navigating TO game, not returning FROM it
+            // This prevents incorrectly transitioning room to lobby during external game navigation
+            const gameStartedAt = getGameStartTime(room.id);
+            const timeSinceStart = gameStartedAt ? Date.now() - gameStartedAt : Infinity;
 
-            // Transition room to lobby if it was in_game
-            if (room.status === 'in_game') {
-              console.log(`🎮 [RETURN] Host ${existingParticipant.user_id} returned to lobby - transitioning room from in_game to lobby`);
-              await db.updateRoom(room.id, { status: 'lobby', current_game: null });
-
-              // Notify all players about the room status change
-              io.to(room.room_code).emit('roomStatusChanged', {
-                oldStatus: 'in_game',
-                newStatus: 'lobby',
-                changedBy: 'Host returned to lobby',
-                reason: 'host_returned_to_lobby',
-                isAutomatic: true,
-                roomVersion: Date.now()
-              });
+            if (room.status === 'in_game' && timeSinceStart < 10000) {
+              // Game started within last 10 seconds - host is navigating TO external game
+              // Do NOT transition to lobby or update status - just a brief reconnect during navigation
+              console.log(`⏳ [SKIP] Game started ${timeSinceStart}ms ago - not transitioning to lobby (host navigating TO game)`);
             } else {
-              await autoUpdateRoomStatusByHost(io, db, room.id, existingParticipant.user_id, 'lobby');
+              // Either room is already lobby, OR game has been running for a while (host returning)
+              // Update host's status to in_game: false, current_location: 'lobby', is_connected: true
+              await db.adminClient
+                .from('room_members')
+                .update({ in_game: false, current_location: 'lobby', is_connected: true })
+                .eq('user_id', existingParticipant.user_id)
+                .eq('room_id', room.id);
+
+              // Transition room to lobby if it was in_game
+              if (room.status === 'in_game') {
+                console.log(`🎮 [RETURN] Host ${existingParticipant.user_id} returned to lobby - transitioning room from in_game to lobby`);
+                await db.updateRoom(room.id, { status: 'lobby', current_game: null });
+
+                // Clear the game start tracker since we're back in lobby
+                clearGameStart(room.id);
+
+                // Notify all players about the room status change
+                io.to(room.room_code).emit('roomStatusChanged', {
+                  oldStatus: 'in_game',
+                  newStatus: 'lobby',
+                  changedBy: 'Host returned to lobby',
+                  reason: 'host_returned_to_lobby',
+                  isAutomatic: true,
+                  roomVersion: Date.now()
+                });
+              } else {
+                await autoUpdateRoomStatusByHost(io, db, room.id, existingParticipant.user_id, 'lobby');
+              }
             }
           } else if (room.status === 'lobby') {
             // Non-host player joining lobby room - update their status

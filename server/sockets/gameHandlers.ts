@@ -3,6 +3,7 @@ import type { Socket } from 'socket.io';
 import type { ServerContext } from '../types';
 import { validators, sanitize } from '../lib/validation';
 import { SOCKET_EVENTS, SERVER_EVENTS } from '../../shared/constants';
+import { recordGameStart } from '../lib/gameStartTracker';
 
 interface RoomParticipant {
   user_id: string;
@@ -151,6 +152,10 @@ export function registerGameHandlers(
       }
 
       console.log(`🎮 [START GAME] Marked ${connectedParticipants.length} participants as in_game`);
+
+      // Record game start time for navigation detection
+      // This helps distinguish "navigating TO game" vs "returning FROM game" in rejoin logic
+      recordGameStart(room.id);
 
       // Broadcast player status update
       const updatedRoomForBroadcast = await db.getRoomByCode(room.room_code) as RoomWithParticipants;
