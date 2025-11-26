@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "build": "tsc",
-    "start": "node dist/index.js",
+    "start": "node dist/server/index.js",
     "dev": "ts-node index.ts",
     "setup-db": "node scripts/setup-database.js",
     "migrate": "node scripts/migrate-role-column.js"
