@@ -596,10 +596,13 @@ export function registerRoomHandlers(
             }
             user = existingUser;
           } else {
+            // Generate unique username for guest to avoid collision with existing users
+            // display_name shows their chosen name, username is just for DB uniqueness
+            const guestUsername = `guest_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
             user = await db.getOrCreateUser(
-              `${socket.id}_${data.playerName}`,
-              data.playerName,
-              data.playerName,
+              guestUsername,
+              guestUsername,
+              data.playerName,  // Their chosen display name
               { is_guest: true }
             );
           }
