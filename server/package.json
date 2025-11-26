@@ -4,8 +4,9 @@
   "description": "GameBuddies server with exclusive Supabase integration and reverse proxy",
   "main": "index.js",
   "scripts": {
-    "start": "node index.js",
-    "dev": "nodemon index.js",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "ts-node index.ts",
     "setup-db": "node scripts/setup-database.js",
     "migrate": "node scripts/migrate-role-column.js"
   },
