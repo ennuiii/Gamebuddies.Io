@@ -77,10 +77,10 @@
   }
 }
 
-/* 4 columns on wide screens */
+/* Max 3 columns on wide screens */
 @media (min-width: 1024px) {
   .game-picker-grid {
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    grid-template-columns: repeat(3, 1fr);
   }
 }
 
