@@ -468,10 +468,7 @@
 .player-card.premium-lifetime::before {
   content: '';
   position: absolute;
-  top: -3px;
-  left: -3px;
-  right: -3px;
-  bottom: -3px;
+  inset: -3px;
   height: auto;
   transform: none;
   transition: none;
@@ -484,31 +481,21 @@
     #FFC000,
     #FFD700
   );
-  z-index: -2;
-  animation: spinBorder 2.5s linear infinite;
-}
-
-/* Inner mask - matches page background for glass effect to work */
-.player-card.premium-lifetime::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  border-radius: 20px;
-  background: #0f0f1e;
   z-index: -1;
+  animation: spinBorder 2.5s linear infinite;
+  /* Mask to cut out center - only show border ring */
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  padding: 3px;
 }
 
 /* Animated border gradient - admin (thicker, faster, brighter) */
 .player-card.premium-admin::before {
   content: '';
   position: absolute;
-  top: -3px;
-  left: -3px;
-  right: -3px;
-  bottom: -3px;
+  inset: -3px;
   height: auto;
   transform: none;
   transition: none;
@@ -521,21 +508,14 @@
     #FF4444,
     #FF6B6B
   );
-  z-index: -2;
-  animation: spinBorder 2.5s linear infinite;
-}
-
-/* Inner mask - matches page background for glass effect to work */
-.player-card.premium-admin::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  border-radius: 20px;
-  background: #0f0f1e;
   z-index: -1;
+  animation: spinBorder 2.5s linear infinite;
+  /* Mask to cut out center - only show border ring */
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  padding: 3px;
 }
 
 /* Ensure content is above the background layer */
@@ -560,10 +540,7 @@
 .player-card.premium-monthly::before {
   content: '';
   position: absolute;
-  top: -3px;
-  left: -3px;
-  right: -3px;
-  bottom: -3px;
+  inset: -3px;
   height: auto;
   transform: none;
   transition: none;
@@ -576,21 +553,14 @@
     #00FF99,
     #00E5FF
   );
-  z-index: -2;
-  animation: spinBorder 2.5s linear infinite;
-}
-
-/* Inner mask - matches page background for glass effect to work */
-.player-card.premium-monthly::after {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  border-radius: 20px;
-  background: #0f0f1e;
   z-index: -1;
+  animation: spinBorder 2.5s linear infinite;
+  /* Mask to cut out center - only show border ring */
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  padding: 3px;
 }
 
 /* Register custom property for animation */
