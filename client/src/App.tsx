@@ -1,4 +1,4 @@
-import React, { useState, useCallback, Dispatch, SetStateAction } from 'react';
+import React, { useState, useCallback, Dispatch, SetStateAction, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { LazySocketProvider } from './contexts/LazySocketContext';
@@ -10,21 +10,30 @@ import Header from './components/Header';
 import Footer from './components/Footer';
 import HomePage from './pages/HomePage';
 import Legal from './pages/Legal';
-import LoginPage from './pages/LoginPage';
 import AuthCallback from './pages/AuthCallback';
 import PasswordReset from './pages/PasswordReset';
-import Premium from './pages/Premium';
 import PaymentSuccess from './pages/PaymentSuccess';
 import PaymentCancel from './pages/PaymentCancel';
-import Account from './pages/Account';
-import AdminAffiliates from './pages/AdminAffiliates';
-import AdminDashboard from './pages/AdminDashboard';
 import AdminRoute from './components/AdminRoute';
 import DebugPanel from './components/DebugPanel';
 import FriendList from './components/FriendList';
 import GameInviteToast from './components/GameInviteToast';
 import ErrorBoundary from './components/ErrorBoundary';
 import './App.css';
+
+// Lazy-loaded pages (code splitting)
+const LoginPage = lazy(() => import('./pages/LoginPage'));
+const Premium = lazy(() => import('./pages/Premium'));
+const Account = lazy(() => import('./pages/Account'));
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
+const AdminAffiliates = lazy(() => import('./pages/AdminAffiliates'));
+
+// Loading fallback for lazy-loaded pages
+const PageLoadingFallback = (): React.ReactElement => (
+  <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}>
+    <div className="loading-spinner" />
+  </div>
+);
 
 export interface HomePageProps {
   setIsInLobby: Dispatch<SetStateAction<boolean>>;
@@ -82,7 +91,8 @@ function AppContent(): React.ReactElement {
       <DebugPanel />
       <FriendList />
       <GameInviteToast />
-      <Routes>
+      <Suspense fallback={<PageLoadingFallback />}>
+        <Routes>
         <Route
           path="/"
           element={
@@ -160,7 +170,8 @@ function AppContent(): React.ReactElement {
             </ErrorBoundary>
           }
         />
-      </Routes>
+        </Routes>
+      </Suspense>
       <Footer />
     </div>
   );
