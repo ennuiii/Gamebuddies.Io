@@ -1036,6 +1036,7 @@ class DatabaseService {
       console.log('🧹 [CLEANUP] Running stale data cleanup...');
 
       // Mark players as disconnected if no ping for 5 minutes
+      // BUT skip players who are in_game (they don't send heartbeats while in external game)
       const { data: stalePlayers, error: staleError } = await this.adminClient
         .from('room_members')
         .update({
@@ -1043,6 +1044,8 @@ class DatabaseService {
           current_location: 'disconnected'
         })
         .eq('is_connected', true)
+        .eq('in_game', false)  // Only mark disconnected if NOT in game
+        .neq('current_location', 'game')  // Double-check: skip players in game location
         .lt('last_ping', fiveMinutesAgo.toISOString())
         .select('user_id, room_id');
 
@@ -1053,28 +1056,33 @@ class DatabaseService {
       }
 
       // Find rooms with no connected players and mark as abandoned
+      // BUT skip rooms where players are in_game (they're playing in external game)
       const { data: emptyRooms, error: emptyError } = await this.adminClient
         .from('rooms')
         .select(`
           id,
           room_code,
           status,
-          room_members!inner(is_connected)
+          room_members!inner(is_connected, in_game, current_location)
         `)
         .in('status', ['lobby', 'in_game']);
 
       if (emptyError) {
         console.error('❌ [CLEANUP] Error finding empty rooms:', emptyError);
       } else if (emptyRooms) {
-        // Check each room for connected members
-        for (const room of emptyRooms as (Room & { room_members: { is_connected: boolean }[] })[]) {
-          const connectedCount = room.room_members?.filter((m: { is_connected: boolean }) => m.is_connected).length || 0;
-          if (connectedCount === 0) {
+        // Check each room for connected OR in-game members
+        for (const room of emptyRooms as (Room & { room_members: { is_connected: boolean; in_game: boolean; current_location: string }[] })[]) {
+          // Count players who are either connected OR in game
+          const activeCount = room.room_members?.filter((m) =>
+            m.is_connected || m.in_game || m.current_location === 'game'
+          ).length || 0;
+
+          if (activeCount === 0) {
             await this.adminClient
               .from('rooms')
               .update({ status: 'abandoned' })
               .eq('id', room.id);
-            console.log(`🏚️ [CLEANUP] Room ${room.room_code} marked as abandoned - no connected players`);
+            console.log(`🏚️ [CLEANUP] Room ${room.room_code} marked as abandoned - no connected or in-game players`);
           }
         }
       }
