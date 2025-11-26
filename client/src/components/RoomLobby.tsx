@@ -451,6 +451,17 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
           supabaseUserId: userRef.current?.id,
         });
       }
+
+      // If the current player was in game, signal return to lobby
+      // This happens when host returns from external game (ClueScale, etc.)
+      const currentPlayer = mappedPlayers.find(p => p.id === data.player?.id || p.id === currentUserIdRef.current);
+      if (currentPlayer?.inGame && socket) {
+        console.log('[LOBBY] Player was in game, emitting return to lobby');
+        socket.emit('playerReturnToLobby', {
+          playerName: currentPlayer.name,
+          roomCode: data.roomCode || roomCodeRef.current,
+        });
+      }
     };
 
     const handlePlayerJoined = (data: any): void => {
