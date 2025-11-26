@@ -70,7 +70,7 @@ const resolveAvatarUrl = (
     const id = options.avatarId;
     const extensions = ['.png', '.jpg', '.jpeg', '.svg', '.gif'];
     const types = ['premium', 'free', 'hidden'];
-    const baseDir = path.join(__dirname, '../public/avatars');
+    const baseDir = path.join(process.cwd(), 'server/public/avatars');
 
     for (const type of types) {
       for (const ext of extensions) {

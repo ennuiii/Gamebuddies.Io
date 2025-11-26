@@ -5,7 +5,7 @@ import { supabaseAdmin } from '../lib/supabase';
 
 const router: Router = express.Router();
 
-const AVATARS_DIR = path.join(__dirname, '../public/avatars');
+const AVATARS_DIR = path.join(process.cwd(), 'server/public/avatars');
 
 // Level requirements for specific avatars
 const AVATAR_REQUIREMENTS: Record<string, number> = {

@@ -36,19 +36,23 @@ const gameConfigs: GameStaticConfig[] = [
   },
 ];
 
+// Base directory - use process.cwd() for consistent paths regardless of dist structure
+const PROJECT_ROOT = process.cwd();
+const SERVER_ROOT = path.join(PROJECT_ROOT, 'server');
+
 /**
  * Setup core static file serving routes
  * Must be called early in app setup
  */
 export function setupCoreStaticRoutes(app: Application): void {
   // Serve static files from React build
-  app.use(express.static(path.join(__dirname, '../../client/build')));
+  app.use(express.static(path.join(PROJECT_ROOT, 'client/build')));
 
   // Serve static avatars
-  app.use('/avatars', express.static(path.join(__dirname, '../public/avatars')));
+  app.use('/avatars', express.static(path.join(SERVER_ROOT, 'public/avatars')));
 
   // Serve screenshots
-  app.use('/screenshots', express.static(path.join(__dirname, '../screenshots')));
+  app.use('/screenshots', express.static(path.join(SERVER_ROOT, 'screenshots')));
 
   // Normalize direct deep links to DDF routes so they load via home
   app.get(
@@ -65,7 +69,7 @@ export function setupCoreStaticRoutes(app: Application): void {
  */
 export function setupGameStaticRoutes(app: Application): void {
   for (const config of gameConfigs) {
-    const buildPath = path.join(__dirname, '..', config.buildPath);
+    const buildPath = path.join(PROJECT_ROOT, config.buildPath.replace(/^\.\.\/\.\.\//, ''));
 
     try {
       // Serve static files
@@ -92,7 +96,7 @@ export function setupGameStaticRoutes(app: Application): void {
  */
 export function setupCatchAllRoute(app: Application): void {
   app.get('*', (req: Request, res: Response) => {
-    res.sendFile(path.join(__dirname, '../../client/build/index.html'));
+    res.sendFile(path.join(PROJECT_ROOT, 'client/build/index.html'));
   });
   console.log('✅ Catch-all route registered (after game routes & proxies)');
 }
