@@ -11,7 +11,6 @@ import ProfileSettingsModal from './ProfileSettingsModal';
 import { useRealtimeSubscription } from '../utils/useRealtimeSubscription';
 import { getSupabaseClient } from '../utils/supabase';
 import Avatar from './Avatar';
-import { PlayerCardSkeletonList } from './Skeleton';
 import './RoomLobby.css';
 
 interface Player {
@@ -843,13 +842,9 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
           <h2>Room {roomCode}</h2>
           <div className="connection-status">Status: {socketIsConnected ? 'Connected' : 'Connecting...'}</div>
         </div>
-        <div className="lobby-content">
-          <div className="players-section">
-            <div className="section-header">
-              <h3 className="section-title">Players in Room</h3>
-            </div>
-            <PlayerCardSkeletonList count={3} />
-          </div>
+        <div className="loading-container">
+          <div className="loading-spinner"></div>
+          <p>{socketIsConnected ? 'Joining room...' : 'Connecting to server...'}</p>
         </div>
       </div>
     );
