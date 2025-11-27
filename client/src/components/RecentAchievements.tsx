@@ -83,7 +83,7 @@ const RecentAchievements: React.FC<RecentAchievementsProps> = ({ maxDisplay = 4 
       case 'rare':
         return '💙';
       default:
-        return '⚪';
+        return '🏅';  // Medal icon instead of white circle for common
     }
   };
 
