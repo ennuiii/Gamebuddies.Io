@@ -15,6 +15,7 @@ interface PlayerResult {
   rank?: number;
   score?: number;
   won: boolean;
+  metrics?: Record<string, number | { op: 'increment' | 'set' | 'max'; value: number }>;
 }
 
 interface MatchResultRequest {
@@ -33,6 +34,7 @@ interface ProcessedResult {
     current_win_streak: number;
     best_win_streak: number;
   } | null;
+  metrics_updated: Record<string, number> | null;
   achievements_unlocked: Array<{
     id: string;
     name: string;
@@ -58,14 +60,24 @@ export default function createMatchResultsRouter(db: DatabaseService): Router {
    * POST /api/game/match-result
    *
    * Report match results for all players in a game.
-   * Updates stats, win streaks, and triggers achievement checking.
+   * Updates stats, win streaks, custom metrics, and triggers achievement checking.
    *
    * Request body:
    * {
    *   room_id?: string,       // Optional room UUID
    *   game_id: string,        // Game identifier (e.g., "schooled", "ddf")
    *   players: [
-   *     { user_id: string, rank?: number, score?: number, won: boolean },
+   *     {
+   *       user_id: string,
+   *       rank?: number,
+   *       score?: number,
+   *       won: boolean,
+   *       metrics?: {
+   *         // Simple increment: { "correct_answers": 5 }
+   *         // With operation: { "high_score": { "op": "max", "value": 1500 } }
+   *         // Operations: "increment" (default), "set", "max"
+   *       }
+   *     },
    *     ...
    *   ],
    *   duration_seconds?: number,
@@ -79,6 +91,7 @@ export default function createMatchResultsRouter(db: DatabaseService): Router {
    *     {
    *       user_id: string,
    *       stats_updated: { total_games_played, total_games_won, current_win_streak, best_win_streak },
+   *       metrics_updated: { correct_answers: 150, high_score: 1500 },
    *       achievements_unlocked: [ { id, name, xp_reward, points, rarity }, ... ]
    *     },
    *     ...
@@ -142,6 +155,7 @@ export default function createMatchResultsRouter(db: DatabaseService): Router {
                 p_won: player.won,
                 p_score: player.score ?? null,
                 p_room_id: room_id ?? null,
+                p_metrics: player.metrics ?? null,
               });
 
               if (error) {
@@ -149,6 +163,7 @@ export default function createMatchResultsRouter(db: DatabaseService): Router {
                 return {
                   user_id: player.user_id,
                   stats_updated: null,
+                  metrics_updated: null,
                   achievements_unlocked: [],
                   error: error.message,
                 };
@@ -159,12 +174,14 @@ export default function createMatchResultsRouter(db: DatabaseService): Router {
                 return {
                   user_id: player.user_id,
                   stats_updated: null,
+                  metrics_updated: null,
                   achievements_unlocked: [],
                   error: data.error || 'Unknown error',
                 };
               }
 
               const stats = data?.stats || null;
+              const metrics = data?.metrics || null;
               const achievements = data?.achievements?.unlocked || [];
 
               // Log achievement unlocks
@@ -175,6 +192,7 @@ export default function createMatchResultsRouter(db: DatabaseService): Router {
               return {
                 user_id: player.user_id,
                 stats_updated: stats,
+                metrics_updated: metrics,
                 achievements_unlocked: achievements,
               };
             } catch (err) {
@@ -182,6 +200,7 @@ export default function createMatchResultsRouter(db: DatabaseService): Router {
               return {
                 user_id: player.user_id,
                 stats_updated: null,
+                metrics_updated: null,
                 achievements_unlocked: [],
                 error: (err as Error).message,
               };
