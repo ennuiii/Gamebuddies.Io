@@ -101,7 +101,7 @@
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
-  z-index: 10;
+  z-index: 100;
 }
 
 .modal-close-btn:hover {
@@ -112,7 +112,7 @@
 
 /* Header */
 .modal-header {
-  padding: 20px 20px 15px;
+  padding: 20px 50px 15px 20px;  /* Right padding for close button */
   display: flex;
   justify-content: space-between;
   align-items: center;

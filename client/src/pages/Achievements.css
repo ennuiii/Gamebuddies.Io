@@ -58,6 +58,9 @@
 }
 
 .header-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
   text-align: center;
   padding-top: 3rem;
   position: relative; /* Establish positioning context for button */
@@ -66,7 +69,8 @@
 .achievements-header h1 {
   font-size: 2.5rem;
   font-weight: 700;
-  margin: 0 0 6rem; /* Increased margin even more for better spacing */
+  margin: 0 0 2rem;
+  width: 100%;
   background: linear-gradient(135deg, var(--text-primary, #fff), var(--secondary-color, #00d9ff));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
