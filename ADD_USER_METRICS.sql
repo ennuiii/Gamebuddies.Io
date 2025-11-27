@@ -220,10 +220,10 @@ CREATE OR REPLACE FUNCTION process_match_result(
   p_metrics JSONB DEFAULT NULL
 ) RETURNS JSONB AS $$
 DECLARE
-  v_new_streak INTEGER;
-  v_best_streak INTEGER;
-  v_games_played INTEGER;
-  v_games_won INTEGER;
+  v_games_played BIGINT;
+  v_games_won BIGINT;
+  v_current_streak BIGINT;
+  v_best_streak BIGINT;
   v_achievement_result JSONB;
   v_stats JSONB;
   v_metrics_result JSONB := '{}'::jsonb;
@@ -233,29 +233,43 @@ BEGIN
     RETURN jsonb_build_object('success', false, 'error', 'user_not_found');
   END IF;
 
-  -- Update user stats atomically
-  UPDATE public.users
-  SET
-    total_games_played = COALESCE(total_games_played, 0) + 1,
-    total_games_won = CASE
-      WHEN p_won THEN COALESCE(total_games_won, 0) + 1
-      ELSE COALESCE(total_games_won, 0)
-    END,
-    current_win_streak = CASE
-      WHEN p_won THEN COALESCE(current_win_streak, 0) + 1
-      ELSE 0
-    END,
-    best_win_streak = CASE
-      WHEN p_won THEN GREATEST(COALESCE(best_win_streak, 0), COALESCE(current_win_streak, 0) + 1)
-      ELSE COALESCE(best_win_streak, 0)
-    END
-  WHERE id = p_user_id
-  RETURNING
-    total_games_played,
-    total_games_won,
-    current_win_streak,
-    best_win_streak
-  INTO v_games_played, v_games_won, v_new_streak, v_best_streak;
+  -- =====================================================
+  -- Track ALL stats in user_metrics (single source of truth)
+  -- =====================================================
+
+  -- Increment games_played (global)
+  v_games_played := increment_metric(p_user_id, 'games_played', 1, NULL);
+
+  -- Increment games_played for this specific game
+  PERFORM increment_metric(p_user_id, 'games_played', 1, p_game_id);
+
+  -- Handle wins and streaks
+  IF p_won THEN
+    -- Increment games_won (global)
+    v_games_won := increment_metric(p_user_id, 'games_won', 1, NULL);
+    -- Increment games_won for this specific game
+    PERFORM increment_metric(p_user_id, 'games_won', 1, p_game_id);
+
+    -- Increment win streak
+    v_current_streak := increment_metric(p_user_id, 'current_win_streak', 1, NULL);
+
+    -- Update best streak if current is higher
+    v_best_streak := set_metric(p_user_id, 'best_win_streak', v_current_streak, NULL, true);
+  ELSE
+    -- Get current games_won (no change)
+    v_games_won := get_metric(p_user_id, 'games_won', NULL);
+
+    -- Reset win streak to 0
+    v_current_streak := set_metric(p_user_id, 'current_win_streak', 0, NULL, false);
+
+    -- Best streak unchanged
+    v_best_streak := get_metric(p_user_id, 'best_win_streak', NULL);
+  END IF;
+
+  -- Track score as high_score if provided (only if higher)
+  IF p_score IS NOT NULL THEN
+    PERFORM set_metric(p_user_id, 'high_score', p_score, p_game_id, true);
+  END IF;
 
   -- Process custom metrics if provided
   IF p_metrics IS NOT NULL AND jsonb_typeof(p_metrics) = 'object' THEN
@@ -264,13 +278,13 @@ BEGIN
 
   -- Build stats object
   v_stats := jsonb_build_object(
-    'total_games_played', v_games_played,
-    'total_games_won', v_games_won,
-    'current_win_streak', v_new_streak,
+    'games_played', v_games_played,
+    'games_won', v_games_won,
+    'current_win_streak', v_current_streak,
     'best_win_streak', v_best_streak
   );
 
-  -- Check achievements with platform-calculated streak + custom metrics
+  -- Check achievements (reads from user_metrics now)
   BEGIN
     v_achievement_result := check_achievements(
       p_user_id,
@@ -279,9 +293,8 @@ BEGIN
         'game_id', p_game_id,
         'room_id', p_room_id,
         'won', p_won,
-        'score', p_score,
-        'win_streak', v_new_streak
-      ) || COALESCE(v_metrics_result, '{}'::jsonb)
+        'score', p_score
+      )
     );
   EXCEPTION WHEN undefined_function THEN
     v_achievement_result := jsonb_build_object('unlocked', '[]'::jsonb, 'count', 0);
@@ -297,7 +310,147 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- =====================================================
--- STEP 8: Seed common metric keys (documentation)
+-- STEP 8: Update check_achievements to read from user_metrics
+-- =====================================================
+
+CREATE OR REPLACE FUNCTION check_achievements(
+  p_user_id UUID,
+  p_event_type VARCHAR,
+  p_event_data JSONB DEFAULT '{}'
+)
+RETURNS JSONB AS $$
+DECLARE
+  v_unlocked JSONB := '[]'::jsonb;
+  v_achievement RECORD;
+  v_result JSONB;
+  v_current_value BIGINT;
+  v_metric_key VARCHAR;
+  v_friend_count INTEGER;
+  v_premium_tier VARCHAR;
+BEGIN
+  -- Get friend count (still from friendships table)
+  SELECT COUNT(*) INTO v_friend_count
+  FROM public.friendships f
+  WHERE (f.user_id = p_user_id OR f.friend_id = p_user_id) AND f.status = 'accepted';
+
+  -- Get premium tier (still from users table)
+  SELECT premium_tier INTO v_premium_tier
+  FROM public.users WHERE id = p_user_id;
+
+  -- Check each achievement that user hasn't earned yet
+  FOR v_achievement IN
+    SELECT a.*
+    FROM public.achievements a
+    WHERE NOT EXISTS (
+      SELECT 1 FROM public.user_achievements ua
+      WHERE ua.user_id = p_user_id
+        AND ua.achievement_id = a.id
+        AND ua.earned_at IS NOT NULL
+    )
+    AND (
+      -- Filter by relevant categories based on event type
+      (p_event_type = 'game_completed' AND a.category IN ('games_played', 'wins'))
+      OR (p_event_type = 'friend_added' AND a.category = 'social')
+      OR (p_event_type = 'room_hosted' AND a.category = 'social')
+      OR (p_event_type = 'level_reached' AND a.category = 'progression')
+      OR (p_event_type = 'xp_earned' AND a.category = 'progression')
+      OR (p_event_type = 'premium_upgraded' AND a.category = 'premium')
+      OR (p_event_type = 'metric_updated' AND a.requirement_type = 'metric')
+    )
+  LOOP
+    v_current_value := NULL;
+
+    -- Determine which metric to check based on achievement
+    CASE v_achievement.category
+      WHEN 'games_played' THEN
+        v_current_value := get_metric(p_user_id, 'games_played', NULL);
+
+      WHEN 'wins' THEN
+        IF v_achievement.requirement_type = 'streak' THEN
+          v_current_value := get_metric(p_user_id, 'current_win_streak', NULL);
+        ELSE
+          v_current_value := get_metric(p_user_id, 'games_won', NULL);
+        END IF;
+
+      WHEN 'social' THEN
+        IF v_achievement.id LIKE 'host%' THEN
+          v_current_value := get_metric(p_user_id, 'rooms_hosted', NULL);
+        ELSIF v_achievement.id LIKE 'friend%' OR v_achievement.id LIKE 'first_friend%' THEN
+          v_current_value := v_friend_count;
+        ELSE
+          v_current_value := v_friend_count;
+        END IF;
+
+      WHEN 'progression' THEN
+        IF v_achievement.id LIKE 'level%' THEN
+          v_current_value := get_metric(p_user_id, 'account_level', NULL);
+        ELSE
+          v_current_value := get_metric(p_user_id, 'total_xp', NULL);
+        END IF;
+
+      WHEN 'premium' THEN
+        v_current_value := CASE WHEN v_premium_tier IS NOT NULL AND v_premium_tier != 'free' THEN 1 ELSE 0 END;
+
+      ELSE
+        -- For custom metric-based achievements, use requirement_type as metric key
+        IF v_achievement.requirement_type = 'metric' THEN
+          -- Achievement should have a requirement_key or we derive from ID
+          v_metric_key := COALESCE(
+            v_achievement.id,  -- Use achievement ID as metric key
+            'unknown'
+          );
+          v_current_value := get_metric(p_user_id, v_metric_key, NULL);
+        ELSE
+          CONTINUE;
+        END IF;
+    END CASE;
+
+    -- Check if requirement is met
+    IF v_current_value IS NOT NULL AND v_current_value >= v_achievement.requirement_value THEN
+      -- Grant the achievement
+      v_result := grant_achievement(
+        p_user_id,
+        v_achievement.id,
+        (p_event_data->>'room_id')::UUID,
+        p_event_data->>'game_id'
+      );
+
+      IF (v_result->>'success')::boolean THEN
+        v_unlocked := v_unlocked || jsonb_build_object(
+          'id', v_achievement.id,
+          'name', v_achievement.name,
+          'xp_reward', v_achievement.xp_reward,
+          'points', v_achievement.points,
+          'rarity', v_achievement.rarity
+        );
+      END IF;
+    ELSE
+      -- Update progress for progressive achievements
+      IF v_current_value IS NOT NULL AND v_current_value > 0 THEN
+        INSERT INTO public.user_achievements (user_id, achievement_id, progress, earned_at)
+        VALUES (
+          p_user_id,
+          v_achievement.id,
+          LEAST(99, (v_current_value::FLOAT / v_achievement.requirement_value * 100)::INTEGER),
+          NULL  -- Not earned yet
+        )
+        ON CONFLICT (user_id, achievement_id) DO UPDATE
+        SET progress = LEAST(99, (v_current_value::FLOAT / v_achievement.requirement_value * 100)::INTEGER);
+      END IF;
+    END IF;
+  END LOOP;
+
+  RETURN jsonb_build_object(
+    'unlocked', v_unlocked,
+    'count', jsonb_array_length(v_unlocked)
+  );
+END;
+$$ LANGUAGE plpgsql;
+
+COMMENT ON FUNCTION check_achievements IS 'Checks and unlocks achievements based on user_metrics data';
+
+-- =====================================================
+-- STEP 9: Seed common metric keys (documentation)
 -- =====================================================
 
 COMMENT ON TABLE public.user_metrics IS '
