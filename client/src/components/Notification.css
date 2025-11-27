@@ -1,108 +1,178 @@
-.notification-banner {
+/* Notification Container - Stacks multiple notifications */
+.notification-container {
   position: fixed;
   top: 20px;
   left: 50%;
   transform: translateX(-50%);
-  padding: 12px 20px;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   z-index: 10000;
-  width: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
   max-width: 90%;
-  min-width: 300px; /* Minimum width so it doesn't look too small */
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  font-size: 1rem;
-  line-height: 1.4;
-  animation: fadeInDown 0.5s ease-out;
+  width: auto;
+  pointer-events: none;
 }
 
-@keyframes fadeInDown {
+.notification-banner {
+  position: relative;
+  padding: 12px 20px;
+  border-radius: 10px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 300px;
+  max-width: 500px;
+  font-family: 'Inter', 'Segoe UI', sans-serif;
+  font-size: 0.95rem;
+  line-height: 1.4;
+  animation: notificationSlideIn 0.3s ease-out;
+  pointer-events: auto;
+  backdrop-filter: blur(10px);
+}
+
+/* Stagger animation based on index */
+.notification-banner {
+  animation-delay: calc(var(--notification-index, 0) * 0.05s);
+}
+
+@keyframes notificationSlideIn {
   from {
     opacity: 0;
-    transform: translate(-50%, -20px);
+    transform: translateY(-20px) scale(0.95);
   }
   to {
     opacity: 1;
-    transform: translate(-50%, 0);
+    transform: translateY(0) scale(1);
   }
+}
+
+/* Icon */
+.notification-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  font-size: 0.875rem;
+  font-weight: bold;
+  flex-shrink: 0;
 }
 
 .notification-message {
   flex-grow: 1;
-  margin-right: 15px;
+  font-weight: 500;
 }
 
 .notification-close-btn {
-  background: none;
+  background: rgba(255, 255, 255, 0.2);
   border: none;
-  color: inherit; /* Inherit color from parent for better contrast */
-  font-size: 1.5rem;
+  color: inherit;
+  width: 24px;
+  height: 24px;
+  min-height: 24px;
+  border-radius: 50%;
+  font-size: 1rem;
   font-weight: bold;
   cursor: pointer;
-  padding: 0 5px;
-  opacity: 0.7;
-  transition: opacity 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.8;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+  padding: 0;
 }
 
 .notification-close-btn:hover {
   opacity: 1;
+  background: rgba(255, 255, 255, 0.3);
+  transform: scale(1.1);
 }
 
 /* Type-specific styles */
 .notification-info {
-  background-color: #2979ff; /* Material Blue A400 */
+  background: linear-gradient(135deg, rgba(41, 121, 255, 0.95), rgba(25, 100, 200, 0.95));
   color: white;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.notification-info .notification-icon {
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .notification-success {
-  background-color: #00c853; /* Material Green A700 */
+  background: linear-gradient(135deg, rgba(0, 200, 83, 0.95), rgba(0, 150, 60, 0.95));
   color: white;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.notification-success .notification-icon {
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .notification-error {
-  background-color: #d50000; /* Material Red A700 */
+  background: linear-gradient(135deg, rgba(213, 0, 0, 0.95), rgba(180, 0, 0, 0.95));
   color: white;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.notification-error .notification-icon {
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .notification-warning {
-  background-color: #ff9100; /* Material Orange A400 */
-  color: #212121; /* Dark text for better contrast on orange */
+  background: linear-gradient(135deg, rgba(255, 145, 0, 0.95), rgba(230, 120, 0, 0.95));
+  color: #212121;
+  border: 1px solid rgba(0, 0, 0, 0.1);
 }
 
-/* Ensure close button has good contrast on warning */
+.notification-warning .notification-icon {
+  background: rgba(0, 0, 0, 0.15);
+}
+
 .notification-warning .notification-close-btn {
-    color: #212121;
+  color: #212121;
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.notification-warning .notification-close-btn:hover {
+  background: rgba(0, 0, 0, 0.2);
 }
 
 /* Responsive - Tablet */
 @media (max-width: 767px) {
-  .notification-banner {
+  .notification-container {
     top: 15px;
+  }
+
+  .notification-banner {
     padding: 10px 16px;
     min-width: 280px;
-    font-size: 0.95rem;
+    font-size: 0.9rem;
   }
 }
 
 /* Responsive - Mobile */
 @media (max-width: 479px) {
-  .notification-banner {
+  .notification-container {
     top: 10px;
     left: 10px;
     right: 10px;
     transform: none;
     max-width: none;
-    min-width: auto;
-    width: auto;
-    padding: 10px 14px;
-    font-size: 0.9rem;
-    border-radius: 6px;
   }
 
-  @keyframes fadeInDown {
+  .notification-banner {
+    min-width: auto;
+    max-width: none;
+    padding: 10px 14px;
+    font-size: 0.85rem;
+    border-radius: 8px;
+  }
+
+  @keyframes notificationSlideIn {
     from {
       opacity: 0;
       transform: translateY(-20px);
@@ -114,11 +184,34 @@
   }
 
   .notification-message {
-    margin-right: 10px;
+    font-size: 0.85rem;
+  }
+
+  .notification-icon {
+    width: 20px;
+    height: 20px;
+    font-size: 0.75rem;
   }
 
   .notification-close-btn {
-    font-size: 1.3rem;
-    padding: 0 3px;
+    width: 22px;
+    height: 22px;
+    min-height: 22px;
+    font-size: 0.9rem;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .notification-banner {
+    animation: none;
+  }
+}
+
+/* Account for mobile bottom nav and header */
+@media (max-width: 480px) {
+  .notification-container {
+    /* Position below header + beta disclaimer */
+    top: calc(80px + env(safe-area-inset-top, 0px) + 10px);
   }
 }

@@ -1,0 +1,137 @@
+/* Premium Tooltip */
+.premium-tooltip-trigger {
+  display: inline-block;
+  cursor: pointer;
+}
+
+.premium-tooltip {
+  position: fixed;
+  z-index: 10001;
+  min-width: 220px;
+  max-width: 280px;
+  padding: 1rem;
+  background: linear-gradient(135deg, var(--secondary-bg, #1a1a2e), var(--card-bg, #16213e));
+  border-radius: 12px;
+  border: 1px solid var(--accent-color, rgba(255, 255, 255, 0.2));
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  animation: tooltipFadeIn 0.2s ease-out;
+  pointer-events: auto;
+}
+
+/* Tier-specific borders */
+.premium-tooltip-lifetime {
+  border-color: rgba(255, 215, 0, 0.4);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5), 0 0 20px rgba(255, 215, 0, 0.2);
+}
+
+.premium-tooltip-monthly {
+  border-color: rgba(0, 217, 255, 0.4);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5), 0 0 20px rgba(0, 217, 255, 0.2);
+}
+
+.premium-tooltip-admin {
+  border-color: rgba(255, 68, 68, 0.4);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5), 0 0 20px rgba(255, 68, 68, 0.2);
+}
+
+/* Header */
+.premium-tooltip-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 0.75rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.premium-tooltip-icon {
+  font-size: 1.25rem;
+}
+
+.premium-tooltip-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--accent-color, #fff);
+}
+
+/* Benefits list */
+.premium-tooltip-benefits {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.premium-tooltip-benefits li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 0.85rem;
+  color: var(--text-secondary, #a8a8a8);
+}
+
+.benefit-check {
+  color: var(--accent-color, #4CAF50);
+  font-weight: bold;
+  flex-shrink: 0;
+}
+
+/* Upgrade button */
+.premium-tooltip-upgrade-btn {
+  width: 100%;
+  margin-top: 0.75rem;
+  padding: 0.625rem 1rem;
+  background: linear-gradient(135deg, var(--primary-color, #e94560), #d63850);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.premium-tooltip-upgrade-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(233, 69, 96, 0.4);
+}
+
+.premium-tooltip-upgrade-btn:active {
+  transform: scale(0.98);
+}
+
+/* Animation */
+@keyframes tooltipFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .premium-tooltip {
+    animation: none;
+  }
+}
+
+/* Mobile adjustments */
+@media (max-width: 480px) {
+  .premium-tooltip {
+    min-width: 200px;
+    max-width: calc(100vw - 40px);
+    padding: 0.875rem;
+  }
+
+  .premium-tooltip-title {
+    font-size: 0.9rem;
+  }
+
+  .premium-tooltip-benefits li {
+    font-size: 0.8rem;
+  }
+}

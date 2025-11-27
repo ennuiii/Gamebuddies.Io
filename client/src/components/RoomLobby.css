@@ -631,6 +631,98 @@
   }
 }
 
+/* Enhanced Premium Player Card Borders */
+.player-card.premium-lifetime {
+  border: 2px solid transparent;
+  background-image: linear-gradient(rgba(22, 33, 62, 0.95), rgba(22, 33, 62, 0.95)),
+    linear-gradient(135deg, #FFD700, #FFA500, #FFD700);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+}
+
+.player-card.premium-monthly {
+  border: 2px solid transparent;
+  background-image: linear-gradient(rgba(22, 33, 62, 0.95), rgba(22, 33, 62, 0.95)),
+    linear-gradient(135deg, #00d9ff, #00ff88, #00d9ff);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+}
+
+.player-card.premium-admin {
+  border: 2px solid transparent;
+  background-image: linear-gradient(rgba(22, 33, 62, 0.95), rgba(22, 33, 62, 0.95)),
+    linear-gradient(135deg, #ff4444, #ff0000, #ff4444);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+}
+
+/* Sparkle/shine effect on premium badges */
+.premium-badge::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: linear-gradient(
+    45deg,
+    transparent 40%,
+    rgba(255, 255, 255, 0.4) 50%,
+    transparent 60%
+  );
+  animation: sparkleShine 3s ease-in-out infinite;
+}
+
+@keyframes sparkleShine {
+  0% {
+    transform: translateX(-100%) rotate(45deg);
+  }
+  50%, 100% {
+    transform: translateX(100%) rotate(45deg);
+  }
+}
+
+/* Crown icon styling for premium players */
+.premium-crown {
+  display: inline-block;
+  margin-right: 4px;
+  font-size: 0.9em;
+  animation: crownBounce 2s ease-in-out infinite;
+}
+
+@keyframes crownBounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-2px);
+  }
+}
+
+/* Premium host indicator in room header */
+.premium-host-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.15), rgba(255, 165, 0, 0.15));
+  border: 1px solid rgba(255, 215, 0, 0.4);
+  border-radius: 20px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: #FFD700;
+  animation: premiumHostGlow 2s ease-in-out infinite;
+}
+
+@keyframes premiumHostGlow {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(255, 215, 0, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.4);
+  }
+}
+
 /* Guest Badge */
 .guest-badge {
   display: inline-block;
