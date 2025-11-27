@@ -44,9 +44,13 @@ CREATE INDEX IF NOT EXISTS idx_user_achievements_earned_at ON public.user_achiev
 
 COMMENT ON TABLE public.user_achievements IS 'Tracks which achievements users have earned';
 
--- Add related_achievement_id to notifications if it doesn't exist
-ALTER TABLE public.notifications
-  ADD COLUMN IF NOT EXISTS related_achievement_id VARCHAR(50);
+-- Add related_achievement_id to notifications if the table exists
+DO $$
+BEGIN
+  IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'notifications') THEN
+    ALTER TABLE public.notifications ADD COLUMN IF NOT EXISTS related_achievement_id VARCHAR(50);
+  END IF;
+END $$;
 
 -- =====================================================
 -- STEP 0.5: Insert starter achievements (before adding points column)
@@ -154,32 +158,37 @@ BEGIN
     NULL;
   END;
 
-  -- Create notification
-  INSERT INTO public.notifications (
-    user_id,
-    type,
-    title,
-    message,
-    related_achievement_id,
-    priority,
-    metadata
-  ) VALUES (
-    p_user_id,
-    'achievement',
-    'Achievement Unlocked!',
-    v_achievement_name,
-    p_achievement_id,
-    CASE
-      WHEN v_achievement_rarity = 'legendary' THEN 'urgent'
-      WHEN v_achievement_rarity = 'epic' THEN 'high'
-      ELSE 'normal'
-    END,
-    jsonb_build_object(
-      'xp_reward', v_xp_reward,
-      'points_reward', v_points_reward,
-      'rarity', v_achievement_rarity
-    )
-  );
+  -- Create notification if table exists
+  BEGIN
+    INSERT INTO public.notifications (
+      user_id,
+      type,
+      title,
+      message,
+      related_achievement_id,
+      priority,
+      metadata
+    ) VALUES (
+      p_user_id,
+      'achievement',
+      'Achievement Unlocked!',
+      v_achievement_name,
+      p_achievement_id,
+      CASE
+        WHEN v_achievement_rarity = 'legendary' THEN 'urgent'
+        WHEN v_achievement_rarity = 'epic' THEN 'high'
+        ELSE 'normal'
+      END,
+      jsonb_build_object(
+        'xp_reward', v_xp_reward,
+        'points_reward', v_points_reward,
+        'rarity', v_achievement_rarity
+      )
+    );
+  EXCEPTION WHEN undefined_table THEN
+    -- notifications table doesn't exist, skip
+    NULL;
+  END;
 
   -- Build result
   v_result := jsonb_build_object(
