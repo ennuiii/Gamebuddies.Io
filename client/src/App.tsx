@@ -38,29 +38,30 @@ declare global {
 
 window.redeemCode = async (code: string): Promise<void> => {
   try {
-    // Find Supabase auth token in localStorage (key format varies)
+    // Find Supabase auth token in localStorage (searches all keys for access_token)
     let accessToken: string | null = null;
     for (let i = 0; i < localStorage.length; i++) {
       const key = localStorage.key(i);
-      if (key && key.includes('supabase') && key.includes('auth')) {
+      if (key) {
         try {
-          const data = JSON.parse(localStorage.getItem(key) || '');
-          if (data?.access_token) {
-            accessToken = data.access_token;
-            break;
-          }
-          if (data?.currentSession?.access_token) {
-            accessToken = data.currentSession.access_token;
-            break;
+          const value = localStorage.getItem(key);
+          if (value && value.includes('access_token')) {
+            const data = JSON.parse(value);
+            // Try different possible structures
+            accessToken = data?.access_token
+              || data?.currentSession?.access_token
+              || data?.session?.access_token;
+            if (accessToken) break;
           }
         } catch {
-          // Not JSON, skip
+          // Not JSON or parsing error, skip
         }
       }
     }
 
     if (!accessToken) {
       console.error('❌ You must be logged in to redeem codes');
+      console.log('Debug: localStorage keys:', Object.keys(localStorage));
       return;
     }
 
