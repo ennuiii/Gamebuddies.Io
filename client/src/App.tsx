@@ -22,6 +22,7 @@ import GameInviteToast from './components/GameInviteToast';
 import ErrorBoundary from './components/ErrorBoundary';
 import PageTransition from './components/PageTransition';
 import MobileBottomNav from './components/MobileBottomNav';
+import SkipLink from './components/SkipLink';
 import './App.css';
 
 // Lazy-loaded pages (code splitting)
@@ -86,6 +87,7 @@ function AppContent(): React.ReactElement {
 
   return (
     <div className="App">
+      <SkipLink targetId="main-content" />
       <Header
         onNavigateHome={handleNavigateHome}
         onNavigateGames={handleNavigateGames}
@@ -105,9 +107,10 @@ function AppContent(): React.ReactElement {
       <DebugPanel />
       <FriendList />
       <GameInviteToast />
-      <Suspense fallback={<PageLoadingFallback />}>
-        <AnimatePresence mode="wait">
-          <Routes location={location} key={location.pathname}>
+      <main id="main-content" tabIndex={-1}>
+        <Suspense fallback={<PageLoadingFallback />}>
+          <AnimatePresence mode="wait">
+            <Routes location={location} key={location.pathname}>
             <Route
               path="/"
               element={
@@ -257,9 +260,10 @@ function AppContent(): React.ReactElement {
                 </PageTransition>
               }
             />
-          </Routes>
-        </AnimatePresence>
-      </Suspense>
+            </Routes>
+          </AnimatePresence>
+        </Suspense>
+      </main>
       <Footer />
       <MobileBottomNav
         onNavigateHome={handleNavigateHome}

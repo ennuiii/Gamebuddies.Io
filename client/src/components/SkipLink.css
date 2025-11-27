@@ -1,0 +1,34 @@
+/* Skip Link - Accessibility Navigation */
+.skip-link {
+  position: fixed;
+  top: -100%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10001; /* Above everything including header */
+  padding: 1rem 2rem;
+  background: var(--secondary-color, #00d9ff);
+  color: #000;
+  font-weight: 700;
+  font-size: 1rem;
+  text-decoration: none;
+  border-radius: 0 0 12px 12px;
+  box-shadow: 0 4px 20px rgba(0, 217, 255, 0.4);
+  transition: top 0.3s ease;
+}
+
+.skip-link:focus {
+  top: 0;
+  outline: none;
+}
+
+.skip-link:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 2px;
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .skip-link {
+    transition: none;
+  }
+}

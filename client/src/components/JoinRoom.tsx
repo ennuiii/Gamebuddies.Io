@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, FormEvent, ChangeEvent } from 'reac
 import { useSocket } from '../contexts/LazySocketContext';
 import { useAuth } from '../contexts/AuthContext';
 import { SOCKET_EVENTS, SERVER_EVENTS } from '@shared/constants';
+import LoadingSpinner from './LoadingSpinner';
 import './JoinRoom.css';
 
 const DEBOUNCE_MS = 1000;
@@ -305,7 +306,14 @@ const JoinRoom: React.FC<JoinRoomProps> = ({
               className="join-button"
               disabled={isJoining || !roomCode.trim() || (!isAuthenticated && !displayName.trim())}
             >
-              {isJoining ? 'JOINING ROOM...' : 'JOIN ROOM'}
+              {isJoining ? (
+                <>
+                  <LoadingSpinner size="sm" color="white" inline />
+                  Joining...
+                </>
+              ) : (
+                'JOIN ROOM'
+              )}
             </button>
           </div>
         </form>

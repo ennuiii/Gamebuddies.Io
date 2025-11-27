@@ -2,6 +2,7 @@ import React, { useState, useRef, FormEvent, ChangeEvent } from 'react';
 import { useSocket } from '../contexts/LazySocketContext';
 import { useAuth } from '../contexts/AuthContext';
 import { SOCKET_EVENTS, SERVER_EVENTS } from '@shared/constants';
+import LoadingSpinner from './LoadingSpinner';
 import './CreateRoom.css';
 
 const DEBOUNCE_MS = 1000;
@@ -241,7 +242,14 @@ const CreateRoom: React.FC<CreateRoomProps> = ({ onRoomCreated, onCancel }) => {
               Cancel
             </button>
             <button type="submit" className="create-button" disabled={isCreating}>
-              {isCreating ? 'Creating...' : 'Create Room'}
+              {isCreating ? (
+                <>
+                  <LoadingSpinner size="sm" color="white" inline />
+                  Creating...
+                </>
+              ) : (
+                'Create Room'
+              )}
             </button>
           </div>
         </form>
