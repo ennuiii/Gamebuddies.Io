@@ -1,4 +1,5 @@
 import http from 'http';
+import { Server } from 'socket.io';
 import dotenv from 'dotenv';
 
 // Load environment variables first
@@ -15,7 +16,8 @@ import { db } from './lib/supabase';
 
 // Import app factory and socket setup
 import { createApp, setupFinalRoutes } from './app';
-import { initializeSocketIO } from './sockets';
+import { registerAllHandlers } from './sockets';
+import type { ServerContext } from './types';
 
 // Import cleanup and error handling
 import { startAllCleanupServices, stopAllCleanupServices } from './services/cleanupService';
@@ -32,40 +34,67 @@ async function startServer(): Promise<void> {
     console.log('🚀 Starting GameBuddies Server v2.1.0...');
     console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
 
-    // Create proxy manager instance
-    const proxyManager = new ProxyManager();
+    // 1. Create HTTP Server
+    const server = http.createServer();
 
-    // Initialize connection manager first (no dependencies)
-    console.log('📦 Initializing managers...');
-    const connectionManager = new ConnectionManager();
-
-    // Create placeholder for roomLifecycleManager (will be updated with io)
-    const roomLifecycleManager = new RoomLifecycleManager(null as any);
-
-    // Create Express app first (needed for http.createServer)
-    // Note: We pass null for io initially, it will be set up after
-    const app = createApp(null as any, db, connectionManager);
-
-    // Create HTTP server with Express app attached
-    // This is the correct pattern for Express + Socket.IO
-    const server = http.createServer(app);
-
-    // Initialize Socket.IO with handlers (attaches to server)
-    const io = initializeSocketIO(server, {
-      db,
-      connectionManager,
-      lobbyManager: null as any,
-      statusSyncManager: null as any,
-      roomLifecycleManager,
-      proxyManager
+    // 2. Create Socket.IO Server
+    const io = new Server(server, {
+      cors: {
+        origin: (origin, callback) => {
+          // Allow all gamebuddies.io and onrender.com origins
+          if (!origin) {
+            callback(null, true);
+            return;
+          }
+          try {
+            const { hostname } = new URL(origin);
+            if (
+              hostname === 'localhost' ||
+              hostname === 'gamebuddies.io' ||
+              hostname.endsWith('.gamebuddies.io') ||
+              hostname.endsWith('.onrender.com')
+            ) {
+              callback(null, true);
+              return;
+            }
+          } catch {
+            // Invalid URL
+          }
+          callback(new Error('Not allowed by CORS'));
+        },
+        credentials: true
+      },
+      pingTimeout: 60000,
+      pingInterval: 25000
     });
 
-    // Update roomLifecycleManager with actual io instance
-    (roomLifecycleManager as any).io = io;
-
-    // Create managers that depend on io
+    // 3. Initialize Managers (with fully initialized io)
+    console.log('📦 Initializing managers...');
+    const connectionManager = new ConnectionManager();
     const lobbyManager = new LobbyManager(io, db as any, connectionManager);
     const statusSyncManager = new StatusSyncManager(db as any, io, lobbyManager as any);
+    const roomLifecycleManager = new RoomLifecycleManager(io);
+    const proxyManager = new ProxyManager();
+
+    // 4. Construct Server Context
+    const ctx: ServerContext = {
+      io,
+      db,
+      connectionManager,
+      lobbyManager,
+      statusSyncManager,
+      roomLifecycleManager,
+      proxyManager
+    };
+
+    // 5. Register Socket Handlers (now has full context with lobbyManager)
+    registerAllHandlers(io, ctx);
+
+    // 6. Create Express App
+    const app = createApp(io, db, connectionManager);
+
+    // 7. Attach App to Server
+    server.on('request', app);
 
     // Load and setup game proxies from database
     console.log('🎮 Setting up game proxies...');

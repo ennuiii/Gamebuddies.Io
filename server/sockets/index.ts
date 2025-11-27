@@ -111,69 +111,37 @@ function startHostTransferGracePeriod(
 }
 
 /**
- * Initialize Socket.IO with all handlers
+ * Register all Socket.IO handlers
+ * (Called after io and all managers are initialized)
  */
-export function initializeSocketIO(
-  httpServer: http.Server,
-  ctx: Omit<ServerContext, 'io'>
-): Server {
-  const io = new Server(httpServer, {
-    cors: {
-      origin: (origin, callback) => {
-        // Allow all gamebuddies.io and onrender.com origins
-        if (!origin) {
-          callback(null, true);
-          return;
-        }
-        try {
-          const { hostname } = new URL(origin);
-          if (
-            hostname === 'localhost' ||
-            hostname === 'gamebuddies.io' ||
-            hostname.endsWith('.gamebuddies.io') ||
-            hostname.endsWith('.onrender.com')
-          ) {
-            callback(null, true);
-            return;
-          }
-        } catch {
-          // Invalid URL
-        }
-        callback(new Error('Not allowed by CORS'));
-      },
-      credentials: true
-    },
-    pingTimeout: 60000,
-    pingInterval: 25000
-  });
-
-  // Create full context with io
-  const fullCtx: ServerContext = { ...ctx, io };
-
+export function registerAllHandlers(
+  io: Server,
+  ctx: ServerContext
+): void {
   // Handle new connections
   io.on('connection', async (socket) => {
     console.log(`🔌 User connected: ${socket.id}`);
 
     // Store connection info
-    fullCtx.connectionManager.addConnection(socket.id);
+    ctx.connectionManager.addConnection(socket.id);
 
     // Register all handlers
-    registerChatHandlers(socket, fullCtx, gameState);
-    registerFriendHandlers(socket, fullCtx);
-    registerConnectionHandlers(socket, fullCtx);
-    registerRoomHandlers(socket, fullCtx);
-    registerGameHandlers(socket, fullCtx);
-    registerPlayerHandlers(socket, fullCtx);
+    registerChatHandlers(socket, ctx, gameState);
+    registerFriendHandlers(socket, ctx);
+    registerConnectionHandlers(socket, ctx);
+    registerRoomHandlers(socket, ctx);
+    registerGameHandlers(socket, ctx);
+    registerPlayerHandlers(socket, ctx);
 
     // Handle disconnection
     socket.on('disconnect', async () => {
       try {
         console.log(`🔌 User disconnected: ${socket.id}`);
 
-        const connection = fullCtx.connectionManager.removeConnection(socket.id);
+        const connection = ctx.connectionManager.removeConnection(socket.id);
         if (connection?.userId) {
           // Notify friends of disconnection
-          await notifyFriendsOffline(fullCtx, connection.userId);
+          await notifyFriendsOffline(ctx, connection.userId);
 
           // Check if disconnecting user is the host
           let isDisconnectingHost = false;
@@ -181,7 +149,7 @@ export function initializeSocketIO(
           let disconnectingParticipant: any = null;
 
           if (connection.roomId) {
-            room = await fullCtx.db.getRoomById(connection.roomId);
+            room = await ctx.db.getRoomById(connection.roomId);
             disconnectingParticipant = room?.participants?.find(
               (p: { user_id: string }) => p.user_id === connection.userId
             );
@@ -200,7 +168,7 @@ export function initializeSocketIO(
           }
 
           // Update participant connection status
-          await fullCtx.db.updateParticipantConnection(
+          await ctx.db.updateParticipantConnection(
             connection.userId,
             socket.id,
             connectionStatus
@@ -208,7 +176,7 @@ export function initializeSocketIO(
 
           // Auto-update room status if host
           if (isDisconnectingHost && connectionStatus && room) {
-            await autoUpdateRoomStatusByHost(io, fullCtx.db, room.id, connection.userId, connectionStatus);
+            await autoUpdateRoomStatusByHost(io, ctx.db, room.id, connection.userId, connectionStatus);
           }
 
           // Handle host disconnect with grace period
@@ -220,13 +188,13 @@ export function initializeSocketIO(
 
             if (otherConnectedPlayers.length > 0) {
               console.log(`⏳ [HOST] Host ${connection.userId} disconnected - starting grace period`);
-              startHostTransferGracePeriod(fullCtx, room.id, room.room_code, connection.userId);
+              startHostTransferGracePeriod(ctx, room.id, room.room_code, connection.userId);
             }
           }
 
           // Notify other players about disconnection
           if (connection.roomId && room) {
-            const updatedRoom = await fullCtx.db.getRoomById(connection.roomId);
+            const updatedRoom = await ctx.db.getRoomById(connection.roomId);
             const allPlayers = updatedRoom?.participants?.map((p: any) => ({
               id: p.user_id,
               name: p.custom_lobby_name || p.user?.display_name || 'Player',
@@ -262,7 +230,7 @@ export function initializeSocketIO(
             ) || [];
             if (activePlayers.length === 0) {
               console.log(`⏳ [ABANDON] Room ${room.room_code} has no active players - starting grace period`);
-              fullCtx.roomLifecycleManager.startAbandonmentGracePeriod(room.id, room.room_code);
+              ctx.roomLifecycleManager.startAbandonmentGracePeriod(room.id, room.room_code);
             }
           }
         }
@@ -274,8 +242,6 @@ export function initializeSocketIO(
   });
 
   console.log('✅ Socket.IO initialized with all handlers');
-
-  return io;
 }
 
 /**
