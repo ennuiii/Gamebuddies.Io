@@ -680,6 +680,85 @@ export default function createGameApiV2Router(
     }
   });
 
+  // V2 Mark room as abandoned (called when game server room is deleted)
+  router.post('/rooms/:roomCode/abandon', apiKeyMiddleware, getRateLimiter('apiCalls'), async (req: Request, res: Response): Promise<void> => {
+    try {
+      const apiReq = req as ApiKeyRequest;
+      const { roomCode } = req.params;
+      const { reason = 'game_room_deleted' } = req.body;
+
+      console.log(`🚪 [API V2] Room abandon requested for ${roomCode} by ${apiReq.apiKey?.service_name} (reason: ${reason})`);
+
+      // 1. Get room by room_code
+      const { data: room, error: roomErr } = await db.adminClient
+        .from('rooms')
+        .select('id')
+        .eq('room_code', roomCode)
+        .single();
+
+      if (roomErr || !room) {
+        console.log(`[API V2] Room ${roomCode} not found for abandon - may already be deleted`);
+        res.status(404).json({ error: 'Room not found', code: 'ROOM_NOT_FOUND' });
+        return;
+      }
+
+      const typedRoom = room as { id: string };
+
+      // 2. Update room status to 'abandoned'
+      const { error: roomUpdateErr } = await db.adminClient
+        .from('rooms')
+        .update({
+          status: 'abandoned',
+          last_activity: new Date().toISOString()
+        })
+        .eq('id', typedRoom.id);
+
+      if (roomUpdateErr) {
+        console.error('[API V2] Failed to update room status:', roomUpdateErr);
+      }
+
+      // 3. Update all players: in_game = false, current_location = 'lobby', is_connected = false
+      const { error: membersUpdateErr } = await db.adminClient
+        .from('room_members')
+        .update({
+          in_game: false,
+          current_location: 'lobby',
+          is_connected: false
+        })
+        .eq('room_id', typedRoom.id);
+
+      if (membersUpdateErr) {
+        console.error('[API V2] Failed to update room members:', membersUpdateErr);
+      }
+
+      // 4. Broadcast to any connected clients (in case some are still connected to gamebuddies.io)
+      if (io) {
+        io.to(roomCode).emit('roomStatusChanged', {
+          status: 'abandoned',
+          reason,
+          roomCode,
+          timestamp: new Date().toISOString()
+        });
+      }
+
+      console.log(`✅ [API V2] Room ${roomCode} marked as abandoned`);
+
+      res.json({
+        success: true,
+        roomCode,
+        status: 'abandoned',
+        reason
+      });
+
+    } catch (error) {
+      console.error('❌ [API V2] Room abandon error:', error);
+      res.status(500).json({
+        error: 'Room abandon failed',
+        code: 'ROOM_ABANDON_FAILED'
+      });
+    }
+  });
+
   // V2 Progress Event (XP Gain)
   router.post('/progress/event', apiKeyMiddleware, getRateLimiter('apiCalls'), async (req: Request, res: Response): Promise<void> => {
     try {
