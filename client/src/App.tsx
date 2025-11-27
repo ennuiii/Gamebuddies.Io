@@ -38,9 +38,26 @@ declare global {
 
 window.redeemCode = async (code: string): Promise<void> => {
   try {
-    const token = localStorage.getItem('supabase.auth.token');
-    const session = token ? JSON.parse(token) : null;
-    const accessToken = session?.currentSession?.access_token;
+    // Find Supabase auth token in localStorage (key format varies)
+    let accessToken: string | null = null;
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.includes('supabase') && key.includes('auth')) {
+        try {
+          const data = JSON.parse(localStorage.getItem(key) || '');
+          if (data?.access_token) {
+            accessToken = data.access_token;
+            break;
+          }
+          if (data?.currentSession?.access_token) {
+            accessToken = data.currentSession.access_token;
+            break;
+          }
+        } catch {
+          // Not JSON, skip
+        }
+      }
+    }
 
     if (!accessToken) {
       console.error('❌ You must be logged in to redeem codes');
