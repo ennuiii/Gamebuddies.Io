@@ -38,32 +38,11 @@
   position: relative;
 }
 
-.back-button {
-  position: absolute;
-  top: 0;
-  left: 0;
-  background: rgba(255, 255, 255, 0.1);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: var(--text-primary);
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  transition: all 0.2s ease;
-  z-index: 10; /* Ensure button is above other content if overlapping */
-}
-
-.back-button:hover {
-  background: rgba(255, 255, 255, 0.15);
-}
-
 .header-content {
   display: flex;
   flex-direction: column;
   align-items: center;
   text-align: center;
-  padding-top: 3rem;
-  position: relative; /* Establish positioning context for button */
 }
 
 .achievements-header h1 {

@@ -201,10 +201,6 @@ const Achievements: React.FC = () => {
     <div className="achievements-page">
       {/* Header with stats */}
       <header className="achievements-header">
-        <button className="back-button" onClick={() => navigate(-1)} aria-label="Go back">
-          &larr; Back
-        </button>
-
         <div className="header-content">
           <h1>{isOwnProfile ? 'My Achievements' : 'Achievements'}</h1>
 
