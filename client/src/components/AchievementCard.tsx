@@ -45,7 +45,8 @@ const AchievementCard: React.FC<AchievementCardProps> = ({ achievement, showProg
   const currentValue = Math.round((user_progress / 100) * requirement_value);
   
   // Determine display text
-  const showFraction = (requirement_type === 'count' || requirement_type === 'streak') && requirement_value > 1;
+  // Show fraction for count/streak if requirement_value > 0
+  const showFraction = (requirement_type === 'count' || requirement_type === 'streak') && requirement_value > 0;
   const progressText = showFraction 
     ? `${currentValue} / ${requirement_value}`
     : `${user_progress}%`;
@@ -85,7 +86,7 @@ const AchievementCard: React.FC<AchievementCardProps> = ({ achievement, showProg
       </div>
 
       {/* Progress bar */}
-      {showProgress && !is_unlocked && user_progress > 0 && !isSecret && (
+      {showProgress && !is_unlocked && !isSecret && (
         <div className="achievement-progress">
           <div className="progress-bar">
             <div className="progress-fill" style={{ width: `${user_progress}%` }} />
