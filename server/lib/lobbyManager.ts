@@ -202,15 +202,23 @@ class LobbyManager {
       });
 
       // Increment rooms_hosted metric
-      await this.db.adminClient.rpc('increment_metric', {
+      console.log(`[LOBBY] Incrementing rooms_hosted metric for user ${hostId}`);
+      const { error: metricError } = await this.db.adminClient.rpc('increment_metric', {
         p_user_id: hostId,
         p_metric_key: 'rooms_hosted',
         p_increment: 1,
         p_game_id: null
       });
 
+      if (metricError) {
+        console.error(`❌ [LOBBY] Failed to increment rooms_hosted:`, metricError);
+      } else {
+        console.log(`✅ [LOBBY] Incremented rooms_hosted for ${hostId}`);
+      }
+
       // Check achievement for hosting rooms
-      await this.db.adminClient.rpc('check_achievements', {
+      console.log(`[LOBBY] Checking achievements for user ${hostId} (room_hosted)`);
+      const { data: achievementData, error: achievementError } = await this.db.adminClient.rpc('check_achievements', {
         p_user_id: hostId,
         p_event_type: 'room_hosted',
         p_event_data: {
@@ -218,6 +226,12 @@ class LobbyManager {
           game_type: gameType
         }
       });
+
+      if (achievementError) {
+        console.error(`❌ [LOBBY] Failed to check achievements:`, achievementError);
+      } else {
+        console.log(`✅ [LOBBY] Achievements checked for ${hostId}:`, achievementData);
+      }
 
       // Log event
       await this.db.logEvent((room as Room).id, hostId, 'room_created', {
