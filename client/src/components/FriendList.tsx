@@ -81,42 +81,69 @@ const FriendList: React.FC = () => {
 
   if (!isFriendListOpen) {
     return (
-      <div className="friend-list-toggle" onClick={() => setIsFriendListOpen(true)}>
-        <span className="icon">👥</span>
-        {onlineList.length > 0 && <span className="badge">{onlineList.length}</span>}
+      <button
+        className="friend-list-toggle"
+        onClick={() => setIsFriendListOpen(true)}
+        aria-label={`Open friends list. ${onlineList.length} online${pendingRequests.length > 0 ? `, ${pendingRequests.length} pending requests` : ''}`}
+        aria-expanded="false"
+      >
+        <span className="icon" aria-hidden="true">👥</span>
+        {onlineList.length > 0 && <span className="badge" aria-hidden="true">{onlineList.length}</span>}
         {pendingRequests.length > 0 && (
-          <span className="badge pending">{pendingRequests.length}</span>
+          <span className="badge pending" aria-hidden="true">{pendingRequests.length}</span>
         )}
-      </div>
+      </button>
     );
   }
 
   return (
     <div className="friend-list-container">
       <div className="friend-list-header">
-        <h3>Friends</h3>
-        <button className="close-btn" onClick={() => setIsFriendListOpen(false)}>
-          ×
+        <h3 id="friend-list-title">Friends</h3>
+        <button
+          className="close-btn"
+          onClick={() => setIsFriendListOpen(false)}
+          aria-label="Close friends list"
+        >
+          <span aria-hidden="true">×</span>
         </button>
       </div>
 
-      <div className="friend-tabs">
+      <div className="friend-tabs" role="tablist" aria-label="Friend list tabs">
         <button
+          role="tab"
+          aria-selected={activeTab === 'online'}
+          aria-controls="online-tab-panel"
           className={activeTab === 'online' ? 'active' : ''}
           onClick={() => setActiveTab('online')}
         >
           Online ({onlineList.length})
         </button>
-        <button className={activeTab === 'all' ? 'active' : ''} onClick={() => setActiveTab('all')}>
+        <button
+          role="tab"
+          aria-selected={activeTab === 'all'}
+          aria-controls="all-tab-panel"
+          className={activeTab === 'all' ? 'active' : ''}
+          onClick={() => setActiveTab('all')}
+        >
           All
         </button>
         <button
+          role="tab"
+          aria-selected={activeTab === 'pending'}
+          aria-controls="pending-tab-panel"
           className={activeTab === 'pending' ? 'active' : ''}
           onClick={() => setActiveTab('pending')}
         >
           Pending {pendingRequests.length > 0 && `(${pendingRequests.length})`}
         </button>
-        <button className={activeTab === 'add' ? 'active' : ''} onClick={() => setActiveTab('add')}>
+        <button
+          role="tab"
+          aria-selected={activeTab === 'add'}
+          aria-controls="add-tab-panel"
+          className={activeTab === 'add' ? 'active' : ''}
+          onClick={() => setActiveTab('add')}
+        >
           Add
         </button>
       </div>
@@ -150,6 +177,7 @@ const FriendList: React.FC = () => {
               value={searchQuery}
               onChange={(e: ChangeEvent<HTMLInputElement>) => setSearchQuery(e.target.value)}
               className="friend-search"
+              aria-label="Search friends by username"
             />
             {allList.map((friend) => (
               <FriendItem
@@ -175,12 +203,20 @@ const FriendList: React.FC = () => {
                 </div>
                 <div className="actions">
                   {req.type !== 'sent' && (
-                    <button className="accept-btn" onClick={() => acceptFriendRequest(req.id)}>
-                      ✓
+                    <button
+                      className="accept-btn"
+                      onClick={() => acceptFriendRequest(req.id)}
+                      aria-label={`Accept friend request from ${req.user?.username || req.from_username || 'user'}`}
+                    >
+                      <span aria-hidden="true">✓</span>
                     </button>
                   )}
-                  <button className="reject-btn" onClick={() => rejectFriendRequest(req.id)}>
-                    ✕
+                  <button
+                    className="reject-btn"
+                    onClick={() => rejectFriendRequest(req.id)}
+                    aria-label={`${req.type === 'sent' ? 'Cancel' : 'Reject'} friend request ${req.type === 'sent' ? 'to' : 'from'} ${req.user?.username || req.from_username || 'user'}`}
+                  >
+                    <span aria-hidden="true">✕</span>
                   </button>
                 </div>
               </div>

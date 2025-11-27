@@ -3,6 +3,7 @@ import { useSocket } from '../contexts/LazySocketContext';
 import { useAuth } from '../contexts/AuthContext';
 import { SOCKET_EVENTS, SERVER_EVENTS } from '@shared/constants';
 import LoadingSpinner from './LoadingSpinner';
+import useFocusTrap from '../hooks/useFocusTrap';
 import './JoinRoom.css';
 
 const DEBOUNCE_MS = 1000;
@@ -45,6 +46,13 @@ const JoinRoom: React.FC<JoinRoomProps> = ({
   const { socket, connectSocket, isConnected } = useSocket();
   const lastSubmitRef = useRef<number>(0);
   const joinListenersSetRef = useRef<boolean>(false);
+
+  // Focus trap for modal accessibility
+  const { containerRef } = useFocusTrap<HTMLDivElement>({
+    isActive: true,
+    onEscape: onCancel,
+    closeOnEscape: !isJoining,
+  });
 
   const isAuthenticated = !!session?.user;
 
@@ -243,8 +251,14 @@ const JoinRoom: React.FC<JoinRoomProps> = ({
 
   return (
     <div className="join-room-overlay">
-      <div className="join-room-modal">
-        <h2 className="join-room-title">Join Room</h2>
+      <div
+        ref={containerRef}
+        className="join-room-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="join-room-title"
+      >
+        <h2 id="join-room-title" className="join-room-title">Join Room</h2>
 
         <form onSubmit={handleSubmit} className="join-room-form">
           {isInviteLink ? (

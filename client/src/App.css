@@ -78,6 +78,22 @@ select:focus-visible {
   }
 }
 
+/* ============================================
+   ACCESSIBILITY: Visually Hidden (Screen Reader Only)
+   ============================================ */
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
 .App {
   min-height: 100vh;
   background: linear-gradient(135deg, var(--primary-bg) 0%, var(--secondary-bg) 100%);

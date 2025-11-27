@@ -170,6 +170,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigateHome, onNavigateGames, isInLo
                       onClick={() => navigate('/account')}
                       className="user-info user-info-button"
                       title="View Account Settings"
+                      aria-label="View your account settings"
                     >
                       {user.is_guest ? (
                         <>
@@ -198,7 +199,12 @@ const Header: React.FC<HeaderProps> = ({ onNavigateHome, onNavigateGames, isInLo
                         </>
                       )}
                     </button>
-                    <button onClick={handleLogout} className="logout-button" disabled={isLoggingOut}>
+                    <button
+                      onClick={handleLogout}
+                      className="logout-button"
+                      disabled={isLoggingOut}
+                      aria-label={isLoggingOut ? 'Logging out' : 'Log out of your account'}
+                    >
                       {isLoggingOut ? 'Logging out...' : 'Logout'}
                     </button>
                   </div>

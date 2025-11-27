@@ -31,7 +31,12 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ messages, onSendMessage, curren
       <div className="chat-header">
         <h3>Lobby Chat</h3>
       </div>
-      <div className="chat-messages">
+      <div
+        className="chat-messages"
+        role="log"
+        aria-live="polite"
+        aria-label="Chat messages"
+      >
         {messages.map((msg, index) => {
           const isMe = msg.playerName === currentPlayerName;
           const isSystem = msg.type === 'system';
@@ -40,6 +45,8 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ messages, onSendMessage, curren
             <div
               key={msg.id || index}
               className={`chat-message ${isMe ? 'me' : ''} ${isSystem ? 'system' : ''}`}
+              role="article"
+              aria-label={isSystem ? `System: ${msg.message}` : `${msg.playerName} says: ${msg.message}`}
             >
               {!isSystem && <span className="chat-sender">{msg.playerName}</span>}
               <span className="chat-text">{msg.message}</span>
@@ -48,15 +55,24 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ messages, onSendMessage, curren
         })}
         <div ref={messagesEndRef} />
       </div>
-      <form className="chat-input-form" onSubmit={handleSubmit}>
+      <form className="chat-input-form" onSubmit={handleSubmit} role="search">
+        <label htmlFor="chat-input" className="visually-hidden">
+          Type a chat message
+        </label>
         <input
+          id="chat-input"
           type="text"
           placeholder="Type a message..."
           value={newMessage}
           onChange={(e: ChangeEvent<HTMLInputElement>) => setNewMessage(e.target.value)}
           maxLength={200}
+          aria-label="Chat message input"
         />
-        <button type="submit" disabled={!newMessage.trim()}>
+        <button
+          type="submit"
+          disabled={!newMessage.trim()}
+          aria-label="Send message"
+        >
           Send
         </button>
       </form>

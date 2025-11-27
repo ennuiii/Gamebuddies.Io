@@ -3,6 +3,7 @@ import { useSocket } from '../contexts/LazySocketContext';
 import { useAuth } from '../contexts/AuthContext';
 import { SOCKET_EVENTS, SERVER_EVENTS } from '@shared/constants';
 import LoadingSpinner from './LoadingSpinner';
+import useFocusTrap from '../hooks/useFocusTrap';
 import './CreateRoom.css';
 
 const DEBOUNCE_MS = 1000;
@@ -28,6 +29,13 @@ const CreateRoom: React.FC<CreateRoomProps> = ({ onRoomCreated, onCancel }) => {
   const { socket, isConnected, connectSocket } = useSocket();
   const { user, session } = useAuth();
   const lastSubmitRef = useRef<number>(0);
+
+  // Focus trap for modal accessibility
+  const { containerRef } = useFocusTrap<HTMLDivElement>({
+    isActive: true,
+    onEscape: onCancel,
+    closeOnEscape: !isCreating,
+  });
 
   const isAuthenticated = !!session?.user;
 
@@ -175,8 +183,14 @@ const CreateRoom: React.FC<CreateRoomProps> = ({ onRoomCreated, onCancel }) => {
 
   return (
     <div className="create-room-overlay">
-      <div className="create-room-modal">
-        <h2 className="create-room-title">Create Game Room</h2>
+      <div
+        ref={containerRef}
+        className="create-room-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="create-room-title"
+      >
+        <h2 id="create-room-title" className="create-room-title">Create Game Room</h2>
 
         <form onSubmit={handleSubmit} className="create-room-form">
           <div className="form-group">
