@@ -718,12 +718,12 @@ export default function createGameApiV2Router(
         console.error('[API V2] Failed to update room status:', roomUpdateErr);
       }
 
-      // 3. Update all players: in_game = false, current_location = 'lobby', is_connected = false
+      // 3. Update all players: in_game = false, current_location = 'disconnected', is_connected = false
       const { error: membersUpdateErr } = await db.adminClient
         .from('room_members')
         .update({
           in_game: false,
-          current_location: 'lobby',
+          current_location: 'disconnected',
           is_connected: false
         })
         .eq('room_id', typedRoom.id);
