@@ -321,6 +321,7 @@ export class AchievementService {
 
   /**
    * Manually grant an achievement (for special achievements)
+   * Now uses server-side logic instead of SQL function for better debugging and data return
    */
   async grantAchievement(
     userId: string,
@@ -329,50 +330,123 @@ export class AchievementService {
     gameId?: string
   ): Promise<UnlockedAchievement | null> {
     try {
-      const { data, error } = await supabaseAdmin.rpc('grant_achievement', {
-        p_user_id: userId,
-        p_achievement_id: achievementId,
-        p_room_id: roomId || null,
-        p_game_id: gameId || null,
-      });
+      console.log(`[AchievementService] Granting achievement "${achievementId}" to user ${userId}`);
 
-      if (error) {
-        console.error('[AchievementService] Error granting achievement:', error);
+      // 1. Check if already earned
+      const { data: existing } = await supabaseAdmin
+        .from('user_achievements')
+        .select('earned_at')
+        .eq('user_id', userId)
+        .eq('achievement_id', achievementId)
+        .maybeSingle();
+
+      if (existing?.earned_at) {
+        console.log(`[AchievementService] Achievement "${achievementId}" already earned by user ${userId}`);
         return null;
       }
 
-      // Type for the SQL function return value
-      interface GrantAchievementResult {
-        success: boolean;
-        reason?: string;
-        achievement_id?: string;
-        name?: string;
-        xp_reward?: number;
-        points_reward?: number;
-        rarity?: string;
-      }
+      // 2. Get achievement definition
+      const { data: achievement, error: achievementError } = await supabaseAdmin
+        .from('achievements')
+        .select('*')
+        .eq('id', achievementId)
+        .single();
 
-      const result = data as GrantAchievementResult;
-
-      if (!result.success) {
-        console.log(`[AchievementService] Achievement not granted: ${result.reason}`);
+      if (achievementError || !achievement) {
+        console.error(`[AchievementService] Achievement "${achievementId}" not found:`, achievementError);
         return null;
       }
 
-      console.log(`[AchievementService] Granted achievement "${result.name}" to user ${userId}`);
+      console.log(`[AchievementService] Found achievement: ${achievement.name} (${achievement.xp_reward} XP, ${achievement.points} points)`);
 
+      // 3. Insert/update user_achievements record
+      const { error: upsertError } = await supabaseAdmin
+        .from('user_achievements')
+        .upsert({
+          user_id: userId,
+          achievement_id: achievementId,
+          earned_at: new Date().toISOString(),
+          earned_in_room_id: roomId || null,
+          earned_in_game: gameId || null,
+        }, {
+          onConflict: 'user_id,achievement_id'
+        });
+
+      if (upsertError) {
+        console.error(`[AchievementService] Error inserting user_achievement:`, upsertError);
+        return null;
+      }
+
+      // 4. Update user XP and achievement points EXPLICITLY
+      const { data: userData, error: userFetchError } = await supabaseAdmin
+        .from('users')
+        .select('xp, achievement_points')
+        .eq('id', userId)
+        .single();
+
+      if (userFetchError) {
+        console.error(`[AchievementService] Error fetching user stats:`, userFetchError);
+      } else {
+        const newXp = (userData?.xp || 0) + achievement.xp_reward;
+        const newPoints = (userData?.achievement_points || 0) + achievement.points;
+
+        console.log(`[AchievementService] Updating user ${userId}: XP ${userData?.xp || 0} -> ${newXp}, Points ${userData?.achievement_points || 0} -> ${newPoints}`);
+
+        const { error: updateError } = await supabaseAdmin
+          .from('users')
+          .update({
+            xp: newXp,
+            achievement_points: newPoints,
+          })
+          .eq('id', userId);
+
+        if (updateError) {
+          console.error(`[AchievementService] Error updating user XP/points:`, updateError);
+        } else {
+          console.log(`[AchievementService] Successfully updated user XP and points`);
+        }
+      }
+
+      // 5. Create notification (optional, may fail if table doesn't exist)
+      try {
+        await supabaseAdmin.from('notifications').insert({
+          user_id: userId,
+          type: 'achievement',
+          title: 'Achievement Unlocked!',
+          message: achievement.name,
+          related_achievement_id: achievementId,
+          priority: achievement.rarity === 'legendary' ? 'urgent' : achievement.rarity === 'epic' ? 'high' : 'normal',
+          metadata: {
+            xp_reward: achievement.xp_reward,
+            points_reward: achievement.points,
+            rarity: achievement.rarity,
+            description: achievement.description,
+            icon_url: achievement.icon_url,
+          },
+        });
+      } catch (notifError) {
+        // Notifications table may not exist, that's okay
+        console.log(`[AchievementService] Could not create notification (table may not exist)`);
+      }
+
+      console.log(`[AchievementService] Successfully granted achievement "${achievement.name}" to user ${userId}`);
+
+      // 6. Return full achievement data for toast
       return {
-        id: result.achievement_id || achievementId,
-        name: result.name || '',
-        description: '', // Not returned by function, can be fetched if needed
-        icon_url: null,
-        xp_reward: result.xp_reward || 0,
-        points: result.points_reward || 0,
-        rarity: (result.rarity || 'common') as 'common' | 'rare' | 'epic' | 'legendary',
+        id: achievement.id,
+        name: achievement.name,
+        description: achievement.description || '',
+        icon_url: achievement.icon_url || null,
+        category: achievement.category as 'games_played' | 'wins' | 'social' | 'progression' | 'premium' | 'special',
+        requirement_type: achievement.requirement_type as 'count' | 'streak' | 'condition' | 'special',
+        requirement_value: achievement.requirement_value || 1,
+        xp_reward: achievement.xp_reward || 0,
+        points: achievement.points || 0,
+        rarity: (achievement.rarity || 'common') as 'common' | 'rare' | 'epic' | 'legendary',
         earned_at: new Date().toISOString(),
       };
     } catch (error) {
-      console.error('[AchievementService] Unexpected error:', error);
+      console.error('[AchievementService] Unexpected error granting achievement:', error);
       return null;
     }
   }

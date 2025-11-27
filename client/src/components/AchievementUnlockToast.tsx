@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import type { UnlockedAchievement, AchievementRarity } from '@shared/types/achievements';
+import type { UnlockedAchievement, AchievementRarity, AchievementCategory, AchievementRequirementType } from '@shared/types/achievements';
 import './AchievementUnlockToast.css';
 
 interface AchievementToastItem extends UnlockedAchievement {
@@ -120,9 +120,25 @@ const AchievementUnlockToast: React.FC<AchievementUnlockToastProps> = ({
             <div className="achievement-details">
               <h4 className="achievement-name">{toast.name}</h4>
               <p className="achievement-description">{toast.description}</p>
-              <RarityBadge rarity={toast.rarity} />
+              <div className="badge-row">
+                {toast.category && (
+                  <span className="achievement-category">
+                    {getCategoryLabel(toast.category)}
+                  </span>
+                )}
+                <RarityBadge rarity={toast.rarity} />
+              </div>
             </div>
           </div>
+
+          {toast.requirement_value && toast.requirement_value > 0 && (
+            <div className="unlock-requirement">
+              <span className="requirement-label">Requirement:</span>
+              <span className="requirement-value">
+                {getRequirementText(toast.category, toast.requirement_type, toast.requirement_value)}
+              </span>
+            </div>
+          )}
 
           <div className="toast-rewards">
             <div className="reward-item xp">
@@ -170,6 +186,48 @@ function getAchievementEmoji(achievementId: string, rarity: AchievementRarity): 
     case 'epic': return '💫';
     case 'rare': return '🌟';
     default: return '🎯';
+  }
+}
+
+// Helper function to get category display label
+function getCategoryLabel(category: AchievementCategory): string {
+  switch (category) {
+    case 'games_played': return 'Games';
+    case 'wins': return 'Victories';
+    case 'social': return 'Social';
+    case 'progression': return 'Progression';
+    case 'premium': return 'Premium';
+    case 'special': return 'Special';
+    default: return 'Achievement';
+  }
+}
+
+// Helper function to get requirement text
+function getRequirementText(
+  category: AchievementCategory | undefined,
+  requirementType: AchievementRequirementType | undefined,
+  requirementValue: number
+): string {
+  if (!category) return `Complete ${requirementValue} times`;
+
+  switch (category) {
+    case 'games_played':
+      return `Play ${requirementValue} game${requirementValue !== 1 ? 's' : ''}`;
+    case 'wins':
+      if (requirementType === 'streak') {
+        return `Win ${requirementValue} game${requirementValue !== 1 ? 's' : ''} in a row`;
+      }
+      return `Win ${requirementValue} game${requirementValue !== 1 ? 's' : ''}`;
+    case 'social':
+      return `Make ${requirementValue} friend${requirementValue !== 1 ? 's' : ''}`;
+    case 'progression':
+      return `Reach level ${requirementValue}`;
+    case 'premium':
+      return 'Subscribe to Premium';
+    case 'special':
+      return 'Complete special challenge';
+    default:
+      return `Complete ${requirementValue} times`;
   }
 }
 

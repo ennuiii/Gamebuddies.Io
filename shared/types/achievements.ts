@@ -56,6 +56,9 @@ export interface UnlockedAchievement {
   name: string;
   description: string;
   icon_url: string | null;
+  category: AchievementCategory;
+  requirement_type: AchievementRequirementType;
+  requirement_value: number;
   xp_reward: number;
   points: number;
   rarity: AchievementRarity;
