@@ -1,5 +1,6 @@
 import React, { useState, FormEvent, ChangeEvent } from 'react';
 import { useFriends, Friend, PendingRequest } from '../contexts/FriendContext';
+import { useAuth } from '../contexts/AuthContext';
 import './FriendList.css';
 
 interface AddResult {
@@ -36,6 +37,7 @@ const FriendItem: React.FC<FriendItemProps> = ({ friend, isOnline, onInvite, isC
 );
 
 const FriendList: React.FC = () => {
+  const { isAuthenticated } = useAuth();
   const {
     friends,
     pendingRequests,
@@ -51,6 +53,11 @@ const FriendList: React.FC = () => {
     isFriendListOpen,
     setIsFriendListOpen,
   } = useFriends();
+
+  // Hide friend list for non-authenticated users
+  if (!isAuthenticated) {
+    return null;
+  }
 
   const [activeTab, setActiveTab] = useState<'online' | 'all' | 'pending' | 'add'>('online');
   const [searchQuery, setSearchQuery] = useState<string>('');
