@@ -74,7 +74,7 @@ export default function createMatchResultsRouter(
 
     try {
       // Find all socket connections for this user
-      const connections = connectionManager.getConnectionsByUserId(userId);
+      const connections = connectionManager.getUserConnections(userId);
 
       if (connections.length === 0) {
         console.log(`🏆 [ACHIEVEMENT] User ${userId} not connected, cannot emit achievement notification`);

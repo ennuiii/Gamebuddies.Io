@@ -37,7 +37,7 @@ export function emitAchievementUnlock(
 
   try {
     // Find all socket connections for this user
-    const connections = ctx.connectionManager.getConnectionsByUserId(userId);
+    const connections = ctx.connectionManager.getUserConnections(userId);
 
     if (connections.length === 0) {
       console.log(`🏆 [ACHIEVEMENT] User ${userId} not connected, cannot emit achievement notification`);
