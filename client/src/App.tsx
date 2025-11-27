@@ -28,6 +28,49 @@ import MobileBottomNav from './components/MobileBottomNav';
 import SkipLink from './components/SkipLink';
 import './App.css';
 
+// Easter egg: Console command to redeem achievement codes
+// Usage: redeemCode("GAMEBUDDIES2024")
+declare global {
+  interface Window {
+    redeemCode: (code: string) => Promise<void>;
+  }
+}
+
+window.redeemCode = async (code: string): Promise<void> => {
+  try {
+    const token = localStorage.getItem('supabase.auth.token');
+    const session = token ? JSON.parse(token) : null;
+    const accessToken = session?.currentSession?.access_token;
+
+    if (!accessToken) {
+      console.error('❌ You must be logged in to redeem codes');
+      return;
+    }
+
+    console.log(`🎁 Redeeming code: ${code}...`);
+
+    const response = await fetch('/api/achievements/redeem', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${accessToken}`,
+      },
+      body: JSON.stringify({ code }),
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      console.log('🏆 Achievement unlocked!', data.achievement);
+      console.log('Check your screen for the notification toast!');
+    } else {
+      console.error('❌', data.error);
+    }
+  } catch (error) {
+    console.error('❌ Failed to redeem code:', error);
+  }
+};
+
 // Lazy-loaded pages (code splitting)
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const Premium = lazy(() => import('./pages/Premium'));

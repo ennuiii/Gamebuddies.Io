@@ -236,4 +236,57 @@ router.post('/check', async (req: Request, res: Response) => {
   }
 });
 
+/**
+ * POST /api/achievements/redeem
+ * Redeem a secret code to grant an achievement (easter egg)
+ */
+const VALID_CODES: Record<string, string> = {
+  'GAMEBUDDIES2024': 'early_adopter',
+  'SECRETCODE': 'first_game',
+  'WINNER': 'first_win',
+};
+
+router.post('/redeem', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+  try {
+    const userId = req.user?.id;
+    if (!userId) {
+      return res.status(401).json({ success: false, error: 'Not authenticated' });
+    }
+
+    const { code } = req.body;
+    if (!code || typeof code !== 'string') {
+      return res.status(400).json({ success: false, error: 'Code is required' });
+    }
+
+    const achievementId = VALID_CODES[code.toUpperCase()];
+    if (!achievementId) {
+      return res.status(400).json({ success: false, error: 'Invalid code' });
+    }
+
+    // Grant the achievement
+    const result = await achievementService.grantAchievement(userId, achievementId);
+
+    if (!result) {
+      return res.status(400).json({
+        success: false,
+        error: 'Achievement already earned or not found'
+      });
+    }
+
+    console.log(`🎁 [REDEEM] User ${userId} redeemed code "${code}" for achievement "${achievementId}"`);
+
+    res.json({
+      success: true,
+      achievement: result,
+      message: 'Achievement unlocked!',
+    });
+  } catch (error) {
+    console.error('[Achievements] Error redeeming code:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to redeem code',
+    });
+  }
+});
+
 export default router;
