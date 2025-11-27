@@ -727,13 +727,41 @@
   .container {
     max-width: 1400px;
   }
-  
+
   .hero-title {
     font-size: clamp(4rem, 8vw, 7rem);
   }
-  
+
   .games-grid {
     grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+  }
+}
+
+/* Tiny screens (320px - iPhone SE) */
+@media (max-width: 359px) {
+  .hero {
+    padding: 2rem 12px;
+  }
+
+  .hero-title {
+    font-size: 2rem;
+  }
+
+  .hero-subtitle {
+    font-size: 0.9rem;
+  }
+
+  .cta-button {
+    padding: 0.8rem 1.2rem;
+    font-size: 0.85rem;
+  }
+
+  .section-title {
+    font-size: 1.5rem;
+  }
+
+  .games-grid {
+    gap: 1rem;
   }
 }
 

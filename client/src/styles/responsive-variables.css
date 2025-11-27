@@ -1,0 +1,120 @@
+/* =================================================================
+   RESPONSIVE VARIABLES - Centralized responsive design constants
+   ================================================================= */
+
+:root {
+  /* =====================
+     BREAKPOINTS
+     =====================
+     Use max-width for mobile-first approach:
+     - xs: 359px  (tiny phones like iPhone SE)
+     - sm: 479px  (mobile portrait)
+     - md: 767px  (tablet portrait)
+     - lg: 1023px (tablet landscape)
+     - xl: 1399px (desktop)
+  */
+  --breakpoint-xs: 320px;
+  --breakpoint-sm: 480px;
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1024px;
+  --breakpoint-xl: 1400px;
+
+  /* =====================
+     SPACING SCALE
+     ===================== */
+  --space-xs: 4px;
+  --space-sm: 8px;
+  --space-md: 16px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-2xl: 48px;
+
+  /* =====================
+     TOUCH TARGETS
+     =====================
+     Apple HIG: 44pt minimum
+     Material: 48dp comfortable
+  */
+  --touch-target-min: 44px;
+  --touch-target-comfortable: 48px;
+
+  /* =====================
+     MOBILE NAVIGATION
+     ===================== */
+  --mobile-nav-height: 64px;
+
+  /* =====================
+     SAFE AREA INSETS
+     =====================
+     For notched devices (iPhone X+, modern Android)
+  */
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-right: env(safe-area-inset-right, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-area-left: env(safe-area-inset-left, 0px);
+
+  /* =====================
+     Z-INDEX SCALE
+     ===================== */
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-fixed: 300;
+  --z-fab: 900;
+  --z-bottom-nav: 1000;
+  --z-header: 1001;
+  --z-overlay: 1500;
+  --z-modal: 2000;
+  --z-toast: 3000;
+  --z-tooltip: 4000;
+}
+
+/* =================================================================
+   TOUCH DEVICE DETECTION
+   Use these media queries to target touch vs pointer devices
+   ================================================================= */
+
+/* Touch devices (phones, tablets without mouse) */
+@media (hover: none) and (pointer: coarse) {
+  :root {
+    --is-touch-device: 1;
+  }
+}
+
+/* Pointer devices (mouse, trackpad) */
+@media (hover: hover) and (pointer: fine) {
+  :root {
+    --is-touch-device: 0;
+  }
+}
+
+/* =================================================================
+   RESPONSIVE UTILITIES
+   ================================================================= */
+
+/* Hide on mobile (< 480px) */
+@media (max-width: 479px) {
+  .hide-mobile {
+    display: none !important;
+  }
+}
+
+/* Hide on tablet and up (>= 480px) */
+@media (min-width: 480px) {
+  .show-mobile-only {
+    display: none !important;
+  }
+}
+
+/* Hide on desktop (>= 768px) */
+@media (min-width: 768px) {
+  .hide-desktop {
+    display: none !important;
+  }
+}
+
+/* Show only on desktop (>= 768px) */
+@media (max-width: 767px) {
+  .show-desktop-only {
+    display: none !important;
+  }
+}

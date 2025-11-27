@@ -9,8 +9,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: var(--z-modal, 2000);
   animation: fadeIn 0.3s ease;
+  /* Safe area padding for notched devices */
+  padding: var(--safe-area-top, 0px) var(--safe-area-right, 0px) var(--safe-area-bottom, 0px) var(--safe-area-left, 0px);
 }
 
 .browse-rooms-modal {
@@ -271,7 +273,8 @@
 
 .rooms-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  /* Use min() to prevent overflow on smaller screens */
+  grid-template-columns: repeat(auto-fill, minmax(min(350px, 100%), 1fr));
   gap: 1.5rem;
   margin-bottom: 2rem;
 }
@@ -544,5 +547,141 @@
 
   .room-code {
     font-size: 0.9rem;
+  }
+}
+
+/* Tiny screens (320px - iPhone SE) */
+@media (max-width: 359px) {
+  .browse-rooms-modal {
+    padding: 1rem;
+    border-radius: 16px;
+  }
+
+  .browse-header h2 {
+    font-size: 1.4rem;
+  }
+
+  .close-button {
+    width: 40px;
+    height: 40px;
+    font-size: 1.5rem;
+  }
+
+  .browse-filters {
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .game-filter-dropdown {
+    width: 100%;
+    min-width: auto;
+  }
+
+  .game-filter-trigger {
+    min-width: auto;
+    width: 100%;
+  }
+
+  /* Increase dropdown icons for better touch targets */
+  .dropdown-thumbnail,
+  .dropdown-icon {
+    width: 32px;
+    height: 32px;
+    min-width: 32px;
+  }
+
+  .game-filter-option {
+    padding: 0.875rem 1rem;
+    min-height: var(--touch-target-min, 44px);
+  }
+
+  .rooms-list {
+    gap: 1rem;
+  }
+
+  .room-card {
+    padding: 1rem;
+    border-radius: 14px;
+  }
+
+  .game-thumbnail,
+  .game-icon-box {
+    width: 44px;
+    height: 44px;
+    font-size: 1.3rem;
+  }
+
+  .game-title {
+    font-size: 0.9rem;
+  }
+
+  .room-meta {
+    gap: 0.5rem;
+  }
+
+  .room-code,
+  .status-badge {
+    font-size: 0.75rem;
+    padding: 0.3rem 0.6rem;
+  }
+
+  .detail-item {
+    font-size: 0.85rem;
+  }
+
+  .join-room-button {
+    padding: 0.75rem 1rem;
+    font-size: 0.9rem;
+  }
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+  /* Remove hover transforms on touch */
+  .room-card:hover {
+    transform: none;
+    box-shadow: 0 10px 30px rgba(0, 217, 255, 0.15);
+  }
+
+  .join-room-button:hover:not(:disabled) {
+    transform: none;
+  }
+
+  .refresh-button:hover {
+    transform: none;
+  }
+
+  .cancel-button:hover {
+    transform: none;
+  }
+
+  .close-button:hover {
+    transform: none;
+  }
+
+  /* Enhanced active states for touch feedback */
+  .room-card:active {
+    transform: scale(0.98);
+    border-color: rgba(0, 217, 255, 0.5);
+  }
+
+  .join-room-button:active:not(:disabled) {
+    transform: scale(0.97);
+    box-shadow: 0 4px 15px rgba(0, 217, 255, 0.3);
+  }
+
+  .refresh-button:active {
+    transform: scale(0.95);
+    background: rgba(0, 217, 255, 0.3);
+  }
+
+  .cancel-button:active {
+    transform: scale(0.97);
+    background: rgba(255, 255, 255, 0.15);
+  }
+
+  .close-button:active {
+    transform: scale(0.95) rotate(45deg);
+    background: rgba(233, 69, 96, 0.3);
   }
 }

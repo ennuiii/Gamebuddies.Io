@@ -180,3 +180,58 @@
     font-size: 0.8rem;
   }
 }
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+  /* Always show overlay on touch devices since there's no hover */
+  .game-card-overlay {
+    opacity: 1;
+    background: rgba(0, 0, 0, 0.5);
+  }
+
+  /* Remove hover transform since it won't work */
+  .game-card:hover .game-card-image {
+    transform: none;
+  }
+
+  /* Enhanced active state for touch feedback */
+  .game-card:active {
+    transform: scale(0.98);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6);
+  }
+
+  .play-button:active {
+    transform: scale(0.95);
+    box-shadow: 0 3px 15px rgba(233, 69, 96, 0.6);
+  }
+
+  .play-button-small:active {
+    transform: scale(0.95);
+    box-shadow: 0 2px 12px rgba(0, 217, 255, 0.5);
+  }
+}
+
+/* Tiny screens (320px) */
+@media (max-width: 359px) {
+  .game-card-image-container {
+    height: 180px;
+  }
+
+  .game-card-content {
+    padding: 1rem;
+  }
+
+  .game-card-title {
+    font-size: 1.1rem;
+  }
+
+  .game-card-description {
+    font-size: 0.85rem;
+  }
+
+  .play-button {
+    padding: 0.7rem 1.5rem;
+    font-size: 0.9rem;
+    letter-spacing: 1px;
+  }
+}

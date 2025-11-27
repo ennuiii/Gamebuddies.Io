@@ -4,7 +4,8 @@
   background: rgba(0, 0, 0, 0.2);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 16px;
-  height: 400px;
+  /* Use min() to prevent overflow on smaller viewports */
+  height: min(400px, 60vh);
   overflow: hidden;
   margin-top: 2rem;
 }
@@ -148,7 +149,7 @@
 /* Responsive - Mobile */
 @media (max-width: 479px) {
   .chat-window {
-    height: 280px;
+    height: min(280px, 50vh);
     margin-top: 1rem;
     border-radius: 12px;
   }
@@ -187,5 +188,26 @@
   .chat-input-form button {
     padding: 0 1rem;
     font-size: 0.9rem;
+  }
+}
+
+/* Landscape mode - more constrained height */
+@media (orientation: landscape) and (max-height: 500px) {
+  .chat-window {
+    height: min(200px, 70vh);
+    margin-top: 0.5rem;
+  }
+
+  .chat-header {
+    padding: 0.5rem 0.75rem;
+  }
+
+  .chat-messages {
+    padding: 0.5rem;
+    gap: 0.4rem;
+  }
+
+  .chat-input-form {
+    padding: 0.5rem;
   }
 }

@@ -17,7 +17,8 @@
   border-left: 4px solid #00d9ff; /* Secondary color */
   border-radius: 8px;
   padding: 16px;
-  width: 320px;
+  /* Use min() to prevent overflow on smaller screens */
+  width: min(320px, calc(100vw - 40px));
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.6), 0 0 20px rgba(0, 217, 255, 0.1);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);

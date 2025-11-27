@@ -21,6 +21,7 @@ import FriendList from './components/FriendList';
 import GameInviteToast from './components/GameInviteToast';
 import ErrorBoundary from './components/ErrorBoundary';
 import PageTransition from './components/PageTransition';
+import MobileBottomNav from './components/MobileBottomNav';
 import './App.css';
 
 // Lazy-loaded pages (code splitting)
@@ -260,6 +261,10 @@ function AppContent(): React.ReactElement {
         </AnimatePresence>
       </Suspense>
       <Footer />
+      <MobileBottomNav
+        onNavigateHome={handleNavigateHome}
+        onNavigateGames={handleNavigateGames}
+      />
     </div>
   );
 }

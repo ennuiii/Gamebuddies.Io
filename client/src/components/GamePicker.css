@@ -234,4 +234,27 @@
   40% {
     transform: scale(1);
   }
+}
+
+/* Tiny screens (320px - iPhone SE) */
+@media (max-width: 359px) {
+  .game-picker-grid {
+    gap: 0.5rem;
+  }
+
+  .game-option {
+    padding: 0.75rem;
+  }
+
+  .game-icon {
+    height: 40px;
+  }
+
+  .game-name {
+    font-size: 0.85rem;
+  }
+
+  .picker-title {
+    font-size: 1.3rem;
+  }
 } 

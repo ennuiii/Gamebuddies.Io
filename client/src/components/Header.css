@@ -6,9 +6,10 @@
   background: rgba(15, 15, 35, 0.9);
   backdrop-filter: blur(20px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.15);
-  z-index: 1000;
-  padding: 1.2rem 0;
-  box-shadow: 
+  z-index: var(--z-header, 1001);
+  /* Account for safe area on notched devices */
+  padding: calc(1.2rem + var(--safe-area-top, 0px)) var(--safe-area-right, 0px) 1.2rem var(--safe-area-left, 0px);
+  box-shadow:
     0 4px 20px rgba(0, 0, 0, 0.3),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
 }
@@ -355,5 +356,60 @@
   .login-link {
     padding: 0.5rem 1rem;
     font-size: 0.9rem;
+  }
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+  /* Remove transform on touch since there's no hover */
+  .user-info-button:hover {
+    transform: none;
+    box-shadow: none;
+  }
+
+  .login-link:hover {
+    transform: none;
+    box-shadow: 0 4px 15px rgba(233, 69, 96, 0.3);
+  }
+
+  .logout-button:hover:not(:disabled) {
+    transform: none;
+    box-shadow: none;
+  }
+
+  .settings-button:hover {
+    transform: none;
+    box-shadow: none;
+  }
+
+  /* Enhanced active states for touch */
+  .user-info-button:active {
+    background: rgba(255, 255, 255, 0.15);
+    transform: scale(0.98);
+  }
+
+  .login-link:active {
+    transform: scale(0.98);
+    box-shadow: 0 2px 10px rgba(233, 69, 96, 0.4);
+  }
+
+  .logout-button:active:not(:disabled) {
+    background: rgba(233, 69, 96, 0.25);
+    transform: scale(0.98);
+  }
+
+  .settings-button:active {
+    transform: scale(0.95) rotate(15deg);
+    background: rgba(255, 255, 255, 0.2);
+  }
+
+  .nav-link:active,
+  .nav-button:active {
+    color: var(--text-primary);
+  }
+
+  .nav-link:active::after,
+  .nav-button:active::after {
+    width: 100%;
   }
 }

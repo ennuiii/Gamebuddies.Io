@@ -62,6 +62,10 @@ interface FriendContextValue {
   currentLobbyGameName: string;
   currentLobbyThumbnail: string | null;
   updateLobbyInfo: (roomCode: string | null, gameName?: string | null, gameThumbnail?: string | null) => void;
+  // FriendList UI state (for mobile bottom nav integration)
+  isFriendListOpen: boolean;
+  setIsFriendListOpen: (open: boolean) => void;
+  toggleFriendList: () => void;
 }
 
 const FriendContext = createContext<FriendContextValue | undefined>(undefined);
@@ -102,6 +106,11 @@ export const FriendProvider: React.FC<FriendProviderProps> = ({ children }) => {
   const [onlineFriends, setOnlineFriends] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(false);
   const [gameInvites, setGameInvites] = useState<GameInvite[]>([]);
+  const [isFriendListOpen, setIsFriendListOpen] = useState(false);
+
+  const toggleFriendList = useCallback(() => {
+    setIsFriendListOpen(prev => !prev);
+  }, []);
 
   const fetchFriends = useCallback(async (): Promise<void> => {
     if (!user || !session) return;
@@ -333,6 +342,9 @@ export const FriendProvider: React.FC<FriendProviderProps> = ({ children }) => {
     currentLobbyGameName,
     currentLobbyThumbnail,
     updateLobbyInfo,
+    isFriendListOpen,
+    setIsFriendListOpen,
+    toggleFriendList,
   };
 
   return <FriendContext.Provider value={value}>{children}</FriendContext.Provider>;

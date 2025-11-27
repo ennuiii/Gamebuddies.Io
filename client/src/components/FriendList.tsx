@@ -48,9 +48,10 @@ const FriendList: React.FC = () => {
     currentRoomCode,
     currentLobbyGameName,
     currentLobbyThumbnail,
+    isFriendListOpen,
+    setIsFriendListOpen,
   } = useFriends();
 
-  const [isOpen, setIsOpen] = useState<boolean>(false);
   const [activeTab, setActiveTab] = useState<'online' | 'all' | 'pending' | 'add'>('online');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [addUsername, setAddUsername] = useState<string>('');
@@ -71,9 +72,9 @@ const FriendList: React.FC = () => {
       f.display_name?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  if (!isOpen) {
+  if (!isFriendListOpen) {
     return (
-      <div className="friend-list-toggle" onClick={() => setIsOpen(true)}>
+      <div className="friend-list-toggle" onClick={() => setIsFriendListOpen(true)}>
         <span className="icon">👥</span>
         {onlineList.length > 0 && <span className="badge">{onlineList.length}</span>}
         {pendingRequests.length > 0 && (
@@ -87,7 +88,7 @@ const FriendList: React.FC = () => {
     <div className="friend-list-container">
       <div className="friend-list-header">
         <h3>Friends</h3>
-        <button className="close-btn" onClick={() => setIsOpen(false)}>
+        <button className="close-btn" onClick={() => setIsFriendListOpen(false)}>
           ×
         </button>
       </div>

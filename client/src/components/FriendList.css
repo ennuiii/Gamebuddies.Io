@@ -23,6 +23,19 @@
   box-shadow: 0 0 30px rgba(0, 217, 255, 0.6);
 }
 
+/* Touch device optimizations for FAB */
+@media (hover: none) and (pointer: coarse) {
+  .friend-list-toggle:hover {
+    transform: none;
+    box-shadow: 0 0 20px rgba(0, 217, 255, 0.4);
+  }
+
+  .friend-list-toggle:active {
+    transform: scale(0.95);
+    box-shadow: 0 0 25px rgba(0, 217, 255, 0.5);
+  }
+}
+
 .friend-list-toggle .badge {
   position: absolute;
   top: -5px;
@@ -51,8 +64,9 @@
   position: fixed;
   bottom: 90px;
   right: 20px;
-  width: 320px;
-  height: 500px;
+  /* Use min() to prevent overflow on smaller screens */
+  width: min(320px, calc(100vw - 40px));
+  height: min(500px, calc(100vh - 120px));
   background: var(--card-bg);
   border-radius: 16px;
   box-shadow: var(--card-shadow);
@@ -359,23 +373,21 @@
 
 /* Responsive - Mobile: Bottom Sheet Drawer */
 @media (max-width: 479px) {
+  /* Hide the FAB toggle on mobile - we use bottom nav instead */
   .friend-list-toggle {
-    bottom: 12px;
-    right: 12px;
-    width: 50px;
-    height: 50px;
-    font-size: 22px;
+    display: none;
   }
 
   .friend-list-container {
     position: fixed;
-    bottom: 0;
+    /* Account for mobile bottom nav height */
+    bottom: calc(var(--mobile-nav-height, 64px) + var(--safe-area-bottom, 0px));
     left: 0;
     right: 0;
     top: auto;
     width: 100%;
     height: auto;
-    max-height: 75vh;
+    max-height: calc(75vh - var(--mobile-nav-height, 64px));
     border-radius: 20px 20px 0 0;
     animation: slideUpMobile 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   }

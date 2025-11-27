@@ -1,0 +1,193 @@
+/* =================================================================
+   MOBILE BOTTOM NAVIGATION
+   Only visible on mobile devices (< 480px viewport)
+   ================================================================= */
+
+.mobile-bottom-nav {
+  display: none; /* Hidden by default on desktop */
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: calc(var(--mobile-nav-height, 64px) + var(--safe-area-bottom, 0px));
+  padding-bottom: var(--safe-area-bottom, 0px);
+  background: rgba(15, 15, 30, 0.95);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-top: 1px solid rgba(0, 217, 255, 0.2);
+  z-index: var(--z-bottom-nav, 1000);
+
+  /* Flexbox layout for nav items */
+  justify-content: space-around;
+  align-items: center;
+}
+
+/* Show on mobile */
+@media (max-width: 479px) {
+  .mobile-bottom-nav {
+    display: flex;
+  }
+}
+
+/* =================================================================
+   NAV ITEM BUTTON
+   ================================================================= */
+
+.nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  flex: 1;
+  height: var(--mobile-nav-height, 64px);
+  min-width: var(--touch-target-min, 44px);
+  padding: 8px 4px;
+  background: transparent;
+  border: none;
+  color: var(--text-secondary, #a8a8a8);
+  cursor: pointer;
+  position: relative;
+  transition: color 0.2s ease, transform 0.1s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Active state indicator */
+.nav-item::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%) scaleX(0);
+  width: 32px;
+  height: 3px;
+  background: linear-gradient(90deg, var(--primary-color, #e94560), var(--secondary-color, #00d9ff));
+  border-radius: 0 0 4px 4px;
+  transition: transform 0.2s ease;
+}
+
+.nav-item.active {
+  color: var(--secondary-color, #00d9ff);
+}
+
+.nav-item.active::after {
+  transform: translateX(-50%) scaleX(1);
+}
+
+/* Touch feedback */
+.nav-item:active {
+  transform: scale(0.95);
+  color: var(--secondary-color, #00d9ff);
+}
+
+/* =================================================================
+   NAV ICON
+   ================================================================= */
+
+.nav-icon {
+  width: 24px;
+  height: 24px;
+  stroke-width: 2;
+  transition: transform 0.2s ease;
+}
+
+.nav-item.active .nav-icon {
+  transform: scale(1.1);
+}
+
+/* =================================================================
+   NAV LABEL
+   ================================================================= */
+
+.nav-label {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+/* =================================================================
+   NOTIFICATION BADGE
+   ================================================================= */
+
+.nav-badge {
+  position: absolute;
+  top: 6px;
+  right: 50%;
+  transform: translateX(calc(50% + 10px));
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  background: var(--secondary-color, #00d9ff);
+  color: var(--primary-bg, #0f0f1e);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+  border-radius: 9px;
+  box-shadow: 0 2px 8px rgba(0, 217, 255, 0.4);
+}
+
+/* Pending requests badge (higher priority) */
+.nav-badge.pending {
+  background: var(--primary-color, #e94560);
+  box-shadow: 0 2px 8px rgba(233, 69, 96, 0.4);
+  animation: badgePulse 2s ease-in-out infinite;
+}
+
+@keyframes badgePulse {
+  0%, 100% {
+    transform: translateX(calc(50% + 10px)) scale(1);
+  }
+  50% {
+    transform: translateX(calc(50% + 10px)) scale(1.1);
+  }
+}
+
+/* =================================================================
+   LANDSCAPE ADJUSTMENTS
+   ================================================================= */
+
+@media (max-width: 479px) and (orientation: landscape) {
+  .mobile-bottom-nav {
+    height: calc(56px + var(--safe-area-bottom, 0px));
+  }
+
+  .nav-item {
+    height: 56px;
+    gap: 2px;
+  }
+
+  .nav-icon {
+    width: 20px;
+    height: 20px;
+  }
+
+  .nav-label {
+    font-size: 9px;
+  }
+}
+
+/* =================================================================
+   TINY SCREENS (320px)
+   ================================================================= */
+
+@media (max-width: 359px) {
+  .nav-label {
+    font-size: 9px;
+  }
+
+  .nav-icon {
+    width: 22px;
+    height: 22px;
+  }
+
+  .nav-badge {
+    min-width: 16px;
+    height: 16px;
+    font-size: 9px;
+    line-height: 16px;
+    padding: 0 4px;
+  }
+}
