@@ -162,16 +162,22 @@ const Achievements: React.FC = () => {
           {stats && (
             <div className="stats-summary">
               <div className="stat-item">
-                <span className="stat-value">{stats.unlocked}</span>
-                <span className="stat-label">/ {stats.total}</span>
+                <div className="stat-value-row">
+                  <span className="stat-value">{stats.unlocked}</span>
+                  <span className="stat-label">/ {stats.total}</span>
+                </div>
                 <span className="stat-name">Unlocked</span>
               </div>
               <div className="stat-item highlight">
-                <span className="stat-value">{stats.points}</span>
+                <div className="stat-value-row">
+                  <span className="stat-value">{stats.points}</span>
+                </div>
                 <span className="stat-name">Achievement Points</span>
               </div>
               <div className="stat-item">
-                <span className="stat-value">{stats.completion}%</span>
+                <div className="stat-value-row">
+                  <span className="stat-value">{stats.completion}%</span>
+                </div>
                 <span className="stat-name">Complete</span>
               </div>
             </div>
