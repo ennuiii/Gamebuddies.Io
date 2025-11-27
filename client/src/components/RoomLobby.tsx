@@ -137,6 +137,8 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
   const [imageError, setImageError] = useState<boolean>(false);
   const [gamesList, setGamesList] = useState<GameInfo[]>([]);
   const [sendingFriendRequest, setSendingFriendRequest] = useState<Set<string>>(new Set());
+  const [recentlyJoinedPlayers, setRecentlyJoinedPlayers] = useState<Set<string>>(new Set());
+  const [reconnectingPlayers, setReconnectingPlayers] = useState<Set<string>>(new Set());
 
   const roomCodeRef = useRef<string>(roomCode);
   const playerNameRef = useRef<string>(playerName);
@@ -248,6 +250,8 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
   };
 
   const clearDisconnectCountdown = (playerId: string): void => {
+    const wasDisconnected = timerIntervalsRef.current.has(playerId) || disconnectedTimers.has(playerId);
+
     if (timerIntervalsRef.current.has(playerId)) {
       clearInterval(timerIntervalsRef.current.get(playerId));
       timerIntervalsRef.current.delete(playerId);
@@ -257,6 +261,18 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
       newMap.delete(playerId);
       return newMap;
     });
+
+    // If player was disconnected and is now back, show reconnecting animation
+    if (wasDisconnected) {
+      setReconnectingPlayers((prev) => new Set(prev).add(playerId));
+      setTimeout(() => {
+        setReconnectingPlayers((prev) => {
+          const newSet = new Set(prev);
+          newSet.delete(playerId);
+          return newSet;
+        });
+      }, 1500); // Animation plays for 1.5s
+    }
   };
 
   const fetchUpdatedPlayerList = async (): Promise<void> => {
@@ -483,6 +499,16 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
       setRoomData(data.room);
       if (data.player?.id) {
         clearDisconnectCountdown(data.player.id);
+        // Trigger join animation
+        setRecentlyJoinedPlayers((prev) => new Set(prev).add(data.player.id));
+        // Remove from recently joined after animation completes
+        setTimeout(() => {
+          setRecentlyJoinedPlayers((prev) => {
+            const newSet = new Set(prev);
+            newSet.delete(data.player.id);
+            return newSet;
+          });
+        }, 600); // Animation duration + buffer
       }
     };
 
@@ -988,13 +1014,15 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
           <div className="section-header">
             <h3 className="section-title">Players in Room</h3>
           </div>
-          <div className="players-grid">
+          <div className={`players-grid ${allPlayersReady ? 'all-ready' : ''}`}>
             {playersWithStatus.map((player) => {
               const { playerStatus, countdownTime, isDisconnectedWithTimer } = player;
+              const isJoining = recentlyJoinedPlayers.has(player.id);
+              const isReconnecting = reconnectingPlayers.has(player.id);
               return (
                 <div
                   key={player.id}
-                  className={`player-card ${player.isHost ? 'host' : ''} ${playerStatus.status} ${isDisconnectedWithTimer ? 'disconnecting' : ''} ${player.role === 'admin' ? 'premium-admin' : player.premiumTier === 'lifetime' ? 'premium-lifetime' : player.premiumTier === 'monthly' ? 'premium-monthly' : ''}`}
+                  className={`player-card ${player.isHost ? 'host' : ''} ${playerStatus.status} ${isDisconnectedWithTimer ? 'disconnecting' : ''} ${player.role === 'admin' ? 'premium-admin' : player.premiumTier === 'lifetime' ? 'premium-lifetime' : player.premiumTier === 'monthly' ? 'premium-monthly' : ''} ${isJoining ? 'player-joining' : ''} ${isReconnecting ? 'player-reconnecting' : ''}`}
                 >
                   <div className="player-card-content">
                     <div className="player-avatar">

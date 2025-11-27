@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, FormEvent, ChangeEvent } from 'react';
+import React, { useState, useRef, useEffect, useMemo, FormEvent, ChangeEvent } from 'react';
 import { useSocket } from '../contexts/LazySocketContext';
 import { useAuth } from '../contexts/AuthContext';
 import { SOCKET_EVENTS, SERVER_EVENTS } from '@shared/constants';
@@ -55,6 +55,41 @@ const JoinRoom: React.FC<JoinRoomProps> = ({
   });
 
   const isAuthenticated = !!session?.user;
+
+  // Real-time validation for room code
+  const roomCodeValidation = useMemo(() => {
+    if (roomCode.length === 0) {
+      return { status: 'empty' as const, message: '' };
+    }
+    if (roomCode.length < 6) {
+      return { status: 'incomplete' as const, message: `${6 - roomCode.length} more characters needed` };
+    }
+    return { status: 'valid' as const, message: '' };
+  }, [roomCode]);
+
+  // Real-time validation for display name
+  const nameValidation = useMemo(() => {
+    const name = displayName.trim();
+    if (name.length === 0) {
+      return { status: 'empty' as const, message: '' };
+    }
+    if (name.length < 2) {
+      return { status: 'invalid' as const, message: 'Name must be at least 2 characters' };
+    }
+    if (name.length > 20) {
+      return { status: 'invalid' as const, message: 'Name must be less than 20 characters' };
+    }
+    return { status: 'valid' as const, message: '' };
+  }, [displayName]);
+
+  // Character count styling
+  const charCountClass = useMemo(() => {
+    const len = displayName.length;
+    if (len >= 20) return 'danger';
+    if (len >= 15) return 'warning';
+    if (len >= 2) return 'valid';
+    return '';
+  }, [displayName]);
 
   const handleSubmit = async (e?: FormEvent<HTMLFormElement>): Promise<void> => {
     if (e && e.preventDefault) e.preventDefault();
@@ -268,44 +303,90 @@ const JoinRoom: React.FC<JoinRoomProps> = ({
               <small>Room code hidden for privacy</small>
             </div>
           ) : (
-            <div className="form-group">
+            <div className={`form-group ${roomCode.length > 0 ? 'has-value' : ''}`}>
               <label htmlFor="roomCode">ROOM CODE</label>
-              <input
-                type="text"
-                id="roomCode"
-                value={roomCode}
-                onChange={handleRoomCodeChange}
-                placeholder="4AJ5XQ"
-                disabled={isJoining}
-                maxLength={6}
-                autoFocus
-                className="room-code-input"
-              />
-              <small>Ask the room host for the 6-character room code</small>
+              <div className="input-wrapper">
+                <input
+                  type="text"
+                  id="roomCode"
+                  value={roomCode}
+                  onChange={handleRoomCodeChange}
+                  placeholder="4AJ5XQ"
+                  disabled={isJoining}
+                  maxLength={6}
+                  autoFocus
+                  className={`room-code-input ${roomCodeValidation.status === 'valid' ? 'input-valid' : ''}`}
+                  aria-describedby="room-code-hint"
+                />
+                {roomCode.length > 0 && (
+                  <span
+                    className={`validation-icon ${roomCodeValidation.status === 'valid' ? 'valid' : ''}`}
+                    aria-hidden="true"
+                  >
+                    {roomCodeValidation.status === 'valid' ? '✓' : ''}
+                  </span>
+                )}
+              </div>
+              {/* Visual progress indicator for room code */}
+              <div className="room-code-progress" aria-hidden="true">
+                {[...Array(6)].map((_, i) => (
+                  <div
+                    key={i}
+                    className={`char-slot ${i < roomCode.length ? (roomCode.length === 6 ? 'complete' : 'filled') : ''}`}
+                  />
+                ))}
+              </div>
+              <small id="room-code-hint">
+                {roomCodeValidation.status === 'incomplete'
+                  ? roomCodeValidation.message
+                  : 'Ask the room host for the 6-character room code'}
+              </small>
             </div>
           )}
 
-          <div className="form-group">
+          <div className={`form-group ${displayName.length > 0 ? 'has-value' : ''}`}>
             <label htmlFor="displayName">
               {isAuthenticated ? 'DISPLAY NAME (Optional)' : 'YOUR NAME'}
             </label>
-            <input
-              type="text"
-              id="displayName"
-              value={displayName}
-              onChange={(e: ChangeEvent<HTMLInputElement>) => setDisplayName(e.target.value)}
-              placeholder={
-                isAuthenticated
-                  ? `Leave blank to use ${user?.username || 'your account name'}`
-                  : 'Enter your name'
-              }
-              disabled={isJoining}
-              maxLength={20}
-            />
-            {isAuthenticated ? (
-              <small>Customize how your name appears in this lobby</small>
-            ) : (
-              <small>This will be your display name in the room</small>
+            <div className="input-wrapper">
+              <input
+                type="text"
+                id="displayName"
+                value={displayName}
+                onChange={(e: ChangeEvent<HTMLInputElement>) => setDisplayName(e.target.value)}
+                placeholder={
+                  isAuthenticated
+                    ? `Leave blank to use ${user?.username || 'your account name'}`
+                    : 'Enter your name'
+                }
+                disabled={isJoining}
+                maxLength={20}
+                className={
+                  nameValidation.status === 'valid' ? 'input-valid' :
+                  nameValidation.status === 'invalid' ? 'input-invalid' : ''
+                }
+                aria-invalid={nameValidation.status === 'invalid'}
+                aria-describedby={nameValidation.message ? 'name-validation-hint' : undefined}
+              />
+              {displayName.length > 0 && (
+                <span
+                  className={`validation-icon ${nameValidation.status === 'valid' ? 'valid' : nameValidation.status === 'invalid' ? 'invalid' : ''}`}
+                  aria-hidden="true"
+                >
+                  {nameValidation.status === 'valid' ? '✓' : nameValidation.status === 'invalid' ? '✕' : ''}
+                </span>
+              )}
+            </div>
+            <div className="char-counter">
+              <small>
+                {isAuthenticated ? 'Customize how your name appears in this lobby' : 'This will be your display name in the room'}
+              </small>
+              <span className={`count ${charCountClass}`}>{displayName.length}/20</span>
+            </div>
+            {nameValidation.message && (
+              <div id="name-validation-hint" className="validation-hint error">
+                {nameValidation.message}
+              </div>
             )}
           </div>
 

@@ -434,11 +434,75 @@
 
 .player-card:hover {
   transform: translateY(-5px);
-  box-shadow: 
+  box-shadow:
     0 15px 40px rgba(0, 0, 0, 0.3),
     0 0 0 1px rgba(255, 255, 255, 0.1),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
   background: rgba(255, 255, 255, 0.08);
+}
+
+/* Player Join Animation */
+.player-card.player-joining {
+  animation: playerJoinSlide 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes playerJoinSlide {
+  0% {
+    opacity: 0;
+    transform: translateX(-30px) scale(0.9);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+/* Player Leave Animation */
+.player-card.player-leaving {
+  animation: playerLeaveSlide 0.4s ease-out forwards;
+}
+
+@keyframes playerLeaveSlide {
+  0% {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(30px) scale(0.9);
+  }
+}
+
+/* Player Reconnecting Animation */
+.player-card.player-reconnecting {
+  animation: playerReconnectPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes playerReconnectPulse {
+  0%, 100% {
+    opacity: 0.6;
+    border-color: rgba(255, 193, 7, 0.3);
+  }
+  50% {
+    opacity: 1;
+    border-color: rgba(255, 193, 7, 0.6);
+  }
+}
+
+/* All Players Ready celebration glow */
+.players-grid.all-ready .player-card {
+  animation: allReadyGlow 1s ease-in-out;
+}
+
+@keyframes allReadyGlow {
+  0%, 100% {
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+  }
+  50% {
+    box-shadow:
+      0 10px 30px rgba(0, 0, 0, 0.2),
+      0 0 30px rgba(76, 175, 80, 0.4);
+  }
 }
 
 /* Host card - no special glow, premium badges take priority */

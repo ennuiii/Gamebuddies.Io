@@ -193,6 +193,149 @@
   background: rgba(255, 255, 255, 0.08);
 }
 
+/* Real-time Validation Styles */
+.form-group.has-value input[type="text"] {
+  padding-right: 3rem;
+}
+
+.input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.input-wrapper input {
+  flex: 1;
+}
+
+.validation-icon {
+  position: absolute;
+  right: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  font-size: 1rem;
+  font-weight: bold;
+  pointer-events: none;
+  transition: all 0.3s ease;
+}
+
+.validation-icon.valid {
+  color: #4CAF50;
+  animation: validationPop 0.3s ease-out;
+}
+
+.validation-icon.invalid {
+  color: #ff6b6b;
+  animation: validationShake 0.3s ease-out;
+}
+
+@keyframes validationPop {
+  0% { transform: scale(0); opacity: 0; }
+  50% { transform: scale(1.3); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes validationShake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-3px); }
+  75% { transform: translateX(3px); }
+}
+
+/* Input validation border colors */
+.form-group input[type="text"].input-valid {
+  border-color: rgba(76, 175, 80, 0.6);
+}
+
+.form-group input[type="text"].input-valid:focus {
+  border-color: #4CAF50;
+  box-shadow: 0 0 20px rgba(76, 175, 80, 0.4);
+}
+
+.form-group input[type="text"].input-invalid {
+  border-color: rgba(255, 107, 107, 0.6);
+}
+
+.form-group input[type="text"].input-invalid:focus {
+  border-color: #ff6b6b;
+  box-shadow: 0 0 20px rgba(255, 107, 107, 0.4);
+}
+
+/* Character counter */
+.char-counter {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 0.25rem;
+}
+
+.char-counter small {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+.char-counter .count {
+  font-size: 0.75rem;
+  font-weight: 600;
+  transition: color 0.3s ease;
+}
+
+.char-counter .count.warning {
+  color: #FF9800;
+}
+
+.char-counter .count.danger {
+  color: #ff6b6b;
+}
+
+.char-counter .count.valid {
+  color: #4CAF50;
+}
+
+/* Room code validation specific */
+.room-code-progress {
+  display: flex;
+  gap: 4px;
+  margin-top: 0.5rem;
+}
+
+.room-code-progress .char-slot {
+  flex: 1;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  transition: all 0.2s ease;
+}
+
+.room-code-progress .char-slot.filled {
+  background: var(--secondary-color);
+}
+
+.room-code-progress .char-slot.complete {
+  background: #4CAF50;
+}
+
+/* Validation hint */
+.validation-hint {
+  font-size: 0.75rem;
+  margin-top: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 4px;
+  transition: all 0.3s ease;
+}
+
+.validation-hint.error {
+  color: #ff6b6b;
+  background: rgba(255, 107, 107, 0.1);
+}
+
+.validation-hint.success {
+  color: #4CAF50;
+  background: rgba(76, 175, 80, 0.1);
+}
+
 .error-message {
   background: rgba(233, 69, 96, 0.2);
   border: 1px solid var(--primary-color);
@@ -201,6 +344,18 @@
   border-radius: 10px;
   font-size: 0.9rem;
   text-align: center;
+  animation: errorSlideIn 0.3s ease-out;
+}
+
+@keyframes errorSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .form-actions {
