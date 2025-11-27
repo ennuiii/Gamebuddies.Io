@@ -483,7 +483,7 @@ export function registerPlayerHandlers(
 
       // Broadcast ready change to all players in room
       io.to(roomCode).emit(SERVER_EVENTS.PLAYER.READY_CHANGED, {
-        oderId: connection.userId,
+        playerId: connection.userId,
         isReady: newReady,
         playerName: participant.custom_lobby_name || participant.user?.display_name || 'Player'
       });
