@@ -264,6 +264,23 @@ const Account: React.FC = () => {
           </div>
         </div>
 
+        <div className="account-section progression-section">
+          <h2>Game Progression</h2>
+          <div className="info-grid">
+            <div className="info-item">
+              <label>Achievements</label>
+              <div className="progression-actions">
+                <button 
+                  onClick={() => navigate('/achievements')} 
+                  className="btn btn-secondary"
+                >
+                  View My Achievements
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div className="account-section help-section">
           <h2>Need Help?</h2>
           <button
