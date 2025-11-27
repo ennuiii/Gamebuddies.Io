@@ -244,7 +244,18 @@ export class AchievementService {
         return null;
       }
 
-      const result = data as { success: boolean; reason?: string } & UnlockedAchievement;
+      // Type for the SQL function return value
+      interface GrantAchievementResult {
+        success: boolean;
+        reason?: string;
+        achievement_id?: string;
+        name?: string;
+        xp_reward?: number;
+        points_reward?: number;
+        rarity?: string;
+      }
+
+      const result = data as GrantAchievementResult;
 
       if (!result.success) {
         console.log(`[AchievementService] Achievement not granted: ${result.reason}`);
@@ -254,13 +265,13 @@ export class AchievementService {
       console.log(`[AchievementService] Granted achievement "${result.name}" to user ${userId}`);
 
       return {
-        id: result.achievement_id,
-        name: result.name,
+        id: result.achievement_id || achievementId,
+        name: result.name || '',
         description: '', // Not returned by function, can be fetched if needed
         icon_url: null,
-        xp_reward: result.xp_reward,
-        points: result.points_reward,
-        rarity: result.rarity,
+        xp_reward: result.xp_reward || 0,
+        points: result.points_reward || 0,
+        rarity: (result.rarity || 'common') as 'common' | 'rare' | 'epic' | 'legendary',
         earned_at: new Date().toISOString(),
       };
     } catch (error) {
