@@ -56,14 +56,42 @@ CREATE OR REPLACE FUNCTION increment_metric(
 DECLARE
   v_new_value BIGINT;
 BEGIN
-  INSERT INTO public.user_metrics (user_id, metric_key, value, game_id, updated_at)
-  VALUES (p_user_id, p_metric_key, p_increment, p_game_id, NOW())
-  ON CONFLICT (user_id, metric_key, game_id)
-  DO UPDATE SET
-    value = user_metrics.value + p_increment,
+  -- 1. Try to UPDATE first (handles duplicates gracefully by updating all matching rows if any)
+  -- Note: If multiple rows exist (bad state), this updates all of them. We use LIMIT 1 to just grab one return value.
+  UPDATE public.user_metrics
+  SET 
+    value = value + p_increment,
     updated_at = NOW()
+  WHERE user_id = p_user_id 
+    AND metric_key = p_metric_key 
+    AND (game_id = p_game_id OR (game_id IS NULL AND p_game_id IS NULL))
   RETURNING value INTO v_new_value;
-  RETURN v_new_value;
+
+  -- 2. If updated, return immediately
+  IF FOUND THEN
+    RETURN v_new_value;
+  END IF;
+
+  -- 3. If not found, INSERT
+  BEGIN
+    INSERT INTO public.user_metrics (user_id, metric_key, value, game_id, updated_at)
+    VALUES (p_user_id, p_metric_key, p_increment, p_game_id, NOW())
+    RETURNING value INTO v_new_value;
+    
+    RETURN v_new_value;
+  EXCEPTION WHEN unique_violation THEN
+    -- 4. Handle race condition: someone inserted while we were checking
+    UPDATE public.user_metrics
+    SET 
+      value = value + p_increment,
+      updated_at = NOW()
+    WHERE user_id = p_user_id 
+      AND metric_key = p_metric_key 
+      AND (game_id = p_game_id OR (game_id IS NULL AND p_game_id IS NULL))
+    RETURNING value INTO v_new_value;
+    
+    RETURN v_new_value;
+  END;
 END;
 $$ LANGUAGE plpgsql;
 

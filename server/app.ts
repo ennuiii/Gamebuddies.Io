@@ -14,6 +14,7 @@ import stripeRouter from './routes/stripe';
 import avatarsRouter from './routes/avatars';
 import achievementsRouter from './routes/achievements';
 import matchResultsRouter from './routes/matchResults';
+import notificationsRouter from './routes/notifications';
 
 // Config imports
 import { setupMiddleware, setupStripeWebhook } from './config/middleware';
@@ -59,6 +60,7 @@ export function createApp(
   app.use('/api/stripe', stripeRouter);
   app.use('/api/achievements', achievementsRouter);
   app.use('/api/game', matchResultsRouter(dbService, io, connectionManager));
+  app.use('/api/notifications', notificationsRouter);
 
   // Supabase config endpoint for frontend
   app.get('/api/supabase-config', (req, res) => {

@@ -21,6 +21,7 @@ import FriendList from './components/FriendList';
 import GameInviteToast from './components/GameInviteToast';
 import AchievementUnlockToast from './components/AchievementUnlockToast';
 import { useAchievementNotifications } from './hooks/useAchievementNotifications';
+import NotificationPoller from './components/NotificationPoller';
 import ErrorBoundary from './components/ErrorBoundary';
 import PageTransition from './components/PageTransition';
 import MobileBottomNav from './components/MobileBottomNav';
@@ -113,7 +114,11 @@ function AppContent(): React.ReactElement {
       <DebugPanel />
       <FriendList />
       <GameInviteToast />
+<<<<<<< Updated upstream
       <AchievementUnlockToast />
+=======
+      <NotificationPoller />
+>>>>>>> Stashed changes
       <main id="main-content" tabIndex={-1}>
         <Suspense fallback={<PageLoadingFallback />}>
           <AnimatePresence mode="wait">

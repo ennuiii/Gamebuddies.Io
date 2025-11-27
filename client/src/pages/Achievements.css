@@ -66,7 +66,7 @@
 .achievements-header h1 {
   font-size: 2.5rem;
   font-weight: 700;
-  margin: 0 0 2.5rem; /* Increased margin for better spacing */
+  margin: 0 0 6rem; /* Increased margin even more for better spacing */
   background: linear-gradient(135deg, var(--text-primary, #fff), var(--secondary-color, #00d9ff));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;

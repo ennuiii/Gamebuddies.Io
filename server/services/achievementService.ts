@@ -7,7 +7,7 @@ import type {
   UnlockedAchievement,
   UserProfile,
   AchievementFilter,
-} from '@shared/types/achievements';
+} from '../../shared/types/achievements';
 
 /**
  * Achievement Service

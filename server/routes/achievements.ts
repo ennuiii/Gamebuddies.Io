@@ -1,7 +1,7 @@
 import express, { Request, Response, Router } from 'express';
 import { requireAuth, AuthenticatedRequest } from '../middlewares/auth';
 import { achievementService } from '../services/achievementService';
-import type { AchievementFilter } from '@shared/types/achievements';
+import type { AchievementFilter } from '../../shared/types/achievements';
 
 const router: Router = express.Router();
 

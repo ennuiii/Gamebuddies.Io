@@ -114,13 +114,6 @@ const AchievementCard: React.FC<AchievementCardProps> = ({ achievement, showProg
           <span className="earned-date">{formatDate(earned_at)}</span>
         </div>
       )}
-
-      {/* Unlocked checkmark overlay */}
-      {is_unlocked && (
-        <div className="unlocked-overlay">
-          <span className="checkmark">✓</span>
-        </div>
-      )}
     </div>
   );
 };

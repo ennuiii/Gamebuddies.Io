@@ -1,6 +1,6 @@
 import { Server } from 'socket.io';
 import type { DatabaseService } from '../lib/supabase';
-import type { Player } from '@shared/types';
+import type { Player } from '../../shared/types';
 
 interface RoomData {
   id: string;

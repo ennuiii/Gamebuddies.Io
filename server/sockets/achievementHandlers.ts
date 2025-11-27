@@ -1,6 +1,6 @@
 import type { Socket, Server } from 'socket.io';
 import type { ServerContext } from '../types';
-import { SERVER_EVENTS } from '@shared/constants/socket-events';
+import { SERVER_EVENTS } from '../../shared/constants/socket-events';
 
 /**
  * Achievement socket event types

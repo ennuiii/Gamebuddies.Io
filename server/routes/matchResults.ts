@@ -3,7 +3,7 @@ import { Server } from 'socket.io';
 import { DatabaseService } from '../lib/supabase';
 import { validateApiKey } from '../lib/validation';
 import ConnectionManager from '../lib/connectionManager';
-import { SERVER_EVENTS } from '@shared/constants/socket-events';
+import { SERVER_EVENTS } from '../../shared/constants/socket-events';
 
 // Type definitions
 interface ApiKeyRequest extends Request {
