@@ -201,6 +201,24 @@ class LobbyManager {
         lastUpdate: Date.now()
       });
 
+      // Increment rooms_hosted metric
+      await this.db.adminClient.rpc('increment_metric', {
+        p_user_id: hostId,
+        p_metric_key: 'rooms_hosted',
+        p_increment: 1,
+        p_game_id: null
+      });
+
+      // Check achievement for hosting rooms
+      await this.db.adminClient.rpc('check_achievements', {
+        p_user_id: hostId,
+        p_event_type: 'room_hosted',
+        p_event_data: {
+          room_id: (room as Room).id,
+          game_type: gameType
+        }
+      });
+
       // Log event
       await this.db.logEvent((room as Room).id, hostId, 'room_created', {
         roomCode,
