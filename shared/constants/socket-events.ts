@@ -99,6 +99,12 @@ export const SERVER_EVENTS = {
     ACCEPTED: 'friend:accepted',
   },
 
+  // Achievement Events
+  ACHIEVEMENT: {
+    UNLOCKED: 'achievement:unlocked',
+    PROGRESS: 'achievement:progress',
+  },
+
   // Chat Events
   CHAT: {
     MESSAGE: 'chat:message',

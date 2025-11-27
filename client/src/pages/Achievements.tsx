@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getSupabaseClient } from '../utils/supabase';
 import AchievementCard from '../components/AchievementCard';
+import AchievementDetailsModal from '../components/AchievementDetailsModal';
 import LoadingSpinner from '../components/LoadingSpinner';
 import type {
   AchievementWithProgress,
@@ -17,6 +18,13 @@ interface AchievementStats {
   unlocked: number;
   points: number;
   completion: number;
+}
+
+interface RarityStats {
+  common: { total: number; unlocked: number };
+  rare: { total: number; unlocked: number };
+  epic: { total: number; unlocked: number };
+  legendary: { total: number; unlocked: number };
 }
 
 const Achievements: React.FC = () => {
@@ -34,6 +42,10 @@ const Achievements: React.FC = () => {
   const [rarityFilter, setRarityFilter] = useState<AchievementRarity | 'all'>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'unlocked' | 'locked' | 'in_progress'>('all');
   const [sortBy, setSortBy] = useState<'display_order' | 'rarity' | 'points' | 'progress' | 'recent'>('display_order');
+  const [searchQuery, setSearchQuery] = useState<string>('');
+
+  // Modal state
+  const [selectedAchievement, setSelectedAchievement] = useState<AchievementWithProgress | null>(null);
 
   // Determine if viewing own or another user's achievements
   const isOwnProfile = !userId || userId === user?.id;
@@ -83,9 +95,46 @@ const Achievements: React.FC = () => {
     }
   };
 
+  // Calculate rarity stats
+  const rarityStats = useMemo((): RarityStats => {
+    const stats: RarityStats = {
+      common: { total: 0, unlocked: 0 },
+      rare: { total: 0, unlocked: 0 },
+      epic: { total: 0, unlocked: 0 },
+      legendary: { total: 0, unlocked: 0 },
+    };
+
+    achievements.forEach((a) => {
+      const rarity = a.rarity as keyof RarityStats;
+      if (stats[rarity]) {
+        stats[rarity].total++;
+        if (a.is_unlocked) {
+          stats[rarity].unlocked++;
+        }
+      }
+    });
+
+    return stats;
+  }, [achievements]);
+
+  // Handle achievement card click
+  const handleAchievementClick = useCallback((achievement: AchievementWithProgress) => {
+    setSelectedAchievement(achievement);
+  }, []);
+
   // Filter and sort achievements
   const filteredAchievements = useMemo(() => {
     let result = [...achievements];
+
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      result = result.filter((a) =>
+        a.name.toLowerCase().includes(query) ||
+        a.description.toLowerCase().includes(query) ||
+        a.category.toLowerCase().includes(query)
+      );
+    }
 
     // Apply category filter
     if (categoryFilter !== 'all') {
@@ -123,7 +172,7 @@ const Achievements: React.FC = () => {
     }
 
     return result;
-  }, [achievements, categoryFilter, rarityFilter, statusFilter, sortBy]);
+  }, [achievements, categoryFilter, rarityFilter, statusFilter, sortBy, searchQuery]);
 
   if (loading) {
     return (
@@ -189,10 +238,59 @@ const Achievements: React.FC = () => {
               <div className="completion-fill" style={{ width: `${stats.completion}%` }} />
             </div>
           )}
+
+          {/* Rarity breakdown */}
+          {achievements.length > 0 && (
+            <div className="rarity-breakdown">
+              <div className="rarity-stat legendary">
+                <span className="rarity-icon">👑</span>
+                <span className="rarity-count">{rarityStats.legendary.unlocked}/{rarityStats.legendary.total}</span>
+                <span className="rarity-label">Legendary</span>
+              </div>
+              <div className="rarity-stat epic">
+                <span className="rarity-icon">💜</span>
+                <span className="rarity-count">{rarityStats.epic.unlocked}/{rarityStats.epic.total}</span>
+                <span className="rarity-label">Epic</span>
+              </div>
+              <div className="rarity-stat rare">
+                <span className="rarity-icon">💙</span>
+                <span className="rarity-count">{rarityStats.rare.unlocked}/{rarityStats.rare.total}</span>
+                <span className="rarity-label">Rare</span>
+              </div>
+              <div className="rarity-stat common">
+                <span className="rarity-icon">⚪</span>
+                <span className="rarity-count">{rarityStats.common.unlocked}/{rarityStats.common.total}</span>
+                <span className="rarity-label">Common</span>
+              </div>
+            </div>
+          )}
         </div>
       </header>
 
-      {/* Filters */}
+      {/* Search and Filters */}
+      <div className="search-bar">
+        <div className="search-input-wrapper">
+          <span className="search-icon">🔍</span>
+          <input
+            type="text"
+            placeholder="Search achievements..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="search-input"
+            aria-label="Search achievements"
+          />
+          {searchQuery && (
+            <button
+              className="search-clear-btn"
+              onClick={() => setSearchQuery('')}
+              aria-label="Clear search"
+            >
+              &times;
+            </button>
+          )}
+        </div>
+      </div>
+
       <div className="filters-bar">
         <div className="filter-group">
           <label htmlFor="category-filter">Category</label>
@@ -267,7 +365,21 @@ const Achievements: React.FC = () => {
       <div className="achievements-grid">
         {filteredAchievements.length > 0 ? (
           filteredAchievements.map((achievement) => (
-            <AchievementCard key={achievement.id} achievement={achievement} showProgress={isOwnProfile} />
+            <div
+              key={achievement.id}
+              className="achievement-card-wrapper"
+              onClick={() => handleAchievementClick(achievement)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  handleAchievementClick(achievement);
+                }
+              }}
+            >
+              <AchievementCard achievement={achievement} showProgress={isOwnProfile} />
+            </div>
           ))
         ) : (
           <div className="empty-state">
@@ -276,6 +388,13 @@ const Achievements: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Achievement Details Modal */}
+      <AchievementDetailsModal
+        achievement={selectedAchievement}
+        isOpen={!!selectedAchievement}
+        onClose={() => setSelectedAchievement(null)}
+      />
     </div>
   );
 };

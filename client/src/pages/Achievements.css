@@ -285,3 +285,210 @@
     margin-left: 0.5rem;
   }
 }
+
+/* Rarity breakdown */
+.rarity-breakdown {
+  display: flex;
+  justify-content: center;
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.rarity-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.75rem 1.25rem;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  min-width: 80px;
+}
+
+.rarity-stat.legendary {
+  border-color: rgba(245, 158, 11, 0.4);
+  background: rgba(245, 158, 11, 0.1);
+}
+
+.rarity-stat.epic {
+  border-color: rgba(139, 92, 246, 0.4);
+  background: rgba(139, 92, 246, 0.1);
+}
+
+.rarity-stat.rare {
+  border-color: rgba(59, 130, 246, 0.4);
+  background: rgba(59, 130, 246, 0.1);
+}
+
+.rarity-stat.common {
+  border-color: rgba(156, 163, 175, 0.4);
+  background: rgba(156, 163, 175, 0.1);
+}
+
+.rarity-icon {
+  font-size: 1.25rem;
+}
+
+.rarity-count {
+  font-size: 1rem;
+  font-weight: 700;
+  color: white;
+}
+
+.rarity-stat.legendary .rarity-count {
+  color: #FBBF24;
+}
+
+.rarity-stat.epic .rarity-count {
+  color: #A78BFA;
+}
+
+.rarity-stat.rare .rarity-count {
+  color: #60A5FA;
+}
+
+.rarity-stat.common .rarity-count {
+  color: #9CA3AF;
+}
+
+.rarity-label {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--text-secondary);
+}
+
+/* Search bar */
+.search-bar {
+  max-width: 1200px;
+  margin: 0 auto 1rem;
+  padding: 0 1rem;
+}
+
+.search-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon {
+  position: absolute;
+  left: 16px;
+  font-size: 1rem;
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.search-input {
+  width: 100%;
+  padding: 12px 40px 12px 44px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  color: white;
+  font-size: 1rem;
+  transition: all 0.2s ease;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: var(--secondary-color);
+  background: rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 20px rgba(0, 217, 255, 0.2);
+}
+
+.search-input::placeholder {
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.search-clear-btn {
+  position: absolute;
+  right: 12px;
+  width: 24px;
+  height: 24px;
+  background: rgba(255, 255, 255, 0.1);
+  border: none;
+  border-radius: 50%;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 16px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.search-clear-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+}
+
+/* Achievement card wrapper for click handling */
+.achievement-card-wrapper {
+  cursor: pointer;
+  transition: transform 0.2s ease;
+}
+
+.achievement-card-wrapper:hover {
+  transform: translateY(-4px);
+}
+
+.achievement-card-wrapper:focus {
+  outline: 2px solid var(--secondary-color);
+  outline-offset: 4px;
+  border-radius: 16px;
+}
+
+.achievement-card-wrapper:active {
+  transform: translateY(-2px);
+}
+
+/* Responsive rarity breakdown */
+@media (max-width: 768px) {
+  .rarity-breakdown {
+    gap: 0.75rem;
+  }
+
+  .rarity-stat {
+    padding: 0.5rem 1rem;
+    min-width: 70px;
+  }
+
+  .rarity-icon {
+    font-size: 1rem;
+  }
+
+  .rarity-count {
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .rarity-breakdown {
+    gap: 0.5rem;
+  }
+
+  .rarity-stat {
+    padding: 0.4rem 0.75rem;
+    min-width: 60px;
+  }
+
+  .rarity-icon {
+    font-size: 0.9rem;
+  }
+
+  .rarity-count {
+    font-size: 0.8rem;
+  }
+
+  .rarity-label {
+    font-size: 0.6rem;
+  }
+
+  .search-input {
+    padding: 10px 36px 10px 40px;
+    font-size: 0.9rem;
+  }
+}

@@ -9,6 +9,7 @@ import CreateRoom from '../components/CreateRoom';
 import JoinRoom from '../components/JoinRoom';
 import BrowseRooms from '../components/BrowseRooms';
 import RoomLobby from '../components/RoomLobby';
+import RecentAchievements from '../components/RecentAchievements';
 import './HomePage.css';
 
 interface Game {
@@ -465,6 +466,9 @@ const HomePage: React.FC<HomePageProps> = ({ setIsInLobby, setLobbyLeaveFn }) =>
           )}
         </div>
       </section>
+
+      {/* Recent Achievements Section - only shown for logged-in users */}
+      <RecentAchievements maxDisplay={4} />
 
       <section className="cta-section">
         <div className="container">

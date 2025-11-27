@@ -166,6 +166,19 @@ const Header: React.FC<HeaderProps> = ({ onNavigateHome, onNavigateGames, isInLo
                       </div>
                     </div>
 
+                    {/* Achievement Points Badge */}
+                    {!user.is_guest && (
+                      <button
+                        onClick={() => navigate('/achievements')}
+                        className="achievement-points-badge"
+                        title={`${user.achievement_points || 0} Achievement Points - Click to view achievements`}
+                        aria-label="View your achievements"
+                      >
+                        <span className="trophy-icon">🏆</span>
+                        <span className="points-value">{user.achievement_points || 0}</span>
+                      </button>
+                    )}
+
                     <button
                       onClick={() => navigate('/account')}
                       className="user-info user-info-button"

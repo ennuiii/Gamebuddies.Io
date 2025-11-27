@@ -413,3 +413,63 @@
     width: 100%;
   }
 }
+
+/* Achievement Points Badge */
+.achievement-points-badge {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.4rem 0.8rem;
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(234, 179, 8, 0.15));
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  color: #FBBF24;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.achievement-points-badge:hover {
+  background: linear-gradient(135deg, rgba(245, 158, 11, 0.25), rgba(234, 179, 8, 0.25));
+  border-color: rgba(245, 158, 11, 0.6);
+  box-shadow: 0 0 15px rgba(245, 158, 11, 0.3);
+  transform: translateY(-2px);
+}
+
+.achievement-points-badge:active {
+  transform: translateY(0);
+}
+
+.achievement-points-badge .trophy-icon {
+  font-size: 1rem;
+  filter: drop-shadow(0 0 4px rgba(245, 158, 11, 0.5));
+}
+
+.achievement-points-badge .points-value {
+  text-shadow: 0 0 8px rgba(245, 158, 11, 0.4);
+}
+
+/* Mobile adjustments for achievement badge */
+@media (max-width: 767px) {
+  .achievement-points-badge {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.75rem;
+    gap: 0.3rem;
+  }
+
+  .achievement-points-badge .trophy-icon {
+    font-size: 0.9rem;
+  }
+}
+
+@media (max-width: 479px) {
+  .achievement-points-badge {
+    padding: 0.25rem 0.5rem;
+    font-size: 0.7rem;
+  }
+
+  .achievement-points-badge .points-value {
+    display: none;
+  }
+}

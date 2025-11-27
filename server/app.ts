@@ -58,7 +58,7 @@ export function createApp(
   app.use('/api/avatars', avatarsRouter);
   app.use('/api/stripe', stripeRouter);
   app.use('/api/achievements', achievementsRouter);
-  app.use('/api/game', matchResultsRouter(dbService));
+  app.use('/api/game', matchResultsRouter(dbService, io, connectionManager));
 
   // Supabase config endpoint for frontend
   app.get('/api/supabase-config', (req, res) => {

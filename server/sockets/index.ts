@@ -7,7 +7,11 @@ import { registerConnectionHandlers } from './connectionHandlers';
 import { registerRoomHandlers } from './roomHandlers';
 import { registerGameHandlers } from './gameHandlers';
 import { registerPlayerHandlers } from './playerHandlers';
+import { registerAchievementHandlers, emitAchievementUnlock } from './achievementHandlers';
 import { autoUpdateRoomStatusByHost } from '../services/roomStatusService';
+
+// Re-export achievement emit function for use in routes
+export { emitAchievementUnlock };
 
 // In-memory game state (shared across handlers)
 const gameState: GameState = {
@@ -132,6 +136,7 @@ export function registerAllHandlers(
     registerRoomHandlers(socket, ctx);
     registerGameHandlers(socket, ctx);
     registerPlayerHandlers(socket, ctx);
+    registerAchievementHandlers(socket, ctx);
 
     // Handle disconnection
     socket.on('disconnect', async () => {
