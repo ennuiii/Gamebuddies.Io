@@ -7,6 +7,7 @@ interface RoomParticipant {
   user_id: string;
   role: 'host' | 'player';
   is_connected: boolean;
+  is_ready: boolean;
   in_game: boolean;
   current_location: string;
   last_ping: string;
@@ -41,6 +42,7 @@ function mapParticipantsToPlayers(participants: RoomParticipant[] | undefined) {
     name: p.custom_lobby_name || p.user?.display_name || 'Player',
     isHost: p.role === 'host',
     isConnected: p.is_connected,
+    isReady: p.role === 'host' ? true : (p.is_ready ?? false), // Host is auto-ready
     inGame: p.in_game,
     currentLocation: p.current_location || (p.is_connected ? 'lobby' : 'disconnected'),
     lastPing: p.last_ping,
@@ -424,6 +426,73 @@ export function registerPlayerHandlers(
 
     } catch (error) {
       console.error('❌ Error auto-updating room status:', error);
+    }
+  });
+
+  // Handle player ready toggle
+  socket.on(SOCKET_EVENTS.PLAYER.TOGGLE_READY, async (data) => {
+    try {
+      const roomCode = sanitize.roomCode(data?.roomCode);
+      if (!roomCode || roomCode.length !== 6) {
+        socket.emit('error', { message: 'Invalid room code' });
+        return;
+      }
+
+      const connection = connectionManager.getConnection(socket.id);
+      if (!connection?.roomId || !connection?.userId) {
+        socket.emit('error', { message: 'Not in a room' });
+        return;
+      }
+
+      const room = await db.getRoomByCode(roomCode) as RoomWithParticipants | null;
+      if (!room) {
+        socket.emit('error', { message: 'Room not found' });
+        return;
+      }
+
+      // Find player in room
+      const participant = room.participants?.find(p => p.user_id === connection.userId);
+      if (!participant) {
+        socket.emit('error', { message: 'Player not found in room' });
+        return;
+      }
+
+      // Host is auto-ready, don't allow toggle
+      if (participant.role === 'host') {
+        socket.emit('error', { message: 'Host is automatically ready' });
+        return;
+      }
+
+      // Get current ready status and toggle it
+      const { data: memberData } = await db.adminClient
+        .from('room_members')
+        .select('is_ready')
+        .eq('room_id', room.id)
+        .eq('user_id', connection.userId)
+        .single();
+
+      const currentReady = memberData?.is_ready ?? false;
+      const newReady = !currentReady;
+
+      // Update ready status in database
+      await db.adminClient
+        .from('room_members')
+        .update({ is_ready: newReady })
+        .eq('room_id', room.id)
+        .eq('user_id', connection.userId);
+
+      // Broadcast ready change to all players in room
+      io.to(roomCode).emit(SERVER_EVENTS.PLAYER.READY_CHANGED, {
+        oderId: connection.userId,
+        isReady: newReady,
+        playerName: participant.custom_lobby_name || participant.user?.display_name || 'Player'
+      });
+
+      console.log(`✅ Player ${participant.user?.display_name} is now ${newReady ? 'READY' : 'NOT READY'} in room ${roomCode}`);
+
+    } catch (error) {
+      console.error('❌ Error toggling ready status:', error);
+      socket.emit('error', { message: 'Failed to update ready status' });
     }
   });
 

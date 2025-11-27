@@ -18,6 +18,7 @@ interface Player {
   name: string;
   isHost: boolean;
   isConnected: boolean;
+  isReady: boolean;
   inGame: boolean;
   currentLocation: 'lobby' | 'game' | 'disconnected';
   lastPing?: string;
@@ -415,6 +416,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
           name: p.name,
           isHost: p.isHost,
           isConnected: p.isConnected !== undefined ? p.isConnected : true,
+          isReady: p.isHost ? true : (p.isReady ?? false), // Host is always ready
           inGame: p.inGame || false,
           currentLocation: p.currentLocation || (p.isConnected ? 'lobby' : 'disconnected'),
           lastPing: p.lastPing,
@@ -614,6 +616,16 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
       }
     };
 
+    // Handle player ready status changes
+    const handleReadyChanged = (data: { playerId: string; isReady: boolean; playerName: string }): void => {
+      console.log('✅ [READY] Player ready status changed:', data);
+      setPlayers(prevPlayers =>
+        prevPlayers.map(p =>
+          p.id === data.playerId ? { ...p, isReady: data.isReady } : p
+        )
+      );
+    };
+
     socket.on(SERVER_EVENTS.ROOM.JOINED, handleRoomJoined);
     socket.on(SERVER_EVENTS.PLAYER.JOINED, handlePlayerJoined);
     socket.on(SERVER_EVENTS.PLAYER.LEFT, handlePlayerLeft);
@@ -622,6 +634,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
     socket.on(SERVER_EVENTS.GAME.STARTED, handleGameStarted);
     socket.on(SERVER_EVENTS.HOST.TRANSFERRED, handleHostTransferred);
     socket.on(SERVER_EVENTS.PLAYER.KICKED, handlePlayerKicked);
+    socket.on(SERVER_EVENTS.PLAYER.READY_CHANGED, handleReadyChanged);
     socket.on(SERVER_EVENTS.ERROR, handleError);
     socket.on('roomStatusChanged', handleRoomStatusChanged);
 
@@ -639,6 +652,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
         socket.off(SERVER_EVENTS.GAME.STARTED, handleGameStarted);
         socket.off(SERVER_EVENTS.HOST.TRANSFERRED, handleHostTransferred);
         socket.off(SERVER_EVENTS.PLAYER.KICKED, handlePlayerKicked);
+        socket.off(SERVER_EVENTS.PLAYER.READY_CHANGED, handleReadyChanged);
         socket.off(SERVER_EVENTS.ERROR, handleError);
         socket.off('roomStatusChanged', handleRoomStatusChanged);
 
@@ -682,6 +696,12 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
       }
     }
   }, [socket, socketIsConnected, currentIsHost, isStartingGame, addNotification]);
+
+  const handleToggleReady = useCallback((): void => {
+    if (socket && socketIsConnected && !currentIsHost) {
+      socket.emit(SOCKET_EVENTS.PLAYER.TOGGLE_READY, { roomCode: roomCodeRef.current });
+    }
+  }, [socket, socketIsConnected, currentIsHost]);
 
   const handleLeaveRoom = useCallback((): void => {
     if (clearLastRoom) clearLastRoom();
@@ -756,6 +776,20 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
       { total: 0, lobbyCount: 0, inGameCount: 0, disconnectedCount: 0 }
     );
   }, [players]);
+
+  // Check if all connected non-host players are ready
+  const allPlayersReady = useMemo(() => {
+    const connectedNonHostPlayers = players.filter(p => p.isConnected && !p.isHost);
+    // If no other players, host can start alone
+    if (connectedNonHostPlayers.length === 0) return true;
+    return connectedNonHostPlayers.every(p => p.isReady);
+  }, [players]);
+
+  // Get current user's ready status
+  const currentUserReady = useMemo(() => {
+    const currentPlayer = players.find(p => p.id === currentUserIdRef.current || p.id === user?.id);
+    return currentPlayer?.isReady ?? false;
+  }, [players, user?.id]);
 
   // Get friendship status for a player
   const getFriendshipStatus = useCallback((playerId: string): 'friends' | 'sent' | 'received' | 'none' => {
@@ -989,6 +1023,12 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
                           <span className="premium-badge monthly">PRO</span>
                         ) : null}
                         {player.isHost && <span className="host-badge">Host</span>}
+                        {/* Ready indicator - host is always ready, show for non-host players */}
+                        {selectedGame && (
+                          <span className={`ready-badge ${player.isHost || player.isReady ? 'is-ready' : 'not-ready'}`}>
+                            {player.isHost ? '✓ Host' : player.isReady ? '✓ Ready' : '○ Not Ready'}
+                          </span>
+                        )}
                         <span
                           className="status-badge"
                           style={{ backgroundColor: playerStatus.color }}
@@ -1093,10 +1133,14 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
                     <button
                       onClick={handleStartGame}
                       className="start-game-button"
-                      disabled={!socket || !socketIsConnected || isStartingGame}
+                      disabled={!socket || !socketIsConnected || isStartingGame || !allPlayersReady}
+                      title={!allPlayersReady ? 'Waiting for all players to ready up' : ''}
                     >
-                      {isStartingGame ? 'Starting...' : 'Start Game'}
+                      {isStartingGame ? 'Starting...' : !allPlayersReady ? 'Waiting for Players...' : 'Start Game'}
                     </button>
+                    {!allPlayersReady && (
+                      <p className="waiting-ready-text">All players must be ready before starting</p>
+                    )}
                     <button
                       onClick={() => setSelectedGame(null)}
                       className="change-game-btn"
@@ -1105,8 +1149,17 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
                     </button>
                   </>
                 ) : (
-                  <div style={{ textAlign: 'center', color: '#aaa' }}>
-                    <p>Waiting for host to start...</p>
+                  <div className="player-ready-section">
+                    <button
+                      onClick={handleToggleReady}
+                      className={`ready-button ${currentUserReady ? 'ready' : 'not-ready'}`}
+                      disabled={!socket || !socketIsConnected}
+                    >
+                      {currentUserReady ? '✓ Ready!' : 'Ready Up'}
+                    </button>
+                    <p className="waiting-host-text">
+                      {currentUserReady ? 'Waiting for host to start...' : 'Click Ready when you\'re set to play'}
+                    </p>
                   </div>
                 )}
               </div>

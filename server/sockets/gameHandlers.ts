@@ -9,6 +9,7 @@ interface RoomParticipant {
   user_id: string;
   role: 'host' | 'player';
   is_connected: boolean;
+  is_ready: boolean;
   in_game: boolean;
   current_location: string;
   custom_lobby_name: string | null;
@@ -132,6 +133,33 @@ export function registerGameHandlers(
       }
 
       console.log(`✅ [START GAME] Host validation passed`);
+
+      // Check if all connected non-host players are ready
+      const connectedNonHostPlayers = room.participants?.filter(
+        p => p.is_connected && p.role !== 'host'
+      ) || [];
+
+      const notReadyPlayers = connectedNonHostPlayers.filter(p => !p.is_ready);
+
+      if (notReadyPlayers.length > 0) {
+        const notReadyNames = notReadyPlayers
+          .map(p => p.custom_lobby_name || p.user?.display_name || 'Player')
+          .join(', ');
+        console.error(`❌ [START GAME] Not all players ready: ${notReadyNames}`);
+        socket.emit('error', {
+          message: `Not all players are ready. Waiting for: ${notReadyNames}`,
+          code: 'PLAYERS_NOT_READY'
+        });
+        return;
+      }
+
+      console.log(`✅ [START GAME] All players ready check passed`);
+
+      // Reset all ready statuses before starting (they'll need to ready up again for next game)
+      await db.adminClient
+        .from('room_members')
+        .update({ is_ready: false })
+        .eq('room_id', room.id);
 
       // Update room status
       await db.updateRoom(room.id, {

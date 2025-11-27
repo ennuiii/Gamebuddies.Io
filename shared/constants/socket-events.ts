@@ -24,6 +24,7 @@ export const SOCKET_EVENTS = {
     TRANSFER_HOST: 'transferHost',
     KICK: 'kickPlayer',
     PROFILE_UPDATED: 'profile_updated',
+    TOGGLE_READY: 'player:toggleReady',
   },
 
   // Room Status
@@ -74,6 +75,7 @@ export const SERVER_EVENTS = {
     STATUS_UPDATED: 'playerStatusUpdated',
     KICKED: 'playerKicked',
     KICK_FAILED: 'kickFailed',
+    READY_CHANGED: 'player:readyChanged',
   },
 
   // Host Events

@@ -10,6 +10,7 @@ interface RoomParticipant {
   user_id: string;
   role: 'host' | 'player';
   is_connected: boolean;
+  is_ready: boolean;
   in_game: boolean;
   current_location: string;
   last_ping: string;
@@ -56,6 +57,7 @@ function mapParticipantsToPlayers(participants: RoomParticipant[] | undefined) {
     name: p.custom_lobby_name || p.user?.display_name || 'Player',
     isHost: p.role === 'host',
     isConnected: p.is_connected,
+    isReady: p.role === 'host' ? true : (p.is_ready ?? false), // Host is auto-ready
     inGame: p.in_game,
     currentLocation: p.current_location || (p.is_connected ? 'lobby' : 'disconnected'),
     lastPing: p.last_ping,
