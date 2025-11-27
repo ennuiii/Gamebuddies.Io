@@ -94,6 +94,16 @@ export class AchievementService {
     filter?: AchievementFilter
   ): Promise<AchievementWithProgress[]> {
     try {
+      // Force refresh social achievements if asking for all or social category
+      // This ensures progress bars are up to date with metrics
+      if (!filter?.category || filter.category === 'all' || filter.category === 'social') {
+        await this.checkAchievements({
+          type: 'room_hosted',
+          user_id: userId,
+          metadata: { source: 'profile_view' }
+        });
+      }
+
       // Get all achievements
       let achievementsQuery = supabaseAdmin
         .from('achievements')
@@ -290,11 +300,10 @@ export class AchievementService {
     completion: number;
   }> {
     try {
-      // Get total achievements (non-hidden)
+      // Get total achievements (all, including hidden)
       const { count: total } = await supabaseAdmin
         .from('achievements')
-        .select('*', { count: 'exact', head: true })
-        .eq('is_hidden', false);
+        .select('*', { count: 'exact', head: true });
 
       // Get unlocked achievements
       const { count: unlocked } = await supabaseAdmin
