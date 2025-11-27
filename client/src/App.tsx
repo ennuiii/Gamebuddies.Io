@@ -114,11 +114,8 @@ function AppContent(): React.ReactElement {
       <DebugPanel />
       <FriendList />
       <GameInviteToast />
-<<<<<<< Updated upstream
       <AchievementUnlockToast />
-=======
       <NotificationPoller />
->>>>>>> Stashed changes
       <main id="main-content" tabIndex={-1}>
         <Suspense fallback={<PageLoadingFallback />}>
           <AnimatePresence mode="wait">
