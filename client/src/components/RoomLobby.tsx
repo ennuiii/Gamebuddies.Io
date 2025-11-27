@@ -8,6 +8,7 @@ import GamePicker from './GamePicker';
 import ChatWindow from './ChatWindow';
 import TugOfWar from './TugOfWar';
 import ProfileSettingsModal from './ProfileSettingsModal';
+import ProfileModal from './ProfileModal';
 import { useRealtimeSubscription } from '../utils/useRealtimeSubscription';
 import { getSupabaseClient } from '../utils/supabase';
 import Avatar from './Avatar';
@@ -30,6 +31,7 @@ interface Player {
   avatarOptions?: Record<string, unknown>;
   level: number;
   isGuest?: boolean;
+  achievementPoints?: number;
 }
 
 interface PlayerStatus {
@@ -139,6 +141,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
   const [sendingFriendRequest, setSendingFriendRequest] = useState<Set<string>>(new Set());
   const [recentlyJoinedPlayers, setRecentlyJoinedPlayers] = useState<Set<string>>(new Set());
   const [reconnectingPlayers, setReconnectingPlayers] = useState<Set<string>>(new Set());
+  const [selectedProfileUserId, setSelectedProfileUserId] = useState<string | null>(null);
 
   const roomCodeRef = useRef<string>(roomCode);
   const playerNameRef = useRef<string>(playerName);
@@ -285,7 +288,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
         .from('room_members')
         .select(
           `user_id, role, is_connected, in_game, current_location, last_ping,
-          user:users(username, display_name, premium_tier, avatar_url, avatar_style, avatar_seed, avatar_options, level, is_guest)`
+          user:users(username, display_name, premium_tier, avatar_url, avatar_style, avatar_seed, avatar_options, level, is_guest, achievement_points)`
         )
         .eq('room_id', roomIdRef.current);
 
@@ -308,6 +311,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
           avatarOptions: member.user?.avatar_options,
           level: member.user?.level || 1,
           isGuest: member.user?.is_guest ?? false,
+          achievementPoints: member.user?.achievement_points || 0,
         })) || [];
 
       setPlayers(mappedPlayers);
@@ -444,6 +448,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
           avatarOptions: p.avatarOptions,
           level: p.level || 1,
           isGuest: p.isGuest ?? false,
+          achievementPoints: p.achievementPoints || 0,
         })) || [];
 
       setPlayers(mappedPlayers);
@@ -1009,6 +1014,15 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
         isPremium={isPremium}
       />
 
+      {/* Profile Modal for viewing other players */}
+      {selectedProfileUserId && (
+        <ProfileModal
+          userId={selectedProfileUserId}
+          isOpen={!!selectedProfileUserId}
+          onClose={() => setSelectedProfileUserId(null)}
+        />
+      )}
+
       <div className="lobby-content">
         <div className="players-section">
           <div className="section-header">
@@ -1025,7 +1039,19 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
                   className={`player-card ${player.isHost ? 'host' : ''} ${playerStatus.status} ${isDisconnectedWithTimer ? 'disconnecting' : ''} ${player.role === 'admin' ? 'premium-admin' : player.premiumTier === 'lifetime' ? 'premium-lifetime' : player.premiumTier === 'monthly' ? 'premium-monthly' : ''} ${isJoining ? 'player-joining' : ''} ${isReconnecting ? 'player-reconnecting' : ''}`}
                 >
                   <div className="player-card-content">
-                    <div className="player-avatar">
+                    <div
+                      className={`player-avatar ${!player.isGuest ? 'clickable' : ''}`}
+                      onClick={() => !player.isGuest && setSelectedProfileUserId(player.id)}
+                      title={!player.isGuest ? `View ${player.name}'s profile` : 'Guest profiles are not available'}
+                      role={!player.isGuest ? 'button' : undefined}
+                      tabIndex={!player.isGuest ? 0 : undefined}
+                      onKeyDown={(e) => {
+                        if (!player.isGuest && (e.key === 'Enter' || e.key === ' ')) {
+                          e.preventDefault();
+                          setSelectedProfileUserId(player.id);
+                        }
+                      }}
+                    >
                       <Avatar
                         url={player.avatarUrl}
                         avatarStyle={player.avatarStyle}
@@ -1038,9 +1064,27 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
                       />
                     </div>
                     <div className="player-info">
-                      <span className="player-name">{player.name}</span>
+                      <span
+                        className={`player-name ${!player.isGuest ? 'clickable' : ''}`}
+                        onClick={() => !player.isGuest && setSelectedProfileUserId(player.id)}
+                        role={!player.isGuest ? 'button' : undefined}
+                        tabIndex={!player.isGuest ? 0 : undefined}
+                        onKeyDown={(e) => {
+                          if (!player.isGuest && (e.key === 'Enter' || e.key === ' ')) {
+                            e.preventDefault();
+                            setSelectedProfileUserId(player.id);
+                          }
+                        }}
+                      >
+                        {player.name}
+                      </span>
                       <div className="player-badges">
                         <span className="level-badge-lobby">Lvl {player.level}</span>
+                        {!player.isGuest && (player.achievementPoints ?? 0) > 0 && (
+                          <span className="achievement-badge" title={`${player.achievementPoints} Achievement Points`}>
+                            🏆 {player.achievementPoints}
+                          </span>
+                        )}
                         {player.isGuest ? (
                           <span className="guest-badge">GUEST</span>
                         ) : player.role === 'admin' ? (

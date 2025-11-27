@@ -1,6 +1,9 @@
 import express, { Request, Response, NextFunction, Router } from 'express';
+import { Server } from 'socket.io';
 import { DatabaseService } from '../lib/supabase';
 import { validateApiKey } from '../lib/validation';
+import ConnectionManager from '../lib/connectionManager';
+import { SERVER_EVENTS } from '@shared/constants/socket-events';
 
 // Type definitions
 interface ApiKeyRequest extends Request {
@@ -53,8 +56,58 @@ const apiKeyMiddleware = typeof validateApiKey === 'function'
  * Create the match results router
  * Handles game match result reporting from external game servers
  */
-export default function createMatchResultsRouter(db: DatabaseService): Router {
+export default function createMatchResultsRouter(
+  db: DatabaseService,
+  io: Server,
+  connectionManager: ConnectionManager
+): Router {
   const router: Router = express.Router();
+
+  /**
+   * Emit achievement unlock notification to user via socket
+   */
+  function emitAchievementUnlock(
+    userId: string,
+    achievements: Array<{ id: string; name: string; description?: string; icon_url?: string | null; xp_reward: number; points: number; rarity: string }>
+  ): void {
+    if (!achievements || achievements.length === 0) return;
+
+    try {
+      // Find all socket connections for this user
+      const connections = connectionManager.getConnectionsByUserId(userId);
+
+      if (connections.length === 0) {
+        console.log(`🏆 [ACHIEVEMENT] User ${userId} not connected, cannot emit achievement notification`);
+        return;
+      }
+
+      // Format achievements for the client
+      const formattedAchievements = achievements.map((a) => ({
+        id: a.id,
+        name: a.name,
+        description: a.description || '',
+        icon_url: a.icon_url || null,
+        xp_reward: a.xp_reward,
+        points: a.points,
+        rarity: a.rarity as 'common' | 'rare' | 'epic' | 'legendary',
+        earned_at: new Date().toISOString(),
+      }));
+
+      // Emit to each connected socket
+      for (const connection of connections) {
+        const socket = io.sockets.sockets.get(connection.socketId);
+        if (socket) {
+          socket.emit(SERVER_EVENTS.ACHIEVEMENT.UNLOCKED, {
+            userId,
+            achievements: formattedAchievements,
+          });
+          console.log(`🏆 [ACHIEVEMENT] Emitted ${achievements.length} achievement(s) to user ${userId}`);
+        }
+      }
+    } catch (error) {
+      console.error('❌ [ACHIEVEMENT] Error emitting achievement unlock:', error);
+    }
+  }
 
   /**
    * POST /api/game/match-result
@@ -184,9 +237,11 @@ export default function createMatchResultsRouter(db: DatabaseService): Router {
               const metrics = data?.metrics || null;
               const achievements = data?.achievements?.unlocked || [];
 
-              // Log achievement unlocks
+              // Log and emit achievement unlocks
               if (achievements.length > 0) {
                 console.log(`🏆 [MATCH] ${player.user_id} unlocked ${achievements.length} achievement(s)!`);
+                // Emit socket notification for achievement unlock
+                emitAchievementUnlock(player.user_id, achievements);
               }
 
               return {

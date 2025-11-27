@@ -19,6 +19,8 @@ import AdminRoute from './components/AdminRoute';
 import DebugPanel from './components/DebugPanel';
 import FriendList from './components/FriendList';
 import GameInviteToast from './components/GameInviteToast';
+import AchievementUnlockToast from './components/AchievementUnlockToast';
+import { useAchievementNotifications } from './hooks/useAchievementNotifications';
 import ErrorBoundary from './components/ErrorBoundary';
 import PageTransition from './components/PageTransition';
 import MobileBottomNav from './components/MobileBottomNav';
@@ -50,6 +52,9 @@ function AppContent(): React.ReactElement {
   const [lobbyLeaveFn, setLobbyLeaveFn] = useState<(() => void) | null>(null);
   const navigate = useNavigate();
   const location = useLocation();
+
+  // Listen for achievement unlock notifications
+  useAchievementNotifications();
 
   console.log('🏠 [APP DEBUG] App component rendering:', {
     timestamp: new Date().toISOString(),
@@ -108,6 +113,7 @@ function AppContent(): React.ReactElement {
       <DebugPanel />
       <FriendList />
       <GameInviteToast />
+      <AchievementUnlockToast />
       <main id="main-content" tabIndex={-1}>
         <Suspense fallback={<PageLoadingFallback />}>
           <AnimatePresence mode="wait">
