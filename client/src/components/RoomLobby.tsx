@@ -1024,9 +1024,9 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
                         ) : null}
                         {player.isHost && <span className="host-badge">Host</span>}
                         {/* Ready indicator - host is always ready, show for non-host players */}
-                        {selectedGame && (
-                          <span className={`ready-badge ${player.isHost || player.isReady ? 'is-ready' : 'not-ready'}`}>
-                            {player.isHost ? '✓ Host' : player.isReady ? '✓ Ready' : '○ Not Ready'}
+                        {!player.isHost && (
+                          <span className={`ready-badge ${player.isReady ? 'is-ready' : 'not-ready'}`}>
+                            {player.isReady ? '✓ Ready' : '○ Not Ready'}
                           </span>
                         )}
                         <span
@@ -1098,6 +1098,28 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
           </div>
         </div>
 
+        {/* Ready Section - shown for non-host players above game selection */}
+        {!currentIsHost && (
+          <div className="ready-section">
+            <div className="player-ready-section">
+              <button
+                onClick={handleToggleReady}
+                className={`ready-button ${currentUserReady ? 'ready' : 'not-ready'}`}
+                disabled={!socket || !socketIsConnected}
+              >
+                {currentUserReady ? '✓ Ready!' : 'Ready Up'}
+              </button>
+              <p className="waiting-host-text">
+                {currentUserReady
+                  ? selectedGame
+                    ? 'Waiting for host to start the game...'
+                    : 'Waiting for host to select a game...'
+                  : 'Click Ready when you\'re set to play'}
+              </p>
+            </div>
+          </div>
+        )}
+
         <div className="game-section">
           <h3 className="section-title">Game Selection</h3>
           {!selectedGame ? (
@@ -1149,18 +1171,9 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
                     </button>
                   </>
                 ) : (
-                  <div className="player-ready-section">
-                    <button
-                      onClick={handleToggleReady}
-                      className={`ready-button ${currentUserReady ? 'ready' : 'not-ready'}`}
-                      disabled={!socket || !socketIsConnected}
-                    >
-                      {currentUserReady ? '✓ Ready!' : 'Ready Up'}
-                    </button>
-                    <p className="waiting-host-text">
-                      {currentUserReady ? 'Waiting for host to start...' : 'Click Ready when you\'re set to play'}
-                    </p>
-                  </div>
+                  <p className="waiting-host-text" style={{ textAlign: 'center' }}>
+                    Waiting for host to start the game...
+                  </p>
                 )}
               </div>
             </>
