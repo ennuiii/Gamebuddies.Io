@@ -34,11 +34,8 @@ async function startServer(): Promise<void> {
     console.log('🚀 Starting GameBuddies Server v2.1.0...');
     console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
 
-    // 1. Create HTTP Server
-    const server = http.createServer();
-
-    // 2. Create Socket.IO Server
-    const io = new Server(server, {
+    // 1. Create Socket.IO Server (detached initially)
+    const io = new Server({
       cors: {
         origin: (origin, callback) => {
           // Allow all gamebuddies.io and onrender.com origins
@@ -68,7 +65,7 @@ async function startServer(): Promise<void> {
       pingInterval: 25000
     });
 
-    // 3. Initialize Managers (with fully initialized io)
+    // 2. Initialize Managers (with io)
     console.log('📦 Initializing managers...');
     const connectionManager = new ConnectionManager();
     const lobbyManager = new LobbyManager(io, db as any, connectionManager);
@@ -76,7 +73,7 @@ async function startServer(): Promise<void> {
     const roomLifecycleManager = new RoomLifecycleManager(io);
     const proxyManager = new ProxyManager();
 
-    // 4. Construct Server Context
+    // 3. Construct Server Context
     const ctx: ServerContext = {
       io,
       db,
@@ -87,14 +84,19 @@ async function startServer(): Promise<void> {
       proxyManager
     };
 
-    // 5. Register Socket Handlers (now has full context with lobbyManager)
+    // 4. Register Socket Handlers
     registerAllHandlers(io, ctx);
 
-    // 6. Create Express App
+    // 5. Create Express App
     const app = createApp(io, db, connectionManager);
 
-    // 7. Attach App to Server
-    server.on('request', app);
+    // 6. Create HTTP Server with Express App
+    // This ensures Express is the primary request handler
+    const server = http.createServer(app);
+
+    // 7. Attach Socket.IO to HTTP Server
+    // This correctly intercepts /socket.io requests before they reach Express
+    io.attach(server);
 
     // Load and setup game proxies from database
     console.log('🎮 Setting up game proxies...');

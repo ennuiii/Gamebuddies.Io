@@ -25,8 +25,12 @@ export function errorHandler(
   err: Error,
   req: Request,
   res: Response,
-  _next: NextFunction
+  next: NextFunction
 ): void {
+  if (res.headersSent) {
+    return next(err);
+  }
+
   console.error('💥 Unhandled error:', {
     error: err.message,
     stack: err.stack,
