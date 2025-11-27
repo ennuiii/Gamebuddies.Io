@@ -1691,16 +1691,16 @@
 }
 
 .ready-button.ready {
-  background: linear-gradient(135deg, #2196F3, #1976D2);
+  background: linear-gradient(135deg, #ff6b6b, #ee5a5a);
   color: white;
   box-shadow:
-    0 8px 25px rgba(33, 150, 243, 0.4),
+    0 8px 25px rgba(255, 107, 107, 0.4),
     inset 0 1px 0 rgba(255, 255, 255, 0.2);
 }
 
 .ready-button.ready:hover {
   box-shadow:
-    0 12px 35px rgba(33, 150, 243, 0.5),
+    0 12px 35px rgba(255, 107, 107, 0.5),
     inset 0 1px 0 rgba(255, 255, 255, 0.3);
   transform: translateY(-3px) scale(1.02);
 }
