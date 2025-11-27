@@ -1,6 +1,7 @@
 import express, { Response, Router } from 'express';
 import { supabaseAdmin } from '../lib/supabase';
 import { requireAuth, AuthenticatedRequest } from '../middlewares/auth';
+import { achievementService } from '../services/achievementService';
 
 const router: Router = express.Router();
 
@@ -246,7 +247,42 @@ router.put('/:id/accept', requireAuth, async (req: AuthenticatedRequest, res: Re
 
     if (updateError) throw updateError;
 
-    res.json({ success: true, message: 'Friend request accepted' });
+    // Check friend achievements for both users
+    const sender = (friendship as { user_id: string }).user_id;
+
+    // Get friend counts for both users
+    const [senderCount, receiverCount] = await Promise.all([
+      supabaseAdmin
+        .from('friendships')
+        .select('*', { count: 'exact', head: true })
+        .or(`user_id.eq.${sender},friend_id.eq.${sender}`)
+        .eq('status', 'accepted'),
+      supabaseAdmin
+        .from('friendships')
+        .select('*', { count: 'exact', head: true })
+        .or(`user_id.eq.${userId},friend_id.eq.${userId}`)
+        .eq('status', 'accepted'),
+    ]);
+
+    // Check achievements for sender
+    await achievementService.checkAchievements({
+      user_id: sender,
+      type: 'friend_added',
+      metadata: { friend_count: senderCount.count || 0 },
+    });
+
+    // Check achievements for receiver (current user)
+    const receiverResult = await achievementService.checkAchievements({
+      user_id: userId,
+      type: 'friend_added',
+      metadata: { friend_count: receiverCount.count || 0 },
+    });
+
+    res.json({
+      success: true,
+      message: 'Friend request accepted',
+      achievements: receiverResult,
+    });
   } catch (error) {
     console.error('❌ [FRIENDS] Accept error:', error);
     res.status(500).json({ error: 'Failed to accept request' });

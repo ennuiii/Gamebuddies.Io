@@ -29,6 +29,7 @@ import './App.css';
 const LoginPage = lazy(() => import('./pages/LoginPage'));
 const Premium = lazy(() => import('./pages/Premium'));
 const Account = lazy(() => import('./pages/Account'));
+const Achievements = lazy(() => import('./pages/Achievements'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const AdminAffiliates = lazy(() => import('./pages/AdminAffiliates'));
 
@@ -166,6 +167,26 @@ function AppContent(): React.ReactElement {
                 <PageTransition>
                   <ErrorBoundary>
                     <Account />
+                  </ErrorBoundary>
+                </PageTransition>
+              }
+            />
+            <Route
+              path="/achievements"
+              element={
+                <PageTransition>
+                  <ErrorBoundary>
+                    <Achievements />
+                  </ErrorBoundary>
+                </PageTransition>
+              }
+            />
+            <Route
+              path="/achievements/:userId"
+              element={
+                <PageTransition>
+                  <ErrorBoundary>
+                    <Achievements />
                   </ErrorBoundary>
                 </PageTransition>
               }

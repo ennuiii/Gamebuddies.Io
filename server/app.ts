@@ -12,6 +12,7 @@ import friendsRouter from './routes/friends';
 import adminRouter from './routes/admin';
 import stripeRouter from './routes/stripe';
 import avatarsRouter from './routes/avatars';
+import achievementsRouter from './routes/achievements';
 
 // Config imports
 import { setupMiddleware, setupStripeWebhook } from './config/middleware';
@@ -55,6 +56,7 @@ export function createApp(
   app.use('/api', authRouter); // Mount /users endpoint at /api/users
   app.use('/api/avatars', avatarsRouter);
   app.use('/api/stripe', stripeRouter);
+  app.use('/api/achievements', achievementsRouter);
 
   // Supabase config endpoint for frontend
   app.get('/api/supabase-config', (req, res) => {

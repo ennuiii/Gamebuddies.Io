@@ -5,6 +5,7 @@ import StatusSyncManager from '../lib/statusSyncManager';
 import { validateApiKey, rateLimits } from '../lib/validation';
 import { DatabaseService } from '../lib/supabase';
 import { ConnectionManager } from '../lib/connectionManager';
+import { achievementService } from '../services/achievementService';
 
 // Type definitions
 interface ApiKeyRequest extends Request {
@@ -786,9 +787,43 @@ export default function createGameApiV2Router(
         return;
       }
 
+      // Check for achievements after XP award
+      const isGameWon = source === 'match_won' || source === 'win' || metadata?.won === true;
+      const achievementResult = await achievementService.checkAchievements({
+        user_id: userId,
+        type: 'game_completed',
+        game_id: gameId || apiReq.apiKey.service_name,
+        won: isGameWon,
+        score: metadata?.score,
+        win_streak: metadata?.win_streak,
+        room_id: metadata?.room_id,
+        metadata: metadata,
+      });
+
+      // Also check XP milestone achievements
+      if (result?.current_xp) {
+        await achievementService.checkAchievements({
+          user_id: userId,
+          type: 'xp_earned',
+          metadata: { total_xp: result.current_xp },
+        });
+      }
+
+      // Check level-up achievements if leveled up
+      if (result?.leveled_up && result?.new_level) {
+        await achievementService.checkAchievements({
+          user_id: userId,
+          type: 'level_reached',
+          metadata: { level: result.new_level },
+        });
+      }
+
+      console.log(`🏆 [API V2] Achievement check for ${userId}: ${achievementResult.count} unlocked`);
+
       res.json({
         success: true,
-        progress: result
+        progress: result,
+        achievements: achievementResult,
       });
 
     } catch (error) {

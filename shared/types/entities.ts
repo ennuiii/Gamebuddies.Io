@@ -16,6 +16,7 @@ export interface User {
   role: UserRole;
   level: number;
   xp?: number;
+  achievement_points?: number;
   last_seen: string;
   is_guest?: boolean;
 }
