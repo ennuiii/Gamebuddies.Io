@@ -1,8 +1,69 @@
 -- =====================================================
--- GameBuddies - Add Achievement Points System
+-- GameBuddies - Complete Achievement System Setup
 -- =====================================================
--- Run this in Supabase SQL Editor after MIGRATION_ADD_HIGH_VALUE_FEATURES.sql
--- Adds: Achievement points column, user achievement points tracking
+-- Run this in Supabase SQL Editor
+-- Creates achievements tables and adds points system
+
+-- =====================================================
+-- STEP 0: Create base achievements table if not exists
+-- =====================================================
+
+CREATE TABLE IF NOT EXISTS public.achievements (
+  id VARCHAR(50) PRIMARY KEY,
+  name VARCHAR(100) NOT NULL,
+  description TEXT NOT NULL,
+  icon_url TEXT,
+  category VARCHAR(50) NOT NULL DEFAULT 'special',
+  requirement_type VARCHAR(50) NOT NULL DEFAULT 'count',
+  requirement_value INTEGER NOT NULL DEFAULT 1,
+  xp_reward INTEGER NOT NULL DEFAULT 100,
+  rarity VARCHAR(20) NOT NULL DEFAULT 'common' CHECK (rarity IN ('common', 'rare', 'epic', 'legendary')),
+  display_order INTEGER DEFAULT 0,
+  is_hidden BOOLEAN DEFAULT false,
+  created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+COMMENT ON TABLE public.achievements IS 'Achievement definitions for the platform';
+
+-- Create user_achievements table if not exists
+CREATE TABLE IF NOT EXISTS public.user_achievements (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  achievement_id VARCHAR(50) NOT NULL REFERENCES public.achievements(id) ON DELETE CASCADE,
+  progress INTEGER DEFAULT 0 CHECK (progress >= 0 AND progress <= 100),
+  earned_at TIMESTAMPTZ DEFAULT NOW(),
+  earned_in_room_id UUID,
+  earned_in_game VARCHAR(100),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, achievement_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_achievements_user_id ON public.user_achievements(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_achievements_achievement_id ON public.user_achievements(achievement_id);
+CREATE INDEX IF NOT EXISTS idx_user_achievements_earned_at ON public.user_achievements(earned_at DESC);
+
+COMMENT ON TABLE public.user_achievements IS 'Tracks which achievements users have earned';
+
+-- Add related_achievement_id to notifications if it doesn't exist
+ALTER TABLE public.notifications
+  ADD COLUMN IF NOT EXISTS related_achievement_id VARCHAR(50);
+
+-- =====================================================
+-- STEP 0.5: Insert starter achievements (before adding points column)
+-- =====================================================
+
+INSERT INTO public.achievements (id, name, description, category, requirement_type, requirement_value, xp_reward, rarity, display_order, is_hidden) VALUES
+('first_game', 'First Steps', 'Play your first game', 'games_played', 'count', 1, 50, 'common', 1, false),
+('games_10', 'Getting Started', 'Play 10 games', 'games_played', 'count', 10, 100, 'common', 2, false),
+('games_50', 'Regular Player', 'Play 50 games', 'games_played', 'count', 50, 250, 'rare', 3, false),
+('games_100', 'Veteran', 'Play 100 games', 'games_played', 'count', 100, 500, 'epic', 4, false),
+('first_win', 'Winner!', 'Win your first game', 'wins', 'count', 1, 75, 'common', 5, false),
+('wins_5', 'On a Roll', 'Win 5 games', 'wins', 'count', 5, 150, 'common', 6, false),
+('wins_10', 'Skilled', 'Win 10 games', 'wins', 'count', 10, 200, 'rare', 7, false),
+('wins_50', 'Pro', 'Win 50 games', 'wins', 'count', 50, 500, 'epic', 8, false),
+('win_streak_3', 'Hot Streak', 'Win 3 games in a row', 'wins', 'streak', 3, 200, 'rare', 9, false),
+('win_streak_5', 'Unstoppable', 'Win 5 games in a row', 'wins', 'streak', 5, 400, 'epic', 10, false)
+ON CONFLICT (id) DO NOTHING;
 
 -- =====================================================
 -- STEP 1: Add points column to achievements table
