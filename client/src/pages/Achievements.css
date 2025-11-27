@@ -175,6 +175,8 @@
   font-size: 0.9rem;
   cursor: pointer;
   transition: all 0.2s ease;
+  /* Ensure consistent background for the dropdown itself */
+  background-color: var(--card-bg, #16213e);
 }
 
 .filter-group select:hover {
@@ -185,6 +187,12 @@
   outline: none;
   border-color: var(--secondary-color);
   box-shadow: 0 0 10px rgba(0, 217, 255, 0.2);
+}
+
+/* Style for the options within the dropdown */
+.filter-group select option {
+  color: var(--text-primary); /* Ensure text is visible */
+  background-color: var(--card-bg, #16213e); /* Dark background for options list */
 }
 
 /* Results info */
