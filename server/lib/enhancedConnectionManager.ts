@@ -211,7 +211,7 @@ class EnhancedConnectionManager extends ConnectionManager {
     }
 
     // Create new connection with recovered data
-    const recoveredConnection = this.addConnection(newSocketId, {
+    const added = this.addConnection(newSocketId, {
       userId: recoveryData.userId,
       roomId: recoveryData.roomId,
       roomCode: recoveryData.roomCode,
@@ -224,6 +224,16 @@ class EnhancedConnectionManager extends ConnectionManager {
         recoveryDuration: sessionAge
       }
     });
+
+    if (!added) {
+      throw new Error('Failed to create recovered connection');
+    }
+
+    // Get the connection we just created
+    const recoveredConnection = this.getConnection(newSocketId) as EnhancedConnectionData;
+    if (!recoveredConnection) {
+      throw new Error('Failed to retrieve recovered connection');
+    }
 
     // Mark recovery as used
     this.connectionRecovery.delete(sessionToken);
