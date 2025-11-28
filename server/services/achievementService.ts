@@ -407,27 +407,8 @@ export class AchievementService {
         }
       }
 
-      // 5. Create notification (optional, may fail if table doesn't exist)
-      try {
-        await supabaseAdmin.from('notifications').insert({
-          user_id: userId,
-          type: 'achievement',
-          title: 'Achievement Unlocked!',
-          message: achievement.name,
-          related_achievement_id: achievementId,
-          priority: achievement.rarity === 'legendary' ? 'urgent' : achievement.rarity === 'epic' ? 'high' : 'normal',
-          metadata: {
-            xp_reward: achievement.xp_reward,
-            points_reward: achievement.points,
-            rarity: achievement.rarity,
-            description: achievement.description,
-            icon_url: achievement.icon_url,
-          },
-        });
-      } catch (notifError) {
-        // Notifications table may not exist, that's okay
-        console.log(`[AchievementService] Could not create notification (table may not exist)`);
-      }
+      // Note: DB notification removed - socket event handles real-time toast display
+      // This prevents the generic green bar from showing alongside the fancy toast
 
       console.log(`[AchievementService] Successfully granted achievement "${achievement.name}" to user ${userId}`);
 

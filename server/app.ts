@@ -58,7 +58,7 @@ export function createApp(
   app.use('/api', authRouter); // Mount /users endpoint at /api/users
   app.use('/api/avatars', avatarsRouter);
   app.use('/api/stripe', stripeRouter);
-  app.use('/api/achievements', achievementsRouter);
+  app.use('/api/achievements', achievementsRouter(io, connectionManager));
   app.use('/api/game', matchResultsRouter(dbService, io, connectionManager));
   app.use('/api/notifications', notificationsRouter);
 
