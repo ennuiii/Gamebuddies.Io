@@ -225,10 +225,10 @@ const Achievements: React.FC = () => {
   }
 
   return (
-    <div className="achievements-page">
-      {/* Header with stats */}
-      <header className="achievements-header">
-        <div className="header-content">
+      <div className="achievements-page">
+        {/* Header with stats */}
+        <header className="achievements-header">
+        <div className="achievements-header-content">
           <h1>{isOwnProfile ? 'My Achievements' : 'Achievements'}</h1>
 
           {stats && (
