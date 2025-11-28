@@ -54,7 +54,9 @@ const GameCard: React.FC<GameCardProps> = memo(
             <p className="game-card-description">{game.description}</p>
 
             <div className="game-card-footer">
-              <div className="btn btn-secondary play-button-small">Play</div>
+              <div className="btn btn-secondary play-button-small">
+                <span aria-hidden="true">🎮</span> Play
+              </div>
             </div>
           </div>
         </motion.div>

@@ -3,8 +3,8 @@
   top: 0;
   left: 0;
   right: 0;
-  background: rgba(15, 15, 35, 0.9);
-  backdrop-filter: blur(20px);
+  background: rgba(15, 18, 34, 0.72);
+  backdrop-filter: blur(16px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.15);
   z-index: var(--z-header, 1001);
   /* Account for safe area on notched devices */
