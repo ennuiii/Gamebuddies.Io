@@ -199,14 +199,16 @@ const Account: React.FC = () => {
             />
           ) : (
             <div className="current-avatar">
-              <div className="avatar-display">
+              <div className="avatar-hero">
+                <div className="avatar-hero-spotlight"></div>
+                <div className="avatar-hero-ring"></div>
                 {user?.avatar_style ? (
                   <Avatar
                     avatarStyle={user.avatar_style}
                     avatarSeed={user.avatar_seed}
                     avatarOptions={user.avatar_options}
                     name={user.username || user.display_name}
-                    size={120}
+                    size={200}
                     isPremium={true}
                     className="avatar-large"
                   />
@@ -217,6 +219,10 @@ const Account: React.FC = () => {
                     </span>
                   </div>
                 )}
+                <div className="avatar-pedestal">
+                  <div className="pedestal-top" />
+                  <div className="pedestal-base" />
+                </div>
               </div>
               <button onClick={() => setShowAvatarCustomizer(true)} className="btn btn-secondary">
                 {user?.avatar_style ? 'Change Avatar' : 'Create Avatar'}

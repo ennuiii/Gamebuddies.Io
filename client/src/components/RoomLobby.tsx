@@ -1195,7 +1195,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
                 className={`ready-button ${currentUserReady ? 'ready' : 'not-ready'}`}
                 disabled={!socket || !socketIsConnected}
               >
-                {currentUserReady ? '✗ Stand Down' : 'Ready Up'}
+                {currentUserReady ? 'Stand Down' : 'Ready Up'}
               </button>
               <p className="waiting-host-text">
                 {currentUserReady

@@ -106,3 +106,89 @@ th {
   border-radius: 8px;
   margin-bottom: 1rem;
 }
+
+/* Responsive Table Wrapper */
+.table-wrapper {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin: 0 -1rem;
+  padding: 0 1rem;
+}
+
+/* Tablet responsive */
+@media (max-width: 768px) {
+  .admin-page {
+    padding: 100px 1rem 2rem;
+  }
+
+  .add-affiliate-section {
+    padding: 1rem;
+  }
+
+  .form-row {
+    flex-direction: column;
+    gap: 0;
+  }
+
+  table {
+    min-width: 500px;
+  }
+
+  th, td {
+    padding: 0.75rem;
+    font-size: 0.85rem;
+  }
+}
+
+/* Mobile responsive */
+@media (max-width: 480px) {
+  .admin-page {
+    padding: 90px 0.75rem 1.5rem;
+  }
+
+  .admin-page h1 {
+    font-size: 1.4rem;
+  }
+
+  .add-affiliate-section {
+    padding: 0.75rem;
+    border-radius: 8px;
+  }
+
+  /* Stack table cells on mobile */
+  table thead {
+    display: none;
+  }
+
+  table,
+  table tbody,
+  table tr,
+  table td {
+    display: block;
+    width: 100%;
+  }
+
+  table tr {
+    margin-bottom: 1rem;
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  table td {
+    padding: 0.5rem 0;
+    border: none;
+    text-align: left;
+  }
+
+  table td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: var(--text-secondary);
+    display: block;
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    margin-bottom: 0.25rem;
+  }
+}

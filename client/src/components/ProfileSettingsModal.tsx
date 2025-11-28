@@ -7,6 +7,7 @@ import { useNavigate } from 'react-router-dom';
 import { SOCKET_EVENTS } from '@shared/constants';
 import AvatarCustomizer from './AvatarCustomizer';
 import Avatar from './Avatar';
+import useFocusTrap from '../hooks/useFocusTrap';
 import './ProfileSettingsModal.css';
 
 interface AvatarData {
@@ -38,10 +39,27 @@ const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
   const [showAvatarCustomizer, setShowAvatarCustomizer] = useState<boolean>(false);
   const [avatarLoading, setAvatarLoading] = useState<boolean>(false);
 
+  // Focus trap for modal accessibility - handles Escape key and focus restoration
+  const { containerRef } = useFocusTrap<HTMLDivElement>({
+    isActive: isOpen,
+    onEscape: onClose,
+    closeOnEscape: !avatarLoading,
+  });
+
   useEffect(() => {
     if (isOpen) {
       setShowAvatarCustomizer(false);
     }
+  }, [isOpen]);
+
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
   }, [isOpen]);
 
   if (!isOpen) return null;
@@ -157,15 +175,19 @@ const ProfileSettingsModal: React.FC<ProfileSettingsModalProps> = ({
         onClick={handleOverlayClick}
       >
         <motion.div
+          ref={containerRef}
           className="profile-settings-modal"
           initial={{ opacity: 0, scale: 0.9, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.9, y: 20 }}
           transition={{ duration: 0.3 }}
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="profile-settings-title"
         >
           <div className="profile-settings-header">
-            <h2 className="profile-settings-title">Avatar Settings</h2>
-            <button className="close-button" onClick={onClose}>
+            <h2 id="profile-settings-title" className="profile-settings-title">Avatar Settings</h2>
+            <button className="close-button" onClick={onClose} aria-label="Close avatar settings">
               <svg
                 width="24"
                 height="24"

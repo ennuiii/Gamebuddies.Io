@@ -239,7 +239,7 @@ const BrowseRooms: React.FC<BrowseRoomsProps> = ({ onRoomSelected, onCancel }) =
             >
               {selectedGame === 'all' ? (
                 <span className="trigger-content">
-                  <span className="dropdown-icon">🎮</span>
+                  <span className="dropdown-icon" aria-hidden="true">🎮</span>
                   <span>All Games</span>
                 </span>
               ) : (
@@ -251,23 +251,32 @@ const BrowseRooms: React.FC<BrowseRoomsProps> = ({ onRoomSelected, onCancel }) =
                       className="dropdown-thumbnail"
                     />
                   ) : (
-                    <span className="dropdown-icon">{selectedGameInfo?.icon || '🎮'}</span>
+                    <span className="dropdown-icon" aria-hidden="true">{selectedGameInfo?.icon || '🎮'}</span>
                   )}
                   <span>{selectedGameInfo?.name || 'Select Game'}</span>
                 </span>
               )}
-              <span className="dropdown-arrow">{dropdownOpen ? '▲' : '▼'}</span>
+              <span className="dropdown-arrow" aria-hidden="true">{dropdownOpen ? '▲' : '▼'}</span>
             </button>
             {dropdownOpen && (
-              <div className="game-filter-menu">
+              <div className="game-filter-menu" role="listbox" aria-label="Select game filter">
                 <div
                   className={`game-filter-option ${selectedGame === 'all' ? 'selected' : ''}`}
                   onClick={() => {
                     setSelectedGame('all');
                     setDropdownOpen(false);
                   }}
+                  role="option"
+                  aria-selected={selectedGame === 'all'}
+                  tabIndex={0}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      setSelectedGame('all');
+                      setDropdownOpen(false);
+                    }
+                  }}
                 >
-                  <span className="dropdown-icon">🎮</span>
+                  <span className="dropdown-icon" aria-hidden="true">🎮</span>
                   <span>All Games</span>
                 </div>
                 {games.map((game) => (
@@ -278,11 +287,20 @@ const BrowseRooms: React.FC<BrowseRoomsProps> = ({ onRoomSelected, onCancel }) =
                       setSelectedGame(game.id);
                       setDropdownOpen(false);
                     }}
+                    role="option"
+                    aria-selected={selectedGame === game.id}
+                    tabIndex={0}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        setSelectedGame(game.id);
+                        setDropdownOpen(false);
+                      }
+                    }}
                   >
                     {game.thumbnailUrl ? (
                       <img src={game.thumbnailUrl} alt="" className="dropdown-thumbnail" />
                     ) : (
-                      <span className="dropdown-icon">{game.icon || '🎮'}</span>
+                      <span className="dropdown-icon" aria-hidden="true">{game.icon || '🎮'}</span>
                     )}
                     <span>{game.name}</span>
                   </div>
@@ -290,8 +308,8 @@ const BrowseRooms: React.FC<BrowseRoomsProps> = ({ onRoomSelected, onCancel }) =
               </div>
             )}
           </div>
-          <button className="refresh-button" onClick={loadPublicRooms}>
-            🔄
+          <button className="refresh-button" onClick={loadPublicRooms} aria-label="Refresh rooms list">
+            <span aria-hidden="true">🔄</span>
           </button>
         </div>
 

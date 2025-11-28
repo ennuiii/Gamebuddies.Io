@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import './PaymentSuccess.css';
 
@@ -6,22 +6,37 @@ const PaymentSuccess: React.FC = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const sessionId = searchParams.get('session_id');
+  const [countdown, setCountdown] = useState<number>(10);
+  const [autoRedirectEnabled, setAutoRedirectEnabled] = useState<boolean>(true);
 
   useEffect(() => {
     console.log('✅ [PAYMENT] Payment successful, session:', sessionId);
+  }, [sessionId]);
+
+  useEffect(() => {
+    if (!autoRedirectEnabled) return;
+
+    if (countdown <= 0) {
+      navigate('/');
+      return;
+    }
 
     const timer = setTimeout(() => {
-      navigate('/');
-    }, 5000);
+      setCountdown((prev) => prev - 1);
+    }, 1000);
 
     return () => clearTimeout(timer);
-  }, [sessionId, navigate]);
+  }, [countdown, autoRedirectEnabled, navigate]);
+
+  const handleCancelRedirect = (): void => {
+    setAutoRedirectEnabled(false);
+  };
 
   return (
     <div className="payment-result-page success">
-      <div className="result-container">
-        <div className="result-icon success-icon">✅</div>
-        <h1>Payment Successful!</h1>
+      <div className="result-container" role="main" aria-labelledby="success-title">
+        <div className="result-icon success-icon" role="img" aria-label="Success">✅</div>
+        <h1 id="success-title">Payment Successful!</h1>
         <p className="result-message">
           Thank you for upgrading to Premium! Your account has been activated.
         </p>
@@ -29,11 +44,11 @@ const PaymentSuccess: React.FC = () => {
         <div className="result-details">
           <h3>What's next?</h3>
           <ul>
-            <li>✨ Enjoy your ad-free experience</li>
-            <li>🎨 Customize your avatar</li>
-            <li>🎮 Access exclusive games</li>
-            <li>📊 View advanced statistics</li>
-            <li>⚡ Get priority support</li>
+            <li><span aria-hidden="true">✨</span> Enjoy your ad-free experience</li>
+            <li><span aria-hidden="true">🎨</span> Customize your avatar</li>
+            <li><span aria-hidden="true">🎮</span> Access exclusive games</li>
+            <li><span aria-hidden="true">📊</span> View advanced statistics</li>
+            <li><span aria-hidden="true">⚡</span> Get priority support</li>
           </ul>
         </div>
 
@@ -46,7 +61,22 @@ const PaymentSuccess: React.FC = () => {
           </button>
         </div>
 
-        <p className="redirect-notice">You will be redirected to the homepage in 5 seconds...</p>
+        {autoRedirectEnabled ? (
+          <p className="redirect-notice" role="status" aria-live="polite">
+            Redirecting to homepage in {countdown} seconds...{' '}
+            <button
+              onClick={handleCancelRedirect}
+              className="cancel-redirect-btn"
+              aria-label="Cancel automatic redirect"
+            >
+              Stay here
+            </button>
+          </p>
+        ) : (
+          <p className="redirect-notice">
+            Auto-redirect cancelled. Use the buttons above to navigate.
+          </p>
+        )}
       </div>
     </div>
   );

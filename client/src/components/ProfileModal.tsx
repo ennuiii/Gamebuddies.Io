@@ -1,7 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Avatar from './Avatar';
 import LoadingSpinner from './LoadingSpinner';
+import useFocusTrap from '../hooks/useFocusTrap';
 import type { UserProfile, UnlockedAchievement } from '@shared/types/achievements';
 import './ProfileModal.css';
 
@@ -13,10 +14,16 @@ interface ProfileModalProps {
 
 const ProfileModal: React.FC<ProfileModalProps> = ({ userId, isOpen, onClose }) => {
   const navigate = useNavigate();
-  const modalRef = useRef<HTMLDivElement>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Focus trap for modal accessibility - handles Escape key and focus restoration
+  const { containerRef } = useFocusTrap<HTMLDivElement>({
+    isActive: isOpen,
+    onEscape: onClose,
+    closeOnEscape: true,
+  });
 
   useEffect(() => {
     if (isOpen && userId) {
@@ -24,24 +31,15 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ userId, isOpen, onClose }) 
     }
   }, [isOpen, userId]);
 
-  // Handle Escape key
+  // Prevent body scroll when modal is open
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && isOpen) {
-        onClose();
-      }
-    };
-
     if (isOpen) {
-      document.addEventListener('keydown', handleKeyDown);
       document.body.style.overflow = 'hidden';
     }
-
     return () => {
-      document.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = '';
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
 
   // Handle click outside
   const handleBackdropClick = (e: React.MouseEvent) => {
@@ -85,11 +83,12 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ userId, isOpen, onClose }) 
   ) : null;
 
   return (
-    <div className="profile-modal-overlay" onClick={handleBackdropClick} role="dialog" aria-modal="true">
+    <div className="profile-modal-overlay" onClick={handleBackdropClick}>
       <div
-        ref={modalRef}
+        ref={containerRef}
         className="profile-modal"
-        role="document"
+        role="dialog"
+        aria-modal="true"
         aria-labelledby="profile-modal-title"
       >
         <button className="close-button" onClick={onClose} aria-label="Close profile">
@@ -138,7 +137,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ userId, isOpen, onClose }) 
 
             {/* Achievement Points */}
             <div className="achievement-points-display">
-              <span className="points-icon">🏆</span>
+              <span className="points-icon" aria-hidden="true">🏆</span>
               <span className="points-value">{profile.achievement_points}</span>
               <span className="points-label">Achievement Points</span>
             </div>
@@ -170,7 +169,7 @@ const ProfileModal: React.FC<ProfileModalProps> = ({ userId, isOpen, onClose }) 
                 <div className="achievements-list">
                   {profile.recent_achievements.slice(0, 3).map((achievement) => (
                     <div key={achievement.id} className={`achievement-mini rarity-${achievement.rarity}`}>
-                      <span className="achievement-icon">
+                      <span className="achievement-icon" aria-hidden="true">
                         {getAchievementIcon(achievement.id)}
                       </span>
                       <div className="achievement-info">

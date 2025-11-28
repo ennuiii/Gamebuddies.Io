@@ -21,6 +21,7 @@ const LoginPage: React.FC = () => {
   const [authError, setAuthError] = useState<string>('');
   const [authSuccess, setAuthSuccess] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
+  const [isOAuthLoading, setIsOAuthLoading] = useState<OAuthProvider | null>(null);
   const [rememberMe, setRememberMe] = useState<boolean>(true);
 
   useEffect(() => {
@@ -30,10 +31,14 @@ const LoginPage: React.FC = () => {
   }, [isAuthenticated, loading, navigate]);
 
   const handleOAuthLogin = async (provider: OAuthProvider): Promise<void> => {
+    setAuthError('');
+    setIsOAuthLoading(provider);
+
     try {
       const supabase = await getSupabaseClient();
       if (!supabase) {
-        alert('Failed to connect to authentication service');
+        setAuthError('Failed to connect to authentication service');
+        setIsOAuthLoading(null);
         return;
       }
 
@@ -47,11 +52,14 @@ const LoginPage: React.FC = () => {
 
       if (oauthError) {
         console.error('OAuth login error:', oauthError);
-        alert('Login failed. Please try again.');
+        setAuthError('Login failed. Please try again.');
+        setIsOAuthLoading(null);
       }
+      // Note: On success, user is redirected, so no need to reset loading state
     } catch (err) {
       console.error('Login error:', err);
-      alert('An error occurred. Please try again.');
+      setAuthError('An error occurred. Please try again.');
+      setIsOAuthLoading(null);
     }
   };
 
@@ -217,8 +225,12 @@ const LoginPage: React.FC = () => {
         <div className="login-options">
           {authMode === 'oauth' ? (
             <>
-              <button onClick={handleGuestContinue} className="auth-button guest-button">
-                <span className="button-icon">🎮</span>
+              <button
+                onClick={handleGuestContinue}
+                className="auth-button guest-button"
+                disabled={isOAuthLoading !== null}
+              >
+                <span className="button-icon" aria-hidden="true">🎮</span>
                 <span className="button-text">Continue as Guest</span>
               </button>
 
@@ -229,17 +241,29 @@ const LoginPage: React.FC = () => {
               <button
                 onClick={() => handleOAuthLogin('discord')}
                 className="auth-button discord-button"
+                disabled={isOAuthLoading !== null}
+                aria-busy={isOAuthLoading === 'discord'}
               >
-                <span className="button-icon">💬</span>
-                <span className="button-text">Login with Discord</span>
+                <span className="button-icon" aria-hidden="true">
+                  {isOAuthLoading === 'discord' ? '⏳' : '💬'}
+                </span>
+                <span className="button-text">
+                  {isOAuthLoading === 'discord' ? 'Connecting...' : 'Login with Discord'}
+                </span>
               </button>
 
               <button
                 onClick={() => handleOAuthLogin('google')}
                 className="auth-button google-button"
+                disabled={isOAuthLoading !== null}
+                aria-busy={isOAuthLoading === 'google'}
               >
-                <span className="button-icon">🔍</span>
-                <span className="button-text">Login with Google</span>
+                <span className="button-icon" aria-hidden="true">
+                  {isOAuthLoading === 'google' ? '⏳' : '🔍'}
+                </span>
+                <span className="button-text">
+                  {isOAuthLoading === 'google' ? 'Connecting...' : 'Login with Google'}
+                </span>
               </button>
             </>
           ) : (
@@ -377,8 +401,12 @@ const LoginPage: React.FC = () => {
                 <span>or continue as guest</span>
               </div>
 
-              <button onClick={handleGuestContinue} className="auth-button guest-button">
-                <span className="button-icon">🎮</span>
+              <button
+                onClick={handleGuestContinue}
+                className="auth-button guest-button"
+                disabled={isSubmitting}
+              >
+                <span className="button-icon" aria-hidden="true">🎮</span>
                 <span className="button-text">Continue as Guest</span>
               </button>
             </>
@@ -388,10 +416,10 @@ const LoginPage: React.FC = () => {
         <div className="login-benefits">
           <p className="benefits-title">Why sign in?</p>
           <ul className="benefits-list">
-            <li>💾 Save your game progress</li>
-            <li>🏆 Unlock achievements</li>
-            <li>👥 Find and play with friends</li>
-            <li>⭐ Access premium features</li>
+            <li><span aria-hidden="true">💾</span> Save your game progress</li>
+            <li><span aria-hidden="true">🏆</span> Unlock achievements</li>
+            <li><span aria-hidden="true">👥</span> Find and play with friends</li>
+            <li><span aria-hidden="true">⭐</span> Access premium features</li>
           </ul>
         </div>
 

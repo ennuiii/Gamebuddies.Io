@@ -1,14 +1,27 @@
 .achievement-toast-container {
   position: fixed;
-  top: 50%;
+  top: 100px;
   right: 20px;
-  transform: translateY(-50%);
+  bottom: 100px;
   z-index: 10001;
   display: flex;
   flex-direction: column;
   gap: 12px;
   pointer-events: none;
   width: min(480px, calc(100vw - 40px));
+  /* Allow scrolling when multiple toasts overflow */
+  overflow-y: auto;
+  overflow-x: hidden;
+  /* Hide scrollbar but allow scrolling */
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  /* Align toasts to top when few, center when container fills */
+  justify-content: flex-start;
+  padding: 10px 0;
+}
+
+.achievement-toast-container::-webkit-scrollbar {
+  display: none;
 }
 
 .achievement-toast {
@@ -181,8 +194,10 @@
   background: rgba(255, 255, 255, 0.1);
   border: none;
   color: rgba(255, 255, 255, 0.7);
-  width: 24px;
-  height: 24px;
+  width: 32px;
+  height: 32px;
+  min-width: 44px;
+  min-height: 44px;
   border-radius: 50%;
   font-size: 16px;
   cursor: pointer;
@@ -190,6 +205,9 @@
   align-items: center;
   justify-content: center;
   transition: all 0.2s;
+  /* Expand touch target with negative margin */
+  margin: -6px -6px -6px 0;
+  padding: 6px;
 }
 
 .toast-close:hover {
@@ -411,9 +429,9 @@
 /* Responsive */
 @media (max-width: 767px) {
   .achievement-toast-container {
-    top: 50%;
+    top: 90px;
     right: 10px;
-    transform: translateY(-50%);
+    bottom: 80px;
     width: calc(100vw - 20px);
     max-width: 400px;
   }
@@ -486,12 +504,12 @@
 
 @media (max-width: 479px) {
   .achievement-toast-container {
-    top: auto;
+    top: 90px;
     bottom: 80px;
     right: 10px;
     left: 10px;
-    transform: none;
     width: auto;
+    max-width: none;
   }
 
   .toast-content {

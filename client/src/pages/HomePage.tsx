@@ -62,6 +62,7 @@ const HomePage: React.FC<HomePageProps> = ({ setIsInLobby, setLobbyLeaveFn }) =>
   const [joinRoomCode, setJoinRoomCode] = useState<string>('');
   const [prefillName, setPrefillName] = useState<string>('');
   const [autoJoin, setAutoJoin] = useState<boolean>(false);
+  const previewTrackRef = useRef<HTMLDivElement | null>(null);
 
   const fetchGames = useCallback(async (): Promise<void> => {
     setLoading(true);
@@ -82,6 +83,60 @@ const HomePage: React.FC<HomePageProps> = ({ setIsInLobby, setLobbyLeaveFn }) =>
   useEffect(() => {
     fetchGames();
   }, [fetchGames]);
+
+  // Smooth, seamless marquee for the hero preview track
+  useEffect(() => {
+    const track = previewTrackRef.current;
+    if (!track || games.length === 0) return;
+
+    const prefersReduced = typeof window !== 'undefined' &&
+      window.matchMedia &&
+      window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (prefersReduced) {
+      track.style.transform = 'translate3d(0, 0, 0)';
+      return;
+    }
+
+    let start: number | null = null;
+    let rafId: number;
+    const speed = 45; // pixels per second
+
+    const computeLoopWidth = (): number => {
+      const width = track.scrollWidth / 2;
+      return width > 0 ? width : track.getBoundingClientRect().width;
+    };
+
+    let loopWidth = computeLoopWidth();
+
+    const step = (timestamp: number) => {
+      if (start === null) start = timestamp;
+      const elapsed = timestamp - start;
+      const distance = (elapsed / 1000) * speed;
+
+      if (distance >= loopWidth) {
+        start = timestamp;
+        track.style.transform = 'translate3d(0, 0, 0)';
+      } else {
+        track.style.transform = `translate3d(-${distance}px, 0, 0)`;
+      }
+
+      rafId = requestAnimationFrame(step);
+    };
+
+    const handleResize = () => {
+      loopWidth = computeLoopWidth();
+      start = null;
+    };
+
+    window.addEventListener('resize', handleResize);
+    rafId = requestAnimationFrame(step);
+
+    return () => {
+      cancelAnimationFrame(rafId);
+      window.removeEventListener('resize', handleResize);
+      track.style.transform = '';
+    };
+  }, [games.length]);
 
   const getStoredSessionInfo = useCallback((): StoredSession => {
     const info: StoredSession = {
@@ -440,7 +495,7 @@ const HomePage: React.FC<HomePageProps> = ({ setIsInLobby, setLobbyLeaveFn }) =>
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.8, delay: 1 }}
             >
-              <div className="preview-track">
+              <div className="preview-track" ref={previewTrackRef}>
                 {[...games, ...games].map((game, idx) => (
                   <div key={`${game.id}-${idx}`} className="preview-card">
                     <div className="preview-thumb">

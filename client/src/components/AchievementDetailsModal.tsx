@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import type { AchievementWithProgress } from '@shared/types/achievements';
+import useFocusTrap from '../hooks/useFocusTrap';
 import './AchievementDetailsModal.css';
 
 interface AchievementDetailsModalProps {
@@ -66,6 +67,23 @@ const AchievementDetailsModal: React.FC<AchievementDetailsModalProps> = ({
   isOpen,
   onClose,
 }) => {
+  // Focus trap for modal accessibility - handles Escape key and focus restoration
+  const { containerRef } = useFocusTrap<HTMLDivElement>({
+    isActive: isOpen && !!achievement,
+    onEscape: onClose,
+    closeOnEscape: true,
+  });
+
+  // Prevent body scroll when modal is open
+  useEffect(() => {
+    if (isOpen) {
+      document.body.style.overflow = 'hidden';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isOpen]);
+
   if (!isOpen || !achievement) return null;
 
   const {
@@ -137,10 +155,14 @@ const AchievementDetailsModal: React.FC<AchievementDetailsModalProps> = ({
   return (
     <div className="achievement-modal-backdrop" onClick={handleBackdropClick}>
       <div
+        ref={containerRef}
         className={`achievement-modal rarity-${rarity}`}
         style={{ '--rarity-color': rarityColors[rarity] } as React.CSSProperties}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="achievement-modal-title"
       >
-        <button className="modal-close-btn" onClick={onClose} aria-label="Close modal">
+        <button className="modal-close-btn" onClick={onClose} aria-label="Close achievement details">
           &times;
         </button>
 
@@ -148,7 +170,7 @@ const AchievementDetailsModal: React.FC<AchievementDetailsModalProps> = ({
         <div className={`modal-header rarity-${rarity}`}>
           <span className={`modal-rarity-badge ${rarity}`}>{rarityLabels[rarity]}</span>
           <span className="modal-category">
-            {categoryIcons[category]} {categoryLabels[category]}
+            <span aria-hidden="true">{categoryIcons[category]}</span> {categoryLabels[category]}
           </span>
         </div>
 
@@ -157,21 +179,21 @@ const AchievementDetailsModal: React.FC<AchievementDetailsModalProps> = ({
           {/* Icon */}
           <div className={`modal-icon ${is_unlocked ? 'unlocked' : 'locked'}`}>
             {isSecret ? (
-              <span className="secret-icon">?</span>
+              <span className="secret-icon" aria-hidden="true">?</span>
             ) : icon_url ? (
               <img src={icon_url} alt={name} />
             ) : (
-              <span className="default-icon">{categoryIcons[category]}</span>
+              <span className="default-icon" aria-hidden="true">{categoryIcons[category]}</span>
             )}
             {is_unlocked && (
-              <div className="unlocked-checkmark">
+              <div className="unlocked-checkmark" aria-hidden="true">
                 <span>✓</span>
               </div>
             )}
           </div>
 
           {/* Title and description */}
-          <h2 className="modal-title">{isSecret ? '???' : name}</h2>
+          <h2 id="achievement-modal-title" className="modal-title">{isSecret ? '???' : name}</h2>
           <p className="modal-description">
             {isSecret ? 'This achievement is hidden until unlocked' : description}
           </p>
@@ -179,7 +201,7 @@ const AchievementDetailsModal: React.FC<AchievementDetailsModalProps> = ({
           {/* Hint for hidden achievements */}
           {isSecret && (
             <div className="modal-hint">
-              <span className="hint-icon">💡</span>
+              <span className="hint-icon" aria-hidden="true">💡</span>
               <span className="hint-text">{getRequirementDescription()}</span>
             </div>
           )}
@@ -217,7 +239,7 @@ const AchievementDetailsModal: React.FC<AchievementDetailsModalProps> = ({
           {is_unlocked && earned_at && (
             <div className="modal-unlock-info">
               <div className="unlock-badge">
-                <span className="unlock-icon">🏆</span>
+                <span className="unlock-icon" aria-hidden="true">🏆</span>
                 <span className="unlock-text">Achievement Unlocked!</span>
               </div>
               <span className="unlock-date">{formatDate(earned_at)}</span>
@@ -228,12 +250,12 @@ const AchievementDetailsModal: React.FC<AchievementDetailsModalProps> = ({
           <div className={`modal-status ${is_unlocked ? 'unlocked' : 'locked'}`}>
             {is_unlocked ? (
               <>
-                <span className="status-icon">✅</span>
+                <span className="status-icon" aria-hidden="true">✅</span>
                 <span>Completed</span>
               </>
             ) : (
               <>
-                <span className="status-icon">🔒</span>
+                <span className="status-icon" aria-hidden="true">🔒</span>
                 <span>{progressPercent > 0 ? 'In Progress' : 'Not Started'}</span>
               </>
             )}
