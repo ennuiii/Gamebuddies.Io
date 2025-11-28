@@ -5,6 +5,7 @@ import { achievementService } from '../services/achievementService';
 import type { AchievementFilter } from '../../shared/types/achievements';
 import { SERVER_EVENTS } from '../../shared/constants/socket-events';
 import ConnectionManager from '../lib/connectionManager';
+import { supabaseAdmin } from '../lib/supabase';
 
 /**
  * Valid redemption codes for easter egg achievements
@@ -79,6 +80,118 @@ export default function achievementsRouter(io: Server, connectionManager: Connec
       res.status(500).json({
         success: false,
         error: 'Failed to fetch user achievements',
+      });
+    }
+  });
+
+  /**
+   * GET /api/achievements/unseen
+   * Get unseen achievements for notification bell
+   */
+  router.get('/unseen', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ success: false, error: 'Not authenticated' });
+      }
+
+      // Query unseen achievements (earned but not seen)
+      const { data: unseenAchievements, error } = await supabaseAdmin
+        .from('user_achievements')
+        .select(`
+          achievement_id,
+          earned_at,
+          achievements (
+            id,
+            name,
+            description,
+            icon_url,
+            category,
+            requirement_type,
+            requirement_value,
+            xp_reward,
+            points,
+            rarity
+          )
+        `)
+        .eq('user_id', userId)
+        .not('earned_at', 'is', null)
+        .is('seen_at', null)
+        .order('earned_at', { ascending: false });
+
+      if (error) {
+        console.error('[Achievements] Error fetching unseen achievements:', error);
+        return res.status(500).json({
+          success: false,
+          error: 'Failed to fetch unseen achievements',
+        });
+      }
+
+      // Transform to match UnlockedAchievement format
+      const achievements = (unseenAchievements || []).map((ua: any) => ({
+        id: ua.achievements?.id || ua.achievement_id,
+        name: ua.achievements?.name || '',
+        description: ua.achievements?.description || '',
+        icon_url: ua.achievements?.icon_url || null,
+        category: ua.achievements?.category || 'special',
+        requirement_type: ua.achievements?.requirement_type || 'count',
+        requirement_value: ua.achievements?.requirement_value || 1,
+        xp_reward: ua.achievements?.xp_reward || 0,
+        points: ua.achievements?.points || 0,
+        rarity: ua.achievements?.rarity || 'common',
+        earned_at: ua.earned_at,
+      }));
+
+      res.json({
+        success: true,
+        count: achievements.length,
+        achievements,
+      });
+    } catch (error) {
+      console.error('[Achievements] Error fetching unseen achievements:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to fetch unseen achievements',
+      });
+    }
+  });
+
+  /**
+   * POST /api/achievements/:achievementId/seen
+   * Mark an achievement as seen
+   */
+  router.post('/:achievementId/seen', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const userId = req.user?.id;
+      if (!userId) {
+        return res.status(401).json({ success: false, error: 'Not authenticated' });
+      }
+
+      const { achievementId } = req.params;
+
+      const { error } = await supabaseAdmin
+        .from('user_achievements')
+        .update({ seen_at: new Date().toISOString() })
+        .eq('user_id', userId)
+        .eq('achievement_id', achievementId)
+        .not('earned_at', 'is', null);
+
+      if (error) {
+        console.error('[Achievements] Error marking achievement as seen:', error);
+        return res.status(500).json({
+          success: false,
+          error: 'Failed to mark achievement as seen',
+        });
+      }
+
+      console.log(`👁️ [SEEN] User ${userId} marked achievement "${achievementId}" as seen`);
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error('[Achievements] Error marking achievement as seen:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Failed to mark achievement as seen',
       });
     }
   });

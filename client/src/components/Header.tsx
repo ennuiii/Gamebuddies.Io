@@ -2,6 +2,7 @@ import React, { useState, MouseEvent } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
+import NotificationBell from './NotificationBell';
 import './Header.css';
 
 interface LevelCurveEntry {
@@ -178,6 +179,9 @@ const Header: React.FC<HeaderProps> = ({ onNavigateHome, onNavigateGames, isInLo
                         <span className="points-value">{user.achievement_points || 0}</span>
                       </button>
                     )}
+
+                    {/* Notification Bell */}
+                    {!user.is_guest && <NotificationBell />}
 
                     <button
                       onClick={() => navigate('/account')}
