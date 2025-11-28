@@ -278,19 +278,19 @@
 
 .xp-bar-container {
   width: 100%;
-  height: 6px;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 3px;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
   overflow: hidden;
-  box-shadow: inset 0 1px 3px rgba(0,0,0,0.3);
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.25);
 }
 
 .xp-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, var(--secondary-color), var(--primary-color));
-  border-radius: 3px;
-  transition: width 0.5s ease-out;
-  box-shadow: 0 0 10px rgba(0, 217, 255, 0.5);
+  background: linear-gradient(90deg, var(--secondary-color), #7cf3ff);
+  border-radius: 999px;
+  transition: width 0.35s ease-out;
+  box-shadow: 0 0 12px rgba(0, 217, 255, 0.45);
 }
 
 /* Responsive - Tablet */

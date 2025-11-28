@@ -19,8 +19,9 @@
 }
 
 .game-card:hover {
-  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.7);
-  border-color: rgba(0, 217, 255, 0.3);
+  box-shadow: 0 18px 48px rgba(0, 217, 255, 0.25), 0 12px 30px rgba(0, 0, 0, 0.55);
+  border-color: rgba(0, 217, 255, 0.45);
+  transform: translateY(-6px);
 }
 
 .game-card-image-container {
