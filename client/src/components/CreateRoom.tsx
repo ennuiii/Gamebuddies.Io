@@ -300,12 +300,12 @@ const CreateRoom: React.FC<CreateRoomProps> = ({ onRoomCreated, onCancel }) => {
             <button
               type="button"
               onClick={onCancel}
-              className="cancel-button"
+              className="btn btn-ghost cancel-button"
               disabled={isCreating}
             >
               Cancel
             </button>
-            <button type="submit" className="create-button" disabled={isCreating}>
+            <button type="submit" className="btn btn-primary create-button" disabled={isCreating}>
               {isCreating ? (
                 <>
                   <LoadingSpinner size="sm" color="white" inline />

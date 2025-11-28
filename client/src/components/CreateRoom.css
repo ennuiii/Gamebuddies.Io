@@ -39,17 +39,14 @@
 }
 
 .create-room-modal {
-  background: rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(25px);
-  border-radius: 25px;
+  background: var(--glass-2);
+  backdrop-filter: blur(18px);
+  border-radius: var(--radius-xl);
   padding: 3rem;
   max-width: 500px;
   width: 100%;
-  box-shadow: 
-    0 25px 60px rgba(0, 0, 0, 0.8),
-    0 0 0 1px rgba(255, 255, 255, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--color-border-strong);
   position: relative;
   overflow: hidden;
   animation: modalSlideUp 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
@@ -58,20 +55,9 @@
 /* Fallback for browsers that don't support backdrop-filter */
 @supports not (backdrop-filter: blur(25px)) {
   .create-room-modal {
-    background: rgba(15, 15, 35, 0.95);
-    border: 1px solid rgba(255, 255, 255, 0.25);
+    background: var(--color-surface-1);
+    border: 1px solid var(--color-border-strong);
   }
-}
-
-.create-room-modal::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
-  animation: modalShine 3s linear infinite;
 }
 
 @keyframes modalSlideUp {
@@ -85,11 +71,6 @@
   }
 }
 
-@keyframes modalShine {
-  0% { left: -100%; }
-  100% { left: 100%; }
-}
-
 .create-room-title {
   font-family: 'Orbitron', sans-serif;
   font-size: 2.5rem;
@@ -101,7 +82,6 @@
   -webkit-text-fill-color: transparent;
   background-clip: text;
   text-shadow: 0 0 30px rgba(0, 217, 255, 0.5);
-  animation: titleGlow 2s ease-in-out infinite;
   position: relative;
   z-index: 1;
 }
@@ -139,14 +119,14 @@
 
 .form-group input[type="text"] {
   padding: 1rem 1.5rem;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--glass-1);
   backdrop-filter: blur(10px);
-  border: 2px solid rgba(255, 255, 255, 0.15);
-  border-radius: 15px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-lg);
   color: var(--text-primary);
-  font-size: 1.1rem;
+  font-size: 1.05rem;
   font-weight: 500;
-  transition: all 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  transition: all 0.25s ease;
   position: relative;
   -webkit-text-fill-color: var(--text-primary);
   text-shadow: 0 0 1px rgba(0, 0, 0, 0.5);
@@ -155,18 +135,15 @@
 /* Fallback for browsers that don't support backdrop-filter */
 @supports not (backdrop-filter: blur(10px)) {
   .form-group input[type="text"] {
-    background: rgba(15, 15, 35, 0.9);
-    border: 2px solid rgba(255, 255, 255, 0.3);
+    background: var(--color-surface-1);
+    border: 1px solid var(--color-border-strong);
   }
 }
 
 .form-group input[type="text"]:focus {
   outline: none;
   border-color: var(--secondary-color);
-  box-shadow: 
-    0 0 30px rgba(0, 217, 255, 0.4),
-    0 0 0 1px rgba(0, 217, 255, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  box-shadow: var(--focus-ring);
   background: rgba(255, 255, 255, 0.12);
   transform: translateY(-2px);
 }
@@ -225,7 +202,7 @@
   height: 24px;
   min-width: 24px; /* Prevent shrinking */
   margin-right: 15px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  border: 2px solid var(--color-border-subtle);
   border-radius: 8px;
   background: rgba(0, 0, 0, 0.3);
   vertical-align: top;
@@ -417,87 +394,7 @@
 .cancel-button,
 .create-button {
   flex: 1;
-  padding: 1rem 2rem;
-  font-size: 1.1rem;
-  font-weight: 700;
-  border: none;
-  border-radius: 15px;
-  cursor: pointer;
-  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  position: relative;
-  overflow: hidden;
-}
-
-.cancel-button {
-  background: rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(10px);
-  border: 2px solid rgba(255, 255, 255, 0.2);
-  color: var(--text-secondary);
-}
-
-/* Fallback for cancel button */
-@supports not (backdrop-filter: blur(10px)) {
-  .cancel-button {
-    background: rgba(15, 15, 35, 0.8);
-    border: 2px solid rgba(255, 255, 255, 0.3);
-  }
-}
-
-.cancel-button::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  width: 0;
-  height: 0;
-  background: rgba(255, 255, 255, 0.1);
-  border-radius: 50%;
-  transform: translate(-50%, -50%);
-  transition: width 0.4s, height 0.4s;
-}
-
-.cancel-button:hover::before {
-  width: 300%;
-  height: 300%;
-}
-
-.cancel-button:hover:not(:disabled) {
-  border-color: rgba(255, 255, 255, 0.4);
-  color: var(--text-primary);
-  transform: translateY(-3px);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-}
-
-.create-button {
-  background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-color) 100%);
-  color: white;
-  box-shadow: 
-    0 8px 25px rgba(233, 69, 96, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
-}
-
-.create-button::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
-  transition: left 0.6s;
-}
-
-.create-button:hover::before {
-  left: 100%;
-}
-
-.create-button:hover:not(:disabled) {
-  box-shadow: 
-    0 12px 35px rgba(233, 69, 96, 0.6),
-    inset 0 1px 0 rgba(255, 255, 255, 0.3);
-  transform: translateY(-4px) scale(1.02);
+  min-width: 0;
 }
 
 .cancel-button:disabled,

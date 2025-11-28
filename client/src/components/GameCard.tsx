@@ -29,7 +29,7 @@ const GameCard: React.FC<GameCardProps> = memo(
 
     return (
       <a href={game.path} className="game-card-link">
-        <motion.div className="game-card" whileHover={{ y: -10 }} transition={{ duration: 0.3 }}>
+        <motion.div className="game-card card" whileHover={{ y: -10 }} transition={{ duration: 0.3 }}>
           <div className="game-card-image-container">
             {hasImage && !imageError ? (
               <img
@@ -45,7 +45,7 @@ const GameCard: React.FC<GameCardProps> = memo(
               </div>
             )}
             <div className="game-card-overlay">
-              <div className="play-button">PLAY NOW</div>
+              <div className="btn btn-primary play-button">PLAY NOW</div>
             </div>
           </div>
 
@@ -54,7 +54,7 @@ const GameCard: React.FC<GameCardProps> = memo(
             <p className="game-card-description">{game.description}</p>
 
             <div className="game-card-footer">
-              <div className="play-button-small">Play</div>
+              <div className="btn btn-secondary play-button-small">Play</div>
             </div>
           </div>
         </motion.div>

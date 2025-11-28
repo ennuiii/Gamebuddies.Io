@@ -52,6 +52,7 @@ const HomePage: React.FC<HomePageProps> = ({ setIsInLobby, setLobbyLeaveFn }) =>
   const { updateLobbyInfo } = useFriends();
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
+  const [gamesError, setGamesError] = useState<string | null>(null);
   const [showCreateRoom, setShowCreateRoom] = useState<boolean>(false);
   const [showJoinRoom, setShowJoinRoom] = useState<boolean>(false);
   const [showBrowseRooms, setShowBrowseRooms] = useState<boolean>(false);
@@ -63,12 +64,15 @@ const HomePage: React.FC<HomePageProps> = ({ setIsInLobby, setLobbyLeaveFn }) =>
   const [autoJoin, setAutoJoin] = useState<boolean>(false);
 
   const fetchGames = useCallback(async (): Promise<void> => {
+    setLoading(true);
+    setGamesError(null);
     try {
       const response = await axios.get('/api/games');
       const gamesData = response.data.games || response.data;
       setGames(gamesData);
     } catch (error) {
       console.error('[HomePage] Error fetching games:', error);
+      setGamesError('Failed to load games. Please try again.');
       setGames([]);
     } finally {
       setLoading(false);
@@ -363,7 +367,7 @@ const HomePage: React.FC<HomePageProps> = ({ setIsInLobby, setLobbyLeaveFn }) =>
             <div className="homepage">
               <div className="background-animation">
                 <div className="floating-elements">
-                  {[...Array(15)].map((_, i) => (
+                  {[...Array(8)].map((_, i) => (
                     <div key={i} className={`floating-element element-${i + 1}`}></div>
                   ))}
                 </div>
@@ -402,31 +406,31 @@ const HomePage: React.FC<HomePageProps> = ({ setIsInLobby, setLobbyLeaveFn }) =>
             transition={{ duration: 0.8, delay: 0.7 }}
           >
             <motion.button
-              className="cta-button primary"
+              className="btn btn-primary cta-button primary"
               onClick={handleCreateRoomClick}
               whileHover={{ scale: 1.05, y: -3 }}
               whileTap={{ scale: 0.95 }}
             >
               <span className="button-text">Create Room</span>
-              <span className="button-icon">🚀</span>
+              <span className="button-icon" aria-hidden="true">🚀</span>
             </motion.button>
             <motion.button
-              className="cta-button secondary"
+              className="btn btn-secondary cta-button secondary"
               onClick={handleJoinRoomClick}
               whileHover={{ scale: 1.05, y: -3 }}
               whileTap={{ scale: 0.95 }}
             >
               <span className="button-text">Join Room</span>
-              <span className="button-icon">🎯</span>
+              <span className="button-icon" aria-hidden="true">🎯</span>
             </motion.button>
             <motion.button
-              className="cta-button secondary"
+              className="btn btn-secondary cta-button secondary"
               onClick={handleBrowseRoomsClick}
               whileHover={{ scale: 1.05, y: -3 }}
               whileTap={{ scale: 0.95 }}
             >
               <span className="button-text">Browse Rooms</span>
-              <span className="button-icon">🌍</span>
+              <span className="button-icon" aria-hidden="true">🌍</span>
             </motion.button>
           </motion.div>
         </motion.div>
@@ -448,6 +452,21 @@ const HomePage: React.FC<HomePageProps> = ({ setIsInLobby, setLobbyLeaveFn }) =>
             <div className="loading-container">
               <div className="loading-spinner"></div>
               <p className="loading-text">Loading awesome games...</p>
+            </div>
+          ) : gamesError ? (
+            <div className="error-container" role="alert">
+              <p className="error-message">{gamesError}</p>
+              <button
+                className="retry-button"
+                onClick={fetchGames}
+                aria-label="Retry loading games"
+              >
+                Try Again
+              </button>
+            </div>
+          ) : games.length === 0 ? (
+            <div className="empty-state" role="status">
+              <p>No games available at the moment.</p>
             </div>
           ) : (
             <div className="games-grid">
@@ -481,13 +500,13 @@ const HomePage: React.FC<HomePageProps> = ({ setIsInLobby, setLobbyLeaveFn }) =>
           >
             <h2 className="cta-title">Ready to Start Gaming?</h2>
             <motion.button
-              className="cta-button large"
+              className="btn btn-primary btn-lg cta-button large"
               onClick={handleCreateRoomClick}
               whileHover={{ scale: 1.05, y: -3 }}
               whileTap={{ scale: 0.95 }}
             >
               <span className="button-text">Start Playing Now</span>
-              <span className="button-icon">🎮</span>
+              <span className="button-icon" aria-hidden="true">🎮</span>
             </motion.button>
           </motion.div>
         </div>

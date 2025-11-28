@@ -218,7 +218,7 @@ const Achievements: React.FC = () => {
         <div className="error-container">
           <h2>Error</h2>
           <p>{error}</p>
-          <button onClick={() => navigate(-1)}>Go Back</button>
+          <button className="btn btn-primary" onClick={() => navigate(-1)}>Go Back</button>
         </div>
       </div>
     );
