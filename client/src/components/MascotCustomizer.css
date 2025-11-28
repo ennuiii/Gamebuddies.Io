@@ -68,16 +68,6 @@
   box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
 }
 
-.pedestal-base {
-  margin-top: 6px;
-  width: 100%;
-  height: 22px;
-  border-radius: 14px;
-  background: linear-gradient(180deg, rgba(12, 16, 32, 0.9), rgba(12, 16, 32, 0.7));
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 10px 25px rgba(0, 0, 0, 0.35);
-}
-
 .mascot-helper-text {
   color: #aaa;
   font-size: 0.9rem;

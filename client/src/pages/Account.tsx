@@ -223,7 +223,6 @@ const Account: React.FC = () => {
                 )}
                 <div className="avatar-pedestal">
                   <div className="pedestal-top" />
-                  <div className="pedestal-base" />
                 </div>
               </div>
               <button onClick={() => setShowAvatarCustomizer(true)} className="btn btn-secondary">

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import MascotAvatar from './MascotAvatar';
 import { getDefaultMascotConfig } from '../utils/mascotAssets';
 import { useAvatars } from '../hooks/useAvatars';
 import './MascotCustomizer.css';
@@ -75,6 +76,18 @@ const MascotCustomizer: React.FC<MascotCustomizerProps> = ({
 
   return (
     <div className="mascot-customizer">
+      <div className="mascot-preview-area">
+        <div className="mascot-preview-wrapper">
+          <div className="mascot-spotlight"></div>
+          <div className="mascot-preview-ring" />
+          <MascotAvatar config={config} size={220} />
+          <div className="mascot-pedestal">
+            <div className="pedestal-top" />
+          </div>
+        </div>
+        <p className="mascot-helper-text">Select your avatar</p>
+      </div>
+
       <div className="mascot-controls">
         {isLoadingAvatars ? (
           <div className="loading-spinner">Loading avatars...</div>
