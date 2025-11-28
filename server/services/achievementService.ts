@@ -1,4 +1,5 @@
 import { supabaseAdmin } from '../lib/supabase';
+import { xpService } from './xpService';
 import type {
   Achievement,
   AchievementWithProgress,
@@ -377,34 +378,41 @@ export class AchievementService {
         return null;
       }
 
-      // 4. Update user XP and achievement points EXPLICITLY
-      const { data: userData, error: userFetchError } = await supabaseAdmin
-        .from('users')
-        .select('xp, achievement_points')
-        .eq('id', userId)
-        .single();
+      // 4. Update user XP (with level calculation) and achievement points
+      try {
+        // Use xpService for XP + level update (atomic, with proper level calculation)
+        const xpResult = await xpService.addXp(userId, achievement.xp_reward, `achievement:${achievementId}`);
 
-      if (userFetchError) {
-        console.error(`[AchievementService] Error fetching user stats:`, userFetchError);
-      } else {
-        const newXp = (userData?.xp || 0) + achievement.xp_reward;
-        const newPoints = (userData?.achievement_points || 0) + achievement.points;
+        if (xpResult.leveledUp) {
+          console.log(`[AchievementService] 🎉 User ${userId} leveled up! Level ${xpResult.previousLevel} → ${xpResult.newLevel}`);
+        }
 
-        console.log(`[AchievementService] Updating user ${userId}: XP ${userData?.xp || 0} -> ${newXp}, Points ${userData?.achievement_points || 0} -> ${newPoints}`);
-
-        const { error: updateError } = await supabaseAdmin
+        // Update achievement points separately
+        const { error: pointsError } = await supabaseAdmin
           .from('users')
           .update({
-            xp: newXp,
-            achievement_points: newPoints,
+            achievement_points: supabaseAdmin.rpc ? undefined : undefined, // Will use raw increment below
           })
           .eq('id', userId);
 
-        if (updateError) {
-          console.error(`[AchievementService] Error updating user XP/points:`, updateError);
-        } else {
-          console.log(`[AchievementService] Successfully updated user XP and points`);
-        }
+        // Increment achievement points
+        const { data: userData } = await supabaseAdmin
+          .from('users')
+          .select('achievement_points')
+          .eq('id', userId)
+          .single();
+
+        const newPoints = (userData?.achievement_points || 0) + achievement.points;
+
+        await supabaseAdmin
+          .from('users')
+          .update({ achievement_points: newPoints })
+          .eq('id', userId);
+
+        console.log(`[AchievementService] Updated user ${userId}: +${achievement.xp_reward} XP, +${achievement.points} achievement points`);
+      } catch (xpError) {
+        console.error(`[AchievementService] Error updating user XP/points:`, xpError);
+        // Don't fail the whole achievement grant if XP update fails
       }
 
       // Note: DB notification removed - socket event handles real-time toast display
