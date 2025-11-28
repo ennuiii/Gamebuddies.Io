@@ -17,6 +17,40 @@ interface JoinRoomResult {
   data?: unknown;
 }
 
+// BUG FIX #18: Simple mutex implementation for state updates
+class StateMutex {
+  private locked = false;
+  private queue: (() => void)[] = [];
+
+  async acquire(): Promise<void> {
+    return new Promise((resolve) => {
+      if (!this.locked) {
+        this.locked = true;
+        resolve();
+      } else {
+        this.queue.push(resolve);
+      }
+    });
+  }
+
+  release(): void {
+    if (this.queue.length > 0) {
+      const next = this.queue.shift();
+      if (next) next();
+    } else {
+      this.locked = false;
+    }
+  }
+}
+
+// BUG FIX #19: Sequenced update tracking
+interface PendingUpdate {
+  sequence: number;
+  status: string;
+  location: string;
+  timestamp: number;
+}
+
 export const useLobbyState = (roomCode: string | null) => {
   const { socket, isConnected } = useSocket();
 
@@ -28,15 +62,21 @@ export const useLobbyState = (roomCode: string | null) => {
     error: null,
   });
   const [isOptimistic, setIsOptimistic] = useState(false);
-  const [pendingUpdates, setPendingUpdates] = useState<Map<string, unknown>>(new Map());
+  // BUG FIX #19: Use typed pending updates with sequence numbers
+  const [pendingUpdates, setPendingUpdates] = useState<Map<string, PendingUpdate>>(new Map());
 
   const roomCodeRef = useRef(roomCode);
   const optimisticTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // BUG FIX #18: Mutex for state updates
+  const stateMutex = useRef(new StateMutex());
+  // BUG FIX #19: Sequence counter for update ordering
+  const sequenceCounter = useRef(0);
 
   useEffect(() => {
     roomCodeRef.current = roomCode;
   }, [roomCode]);
 
+  // BUG FIX #18 & #19: Update player status with mutex and sequence numbers
   const updatePlayerStatus = useCallback(
     async (
       status: string,
@@ -44,7 +84,7 @@ export const useLobbyState = (roomCode: string | null) => {
       _metadata: Record<string, unknown> = {}
     ): Promise<boolean> => {
       if (!socket || !isConnected) {
-        console.warn('⚠️ [LOBBY] Cannot update status - socket not connected');
+        console.warn('[LOBBY] Cannot update status - socket not connected');
         return false;
       }
 
@@ -52,11 +92,18 @@ export const useLobbyState = (roomCode: string | null) => {
       const playerName = sessionStorage.getItem('gamebuddies_playerName');
 
       if (!playerId || !playerName) {
-        console.warn('⚠️ [LOBBY] Cannot update status - player info not found');
+        console.warn('[LOBBY] Cannot update status - player info not found');
         return false;
       }
 
+      // BUG FIX #18: Acquire mutex before updating state
+      await stateMutex.current.acquire();
+
       try {
+        // BUG FIX #19: Generate sequence number for this update
+        const sequence = ++sequenceCounter.current;
+        const updateId = `${playerId}_${sequence}`;
+
         setIsOptimistic(true);
         setLocalState((prev) => ({
           ...prev,
@@ -70,28 +117,45 @@ export const useLobbyState = (roomCode: string | null) => {
             : null,
         }));
 
-        const updateId = `${playerId}_${Date.now()}`;
-        setPendingUpdates((prev) => new Map(prev.set(updateId, { status, location })));
+        // BUG FIX #19: Store update with sequence number and timestamp
+        setPendingUpdates((prev) => {
+          const newMap = new Map(prev);
+          newMap.set(updateId, {
+            sequence,
+            status,
+            location,
+            timestamp: Date.now(),
+          });
+          return newMap;
+        });
 
         if (optimisticTimeout.current) {
           clearTimeout(optimisticTimeout.current);
         }
 
         optimisticTimeout.current = setTimeout(() => {
-          console.warn('⚠️ [LOBBY] Optimistic update timeout - reverting to server state');
+          console.warn('[LOBBY] Optimistic update timeout - reverting to server state');
           setIsOptimistic(false);
+          // BUG FIX #19: Only remove this specific update, keeping newer ones
           setPendingUpdates((prev) => {
             const newMap = new Map(prev);
-            newMap.delete(updateId);
+            const update = newMap.get(updateId);
+            // Only remove if this is the update that timed out (check sequence)
+            if (update && update.sequence === sequence) {
+              newMap.delete(updateId);
+            }
             return newMap;
           });
         }, 5000);
 
         return true;
       } catch (error) {
-        console.error('❌ [LOBBY] Failed to update player status:', error);
+        console.error('[LOBBY] Failed to update player status:', error);
         setIsOptimistic(false);
         return false;
+      } finally {
+        // BUG FIX #18: Always release mutex
+        stateMutex.current.release();
       }
     },
     [socket, isConnected]

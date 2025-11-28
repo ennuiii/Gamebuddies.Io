@@ -30,14 +30,56 @@ class ConnectionManager {
   protected connectionLocks: Map<string, ConnectionLock>;
   protected connectionAttempts: Map<string, number[]>;
 
+  // BUG FIX #16: Added bounds to prevent memory exhaustion
+  private readonly MAX_CONNECTIONS = 50000; // Maximum concurrent connections
+  private readonly CLEANUP_INTERVAL_MS = 60000; // Cleanup every 60 seconds
+  private readonly DEFAULT_IDLE_TIMEOUT_MS = 300000; // 5 minutes idle timeout
+  private cleanupTimer: NodeJS.Timeout | null = null;
+
   constructor() {
     this.activeConnections = new Map();
     this.connectionLocks = new Map();
     this.connectionAttempts = new Map();
+
+    // BUG FIX #16: Start automatic cleanup timer
+    this.startCleanupTimer();
+  }
+
+  // BUG FIX #16: Start periodic cleanup
+  private startCleanupTimer(): void {
+    if (this.cleanupTimer) {
+      clearInterval(this.cleanupTimer);
+    }
+    this.cleanupTimer = setInterval(() => {
+      const cleaned = this.cleanupStaleConnections(this.DEFAULT_IDLE_TIMEOUT_MS);
+      if (cleaned.length > 0) {
+        console.log(`🧹 [ConnectionManager] Auto-cleaned ${cleaned.length} stale connections`);
+      }
+    }, this.CLEANUP_INTERVAL_MS);
+  }
+
+  // BUG FIX #16: Stop cleanup timer (for graceful shutdown)
+  stopCleanupTimer(): void {
+    if (this.cleanupTimer) {
+      clearInterval(this.cleanupTimer);
+      this.cleanupTimer = null;
+    }
   }
 
   // Track a new connection
-  addConnection(socketId: string, initialData: Partial<ConnectionData> = {}): void {
+  // BUG FIX #16: Enforces MAX_CONNECTIONS limit
+  addConnection(socketId: string, initialData: Partial<ConnectionData> = {}): boolean {
+    // Check if we're at max capacity
+    if (this.activeConnections.size >= this.MAX_CONNECTIONS) {
+      console.warn(`⚠️ [ConnectionManager] Max connections (${this.MAX_CONNECTIONS}) reached. Running emergency cleanup...`);
+      // Try to clean up stale connections first
+      const cleaned = this.cleanupStaleConnections(60000); // 1 minute threshold for emergency
+      if (cleaned.length === 0 && this.activeConnections.size >= this.MAX_CONNECTIONS) {
+        console.error(`❌ [ConnectionManager] Cannot accept connection ${socketId}: at max capacity`);
+        return false;
+      }
+    }
+
     this.activeConnections.set(socketId, {
       socketId,
       connectedAt: new Date(),
@@ -48,6 +90,7 @@ class ConnectionManager {
       roomCode: null,
       ...initialData
     });
+    return true;
   }
 
   // Update connection data

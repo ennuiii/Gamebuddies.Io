@@ -43,11 +43,21 @@ interface ActionResult {
   error?: string;
 }
 
+// BUG FIX #20: Granular loading states for better UX
+interface LoadingStates {
+  fetchingFriends: boolean;
+  sendingRequest: boolean;
+  acceptingRequest: string | null; // requestId being accepted
+  rejectingRequest: string | null; // requestId being rejected
+  removingFriend: string | null;   // friendshipId being removed
+}
+
 interface FriendContextValue {
   friends: Friend[];
   pendingRequests: PendingRequest[];
   onlineFriends: Set<string>;
   loading: boolean;
+  loadingStates: LoadingStates; // BUG FIX #20: Expose granular loading states
   gameInvites: GameInvite[];
   sendFriendRequest: (username: string) => Promise<ActionResult>;
   sendFriendRequestById: (targetUserId: string) => Promise<ActionResult>;
@@ -108,6 +118,15 @@ export const FriendProvider: React.FC<FriendProviderProps> = ({ children }) => {
   const [gameInvites, setGameInvites] = useState<GameInvite[]>([]);
   const [isFriendListOpen, setIsFriendListOpen] = useState(false);
 
+  // BUG FIX #20: Granular loading states
+  const [loadingStates, setLoadingStates] = useState<LoadingStates>({
+    fetchingFriends: false,
+    sendingRequest: false,
+    acceptingRequest: null,
+    rejectingRequest: null,
+    removingFriend: null,
+  });
+
   const toggleFriendList = useCallback(() => {
     setIsFriendListOpen(prev => !prev);
   }, []);
@@ -116,6 +135,8 @@ export const FriendProvider: React.FC<FriendProviderProps> = ({ children }) => {
     if (!user || !session) return;
 
     setLoading(true);
+    // BUG FIX #20: Set granular loading state
+    setLoadingStates(prev => ({ ...prev, fetchingFriends: true }));
     try {
       const headers = {
         Authorization: `Bearer ${session.access_token}`,
@@ -140,6 +161,7 @@ export const FriendProvider: React.FC<FriendProviderProps> = ({ children }) => {
       console.error('❌ [FRIENDS] Fetch error:', error);
     } finally {
       setLoading(false);
+      setLoadingStates(prev => ({ ...prev, fetchingFriends: false }));
     }
   }, [user, session]);
 
@@ -213,6 +235,8 @@ export const FriendProvider: React.FC<FriendProviderProps> = ({ children }) => {
   }, [user, socket, connectForUser, fetchFriends]);
 
   const sendFriendRequest = async (username: string): Promise<ActionResult> => {
+    // BUG FIX #20: Set loading state for sending request
+    setLoadingStates(prev => ({ ...prev, sendingRequest: true }));
     try {
       const res = await fetch('/api/friends/request', {
         method: 'POST',
@@ -230,6 +254,8 @@ export const FriendProvider: React.FC<FriendProviderProps> = ({ children }) => {
       return { success: true, message: data.message };
     } catch (error) {
       return { success: false, error: (error as Error).message };
+    } finally {
+      setLoadingStates(prev => ({ ...prev, sendingRequest: false }));
     }
   };
 
@@ -255,6 +281,8 @@ export const FriendProvider: React.FC<FriendProviderProps> = ({ children }) => {
   };
 
   const acceptFriendRequest = async (requestId: string): Promise<ActionResult> => {
+    // BUG FIX #20: Track which request is being accepted
+    setLoadingStates(prev => ({ ...prev, acceptingRequest: requestId }));
     try {
       const res = await fetch(`/api/friends/${requestId}/accept`, {
         method: 'PUT',
@@ -270,10 +298,14 @@ export const FriendProvider: React.FC<FriendProviderProps> = ({ children }) => {
       return { success: true };
     } catch (error) {
       return { success: false, error: (error as Error).message };
+    } finally {
+      setLoadingStates(prev => ({ ...prev, acceptingRequest: null }));
     }
   };
 
   const rejectFriendRequest = async (requestId: string): Promise<ActionResult> => {
+    // BUG FIX #20: Track which request is being rejected
+    setLoadingStates(prev => ({ ...prev, rejectingRequest: requestId }));
     try {
       const res = await fetch(`/api/friends/${requestId}`, {
         method: 'DELETE',
@@ -289,11 +321,32 @@ export const FriendProvider: React.FC<FriendProviderProps> = ({ children }) => {
       return { success: true };
     } catch (error) {
       return { success: false, error: (error as Error).message };
+    } finally {
+      setLoadingStates(prev => ({ ...prev, rejectingRequest: null }));
     }
   };
 
   const removeFriend = async (friendshipId: string): Promise<ActionResult> => {
-    return rejectFriendRequest(friendshipId);
+    // BUG FIX #20: Track which friend is being removed
+    setLoadingStates(prev => ({ ...prev, removingFriend: friendshipId }));
+    try {
+      const res = await fetch(`/api/friends/${friendshipId}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${session?.access_token}`,
+        },
+      });
+
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error);
+
+      fetchFriends();
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: (error as Error).message };
+    } finally {
+      setLoadingStates(prev => ({ ...prev, removingFriend: null }));
+    }
   };
 
   const inviteFriend = (
@@ -328,6 +381,7 @@ export const FriendProvider: React.FC<FriendProviderProps> = ({ children }) => {
     pendingRequests,
     onlineFriends,
     loading,
+    loadingStates, // BUG FIX #20: Expose granular loading states
     gameInvites,
     sendFriendRequest,
     sendFriendRequestById,

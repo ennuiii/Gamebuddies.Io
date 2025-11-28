@@ -12,6 +12,8 @@ import ProfileModal from './ProfileModal';
 import { useRealtimeSubscription } from '../utils/useRealtimeSubscription';
 import { getSupabaseClient } from '../utils/supabase';
 import Avatar from './Avatar';
+// BUG FIX #21: Import centralized error messages
+import { getErrorMessage, SOCKET_ERROR_CODES } from '../utils/errorMessages';
 import './RoomLobby.css';
 
 interface Player {
@@ -593,11 +595,10 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
       }
     };
 
+    // BUG FIX #21: Enhanced error handling with centralized error messages
     const handleError = (socketError: any): void => {
-      let userFriendlyMessage = socketError.message || 'An error occurred';
-      let shouldRedirect = false;
-
-      if (userFriendlyMessage === 'Not in a room') {
+      // Handle "Not in a room" by auto-rejoining
+      if (socketError.message === 'Not in a room') {
         socket.emit(SOCKET_EVENTS.ROOM.JOIN, {
           roomCode: roomCodeRef.current,
           playerName: playerNameRef.current,
@@ -606,28 +607,31 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
         return;
       }
 
-      switch (socketError.code) {
-        case 'ROOM_NOT_FOUND':
-          userFriendlyMessage = 'Room not found. It may have expired or been cleaned up.';
-          shouldRedirect = true;
-          break;
-        case 'ROOM_FULL':
-          userFriendlyMessage = 'Room is full. Cannot rejoin at this time.';
-          shouldRedirect = true;
-          break;
-        case 'DUPLICATE_PLAYER':
-          userFriendlyMessage = 'Player name already in use. Try a different name.';
-          shouldRedirect = true;
-          break;
-        default:
-          break;
-      }
+      // Get user-friendly error message from centralized utility
+      const errorInfo = getErrorMessage(socketError.code || SOCKET_ERROR_CODES.UNKNOWN_ERROR);
+      const fullMessage = errorInfo.action
+        ? `${errorInfo.message} ${errorInfo.action}`
+        : errorInfo.message;
+
+      // Determine if user should be redirected based on error type
+      const redirectErrors = [
+        SOCKET_ERROR_CODES.ROOM_NOT_FOUND,
+        SOCKET_ERROR_CODES.ROOM_FULL,
+        SOCKET_ERROR_CODES.ROOM_CLOSED,
+        SOCKET_ERROR_CODES.ROOM_NOT_ACCEPTING,
+        SOCKET_ERROR_CODES.DUPLICATE_PLAYER,
+        SOCKET_ERROR_CODES.UNAUTHORIZED,
+        SOCKET_ERROR_CODES.SESSION_EXPIRED,
+      ];
+      const shouldRedirect = redirectErrors.includes(socketError.code);
 
       if (shouldRedirect) {
-        setError(userFriendlyMessage);
+        setError(fullMessage);
         setIsLoading(false);
       } else {
-        addNotification(userFriendlyMessage, 'warning');
+        // Show notification for non-fatal errors
+        const notificationType = errorInfo.recoverable ? 'warning' : 'error';
+        addNotification(fullMessage, notificationType);
         if (isLoading) setIsLoading(false);
       }
     };

@@ -3,37 +3,14 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useAuth } from '../contexts/AuthContext';
 import NotificationBell from './NotificationBell';
+// BUG FIX #14: Import level curve from shared constants
+import { calculateLevelProgress } from '@shared/constants/levels';
 import './Header.css';
-
-interface LevelCurveEntry {
-  level: number;
-  xp: number;
-}
-
-// Level Curve Configuration (Must match DB)
-const LEVEL_CURVE: LevelCurveEntry[] = [
-  { level: 1, xp: 0 },
-  { level: 2, xp: 500 },
-  { level: 3, xp: 1500 },
-  { level: 4, xp: 3500 },
-  { level: 5, xp: 7500 },
-  { level: 6, xp: 15000 },
-  { level: 7, xp: 25000 },
-  { level: 8, xp: 40000 },
-  { level: 9, xp: 65000 },
-  { level: 10, xp: 100000 },
-];
 
 interface HeaderProps {
   onNavigateHome?: () => void;
   onNavigateGames?: () => void;
   isInLobby?: boolean;
-}
-
-interface ProgressResult {
-  percent: number;
-  currentLevelXp: number;
-  nextLevelXp: number;
 }
 
 const Header: React.FC<HeaderProps> = ({ onNavigateHome, onNavigateGames, isInLobby }) => {
@@ -42,30 +19,10 @@ const Header: React.FC<HeaderProps> = ({ onNavigateHome, onNavigateGames, isInLo
   const { user, isAuthenticated, loading, session, signOut } = useAuth();
   const [isLoggingOut, setIsLoggingOut] = useState<boolean>(false);
 
-  const calculateProgress = (): ProgressResult => {
-    if (!user?.level) return { percent: 0, currentLevelXp: 0, nextLevelXp: 500 };
-
-    const currentLevel = user.level;
-    const currentTotalXp = user.xp || 0;
-
-    // Find XP required for current and next level
-    const currentLevelStart = LEVEL_CURVE.find((l) => l.level === currentLevel)?.xp || 0;
-    const nextLevelStart = LEVEL_CURVE.find((l) => l.level === currentLevel + 1)?.xp;
-
-    // If max level (no next level), show 100%
-    if (nextLevelStart === undefined) {
-      return { percent: 100, currentLevelXp: currentTotalXp, nextLevelXp: currentTotalXp };
-    }
-
-    const xpInThisLevel = currentTotalXp - currentLevelStart;
-    const xpNeededForLevel = nextLevelStart - currentLevelStart;
-
-    const percent = Math.min(100, Math.floor((xpInThisLevel / xpNeededForLevel) * 100));
-
-    return { percent, currentLevelXp: currentTotalXp, nextLevelXp: nextLevelStart };
-  };
-
-  const { percent, nextLevelXp } = calculateProgress();
+  // BUG FIX #14: Use shared level curve constant
+  const { percent, nextLevelXp } = user?.level
+    ? calculateLevelProgress(user.xp || 0, user.level)
+    : { percent: 0, nextLevelXp: 500 };
 
   console.log('🎯 [HEADER] Rendering with auth state:', {
     loading,

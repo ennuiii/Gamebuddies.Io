@@ -34,6 +34,7 @@ interface StatusUpdate {
   };
   retryCount: number;
   queuedAt: number;
+  sequenceNumber: number; // BUG FIX #26: Added for ordering
 }
 
 interface Heartbeat {
@@ -94,6 +95,7 @@ class StatusSyncManager {
   private statusQueue: Map<string, StatusUpdate>;
   private heartbeats: Map<string, Heartbeat>;
   private syncInterval: NodeJS.Timeout | null;
+  private sequenceCounter: number; // BUG FIX #26: Global sequence counter for ordering
 
   constructor(db: DatabaseService, io: SocketIOServer, lobbyManager: LobbyManager) {
     this.db = db;
@@ -102,20 +104,28 @@ class StatusSyncManager {
     this.statusQueue = new Map();
     this.heartbeats = new Map();
     this.syncInterval = null;
+    this.sequenceCounter = 0; // BUG FIX #26: Initialize sequence counter
 
     this.setupHeartbeatSystem();
     this.setupStatusSyncLoop();
   }
 
+  // BUG FIX #26: Get next sequence number for ordering
+  private getNextSequence(): number {
+    return ++this.sequenceCounter;
+  }
+
   // Update player location with real-time sync
+  // BUG FIX #26: All updates now go through the queue with sequence numbers for proper ordering
   async updatePlayerLocation(
     playerId: string,
     roomCode: string,
     location: string,
     metadata: Record<string, unknown> = {}
-  ): Promise<{ success: boolean; queued: boolean }> {
+  ): Promise<{ success: boolean; queued: boolean; sequenceNumber: number }> {
     try {
-      console.log(`📍 [STATUS] Updating player ${playerId} location: ${location}`);
+      const sequenceNumber = this.getNextSequence();
+      console.log(`📍 [STATUS] Updating player ${playerId} location: ${location} (seq: ${sequenceNumber})`);
 
       // Determine status based on location
       let status = 'connected';
@@ -127,28 +137,38 @@ class StatusSyncManager {
         status = 'lobby';
       }
 
-      // Queue the update for batch processing
+      // BUG FIX #26: Queue ALL updates with sequence number for proper ordering
       const updateKey = `${playerId}_${roomCode}`;
-      this.statusQueue.set(updateKey, {
-        playerId,
-        roomCode,
-        status,
-        location,
-        metadata: {
-          ...metadata,
-          timestamp: new Date().toISOString(),
-          source: 'location_update'
-        },
-        retryCount: 0,
-        queuedAt: Date.now()
-      });
+      const existingUpdate = this.statusQueue.get(updateKey);
 
-      // Process immediately for critical updates
+      // Only replace if this is a newer update (higher sequence number)
+      if (!existingUpdate || sequenceNumber > existingUpdate.sequenceNumber) {
+        this.statusQueue.set(updateKey, {
+          playerId,
+          roomCode,
+          status,
+          location,
+          metadata: {
+            ...metadata,
+            timestamp: new Date().toISOString(),
+            source: 'location_update',
+            sequenceNumber // Include in metadata for client ordering
+          },
+          retryCount: 0,
+          queuedAt: Date.now(),
+          sequenceNumber
+        });
+      } else {
+        console.log(`⏭️ [STATUS] Skipping stale update for ${playerId} (seq: ${sequenceNumber} < ${existingUpdate.sequenceNumber})`);
+      }
+
+      // BUG FIX #26: Still process critical updates immediately, but through the queue
+      // This ensures ordering is maintained even for immediate updates
       if (location === 'disconnected' || metadata.immediate) {
         await this.processStatusUpdate(updateKey);
       }
 
-      return { success: true, queued: !metadata.immediate };
+      return { success: true, queued: !metadata.immediate, sequenceNumber };
 
     } catch (error) {
       console.error(`❌ [STATUS] Failed to update player location:`, error);
@@ -475,6 +495,7 @@ class StatusSyncManager {
   }
 
   // Bulk status update for external games
+  // BUG FIX #3: Added transaction-like rollback for bulk operations
   async bulkUpdatePlayerStatus(
     roomCode: string,
     players: BulkUpdatePlayer[],
@@ -483,8 +504,33 @@ class StatusSyncManager {
     try {
       console.log(`📦 [STATUS] Bulk updating ${players.length} players in room ${roomCode}`);
 
-      const results: { playerId: string; success: boolean }[] = [];
+      const results: { playerId: string; success: boolean; previousLocation?: string }[] = [];
       const errors: { playerId: string; error: string }[] = [];
+
+      // BUG FIX #3: Store previous states for potential rollback
+      const previousStates: Map<string, string> = new Map();
+      const ROLLBACK_THRESHOLD = 0.5; // Rollback if more than 50% fail
+
+      // Get room ID for queries
+      const roomResult = await this.db.adminClient
+        .from('rooms')
+        .select('id')
+        .eq('room_code', roomCode)
+        .single();
+
+      if (roomResult.data?.id) {
+        // Fetch current states before update
+        const { data: currentStates } = await this.db.adminClient
+          .from('room_members')
+          .select('user_id, current_location')
+          .eq('room_id', roomResult.data.id);
+
+        if (currentStates) {
+          for (const state of currentStates as { user_id: string; current_location: string }[]) {
+            previousStates.set(state.user_id, state.current_location || 'lobby');
+          }
+        }
+      }
 
       // Process updates in parallel with concurrency limit
       const concurrencyLimit = 5;
@@ -503,7 +549,11 @@ class StatusSyncManager {
                 gameData: player.gameData
               }
             );
-            results.push({ playerId: player.playerId, success: true });
+            results.push({
+              playerId: player.playerId,
+              success: true,
+              previousLocation: previousStates.get(player.playerId)
+            });
           } catch (error) {
             console.error(`❌ [STATUS] Bulk update failed for player ${player.playerId}:`, error);
             errors.push({ playerId: player.playerId, error: (error as Error).message });
@@ -513,13 +563,56 @@ class StatusSyncManager {
         await Promise.all(chunkPromises);
       }
 
-      // Sync room status after bulk update
+      // BUG FIX #3: Rollback if too many updates failed
+      const failureRate = errors.length / players.length;
+      if (failureRate > ROLLBACK_THRESHOLD && results.length > 0) {
+        console.warn(`⚠️ [STATUS] Rollback triggered: ${(failureRate * 100).toFixed(1)}% failure rate exceeds threshold`);
+
+        // Rollback successful updates to their previous states
+        const rollbackPromises = results.map(async (result) => {
+          if (result.success && result.previousLocation) {
+            try {
+              await this.updatePlayerLocation(
+                result.playerId,
+                roomCode,
+                result.previousLocation,
+                {
+                  reason: 'Rollback due to bulk update failure',
+                  rollback: true,
+                  immediate: true
+                }
+              );
+              console.log(`↩️ [STATUS] Rolled back ${result.playerId} to ${result.previousLocation}`);
+            } catch (rollbackError) {
+              console.error(`❌ [STATUS] Rollback failed for ${result.playerId}:`, rollbackError);
+            }
+          }
+        });
+
+        await Promise.all(rollbackPromises);
+
+        return {
+          success: false,
+          results: [],
+          errors: [
+            ...errors,
+            { playerId: 'ROLLBACK', error: `Bulk update rolled back due to ${(failureRate * 100).toFixed(1)}% failure rate` }
+          ],
+          summary: {
+            total: players.length,
+            successful: 0,
+            failed: players.length
+          }
+        };
+      }
+
+      // Sync room status after successful bulk update
       await this.syncRoomStatus(roomCode);
 
       console.log(`✅ [STATUS] Bulk update completed: ${results.length} success, ${errors.length} errors`);
       return {
         success: true,
-        results,
+        results: results.map(r => ({ playerId: r.playerId, success: r.success })),
         errors,
         summary: {
           total: players.length,

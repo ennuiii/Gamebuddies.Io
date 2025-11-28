@@ -97,6 +97,7 @@ export const SERVER_EVENTS = {
     OFFLINE: 'friend:offline',
     REQUEST_RECEIVED: 'friend:request_received',
     ACCEPTED: 'friend:accepted',
+    REMOVED: 'friend:removed', // BUG FIX #13: Added for friend removal notification
   },
 
   // Achievement Events

@@ -1,4 +1,4 @@
-import React, { useState, useCallback, Dispatch, SetStateAction, Suspense, lazy } from 'react';
+import React, { useState, useCallback, useEffect, Dispatch, SetStateAction, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { ThemeProvider } from './contexts/ThemeContext';
@@ -98,6 +98,60 @@ const PageLoadingFallback = (): React.ReactElement => (
   </div>
 );
 
+// BUG FIX #22: Offline detection banner
+const OfflineBanner = (): React.ReactElement | null => {
+  const [isOffline, setIsOffline] = useState<boolean>(!navigator.onLine);
+
+  useEffect(() => {
+    const handleOnline = (): void => {
+      setIsOffline(false);
+      console.log('🌐 [APP] Back online');
+    };
+
+    const handleOffline = (): void => {
+      setIsOffline(true);
+      console.log('📴 [APP] Gone offline');
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  if (!isOffline) return null;
+
+  return (
+    <div
+      className="offline-banner"
+      role="alert"
+      aria-live="assertive"
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        backgroundColor: '#dc3545',
+        color: 'white',
+        padding: '12px 20px',
+        textAlign: 'center',
+        zIndex: 10002,
+        fontWeight: 500,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '8px',
+      }}
+    >
+      <span>📴</span>
+      <span>You are offline. Some features may not work until you reconnect.</span>
+    </div>
+  );
+};
+
 export interface HomePageProps {
   setIsInLobby: Dispatch<SetStateAction<boolean>>;
   setLobbyLeaveFn: Dispatch<SetStateAction<(() => void) | null>>;
@@ -152,6 +206,7 @@ function AppContent(): React.ReactElement {
 
   return (
     <div className="App">
+      <OfflineBanner />
       <SkipLink targetId="main-content" />
       <Header
         onNavigateHome={handleNavigateHome}

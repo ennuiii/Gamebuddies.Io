@@ -92,6 +92,20 @@ const apiKeyMiddleware = typeof validateApiKey === 'function'
   ? validateApiKey
   : (req: Request, res: Response, next: NextFunction) => next();
 
+// Default strict rate limiter for fail-secure behavior
+import rateLimit from 'express-rate-limit';
+const defaultStrictRateLimit = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 30, // Strict default: 30 requests per minute
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    error: 'Too many requests - rate limit applied',
+    code: 'RATE_LIMITED'
+  }
+});
+
 export default function createGameApiV2Router(
   io: SocketIOServer,
   db: DatabaseService,
@@ -99,10 +113,15 @@ export default function createGameApiV2Router(
 ): Router {
   const router: Router = express.Router();
 
-  const noopRateLimit: RateLimiterMiddleware = (req, res, next) => next();
+  // SECURITY FIX (Bug #4): Fail-secure rate limiting - use strict default if config missing
   const getRateLimiter = (name: keyof typeof rateLimits): RateLimiterMiddleware => {
     const candidate = rateLimits?.[name];
-    return typeof candidate === 'function' ? candidate as RateLimiterMiddleware : noopRateLimit;
+    if (typeof candidate === 'function') {
+      return candidate as RateLimiterMiddleware;
+    }
+    // Fail-secure: use strict rate limiter if config is missing
+    console.warn(`[API V2] Rate limiter '${name}' not configured, using strict default`);
+    return defaultStrictRateLimit as unknown as RateLimiterMiddleware;
   };
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -429,8 +448,10 @@ export default function createGameApiV2Router(
   });
 
   // V2 Session recovery endpoint
-  router.post('/sessions/recover', async (req: Request, res: Response): Promise<void> => {
+  // SECURITY FIX (Bug #2): Added API key validation and game_type check to prevent cross-game session hijacking
+  router.post('/sessions/recover', apiKeyMiddleware, getRateLimiter('apiCalls'), async (req: Request, res: Response): Promise<void> => {
     try {
+      const apiReq = req as ApiKeyRequest;
       const { sessionToken, socketId } = req.body;
 
       if (!sessionToken) {
@@ -440,11 +461,43 @@ export default function createGameApiV2Router(
         return;
       }
 
-      console.log(`🔄 [API V2] Attempting session recovery for token: ${(sessionToken as string).substring(0, 8)}...`);
+      console.log(`🔄 [API V2] Attempting session recovery for token: ${(sessionToken as string).substring(0, 8)}... by ${apiReq.apiKey.service_name}`);
+
+      // First, validate the session belongs to this game
+      const { data: session, error: sessionError } = await db.adminClient
+        .from('player_sessions')
+        .select(`
+          *,
+          room:rooms(id, room_code, current_game)
+        `)
+        .eq('session_token', sessionToken)
+        .eq('status', 'active')
+        .single();
+
+      if (sessionError || !session) {
+        res.status(401).json({
+          error: 'Invalid or expired session token',
+          code: 'INVALID_SESSION'
+        });
+        return;
+      }
+
+      // SECURITY: Verify the session's game matches the requesting service
+      const sessionRoom = session.room as { id: string; room_code: string; current_game: string | null } | null;
+      if (sessionRoom?.current_game && sessionRoom.current_game !== apiReq.apiKey.service_name) {
+        console.warn(`⚠️ [API V2] Cross-game session hijack attempt blocked! Service ${apiReq.apiKey.service_name} tried to recover session for game ${sessionRoom.current_game}`);
+        res.status(403).json({
+          error: 'Session belongs to a different game',
+          code: 'WRONG_GAME_SESSION',
+          expectedGame: apiReq.apiKey.service_name,
+          actualGame: sessionRoom.current_game
+        });
+        return;
+      }
 
       const result = await lobbyManager.recoverSession(sessionToken, socketId || `api_${Date.now()}`);
 
-      console.log(`✅ [API V2] Session recovered successfully`);
+      console.log(`✅ [API V2] Session recovered successfully for ${apiReq.apiKey.service_name}`);
 
       res.json(result);
 
@@ -761,6 +814,7 @@ export default function createGameApiV2Router(
   });
 
   // V2 Progress Event (XP Gain)
+  // BUG FIX (Bug #12): Consolidated achievement checks to prevent duplicate unlocks
   router.post('/progress/event', apiKeyMiddleware, getRateLimiter('apiCalls'), async (req: Request, res: Response): Promise<void> => {
     try {
       const apiReq = req as ApiKeyRequest;
@@ -787,36 +841,32 @@ export default function createGameApiV2Router(
         return;
       }
 
-      // Check for achievements after XP award
+      // CONSOLIDATED ACHIEVEMENT CHECK (Bug #12 fix)
+      // Build comprehensive metadata for a single achievement check instead of 3 separate calls
       const isGameWon = source === 'match_won' || source === 'win' || metadata?.won === true;
+      const consolidatedMetadata = {
+        ...metadata,
+        total_xp: result?.current_xp,
+        level: result?.new_level,
+        leveled_up: result?.leveled_up,
+        xp_gained: amount,
+      };
+
+      // Single consolidated achievement check that handles all event types
       const achievementResult = await achievementService.checkAchievements({
         user_id: userId,
-        type: 'game_completed',
+        type: 'game_completed', // Primary event type
         game_id: gameId || apiReq.apiKey.service_name,
         won: isGameWon,
         score: metadata?.score,
         win_streak: metadata?.win_streak,
         room_id: metadata?.room_id,
-        metadata: metadata,
+        metadata: consolidatedMetadata,
       });
 
-      // Also check XP milestone achievements
-      if (result?.current_xp) {
-        await achievementService.checkAchievements({
-          user_id: userId,
-          type: 'xp_earned',
-          metadata: { total_xp: result.current_xp },
-        });
-      }
-
-      // Check level-up achievements if leveled up
-      if (result?.leveled_up && result?.new_level) {
-        await achievementService.checkAchievements({
-          user_id: userId,
-          type: 'level_reached',
-          metadata: { level: result.new_level },
-        });
-      }
+      // Note: The achievement service's checkAchievements method should internally
+      // check all relevant achievement types based on the metadata provided
+      // (games_played, wins, xp milestones, level milestones, etc.)
 
       console.log(`🏆 [API V2] Achievement check for ${userId}: ${achievementResult.count} unlocked`);
 

@@ -49,9 +49,17 @@ const generateId = (): string => {
   return `notification-${notificationIdCounter}-${Date.now()}`;
 };
 
+// BUG FIX #11: Priority order for notification types (lower = higher priority)
+const NOTIFICATION_PRIORITY: Record<NotificationType, number> = {
+  error: 0,    // Highest priority - never drop errors
+  warning: 1,
+  success: 2,
+  info: 3,     // Lowest priority - drop first if queue full
+};
+
 export const NotificationProvider: React.FC<NotificationProviderProps> = ({
   children,
-  maxNotifications = 3,
+  maxNotifications = 5, // BUG FIX #11: Increased from 3 to 5
   defaultDuration = 5000,
 }) => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -81,16 +89,32 @@ export const NotificationProvider: React.FC<NotificationProviderProps> = ({
       };
 
       setNotifications((prev) => {
-        // If we're at max, remove the oldest one
         const updated = [...prev, newNotification];
+
+        // BUG FIX #11: If at max, remove lowest priority notification (not just oldest)
         if (updated.length > maxNotifications) {
-          const removed = updated.shift();
+          // Find the lowest priority notification to remove
+          let lowestPriorityIndex = 0;
+          let lowestPriority = NOTIFICATION_PRIORITY[updated[0].type];
+
+          for (let i = 1; i < updated.length - 1; i++) { // -1 to never remove the just-added one
+            const priority = NOTIFICATION_PRIORITY[updated[i].type];
+            // Higher number = lower priority = more likely to be removed
+            // Also prefer older notifications when priority is equal
+            if (priority > lowestPriority) {
+              lowestPriority = priority;
+              lowestPriorityIndex = i;
+            }
+          }
+
+          const removed = updated.splice(lowestPriorityIndex, 1)[0];
           if (removed) {
             const timeout = timeoutsRef.current.get(removed.id);
             if (timeout) {
               clearTimeout(timeout);
               timeoutsRef.current.delete(removed.id);
             }
+            console.log(`🔔 [Notification] Dropped ${removed.type} notification to make room (priority: ${NOTIFICATION_PRIORITY[removed.type]})`);
           }
         }
         return updated;

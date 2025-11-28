@@ -60,7 +60,12 @@ export const LazySocketProvider: React.FC<LazySocketProviderProps> = ({ children
   const [isConnecting, setIsConnecting] = useState(false);
   const reconnectionTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const reconnectionAttemptsRef = useRef(0);
-  const maxReconnectionAttempts = 3;
+  // BUG FIX #6: Removed max attempts - now uses circuit breaker pattern
+  const circuitBreakerOpenRef = useRef(false);
+  const circuitBreakerResetTimeRef = useRef<number>(0);
+  const CIRCUIT_BREAKER_THRESHOLD = 10; // Open circuit after 10 consecutive failures
+  const CIRCUIT_BREAKER_RESET_MS = 30000; // Reset circuit after 30 seconds
+  const MAX_BACKOFF_MS = 30000; // Max backoff of 30 seconds
   const socketRef = useRef<TypedSocket | null>(null);
   const isConnectingRef = useRef(false);
 
@@ -118,17 +123,43 @@ export const LazySocketProvider: React.FC<LazySocketProviderProps> = ({ children
     authenticatedUserIdRef.current = null;
   }, []);
 
+  // BUG FIX #6: Infinite retry with circuit breaker pattern
   const attemptReconnection = useCallback(() => {
-    if (reconnectionAttemptsRef.current >= maxReconnectionAttempts) {
-      console.log('❌ [LazySocketProvider] Max reconnection attempts reached. Stopping reconnection.');
+    // Check if circuit breaker is open
+    if (circuitBreakerOpenRef.current) {
+      const now = Date.now();
+      if (now < circuitBreakerResetTimeRef.current) {
+        const waitTime = Math.ceil((circuitBreakerResetTimeRef.current - now) / 1000);
+        console.log(`⏸️ [LazySocketProvider] Circuit breaker open. Waiting ${waitTime}s before retry.`);
+        // Schedule retry after circuit breaker resets
+        reconnectionTimeoutRef.current = setTimeout(() => {
+          circuitBreakerOpenRef.current = false;
+          reconnectionAttemptsRef.current = 0;
+          attemptReconnection();
+        }, circuitBreakerResetTimeRef.current - now);
+        return;
+      }
+      // Circuit breaker reset period has passed
+      console.log('🔄 [LazySocketProvider] Circuit breaker reset. Resuming reconnection attempts.');
+      circuitBreakerOpenRef.current = false;
+      reconnectionAttemptsRef.current = 0;
+    }
+
+    reconnectionAttemptsRef.current++;
+
+    // Check if we should open the circuit breaker
+    if (reconnectionAttemptsRef.current >= CIRCUIT_BREAKER_THRESHOLD) {
+      console.log(`⚡ [LazySocketProvider] Circuit breaker triggered after ${CIRCUIT_BREAKER_THRESHOLD} failures. Pausing for ${CIRCUIT_BREAKER_RESET_MS / 1000}s.`);
+      circuitBreakerOpenRef.current = true;
+      circuitBreakerResetTimeRef.current = Date.now() + CIRCUIT_BREAKER_RESET_MS;
       setIsConnecting(false);
       return;
     }
 
-    reconnectionAttemptsRef.current++;
-    const delay = Math.pow(2, reconnectionAttemptsRef.current) * 1000;
+    // Exponential backoff with max cap
+    const delay = Math.min(Math.pow(2, reconnectionAttemptsRef.current) * 1000, MAX_BACKOFF_MS);
     console.log(
-      `🔄 [LazySocketProvider] Reconnection attempt ${reconnectionAttemptsRef.current}/${maxReconnectionAttempts} in ${delay}ms`
+      `🔄 [LazySocketProvider] Reconnection attempt ${reconnectionAttemptsRef.current} in ${delay}ms`
     );
 
     reconnectionTimeoutRef.current = setTimeout(() => {
@@ -137,7 +168,7 @@ export const LazySocketProvider: React.FC<LazySocketProviderProps> = ({ children
         socketRef.current.connect();
       }
     }, delay);
-  }, [isConnected]);
+  }, [isConnected, CIRCUIT_BREAKER_THRESHOLD, CIRCUIT_BREAKER_RESET_MS, MAX_BACKOFF_MS]);
 
   const connectSocket = useCallback((): TypedSocket | null => {
     if (isConnectingRef.current || socketRef.current?.connected) {
@@ -188,17 +219,40 @@ export const LazySocketProvider: React.FC<LazySocketProviderProps> = ({ children
         newSocket.emit(SOCKET_EVENTS.USER.IDENTIFY, authenticatedUserIdRef.current);
       }
 
+      // BUG FIX #7: Validate room exists before auto-rejoin
       if (wasReconnecting && lastRoomRef.current) {
+        const roomCode = lastRoomRef.current.roomCode;
         console.log(
-          '🔄 [LazySocketProvider] Auto-rejoining room after reconnect:',
-          lastRoomRef.current.roomCode
+          '🔄 [LazySocketProvider] Validating room before auto-rejoin:',
+          roomCode
         );
-        newSocket.emit(SOCKET_EVENTS.ROOM.JOIN, {
-          roomCode: lastRoomRef.current.roomCode,
-          playerName: lastRoomRef.current.playerName,
-          customLobbyName: lastRoomRef.current.customLobbyName,
-          supabaseUserId: lastRoomRef.current.supabaseUserId,
-        });
+
+        // Validate room exists before rejoining
+        fetch(`/api/rooms/${roomCode}/validate`)
+          .then(response => {
+            if (response.ok) {
+              return response.json();
+            }
+            throw new Error('Room not found');
+          })
+          .then((data) => {
+            if (data.valid && lastRoomRef.current) {
+              console.log('✅ [LazySocketProvider] Room validated, auto-rejoining:', roomCode);
+              newSocket.emit(SOCKET_EVENTS.ROOM.JOIN, {
+                roomCode: lastRoomRef.current.roomCode,
+                playerName: lastRoomRef.current.playerName,
+                customLobbyName: lastRoomRef.current.customLobbyName,
+                supabaseUserId: lastRoomRef.current.supabaseUserId,
+              });
+            } else {
+              console.log('⚠️ [LazySocketProvider] Room no longer valid, clearing stored room');
+              lastRoomRef.current = null;
+            }
+          })
+          .catch((error) => {
+            console.log('⚠️ [LazySocketProvider] Room validation failed, clearing stored room:', error.message);
+            lastRoomRef.current = null;
+          });
       }
     });
 

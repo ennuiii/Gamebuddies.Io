@@ -1,9 +1,14 @@
 import express, { Response, Router } from 'express';
+import { Server } from 'socket.io';
 import { supabaseAdmin } from '../lib/supabase';
 import { requireAuth, AuthenticatedRequest } from '../middlewares/auth';
 import { achievementService } from '../services/achievementService';
+import ConnectionManager from '../lib/connectionManager';
+import { SERVER_EVENTS } from '../../shared/constants/socket-events';
 
-const router: Router = express.Router();
+// BUG FIX #13: Export function that accepts io and connectionManager for socket events
+export default function friendsRouter(io: Server, connectionManager: ConnectionManager): Router {
+  const router: Router = express.Router();
 
 // Type definitions
 interface UserBasicInfo {
@@ -291,6 +296,7 @@ router.put('/:id/accept', requireAuth, async (req: AuthenticatedRequest, res: Re
 
 // DELETE /api/friends/:id
 // Remove friend or cancel/reject request
+// BUG FIX #13: Now emits socket event to notify the other user
 router.delete('/:id', requireAuth, async (req: AuthenticatedRequest, res: Response): Promise<void> => {
   try {
     const userId = req.user!.id;
@@ -308,12 +314,17 @@ router.delete('/:id', requireAuth, async (req: AuthenticatedRequest, res: Respon
       return;
     }
 
-    const typedFriendship = friendship as { user_id: string; friend_id: string };
+    const typedFriendship = friendship as { user_id: string; friend_id: string; status: string };
 
     if (typedFriendship.user_id !== userId && typedFriendship.friend_id !== userId) {
       res.status(403).json({ error: 'Not authorized' });
       return;
     }
+
+    // Determine the other user (the one being removed)
+    const otherUserId = typedFriendship.user_id === userId
+      ? typedFriendship.friend_id
+      : typedFriendship.user_id;
 
     // Delete record
     const { error: deleteError } = await supabaseAdmin
@@ -323,6 +334,20 @@ router.delete('/:id', requireAuth, async (req: AuthenticatedRequest, res: Respon
 
     if (deleteError) throw deleteError;
 
+    // BUG FIX #13: Emit socket event to notify the other user
+    const otherUserConnections = connectionManager.getUserConnections(otherUserId);
+    for (const conn of otherUserConnections) {
+      const socket = io.sockets.sockets.get(conn.socketId);
+      if (socket) {
+        socket.emit(SERVER_EVENTS.FRIEND.REMOVED, {
+          friendshipId,
+          removedByUserId: userId,
+          timestamp: new Date().toISOString(),
+        });
+        console.log(`📤 [FRIENDS] Notified ${otherUserId} of friend removal`);
+      }
+    }
+
     res.json({ success: true, message: 'Removed successfully' });
   } catch (error) {
     console.error('❌ [FRIENDS] Remove error:', error);
@@ -330,4 +355,5 @@ router.delete('/:id', requireAuth, async (req: AuthenticatedRequest, res: Respon
   }
 });
 
-export default router;
+  return router;
+}

@@ -219,8 +219,13 @@ export function registerRoomHandlers(
   // Handle getting public rooms for browsing
   socket.on(SOCKET_EVENTS.ROOM.GET_PUBLIC, async (data) => {
     try {
-      console.log('🔍 [PUBLIC ROOMS] Fetching public rooms...', data);
-      const { gameType } = data || {};
+      // BUG FIX #10: Validate and sanitize input
+      const rawGameType = data?.gameType;
+      const gameType = typeof rawGameType === 'string' && rawGameType.length < 50
+        ? rawGameType.replace(/[^a-zA-Z0-9_-]/g, '')
+        : null;
+
+      console.log('🔍 [PUBLIC ROOMS] Fetching public rooms...', { gameType });
 
       let query = db.adminClient
         .from('rooms')
@@ -694,12 +699,19 @@ export function registerRoomHandlers(
   // Handle leaving room
   socket.on(SOCKET_EVENTS.ROOM.LEAVE, async (data) => {
     try {
+      // BUG FIX #10: Validate room code before processing
+      const roomCode = sanitize.roomCode(data?.roomCode);
+      if (!roomCode || roomCode.length !== 6) {
+        socket.emit('error', { message: 'Invalid room code', code: 'INVALID_ROOM_CODE' });
+        return;
+      }
+
       const connection = connectionManager.getConnection(socket.id);
       if (!connection?.roomId || !connection?.userId) {
         return;
       }
 
-      const room = await db.getRoomByCode(data.roomCode) as RoomWithParticipants | null;
+      const room = await db.getRoomByCode(roomCode) as RoomWithParticipants | null;
       const leavingParticipant = room?.participants?.find(p => p.user_id === connection.userId);
       const isLeavingHost = leavingParticipant?.role === 'host';
 
@@ -707,7 +719,7 @@ export function registerRoomHandlers(
       await db.removeParticipant(connection.roomId, connection.userId);
 
       // Leave socket room
-      socket.leave(data.roomCode);
+      socket.leave(roomCode);
 
       // Handle host transfer if host is leaving
       let newHost = null;
@@ -717,13 +729,13 @@ export function registerRoomHandlers(
       }
 
       // Get updated room data
-      const updatedRoom = await db.getRoomByCode(data.roomCode) as RoomWithParticipants | null;
+      const updatedRoom = await db.getRoomByCode(roomCode) as RoomWithParticipants | null;
       if (updatedRoom) {
         const allPlayers = mapParticipantsToPlayers(updatedRoom.participants);
 
         // Send host transfer event if applicable
         if (newHost) {
-          io.to(data.roomCode).emit(SERVER_EVENTS.HOST.TRANSFERRED, {
+          io.to(roomCode).emit(SERVER_EVENTS.HOST.TRANSFERRED, {
             oldHostId: connection.userId,
             newHostId: newHost.user_id,
             newHostName: newHost.user?.display_name || 'Player',
@@ -735,7 +747,7 @@ export function registerRoomHandlers(
         }
 
         // Send player left event
-        io.to(data.roomCode).emit(SERVER_EVENTS.PLAYER.LEFT, {
+        io.to(roomCode).emit(SERVER_EVENTS.PLAYER.LEFT, {
           playerId: connection.userId,
           players: allPlayers,
           room: updatedRoom,
@@ -746,7 +758,7 @@ export function registerRoomHandlers(
         // If no connected players left, mark room as abandoned
         const connectedPlayers = allPlayers.filter(p => p.isConnected);
         if (connectedPlayers.length === 0) {
-          console.log(`🏚️ [CLEANUP] Room ${data.roomCode} marked as abandoned`);
+          console.log(`🏚️ [CLEANUP] Room ${roomCode} marked as abandoned`);
           await db.updateRoom(connection.roomId, { status: 'abandoned' });
         }
       }
@@ -755,7 +767,7 @@ export function registerRoomHandlers(
       connection.roomId = null;
       connection.userId = null;
 
-      console.log(`👋 Player left room ${data.roomCode}${isLeavingHost ? ' (was host)' : ''}`);
+      console.log(`👋 Player left room ${roomCode}${isLeavingHost ? ' (was host)' : ''}`);
 
     } catch (error) {
       console.error('❌ Error leaving room:', error);

@@ -9,6 +9,8 @@ import { registerGameHandlers } from './gameHandlers';
 import { registerPlayerHandlers } from './playerHandlers';
 import { registerAchievementHandlers, emitAchievementUnlock } from './achievementHandlers';
 import { autoUpdateRoomStatusByHost } from '../services/roomStatusService';
+// BUG FIX #5: Import game state persistence
+import { startPersistence, stopPersistence, saveGameState } from '../lib/gameStatePersistence';
 
 // Re-export achievement emit function for use in routes
 export { emitAchievementUnlock };
@@ -246,6 +248,19 @@ export function registerAllHandlers(
     });
   });
 
+  // BUG FIX #5: Start game state persistence
+  startPersistence(gameState);
+
+  // Handle graceful shutdown
+  process.on('SIGTERM', () => {
+    console.log('🛑 [SHUTDOWN] SIGTERM received - saving game state...');
+    stopPersistence(gameState);
+  });
+  process.on('SIGINT', () => {
+    console.log('🛑 [SHUTDOWN] SIGINT received - saving game state...');
+    stopPersistence(gameState);
+  });
+
   console.log('✅ Socket.IO initialized with all handlers');
 }
 
@@ -254,6 +269,13 @@ export function registerAllHandlers(
  */
 export function getGameState(): GameState {
   return gameState;
+}
+
+/**
+ * BUG FIX #5: Manually save game state (for API endpoints)
+ */
+export function saveCurrentGameState(): boolean {
+  return saveGameState(gameState);
 }
 
 /**
