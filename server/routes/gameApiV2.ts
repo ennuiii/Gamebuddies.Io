@@ -970,6 +970,76 @@ export default function createGameApiV2Router(
     }
   });
 
+  // POST /external/return - Return players from external game to lobby
+  // Called by unified game server when player clicks "Return to GameBuddies"
+  router.post('/external/return', apiKeyMiddleware, getRateLimiter('apiCalls'), async (req: Request, res: Response): Promise<void> => {
+    try {
+      const apiReq = req as ApiKeyRequest;
+      const {
+        roomCode,
+        returnAll = true,
+        playerId,
+        reason = 'external_return',
+        metadata = {}
+      } = req.body || {};
+
+      console.log(`🔄 [API V2] External return request for room ${roomCode} from ${apiReq.apiKey.service_name}`);
+
+      if (!roomCode) {
+        res.status(400).json({
+          success: false,
+          error: 'Room code is required',
+          code: 'MISSING_ROOM_CODE'
+        });
+        return;
+      }
+
+      // Get room to verify it exists
+      const { data: room, error: roomError } = await db.adminClient
+        .from('rooms')
+        .select('id, room_code, status, host_id')
+        .eq('room_code', roomCode)
+        .single();
+
+      if (roomError || !room) {
+        console.warn(`[API V2] Room ${roomCode} not found for external return`);
+        res.status(404).json({
+          success: false,
+          error: 'Room not found',
+          code: 'ROOM_NOT_FOUND'
+        });
+        return;
+      }
+
+      // Update room status to 'lobby'
+      await lobbyManager.updateRoomStatus(roomCode, 'lobby', reason);
+      console.log(`✅ [API V2] Room ${roomCode} status updated to 'lobby'`);
+
+      // Update all player locations to 'lobby' using handleGameEnd
+      const gameEndResult = await statusSyncManager.handleGameEnd(roomCode, { reason });
+      console.log(`✅ [API V2] Players returned to lobby:`, gameEndResult);
+
+      // Return success with redirect URL
+      const baseUrl = process.env.BASE_URL || 'https://gamebuddies.io';
+      res.json({
+        success: true,
+        returnUrl: `${baseUrl}/lobby/${roomCode}`,
+        roomCode,
+        playersReturned: gameEndResult.playersReturned,
+        pendingReturn: false,
+        pollEndpoint: `/api/v2/game/rooms/${roomCode}/return-status`
+      });
+
+    } catch (error) {
+      console.error('❌ [API V2] External return error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Internal Server Error',
+        code: 'INTERNAL_ERROR'
+      });
+    }
+  });
+
   // V2 Connection health check
   router.get('/health', (req: Request, res: Response): void => {
     res.json({
