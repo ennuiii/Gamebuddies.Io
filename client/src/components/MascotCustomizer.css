@@ -134,7 +134,7 @@
   position: relative;
   width: 80px;
   height: 80px;
-  border-radius: 50%;
+  border-radius: 12px;
   overflow: hidden;
   background: transparent;
 }
@@ -226,6 +226,7 @@
   .img-wrapper {
     width: 70px;
     height: 70px;
+    border-radius: 10px;
   }
 
   .mascot-option-btn .option-label {
@@ -271,6 +272,7 @@
   .img-wrapper {
     width: 56px;
     height: 56px;
+    border-radius: 10px;
   }
 
   .premium-badge-icon {
