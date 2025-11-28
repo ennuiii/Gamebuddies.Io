@@ -68,13 +68,7 @@ const MascotCustomizer: React.FC<MascotCustomizerProps> = ({
     if (item.premium && !isPremium && !isAdminItem) return;
     if (userLevel < levelReq && !isAdminUser) return;
 
-    const newConfig = { avatarId: item.id };
-    setConfig(newConfig);
-    onSave({
-      avatar_style: 'custom-mascot',
-      avatar_seed: 'custom',
-      avatar_options: newConfig,
-    });
+    setConfig({ avatarId: item.id });
   };
 
   const handleUpgrade = (): void => {
@@ -82,11 +76,20 @@ const MascotCustomizer: React.FC<MascotCustomizerProps> = ({
     if (onCancel) onCancel();
   };
 
+  const handleSave = (): void => {
+    onSave({
+      avatar_style: 'custom-mascot',
+      avatar_seed: 'custom',
+      avatar_options: config,
+    });
+  };
+
   return (
     <div className="mascot-customizer">
       <div className="mascot-preview-area">
         <div className="mascot-preview-wrapper">
           <div className="mascot-spotlight"></div>
+          <div className="mascot-preview-ring" />
           <MascotAvatar config={config} size={220} />
           <div className="mascot-pedestal">
             <div className="pedestal-top" />
@@ -199,6 +202,22 @@ const MascotCustomizer: React.FC<MascotCustomizerProps> = ({
               })}
           </div>
         )}
+      </div>
+
+      <div className="mascot-actions">
+        {onCancel && (
+          <button type="button" className="btn btn-ghost" onClick={onCancel}>
+            Cancel
+          </button>
+        )}
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={handleSave}
+          disabled={loading}
+        >
+          {loading ? 'Saving...' : 'Save Avatar'}
+        </button>
       </div>
     </div>
   );

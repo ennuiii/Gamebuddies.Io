@@ -37,6 +37,15 @@
   z-index: 0;
 }
 
+.mascot-preview-ring {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 0 25px rgba(0, 217, 255, 0.3);
+  z-index: 1;
+}
+
 .mascot-pedestal {
   position: absolute;
   bottom: -20px;
