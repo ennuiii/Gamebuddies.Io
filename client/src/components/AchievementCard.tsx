@@ -41,15 +41,18 @@ const AchievementCard: React.FC<AchievementCardProps> = ({ achievement, showProg
   // For hidden achievements that aren't unlocked, show placeholder
   const isSecret = is_hidden && !is_unlocked;
 
-  // Calculate approximate current value for display
-  const currentValue = Math.round((user_progress / 100) * requirement_value);
-  
+  // user_progress now contains the RAW current value (not percentage)
+  // Calculate percentage for the progress bar
+  const progressPercent = requirement_value > 0
+    ? Math.min(100, Math.round((user_progress / requirement_value) * 100))
+    : 0;
+
   // Determine display text
   // Show fraction for count/streak if requirement_value > 0
   const showFraction = (requirement_type === 'count' || requirement_type === 'streak') && requirement_value > 0;
-  const progressText = showFraction 
-    ? `${currentValue} / ${requirement_value}`
-    : `${user_progress}%`;
+  const progressText = showFraction
+    ? `${user_progress} / ${requirement_value}`
+    : `${progressPercent}%`;
 
   const formatDate = (dateString: string | null): string => {
     if (!dateString) return '';
@@ -89,7 +92,7 @@ const AchievementCard: React.FC<AchievementCardProps> = ({ achievement, showProg
       {showProgress && !is_unlocked && !isSecret && (
         <div className="achievement-progress">
           <div className="progress-bar">
-            <div className="progress-fill" style={{ width: `${user_progress}%` }} />
+            <div className="progress-fill" style={{ width: `${progressPercent}%` }} />
           </div>
           <span className="progress-text">{progressText}</span>
         </div>

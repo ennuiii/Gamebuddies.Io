@@ -87,11 +87,17 @@ const AchievementDetailsModal: React.FC<AchievementDetailsModalProps> = ({
   } = achievement;
 
   const isSecret = is_hidden && !is_unlocked;
-  const currentValue = Math.round((user_progress / 100) * requirement_value);
+
+  // user_progress now contains the RAW current value (not percentage)
+  // Calculate percentage for the progress bar
+  const progressPercent = requirement_value > 0
+    ? Math.min(100, Math.round((user_progress / requirement_value) * 100))
+    : 0;
+
   const showFraction = (requirement_type === 'count' || requirement_type === 'streak') && requirement_value > 0;
   const progressText = showFraction
-    ? `${currentValue} / ${requirement_value}`
-    : `${user_progress}%`;
+    ? `${user_progress} / ${requirement_value}`
+    : `${progressPercent}%`;
 
   const formatDate = (dateString: string | null | undefined): string => {
     if (!dateString) return 'N/A';
@@ -183,7 +189,7 @@ const AchievementDetailsModal: React.FC<AchievementDetailsModalProps> = ({
             <div className="modal-progress-section">
               <h3>Progress</h3>
               <div className="modal-progress-bar">
-                <div className="progress-fill" style={{ width: `${user_progress}%` }} />
+                <div className="progress-fill" style={{ width: `${progressPercent}%` }} />
               </div>
               <div className="progress-details">
                 <span className="progress-text">{progressText}</span>
@@ -228,7 +234,7 @@ const AchievementDetailsModal: React.FC<AchievementDetailsModalProps> = ({
             ) : (
               <>
                 <span className="status-icon">🔒</span>
-                <span>{user_progress > 0 ? 'In Progress' : 'Not Started'}</span>
+                <span>{progressPercent > 0 ? 'In Progress' : 'Not Started'}</span>
               </>
             )}
           </div>

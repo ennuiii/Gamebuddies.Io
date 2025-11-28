@@ -428,7 +428,8 @@ export class AchievementService {
 
   /**
    * Calculate progress for an achievement based on category
-   * Returns percentage (0-99 for incomplete, 100 for complete)
+   * Returns the RAW CURRENT VALUE (not percentage) - frontend calculates percentage
+   * This preserves precision for display (e.g., "1675/10000" instead of "1600/10000")
    */
   private async calculateAchievementProgress(
     userId: string,
@@ -491,13 +492,13 @@ export class AchievementService {
         break;
     }
 
-    // Calculate percentage (capped at 99 for incomplete achievements)
+    // Return raw current value - frontend will calculate percentage
+    // Cap at requirement_value for display purposes (can't show more than 100%)
     if (!achievement.requirement_value || achievement.requirement_value === 0) {
       return 0;
     }
 
-    const progress = Math.floor((currentValue / achievement.requirement_value) * 100);
-    return Math.min(99, progress);
+    return Math.min(currentValue, achievement.requirement_value);
   }
 
   /**
