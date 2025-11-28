@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useSocket } from '../contexts/LazySocketContext';
+import { useAuth } from '../contexts/AuthContext';
 import { showAchievementUnlocks } from '../components/AchievementUnlockToast';
 import type { UnlockedAchievement } from '@shared/types/achievements';
 import { SERVER_EVENTS } from '@shared/constants/socket-events';
@@ -15,6 +16,7 @@ interface AchievementUnlockedPayload {
  */
 export function useAchievementNotifications(): void {
   const { socket, isConnected } = useSocket();
+  const { refreshUser } = useAuth();
 
   useEffect(() => {
     if (!socket || !isConnected) {
@@ -27,6 +29,9 @@ export function useAchievementNotifications(): void {
 
       if (payload.achievements && payload.achievements.length > 0) {
         showAchievementUnlocks(payload.achievements);
+
+        // Refresh user data to update XP, level, and achievement points in header
+        refreshUser();
       }
     };
 
@@ -40,7 +45,7 @@ export function useAchievementNotifications(): void {
       socket.off(SERVER_EVENTS.ACHIEVEMENT.UNLOCKED, handleAchievementUnlocked);
       console.log('🏆 [ACHIEVEMENT] Achievement notification listener removed');
     };
-  }, [socket, isConnected]);
+  }, [socket, isConnected, refreshUser]);
 }
 
 export default useAchievementNotifications;
