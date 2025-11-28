@@ -62,6 +62,11 @@ const HomePage: React.FC<HomePageProps> = ({ setIsInLobby, setLobbyLeaveFn }) =>
   const [joinRoomCode, setJoinRoomCode] = useState<string>('');
   const [prefillName, setPrefillName] = useState<string>('');
   const [autoJoin, setAutoJoin] = useState<boolean>(false);
+  const heroStats = [
+    { label: 'Players Online', value: '1,250+' },
+    { label: 'Games Today', value: '3,400+' },
+    { label: 'Achievements Earned', value: '18k+' },
+  ];
 
   const fetchGames = useCallback(async (): Promise<void> => {
     setLoading(true);
@@ -432,6 +437,19 @@ const HomePage: React.FC<HomePageProps> = ({ setIsInLobby, setLobbyLeaveFn }) =>
               <span className="button-text">Browse Rooms</span>
               <span className="button-icon" aria-hidden="true">🌍</span>
             </motion.button>
+          </motion.div>
+          <motion.div
+            className="hero-stats"
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.9 }}
+          >
+            {heroStats.map((stat) => (
+              <div key={stat.label} className="hero-stat-card">
+                <span className="stat-value">{stat.value}</span>
+                <span className="stat-label">{stat.label}</span>
+              </div>
+            ))}
           </motion.div>
         </motion.div>
       </section>
