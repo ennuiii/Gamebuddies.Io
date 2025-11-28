@@ -187,8 +187,10 @@
 
 .preview-track {
   display: flex;
+  flex-wrap: nowrap;
   gap: 1rem;
-  animation: previewMarquee 14s linear infinite;
+  animation: previewMarquee 18s linear infinite;
+  width: max-content;
 }
 
 .preview-card {
@@ -236,8 +238,8 @@
 }
 
 @keyframes previewMarquee {
-  0% { transform: translateX(0); }
-  100% { transform: translateX(-50%); }
+  0% { transform: translate3d(0, 0, 0); }
+  100% { transform: translate3d(-50%, 0, 0); }
 }
 
 .cta-button {
