@@ -735,8 +735,20 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
   const handleToggleReady = useCallback((): void => {
     if (socket && socketIsConnected && !currentIsHost) {
       socket.emit(SOCKET_EVENTS.PLAYER.TOGGLE_READY, { roomCode: roomCodeRef.current });
+
+      // Optimistically flip ready state locally for snappier UX
+      const currentId = currentUserIdRef.current || user?.id;
+      if (currentId) {
+        setPlayers((prev) =>
+          prev.map((p) =>
+            p.id === currentId
+              ? { ...p, isReady: !p.isReady }
+              : p
+          )
+        );
+      }
     }
-  }, [socket, socketIsConnected, currentIsHost]);
+  }, [socket, socketIsConnected, currentIsHost, user?.id]);
 
   const handleLeaveRoom = useCallback((): void => {
     if (clearLastRoom) clearLastRoom();
@@ -1183,7 +1195,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
                 className={`ready-button ${currentUserReady ? 'ready' : 'not-ready'}`}
                 disabled={!socket || !socketIsConnected}
               >
-                {currentUserReady ? '✗ Unready' : 'Ready Up'}
+                {currentUserReady ? '✗ Stand Down' : 'Ready Up'}
               </button>
               <p className="waiting-host-text">
                 {currentUserReady
