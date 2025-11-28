@@ -433,6 +433,32 @@ const HomePage: React.FC<HomePageProps> = ({ setIsInLobby, setLobbyLeaveFn }) =>
               <span className="button-icon" aria-hidden="true">🌍</span>
             </motion.button>
           </motion.div>
+          {!loading && games.length > 0 && (
+            <motion.div
+              className="hero-preview"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.8, delay: 1 }}
+            >
+              <div className="preview-track">
+                {[...games.slice(0, 3), ...games.slice(0, 3)].map((game, idx) => (
+                  <div key={`${game.id}-${idx}`} className="preview-card">
+                    <div className="preview-thumb">
+                      {game.thumbnailUrl || game.screenshot ? (
+                        <img src={game.thumbnailUrl || game.screenshot} alt={game.name} loading="lazy" />
+                      ) : (
+                        <span className="preview-icon" aria-hidden="true">{game.icon || 'ĐYZŠ'}</span>
+                      )}
+                    </div>
+                    <div className="preview-info">
+                      <span className="preview-name">{game.name}</span>
+                      <span className="preview-meta">Instant Play • Friends</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          )}
         </motion.div>
       </section>
 
