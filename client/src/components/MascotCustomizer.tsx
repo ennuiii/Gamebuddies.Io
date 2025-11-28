@@ -86,7 +86,12 @@ const MascotCustomizer: React.FC<MascotCustomizerProps> = ({
     <div className="mascot-customizer">
       <div className="mascot-preview-area">
         <div className="mascot-preview-wrapper">
-          <MascotAvatar config={config} size={200} />
+          <div className="mascot-spotlight"></div>
+          <MascotAvatar config={config} size={220} />
+          <div className="mascot-pedestal">
+            <div className="pedestal-top" />
+            <div className="pedestal-base" />
+          </div>
         </div>
         <p className="mascot-helper-text">Level: {userLevel} • Select your avatar</p>
         {!isPremium && userRole !== 'admin' && (
