@@ -143,7 +143,7 @@ const MascotCustomizer: React.FC<MascotCustomizerProps> = ({
                       {isLocked && (
                         <div className="lock-overlay">
                           <span style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>
-                            {isLockedByLevel ? `Lvl ${levelReq}` : 'ĐY"''}
+                            {isLockedByLevel ? `Lvl ${levelReq}` : 'ĐY"'}
                           </span>
                         </div>
                       )}
