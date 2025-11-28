@@ -32,7 +32,7 @@ interface RarityStats {
 const Achievements: React.FC = () => {
   const { userId } = useParams<{ userId?: string }>();
   const navigate = useNavigate();
-  const { user, isAuthenticated, session } = useAuth();
+  const { user, isAuthenticated, session, refreshUser } = useAuth();
 
   const [achievements, setAchievements] = useState<AchievementWithProgress[]>([]);
   const [stats, setStats] = useState<AchievementStats | null>(null);
@@ -110,6 +110,9 @@ const Achievements: React.FC = () => {
         setTimeout(() => {
           showAchievementUnlocks(data.newly_unlocked as UnlockedAchievement[]);
         }, 500);
+
+        // Refresh user data to update XP/level in header
+        refreshUser();
       }
     } catch (err) {
       console.error('Error fetching achievements:', err);
