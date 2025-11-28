@@ -27,11 +27,6 @@ const GameCard: React.FC<GameCardProps> = memo(
       setImageError(true);
     };
 
-    const metaItems = [
-      { icon: 'ĐYs©', label: 'Instant Play' },
-      { icon: 'ÐYOø', label: 'Multiplayer' },
-    ];
-
     return (
       <a href={game.path} className="game-card-link">
         <motion.div className="game-card card" whileHover={{ y: -10 }} transition={{ duration: 0.3 }}>
@@ -57,14 +52,6 @@ const GameCard: React.FC<GameCardProps> = memo(
           <div className="game-card-content">
             <h3 className="game-card-title">{game.name}</h3>
             <p className="game-card-description">{game.description}</p>
-            <div className="game-card-meta">
-              {metaItems.map((item) => (
-                <span key={item.label} className="meta-pill">
-                  <span aria-hidden="true" className="meta-icon">{item.icon}</span>
-                  {item.label}
-                </span>
-              ))}
-            </div>
 
             <div className="game-card-footer">
               <div className="btn btn-secondary play-button-small">
