@@ -21,6 +21,7 @@ import FriendList from './components/FriendList';
 import GameInviteToast from './components/GameInviteToast';
 import AchievementUnlockToast from './components/AchievementUnlockToast';
 import { useAchievementNotifications } from './hooks/useAchievementNotifications';
+import { useXpUpdates } from './hooks/useXpUpdates';
 import NotificationPoller from './components/NotificationPoller';
 import ErrorBoundary from './components/ErrorBoundary';
 import PageTransition from './components/PageTransition';
@@ -110,6 +111,9 @@ function AppContent(): React.ReactElement {
 
   // Listen for achievement unlock notifications
   useAchievementNotifications();
+
+  // Listen for XP/level updates to update header in real-time
+  useXpUpdates();
 
   console.log('🏠 [APP DEBUG] App component rendering:', {
     timestamp: new Date().toISOString(),

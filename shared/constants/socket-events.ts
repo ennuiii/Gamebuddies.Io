@@ -105,6 +105,12 @@ export const SERVER_EVENTS = {
     PROGRESS: 'achievement:progress',
   },
 
+  // XP/Level Events
+  XP: {
+    UPDATED: 'xp:updated',
+    LEVEL_UP: 'xp:level_up',
+  },
+
   // Chat Events
   CHAT: {
     MESSAGE: 'chat:message',

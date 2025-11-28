@@ -14,6 +14,7 @@ interface AuthContextValue {
   loading: boolean;
   signOut: () => Promise<void>;
   refreshUser: () => Promise<void>;
+  updateUserStats: (stats: { xp?: number; level?: number; achievement_points?: number }) => void;
   isAuthenticated: boolean;
   isGuest: boolean;
   isPremium: boolean;
@@ -202,12 +203,27 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
   }, [session]);
 
+  // Update user stats without full refetch (for real-time XP/level updates)
+  const updateUserStats = useCallback((stats: { xp?: number; level?: number; achievement_points?: number }) => {
+    setUser((prevUser) => {
+      if (!prevUser) return prevUser;
+      return {
+        ...prevUser,
+        ...(stats.xp !== undefined && { xp: stats.xp }),
+        ...(stats.level !== undefined && { level: stats.level }),
+        ...(stats.achievement_points !== undefined && { achievement_points: stats.achievement_points }),
+      };
+    });
+    console.log('⭐ [AUTH] Updated user stats:', stats);
+  }, []);
+
   const value: AuthContextValue = {
     user,
     session,
     loading,
     signOut,
     refreshUser,
+    updateUserStats,
     isAuthenticated: !!session,
     isGuest: !session,
     isPremium: !!(user && user.premium_tier && user.premium_tier !== 'free'),

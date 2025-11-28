@@ -398,17 +398,38 @@ export default function achievementsRouter(io: Server, connectionManager: Connec
 
       console.log(`🎁 [REDEEM] User ${userId} redeemed code "${code}" for achievement "${achievementId}"`);
 
-      // Emit socket event for real-time toast notification
+      // Emit socket events for real-time updates
       const connections = connectionManager.getUserConnections(userId);
       if (connections.length > 0) {
+        // Get updated user stats for XP update event
+        const { data: updatedUser } = await supabaseAdmin
+          .from('users')
+          .select('xp, level, achievement_points')
+          .eq('id', userId)
+          .single();
+
         for (const conn of connections) {
           const socket = io.sockets.sockets.get(conn.socketId);
           if (socket) {
+            // Emit achievement unlock
             socket.emit(SERVER_EVENTS.ACHIEVEMENT.UNLOCKED, {
               userId,
               achievements: [result],
             });
-            console.log(`🏆 [REDEEM] Emitted achievement unlock to socket ${conn.socketId}`);
+
+            // Emit XP/level update for header
+            if (updatedUser) {
+              socket.emit(SERVER_EVENTS.XP.UPDATED, {
+                userId,
+                xp: updatedUser.xp,
+                level: updatedUser.level,
+                achievement_points: updatedUser.achievement_points,
+                xp_gained: result.xp_reward,
+                source: 'achievement',
+              });
+            }
+
+            console.log(`🏆 [REDEEM] Emitted achievement + XP update to socket ${conn.socketId}`);
           }
         }
       } else {
