@@ -1,9 +1,11 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useNotification } from '../contexts/NotificationContext';
 import { getSupabaseClient } from '../utils/supabase';
 import AvatarCustomizer from '../components/AvatarCustomizer';
 import Avatar from '../components/Avatar';
+import ConfirmDialog from '../components/ConfirmDialog';
 import './Account.css';
 
 interface AvatarData {
@@ -15,9 +17,12 @@ interface AvatarData {
 const Account: React.FC = () => {
   const navigate = useNavigate();
   const { user, isAuthenticated, loading: authLoading, session, refreshUser, isPremium } = useAuth();
+  const { addNotification } = useNotification();
   const [loading, setLoading] = useState<boolean>(false);
   const [avatarLoading, setAvatarLoading] = useState<boolean>(false);
   const [showAvatarCustomizer, setShowAvatarCustomizer] = useState<boolean>(false);
+  const [showCancelDialog, setShowCancelDialog] = useState<boolean>(false);
+  const [isCanceling, setIsCanceling] = useState<boolean>(false);
 
   if (!isAuthenticated) {
     navigate('/login');
@@ -69,19 +74,17 @@ const Account: React.FC = () => {
 
       window.location.href = data.url;
     } catch (error) {
-      alert(`Error: ${(error as Error).message}`);
+      addNotification((error as Error).message || 'Failed to open subscription portal', 'error');
       setLoading(false);
     }
   };
 
-  const handleCancelSubscription = async (): Promise<void> => {
-    const confirmed = window.confirm(
-      'Are you sure you want to cancel your subscription?\n\nYour premium access will continue until the end of your current billing period.'
-    );
+  const handleCancelSubscription = (): void => {
+    setShowCancelDialog(true);
+  };
 
-    if (!confirmed) return;
-
-    setLoading(true);
+  const confirmCancelSubscription = async (): Promise<void> => {
+    setIsCanceling(true);
     try {
       const supabase = await getSupabaseClient();
       if (!supabase) throw new Error('Failed to connect');
@@ -108,13 +111,19 @@ const Account: React.FC = () => {
         throw new Error(data.error || 'Failed to cancel subscription');
       }
 
-      alert(
-        'Your subscription has been canceled. Premium access will continue until the end of your billing period.'
+      setShowCancelDialog(false);
+      addNotification(
+        'Your subscription has been canceled. Premium access will continue until the end of your billing period.',
+        'success'
       );
-      window.location.reload();
+      // Refresh user data instead of full page reload
+      if (refreshUser) {
+        await refreshUser();
+      }
     } catch (error) {
-      alert(`Error: ${(error as Error).message}`);
-      setLoading(false);
+      addNotification((error as Error).message || 'Failed to cancel subscription', 'error');
+    } finally {
+      setIsCanceling(false);
     }
   };
 
@@ -140,11 +149,12 @@ const Account: React.FC = () => {
       }
 
       setShowAvatarCustomizer(false);
+      addNotification('Avatar saved successfully!', 'success');
       if (refreshUser) {
         await refreshUser();
       }
     } catch (error) {
-      alert(`Error: ${(error as Error).message}`);
+      addNotification((error as Error).message || 'Failed to save avatar', 'error');
     } finally {
       setAvatarLoading(false);
     }
@@ -189,14 +199,16 @@ const Account: React.FC = () => {
             />
           ) : (
             <div className="current-avatar">
-              <div className="avatar-display">
+              <div className="avatar-hero">
+                <div className="avatar-hero-spotlight"></div>
+                <div className="avatar-hero-ring"></div>
                 {user?.avatar_style ? (
                   <Avatar
                     avatarStyle={user.avatar_style}
                     avatarSeed={user.avatar_seed}
                     avatarOptions={user.avatar_options}
                     name={user.username || user.display_name}
-                    size={120}
+                    size={180}
                     isPremium={true}
                     className="avatar-large"
                   />
@@ -207,6 +219,10 @@ const Account: React.FC = () => {
                     </span>
                   </div>
                 )}
+                <div className="avatar-pedestal">
+                  <div className="pedestal-top" />
+                  <div className="pedestal-base" />
+                </div>
               </div>
               <button onClick={() => setShowAvatarCustomizer(true)} className="btn btn-secondary">
                 {user?.avatar_style ? 'Change Avatar' : 'Create Avatar'}
@@ -219,7 +235,7 @@ const Account: React.FC = () => {
           <h2>Subscription Status</h2>
           <div className="status-card">
             <div className="status-header">
-              <div className="status-icon">
+              <div className="status-icon" aria-hidden="true">
                 {user?.role === 'admin' ? '💻' : isLifetime ? '⭐' : isMonthly ? '💎' : '🎮'}
               </div>
               <div className="status-info">
@@ -291,6 +307,20 @@ const Account: React.FC = () => {
           </button>
         </div>
       </div>
+
+      {/* Cancel Subscription Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={showCancelDialog}
+        title="Cancel Subscription?"
+        message="Are you sure you want to cancel your subscription? Your premium access will continue until the end of your current billing period."
+        confirmText="Yes, Cancel"
+        cancelText="Keep Subscription"
+        variant="danger"
+        icon="⚠️"
+        onConfirm={confirmCancelSubscription}
+        onCancel={() => setShowCancelDialog(false)}
+        isLoading={isCanceling}
+      />
     </div>
   );
 };
