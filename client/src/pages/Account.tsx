@@ -185,18 +185,20 @@ const Account: React.FC = () => {
         <div className="account-section avatar-section">
           <h2>Custom Avatar</h2>
           {showAvatarCustomizer ? (
-            <AvatarCustomizer
-              currentStyle={user?.avatar_style}
-              currentSeed={user?.avatar_seed}
-              currentOptions={user?.avatar_options || {}}
-              username={user?.username || user?.display_name}
-              onSave={handleSaveAvatar}
-              onCancel={() => setShowAvatarCustomizer(false)}
-              loading={avatarLoading}
-              isPremium={isPremium}
-              userRole={user?.role}
-              userLevel={user?.level || 1}
-            />
+            <div className="current-avatar customizer-mode">
+              <AvatarCustomizer
+                currentStyle={user?.avatar_style}
+                currentSeed={user?.avatar_seed}
+                currentOptions={user?.avatar_options || {}}
+                username={user?.username || user?.display_name}
+                onSave={handleSaveAvatar}
+                onCancel={() => setShowAvatarCustomizer(false)}
+                loading={avatarLoading}
+                isPremium={isPremium}
+                userRole={user?.role}
+                userLevel={user?.level || 1}
+              />
+            </div>
           ) : (
             <div className="current-avatar">
               <div className="avatar-hero">

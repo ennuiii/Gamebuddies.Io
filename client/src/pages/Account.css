@@ -224,6 +224,14 @@
   gap: 1.5rem;
 }
 
+.current-avatar.customizer-mode {
+  align-items: stretch;
+}
+
+.current-avatar.customizer-mode .avatar-customizer {
+  width: 100%;
+}
+
 .avatar-hero {
   position: relative;
   width: 260px;
