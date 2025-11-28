@@ -65,11 +65,13 @@ export default function createMatchResultsRouter(
 
   /**
    * Emit achievement unlock notification to user via socket
+   * If user is connected: shows toast and marks as seen
+   * If user is NOT connected: leaves as unseen for notification bell
    */
-  function emitAchievementUnlock(
+  async function emitAchievementUnlock(
     userId: string,
     achievements: Array<{ id: string; name: string; description?: string; icon_url?: string | null; xp_reward: number; points: number; rarity: string }>
-  ): void {
+  ): Promise<void> {
     if (!achievements || achievements.length === 0) return;
 
     try {
@@ -77,10 +79,12 @@ export default function createMatchResultsRouter(
       const connections = connectionManager.getUserConnections(userId);
 
       if (connections.length === 0) {
-        console.log(`🏆 [ACHIEVEMENT] User ${userId} not connected, cannot emit achievement notification`);
+        // User NOT connected (playing external game) - leave as unseen for bell notification
+        console.log(`🏆 [ACHIEVEMENT] User ${userId} not connected - achievements saved as unseen for bell`);
         return;
       }
 
+      // User IS connected - show toast and mark as seen immediately
       // Format achievements for the client
       const formattedAchievements = achievements.map((a) => ({
         id: a.id,
@@ -93,6 +97,14 @@ export default function createMatchResultsRouter(
         earned_at: new Date().toISOString(),
       }));
 
+      // Mark achievements as seen since user will see the toast
+      const achievementIds = achievements.map(a => a.id);
+      await db.adminClient
+        .from('user_achievements')
+        .update({ seen_at: new Date().toISOString() })
+        .eq('user_id', userId)
+        .in('achievement_id', achievementIds);
+
       // Emit to each connected socket
       for (const connection of connections) {
         const socket = io.sockets.sockets.get(connection.socketId);
@@ -101,9 +113,10 @@ export default function createMatchResultsRouter(
             userId,
             achievements: formattedAchievements,
           });
-          console.log(`🏆 [ACHIEVEMENT] Emitted ${achievements.length} achievement(s) to user ${userId}`);
         }
       }
+
+      console.log(`🏆 [ACHIEVEMENT] User connected - showed toast for ${achievements.length} achievement(s) + marked as seen`);
     } catch (error) {
       console.error('❌ [ACHIEVEMENT] Error emitting achievement unlock:', error);
     }
@@ -240,8 +253,8 @@ export default function createMatchResultsRouter(
               // Log and emit achievement unlocks
               if (achievements.length > 0) {
                 console.log(`🏆 [MATCH] ${player.user_id} unlocked ${achievements.length} achievement(s)!`);
-                // Emit socket notification for achievement unlock
-                emitAchievementUnlock(player.user_id, achievements);
+                // Emit socket notification for achievement unlock (marks as seen if connected)
+                await emitAchievementUnlock(player.user_id, achievements);
               }
 
               return {

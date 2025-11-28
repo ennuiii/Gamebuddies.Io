@@ -404,9 +404,21 @@ export default function achievementsRouter(io: Server, connectionManager: Connec
 
       console.log(`🎁 [REDEEM] User ${userId} redeemed code "${code}" for achievement "${achievementId}"`);
 
-      // Emit socket events for real-time updates
+      // Check if user is connected to Gamebuddies
       const connections = connectionManager.getUserConnections(userId);
-      if (connections.length > 0) {
+      const isConnected = connections.length > 0;
+
+      if (isConnected) {
+        // User is on Gamebuddies - show toast and mark as seen immediately
+        // (no need for bell notification since they see the toast)
+
+        // Mark achievement as seen since they'll see the toast
+        await supabaseAdmin
+          .from('user_achievements')
+          .update({ seen_at: new Date().toISOString() })
+          .eq('user_id', userId)
+          .eq('achievement_id', achievementId);
+
         // Get updated user stats for XP update event
         const { data: updatedUser } = await supabaseAdmin
           .from('users')
@@ -417,7 +429,7 @@ export default function achievementsRouter(io: Server, connectionManager: Connec
         for (const conn of connections) {
           const socket = io.sockets.sockets.get(conn.socketId);
           if (socket) {
-            // Emit achievement unlock
+            // Emit achievement unlock (shows toast)
             socket.emit(SERVER_EVENTS.ACHIEVEMENT.UNLOCKED, {
               userId,
               achievements: [result],
@@ -435,11 +447,13 @@ export default function achievementsRouter(io: Server, connectionManager: Connec
               });
             }
 
-            console.log(`🏆 [REDEEM] Emitted achievement + XP update to socket ${conn.socketId}`);
+            console.log(`🏆 [REDEEM] User connected - showed toast + marked as seen`);
           }
         }
       } else {
-        console.log(`🏆 [REDEEM] User ${userId} not connected, achievement will show on next login`);
+        // User NOT on Gamebuddies (e.g., playing external game)
+        // Leave seen_at as null - they'll see it in the notification bell when they return
+        console.log(`🏆 [REDEEM] User ${userId} not connected - saved as unseen for bell notification`);
       }
 
       res.json({
