@@ -89,187 +89,112 @@ export class AchievementService {
 
   /**
    * Get user's achievements with progress
-   * Progress is calculated on-the-fly from user_metrics (not stored in user_achievements)
+   * Progress is calculated in TypeScript from users table, user_metrics, and friendships
+   * This eliminates dependency on SQL functions that may not be deployed
    */
   async getUserAchievements(
     userId: string,
     filter?: AchievementFilter
   ): Promise<AchievementWithProgress[]> {
     try {
-      // Use the new database function that calculates progress from user_metrics
-      const { data, error } = await supabaseAdmin.rpc('get_user_achievements_with_progress', {
-        p_user_id: userId
-      });
+      console.log(`[AchievementService] Getting achievements with progress for user ${userId}`);
 
-      if (error) {
-        console.error('[AchievementService] Error fetching achievements with progress:', error);
-        // Fallback to old method if new function doesn't exist yet
-        return this.getUserAchievementsFallback(userId, filter);
-      }
-
-      let result: AchievementWithProgress[] = (data || []).map((a: {
-        id: string;
-        name: string;
-        description: string;
-        icon_url: string | null;
-        category: string;
-        requirement_type: string;
-        requirement_value: number;
-        xp_reward: number;
-        points: number;
-        rarity: string;
-        display_order: number;
-        is_hidden: boolean;
-        user_progress: number;
-        is_unlocked: boolean;
-        earned_at: string | null;
-      }) => ({
-        id: a.id,
-        name: a.name,
-        description: a.description,
-        icon_url: a.icon_url,
-        category: a.category,
-        requirement_type: a.requirement_type,
-        requirement_value: a.requirement_value,
-        xp_reward: a.xp_reward,
-        points: a.points,
-        rarity: a.rarity as 'common' | 'rare' | 'epic' | 'legendary',
-        display_order: a.display_order,
-        is_hidden: a.is_hidden,
-        user_progress: a.user_progress,
-        is_unlocked: a.is_unlocked,
-        earned_at: a.earned_at,
-      }));
-
-      // Apply filters
-      if (filter?.category && filter.category !== 'all') {
-        result = result.filter(a => a.category === filter.category);
-      }
-      if (filter?.rarity && filter.rarity !== 'all') {
-        result = result.filter(a => a.rarity === filter.rarity);
-      }
-
-      // Filter by status if specified
-      if (filter?.status === 'unlocked') {
-        result = result.filter(a => a.is_unlocked);
-      } else if (filter?.status === 'locked') {
-        result = result.filter(a => !a.is_unlocked);
-      } else if (filter?.status === 'in_progress') {
-        result = result.filter(a => !a.is_unlocked && a.user_progress > 0);
-      }
-
-      // Sort if specified
-      if (filter?.sort === 'rarity') {
-        const rarityOrder = { legendary: 0, epic: 1, rare: 2, common: 3 };
-        result.sort((a, b) => rarityOrder[a.rarity] - rarityOrder[b.rarity]);
-      } else if (filter?.sort === 'points') {
-        result.sort((a, b) => b.points - a.points);
-      } else if (filter?.sort === 'progress') {
-        result.sort((a, b) => b.user_progress - a.user_progress);
-      } else if (filter?.sort === 'recent') {
-        result.sort((a, b) => {
-          if (!a.earned_at) return 1;
-          if (!b.earned_at) return -1;
-          return new Date(b.earned_at).getTime() - new Date(a.earned_at).getTime();
-        });
-      }
-
-      return result;
-    } catch (error) {
-      console.error('[AchievementService] Unexpected error:', error);
-      return [];
-    }
-  }
-
-  /**
-   * Fallback method for getUserAchievements if new DB function doesn't exist yet
-   * This uses the old approach of joining achievements + user_achievements
-   */
-  private async getUserAchievementsFallback(
-    userId: string,
-    filter?: AchievementFilter
-  ): Promise<AchievementWithProgress[]> {
-    try {
-      console.log('[AchievementService] Using fallback method for getUserAchievements');
-
-      // Get all achievements
-      let achievementsQuery = supabaseAdmin
+      // 1. Get all achievements
+      const { data: achievements, error: achievementsError } = await supabaseAdmin
         .from('achievements')
         .select('*')
         .order('display_order', { ascending: true });
 
-      if (filter?.category && filter.category !== 'all') {
-        achievementsQuery = achievementsQuery.eq('category', filter.category);
-      }
-      if (filter?.rarity && filter.rarity !== 'all') {
-        achievementsQuery = achievementsQuery.eq('rarity', filter.rarity);
-      }
-
-      const { data: achievements, error: achievementsError } = await achievementsQuery;
-
       if (achievementsError) {
-        console.error('[AchievementService] Fallback: Error fetching achievements:', achievementsError);
+        console.error('[AchievementService] Error fetching achievements:', achievementsError);
         return [];
       }
 
-      // Get user's achievement records
+      // 2. Get user's earned achievements
       const { data: userAchievements, error: userError } = await supabaseAdmin
         .from('user_achievements')
-        .select('*')
+        .select('achievement_id, earned_at')
         .eq('user_id', userId);
 
       if (userError) {
-        console.error('[AchievementService] Fallback: Error fetching user achievements:', userError);
+        console.error('[AchievementService] Error fetching user achievements:', userError);
         return [];
       }
 
-      // Create a map for quick lookup
-      const userAchievementMap = new Map(
-        (userAchievements || []).map((ua: { achievement_id: string; progress: number; earned_at: string | null }) => [
-          ua.achievement_id,
-          ua,
-        ])
+      // Create map of earned achievements
+      const earnedMap = new Map(
+        (userAchievements || []).map(ua => [ua.achievement_id, ua.earned_at])
       );
 
-      // Combine achievements with user progress
-      let result: AchievementWithProgress[] = (achievements || []).map((a: Achievement) => {
-        const userRecord = userAchievementMap.get(a.id) as { progress: number; earned_at: string | null } | undefined;
-        return {
-          ...a,
-          user_progress: userRecord?.progress ?? 0,
-          is_unlocked: userRecord?.earned_at != null,
-          earned_at: userRecord?.earned_at ?? null,
-        };
-      });
+      // 3. Pre-fetch common data to reduce database queries
+      // Cache user stats for progression/premium achievements
+      const cachedUserStats = await this.getUserStatsForProgress(userId);
+      // Cache friend count for social achievements
+      const cachedFriendCount = await this.getFriendCount(userId);
 
-      // Apply status filter
-      if (filter?.status === 'unlocked') {
-        result = result.filter(a => a.is_unlocked);
-      } else if (filter?.status === 'locked') {
-        result = result.filter(a => !a.is_unlocked);
-      } else if (filter?.status === 'in_progress') {
-        result = result.filter(a => !a.is_unlocked && a.user_progress > 0);
+      console.log(`[AchievementService] Cached stats: level=${cachedUserStats?.level}, xp=${cachedUserStats?.xp}, friends=${cachedFriendCount}`);
+
+      // 4. Calculate progress for each achievement
+      const result: AchievementWithProgress[] = await Promise.all(
+        (achievements || []).map(async (a: Achievement) => {
+          const earnedAt = earnedMap.get(a.id);
+          const isUnlocked = !!earnedAt;
+
+          // If unlocked, progress is 100%
+          // Otherwise, calculate progress from actual data
+          const progress = isUnlocked
+            ? 100
+            : await this.calculateAchievementProgress(userId, a, cachedUserStats, cachedFriendCount);
+
+          return {
+            ...a,
+            rarity: a.rarity as 'common' | 'rare' | 'epic' | 'legendary',
+            user_progress: progress,
+            is_unlocked: isUnlocked,
+            earned_at: earnedAt || null,
+          };
+        })
+      );
+
+      // 5. Apply filters
+      let filtered = result;
+
+      if (filter?.category && filter.category !== 'all') {
+        filtered = filtered.filter(a => a.category === filter.category);
+      }
+      if (filter?.rarity && filter.rarity !== 'all') {
+        filtered = filtered.filter(a => a.rarity === filter.rarity);
       }
 
-      // Apply sorting
+      // Filter by status
+      if (filter?.status === 'unlocked') {
+        filtered = filtered.filter(a => a.is_unlocked);
+      } else if (filter?.status === 'locked') {
+        filtered = filtered.filter(a => !a.is_unlocked);
+      } else if (filter?.status === 'in_progress') {
+        filtered = filtered.filter(a => !a.is_unlocked && a.user_progress > 0);
+      }
+
+      // 6. Apply sorting
       if (filter?.sort === 'rarity') {
         const rarityOrder: Record<string, number> = { legendary: 0, epic: 1, rare: 2, common: 3 };
-        result.sort((a, b) => rarityOrder[a.rarity] - rarityOrder[b.rarity]);
+        filtered.sort((a, b) => rarityOrder[a.rarity] - rarityOrder[b.rarity]);
       } else if (filter?.sort === 'points') {
-        result.sort((a, b) => b.points - a.points);
+        filtered.sort((a, b) => b.points - a.points);
       } else if (filter?.sort === 'progress') {
-        result.sort((a, b) => b.user_progress - a.user_progress);
+        filtered.sort((a, b) => b.user_progress - a.user_progress);
       } else if (filter?.sort === 'recent') {
-        result.sort((a, b) => {
+        filtered.sort((a, b) => {
           if (!a.earned_at) return 1;
           if (!b.earned_at) return -1;
           return new Date(b.earned_at).getTime() - new Date(a.earned_at).getTime();
         });
       }
 
-      return result;
+      console.log(`[AchievementService] Returning ${filtered.length} achievements with calculated progress`);
+      return filtered;
     } catch (error) {
-      console.error('[AchievementService] Fallback: Unexpected error:', error);
+      console.error('[AchievementService] Unexpected error:', error);
       return [];
     }
   }
@@ -438,6 +363,141 @@ export class AchievementService {
       console.error('[AchievementService] Unexpected error granting achievement:', error);
       return null;
     }
+  }
+
+  // =====================================================
+  // Helper methods for calculating progress (TypeScript-based)
+  // =====================================================
+
+  /**
+   * Get a metric value from user_metrics table
+   */
+  private async getMetricValue(userId: string, metricKey: string): Promise<number> {
+    try {
+      const { data } = await supabaseAdmin
+        .from('user_metrics')
+        .select('value')
+        .eq('user_id', userId)
+        .eq('metric_key', metricKey)
+        .is('game_id', null)
+        .maybeSingle();
+      return data?.value || 0;
+    } catch (error) {
+      console.error(`[AchievementService] Error getting metric ${metricKey}:`, error);
+      return 0;
+    }
+  }
+
+  /**
+   * Get friend count from friendships table
+   */
+  private async getFriendCount(userId: string): Promise<number> {
+    try {
+      const { count } = await supabaseAdmin
+        .from('friendships')
+        .select('*', { count: 'exact', head: true })
+        .or(`user_id.eq.${userId},friend_id.eq.${userId}`)
+        .eq('status', 'accepted');
+      return count || 0;
+    } catch (error) {
+      console.error('[AchievementService] Error getting friend count:', error);
+      return 0;
+    }
+  }
+
+  /**
+   * Get user stats (level, xp, premium_tier) from users table
+   */
+  private async getUserStatsForProgress(userId: string): Promise<{
+    level: number;
+    xp: number;
+    premium_tier: string;
+  } | null> {
+    try {
+      const { data } = await supabaseAdmin
+        .from('users')
+        .select('level, xp, premium_tier')
+        .eq('id', userId)
+        .single();
+      return data;
+    } catch (error) {
+      console.error('[AchievementService] Error getting user stats:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Calculate progress for an achievement based on category
+   * Returns percentage (0-99 for incomplete, 100 for complete)
+   */
+  private async calculateAchievementProgress(
+    userId: string,
+    achievement: Achievement,
+    cachedUserStats?: { level: number; xp: number; premium_tier: string } | null,
+    cachedFriendCount?: number
+  ): Promise<number> {
+    let currentValue = 0;
+
+    switch (achievement.category) {
+      case 'games_played':
+        currentValue = await this.getMetricValue(userId, 'games_played');
+        break;
+
+      case 'wins':
+        if (achievement.requirement_type === 'streak') {
+          currentValue = await this.getMetricValue(userId, 'current_win_streak');
+        } else {
+          currentValue = await this.getMetricValue(userId, 'games_won');
+        }
+        break;
+
+      case 'social':
+        if (achievement.id.startsWith('host')) {
+          currentValue = await this.getMetricValue(userId, 'rooms_hosted');
+        } else {
+          // Friend count - use cached value if available
+          currentValue = cachedFriendCount !== undefined
+            ? cachedFriendCount
+            : await this.getFriendCount(userId);
+        }
+        break;
+
+      case 'progression':
+        // Use cached user stats if available
+        const userStats = cachedUserStats !== undefined
+          ? cachedUserStats
+          : await this.getUserStatsForProgress(userId);
+
+        if (achievement.id.startsWith('level')) {
+          currentValue = userStats?.level || 0;
+        } else {
+          // XP achievements (e.g., xp_1000, xp_5000)
+          currentValue = userStats?.xp || 0;
+        }
+        break;
+
+      case 'premium':
+        const user = cachedUserStats !== undefined
+          ? cachedUserStats
+          : await this.getUserStatsForProgress(userId);
+        currentValue = (user?.premium_tier && user.premium_tier !== 'free') ? 1 : 0;
+        break;
+
+      case 'special':
+      default:
+        // Special achievements typically have unique conditions
+        // For now, these show 0 progress until manually granted
+        currentValue = 0;
+        break;
+    }
+
+    // Calculate percentage (capped at 99 for incomplete achievements)
+    if (!achievement.requirement_value || achievement.requirement_value === 0) {
+      return 0;
+    }
+
+    const progress = Math.floor((currentValue / achievement.requirement_value) * 100);
+    return Math.min(99, progress);
   }
 
   /**
