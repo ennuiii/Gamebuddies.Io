@@ -23,7 +23,7 @@
   position: relative;
   background: rgba(255, 255, 255, 0.06);
   border-radius: 50%;
-  padding: 12px;
+  padding: 16px;
   box-shadow: 0 12px 36px rgba(0, 0, 0, 0.25);
   margin-bottom: 1rem;
 }
@@ -61,7 +61,7 @@
 }
 
 .pedestal-top {
-  width: 80%;
+  width: 74%;
   height: 12px;
   border-radius: 999px;
   background: linear-gradient(90deg, rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.05));

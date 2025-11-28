@@ -80,7 +80,7 @@ const MascotCustomizer: React.FC<MascotCustomizerProps> = ({
         <div className="mascot-preview-wrapper">
           <div className="mascot-spotlight"></div>
           <div className="mascot-preview-ring" />
-          <MascotAvatar config={config} size={220} />
+          <MascotAvatar config={config} size={230} />
           <div className="mascot-pedestal">
             <div className="pedestal-top" />
           </div>
