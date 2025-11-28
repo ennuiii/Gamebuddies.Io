@@ -235,11 +235,6 @@
   font-weight: 700;
 }
 
-.preview-meta {
-  color: var(--text-secondary);
-  font-size: 0.85rem;
-}
-
 @keyframes previewMarquee {
   0% { transform: translateX(0); }
   100% { transform: translateX(-50%); }

@@ -441,7 +441,7 @@ const HomePage: React.FC<HomePageProps> = ({ setIsInLobby, setLobbyLeaveFn }) =>
               transition={{ duration: 0.8, delay: 1 }}
             >
               <div className="preview-track">
-                {[...games.slice(0, 3), ...games.slice(0, 3)].map((game, idx) => (
+                {[...games, ...games].map((game, idx) => (
                   <div key={`${game.id}-${idx}`} className="preview-card">
                     <div className="preview-thumb">
                       {game.thumbnailUrl || game.screenshot ? (
@@ -452,7 +452,6 @@ const HomePage: React.FC<HomePageProps> = ({ setIsInLobby, setLobbyLeaveFn }) =>
                     </div>
                     <div className="preview-info">
                       <span className="preview-name">{game.name}</span>
-                      <span className="preview-meta">Instant Play • Friends</span>
                     </div>
                   </div>
                 ))}
