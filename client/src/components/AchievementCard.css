@@ -19,14 +19,27 @@
 }
 
 .achievement-card.locked {
-  opacity: 0.8;
-  filter: grayscale(0.4);
+  opacity: 0.85;
+  filter: grayscale(0.5);
+  position: relative;
+}
+
+.achievement-card.locked::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(145deg, rgba(0, 0, 0, 0.5), transparent);
+  pointer-events: none;
 }
 
 .achievement-card:hover {
   transform: translateY(-4px);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
   border-color: var(--rarity-color, rgba(255, 255, 255, 0.2));
+}
+
+.achievement-card.unlocked:hover {
+  box-shadow: 0 16px 36px rgba(0, 217, 255, 0.25);
 }
 
 /* Rarity badge */
@@ -83,6 +96,7 @@
   justify-content: center;
   font-size: 2rem;
   flex-shrink: 0;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08), 0 8px 18px rgba(0, 0, 0, 0.3);
 }
 
 .achievement-icon.grayscale {
@@ -97,7 +111,7 @@
 
 .secret-icon {
   font-size: 2rem;
-  color: rgba(255, 255, 255, 0.3);
+  color: rgba(255, 255, 255, 0.25);
   font-weight: bold;
 }
 
