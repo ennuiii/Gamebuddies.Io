@@ -1,15 +1,17 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getSupabaseClient } from '../utils/supabase';
 import AchievementCard from '../components/AchievementCard';
 import AchievementDetailsModal from '../components/AchievementDetailsModal';
 import LoadingSpinner from '../components/LoadingSpinner';
+import { showAchievementUnlocks } from '../components/AchievementUnlockToast';
 import type {
   AchievementWithProgress,
   AchievementFilter,
   AchievementCategory,
   AchievementRarity,
+  UnlockedAchievement,
 } from '@shared/types/achievements';
 import './Achievements.css';
 
@@ -47,6 +49,9 @@ const Achievements: React.FC = () => {
   // Modal state
   const [selectedAchievement, setSelectedAchievement] = useState<AchievementWithProgress | null>(null);
 
+  // Track if we've shown toasts for newly unlocked achievements (prevent duplicate toasts on re-fetch)
+  const hasShownToastsRef = useRef(false);
+
   // Determine if viewing own or another user's achievements
   const isOwnProfile = !userId || userId === user?.id;
   const targetUserId = userId || user?.id;
@@ -59,6 +64,8 @@ const Achievements: React.FC = () => {
       return;
     }
 
+    // Reset toast flag when target user changes
+    hasShownToastsRef.current = false;
     fetchAchievements();
   }, [targetUserId, isAuthenticated]);
 
@@ -87,6 +94,23 @@ const Achievements: React.FC = () => {
 
       setAchievements(data.achievements || []);
       setStats(data.stats || null);
+
+      // Show toasts for newly unlocked achievements (only once per page visit)
+      if (
+        isOwnProfile &&
+        !hasShownToastsRef.current &&
+        data.newly_unlocked &&
+        Array.isArray(data.newly_unlocked) &&
+        data.newly_unlocked.length > 0
+      ) {
+        hasShownToastsRef.current = true;
+        console.log(`🏆 [Achievements] ${data.newly_unlocked.length} achievement(s) auto-granted!`);
+
+        // Small delay to let the page render first
+        setTimeout(() => {
+          showAchievementUnlocks(data.newly_unlocked as UnlockedAchievement[]);
+        }, 500);
+      }
     } catch (err) {
       console.error('Error fetching achievements:', err);
       setError((err as Error).message);

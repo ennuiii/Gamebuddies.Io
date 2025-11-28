@@ -58,6 +58,7 @@ export default function achievementsRouter(io: Server, connectionManager: Connec
   /**
    * GET /api/achievements/me
    * Get current user's achievements with progress
+   * Also checks and grants any eligible achievements (retroactive catch-up)
    */
   router.get('/me', requireAuth, async (req: AuthenticatedRequest, res: Response) => {
     try {
@@ -66,6 +67,9 @@ export default function achievementsRouter(io: Server, connectionManager: Connec
         return res.status(401).json({ success: false, error: 'Not authenticated' });
       }
 
+      // First, check and grant any eligible achievements (retroactive catch-up)
+      const newlyUnlocked = await achievementService.checkAndGrantEligibleAchievements(userId);
+
       const filter: AchievementFilter = {
         category: (req.query.category as AchievementFilter['category']) || 'all',
         rarity: (req.query.rarity as AchievementFilter['rarity']) || 'all',
@@ -73,6 +77,7 @@ export default function achievementsRouter(io: Server, connectionManager: Connec
         sort: (req.query.sort as AchievementFilter['sort']) || 'display_order',
       };
 
+      // Now get achievements (newly granted ones will show as unlocked)
       const achievements = await achievementService.getUserAchievements(userId, filter);
       const stats = await achievementService.getAchievementStats(userId);
 
@@ -80,6 +85,7 @@ export default function achievementsRouter(io: Server, connectionManager: Connec
         success: true,
         achievements,
         stats,
+        newly_unlocked: newlyUnlocked, // For client to show toasts
       });
     } catch (error) {
       console.error('[Achievements] Error fetching user achievements:', error);

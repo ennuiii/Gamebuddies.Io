@@ -427,6 +427,56 @@ export class AchievementService {
   }
 
   /**
+   * Get the current value for an achievement (raw number, not capped)
+   * Used by both progress calculation and auto-grant checking
+   */
+  private async getCurrentValueForAchievement(
+    userId: string,
+    achievement: Achievement,
+    cachedUserStats?: { level: number; xp: number; premium_tier: string } | null,
+    cachedFriendCount?: number
+  ): Promise<number> {
+    switch (achievement.category) {
+      case 'games_played':
+        return await this.getMetricValue(userId, 'games_played');
+
+      case 'wins':
+        if (achievement.requirement_type === 'streak') {
+          return await this.getMetricValue(userId, 'current_win_streak');
+        }
+        return await this.getMetricValue(userId, 'games_won');
+
+      case 'social':
+        if (achievement.id.startsWith('host')) {
+          return await this.getMetricValue(userId, 'rooms_hosted');
+        }
+        return cachedFriendCount !== undefined
+          ? cachedFriendCount
+          : await this.getFriendCount(userId);
+
+      case 'progression':
+        const userStats = cachedUserStats !== undefined
+          ? cachedUserStats
+          : await this.getUserStatsForProgress(userId);
+
+        if (achievement.id.startsWith('level')) {
+          return userStats?.level || 0;
+        }
+        return userStats?.xp || 0;
+
+      case 'premium':
+        const user = cachedUserStats !== undefined
+          ? cachedUserStats
+          : await this.getUserStatsForProgress(userId);
+        return (user?.premium_tier && user.premium_tier !== 'free') ? 1 : 0;
+
+      case 'special':
+      default:
+        return 0;
+    }
+  }
+
+  /**
    * Calculate progress for an achievement based on category
    * Returns the RAW CURRENT VALUE (not percentage) - frontend calculates percentage
    * This preserves precision for display (e.g., "1675/10000" instead of "1600/10000")
@@ -437,60 +487,12 @@ export class AchievementService {
     cachedUserStats?: { level: number; xp: number; premium_tier: string } | null,
     cachedFriendCount?: number
   ): Promise<number> {
-    let currentValue = 0;
-
-    switch (achievement.category) {
-      case 'games_played':
-        currentValue = await this.getMetricValue(userId, 'games_played');
-        break;
-
-      case 'wins':
-        if (achievement.requirement_type === 'streak') {
-          currentValue = await this.getMetricValue(userId, 'current_win_streak');
-        } else {
-          currentValue = await this.getMetricValue(userId, 'games_won');
-        }
-        break;
-
-      case 'social':
-        if (achievement.id.startsWith('host')) {
-          currentValue = await this.getMetricValue(userId, 'rooms_hosted');
-        } else {
-          // Friend count - use cached value if available
-          currentValue = cachedFriendCount !== undefined
-            ? cachedFriendCount
-            : await this.getFriendCount(userId);
-        }
-        break;
-
-      case 'progression':
-        // Use cached user stats if available
-        const userStats = cachedUserStats !== undefined
-          ? cachedUserStats
-          : await this.getUserStatsForProgress(userId);
-
-        if (achievement.id.startsWith('level')) {
-          currentValue = userStats?.level || 0;
-        } else {
-          // XP achievements (e.g., xp_1000, xp_5000)
-          currentValue = userStats?.xp || 0;
-        }
-        break;
-
-      case 'premium':
-        const user = cachedUserStats !== undefined
-          ? cachedUserStats
-          : await this.getUserStatsForProgress(userId);
-        currentValue = (user?.premium_tier && user.premium_tier !== 'free') ? 1 : 0;
-        break;
-
-      case 'special':
-      default:
-        // Special achievements typically have unique conditions
-        // For now, these show 0 progress until manually granted
-        currentValue = 0;
-        break;
-    }
+    const currentValue = await this.getCurrentValueForAchievement(
+      userId,
+      achievement,
+      cachedUserStats,
+      cachedFriendCount
+    );
 
     // Return raw current value - frontend will calculate percentage
     // Cap at requirement_value for display purposes (can't show more than 100%)
@@ -499,6 +501,81 @@ export class AchievementService {
     }
 
     return Math.min(currentValue, achievement.requirement_value);
+  }
+
+  /**
+   * Check all achievements and grant any that are eligible
+   * Called when loading achievements page to catch up retroactive progress
+   */
+  async checkAndGrantEligibleAchievements(userId: string): Promise<UnlockedAchievement[]> {
+    const newlyUnlocked: UnlockedAchievement[] = [];
+
+    try {
+      console.log(`[AchievementService] Checking eligible achievements for user ${userId}`);
+
+      // 1. Get all achievements
+      const { data: achievements, error: achievementsError } = await supabaseAdmin
+        .from('achievements')
+        .select('*');
+
+      if (achievementsError) {
+        console.error('[AchievementService] Error fetching achievements:', achievementsError);
+        return [];
+      }
+
+      // 2. Get user's already-earned achievements
+      const { data: userAchievements, error: userError } = await supabaseAdmin
+        .from('user_achievements')
+        .select('achievement_id')
+        .eq('user_id', userId)
+        .not('earned_at', 'is', null);
+
+      if (userError) {
+        console.error('[AchievementService] Error fetching user achievements:', userError);
+        return [];
+      }
+
+      const earnedIds = new Set(
+        (userAchievements || []).map(ua => ua.achievement_id)
+      );
+
+      // 3. Pre-fetch user data for efficiency
+      const cachedUserStats = await this.getUserStatsForProgress(userId);
+      const cachedFriendCount = await this.getFriendCount(userId);
+
+      console.log(`[AchievementService] Checking with stats: level=${cachedUserStats?.level}, xp=${cachedUserStats?.xp}, friends=${cachedFriendCount}`);
+
+      // 4. Check each unearned achievement
+      for (const achievement of achievements || []) {
+        if (earnedIds.has(achievement.id)) continue;
+
+        const currentValue = await this.getCurrentValueForAchievement(
+          userId,
+          achievement,
+          cachedUserStats,
+          cachedFriendCount
+        );
+
+        // If current value meets requirement, grant the achievement
+        if (currentValue >= achievement.requirement_value) {
+          console.log(`[AchievementService] Auto-granting "${achievement.name}" to user ${userId} (${currentValue}/${achievement.requirement_value})`);
+
+          const granted = await this.grantAchievement(userId, achievement.id);
+          if (granted) {
+            newlyUnlocked.push(granted);
+          }
+        }
+      }
+
+      if (newlyUnlocked.length > 0) {
+        console.log(`[AchievementService] Auto-granted ${newlyUnlocked.length} achievement(s): ${newlyUnlocked.map(a => a.name).join(', ')}`);
+      }
+
+      return newlyUnlocked;
+    } catch (error) {
+      console.error('[AchievementService] Error checking eligible achievements:', error);
+      return [];
+    }
   }
 
   /**
