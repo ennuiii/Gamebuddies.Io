@@ -54,7 +54,7 @@ export function createApp(
   // Standard API routes
   app.use('/api/games', gamesRouter);
   app.use('/api/auth', authRouter);
-  app.use('/api/friends', friendsRouter);
+  app.use('/api/friends', friendsRouter(io, connectionManager));
   app.use('/api/admin', adminRouter);
   app.use('/api', authRouter); // Mount /users endpoint at /api/users
   app.use('/api/avatars', avatarsRouter);

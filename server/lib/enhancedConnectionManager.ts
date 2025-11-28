@@ -77,7 +77,16 @@ class EnhancedConnectionManager extends ConnectionManager {
   }
 
   // Enhanced connection tracking with session support
-  addConnection(socketId: string, initialData: Partial<EnhancedConnectionData> = {}): EnhancedConnectionData {
+  // Override returns boolean for compatibility, but stores EnhancedConnectionData
+  addConnection(socketId: string, initialData: Partial<EnhancedConnectionData> = {}): boolean {
+    // Check capacity (inherited from parent)
+    if (this.activeConnections.size >= 50000) {
+      const cleaned = this.cleanupStaleConnections(60000);
+      if (cleaned.length === 0 && this.activeConnections.size >= 50000) {
+        return false;
+      }
+    }
+
     const connection: EnhancedConnectionData = {
       socketId,
       connectedAt: new Date(),
@@ -105,7 +114,7 @@ class EnhancedConnectionManager extends ConnectionManager {
     }
 
     console.log(`📈 [CONNECTION] Added connection ${socketId} for user ${connection.userId}`);
-    return connection;
+    return true;
   }
 
   // Update connection with session management

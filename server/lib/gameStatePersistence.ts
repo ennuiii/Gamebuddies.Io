@@ -5,15 +5,15 @@
 
 import fs from 'fs';
 import path from 'path';
-import type { GameState } from '../types';
+import type { GameState, TugOfWarGameState, TugOfWarTeam } from '../types';
 
 const STATE_FILE = path.join(process.cwd(), 'data', 'game-state.json');
 const PERSIST_INTERVAL_MS = 30000; // Save every 30 seconds
 
 interface SerializedGameState {
-  tugOfWarState: [string, unknown][];
-  tugOfWarTeams: [string, unknown][];
-  roomActivityCache: [string, unknown][];
+  tugOfWarState: [string, TugOfWarGameState][];
+  tugOfWarTeams: [string, [string, TugOfWarTeam][]][];
+  roomActivityCache: [string, number][];
   savedAt: string;
 }
 
@@ -34,9 +34,15 @@ function ensureDataDir(): void {
  * Serialize game state for JSON storage
  */
 function serializeGameState(gameState: GameState): SerializedGameState {
+  // Convert nested Map for tugOfWarTeams
+  const serializedTeams: [string, [string, TugOfWarTeam][]][] = [];
+  for (const [roomCode, teamMap] of gameState.tugOfWarTeams.entries()) {
+    serializedTeams.push([roomCode, Array.from(teamMap.entries())]);
+  }
+
   return {
     tugOfWarState: Array.from(gameState.tugOfWarState.entries()),
-    tugOfWarTeams: Array.from(gameState.tugOfWarTeams.entries()),
+    tugOfWarTeams: serializedTeams,
     roomActivityCache: Array.from(gameState.roomActivityCache.entries()),
     savedAt: new Date().toISOString(),
   };
@@ -88,8 +94,10 @@ export function loadGameState(gameState: GameState): boolean {
     for (const [key, value] of saved.tugOfWarState) {
       gameState.tugOfWarState.set(key, value);
     }
-    for (const [key, value] of saved.tugOfWarTeams) {
-      gameState.tugOfWarTeams.set(key, value);
+    // Restore nested Map for tugOfWarTeams
+    for (const [roomCode, teamEntries] of saved.tugOfWarTeams) {
+      const teamMap = new Map<string, TugOfWarTeam>(teamEntries);
+      gameState.tugOfWarTeams.set(roomCode, teamMap);
     }
     for (const [key, value] of saved.roomActivityCache) {
       gameState.roomActivityCache.set(key, value);
