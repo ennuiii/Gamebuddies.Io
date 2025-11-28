@@ -212,8 +212,8 @@
 
 .current-avatar {
   width: 100%;
-  max-width: 960px;
-  padding: 2rem;
+  max-width: 1020px;
+  padding: 2.25rem;
   background: linear-gradient(145deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.02));
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 20px;
@@ -230,6 +230,17 @@
 
 .current-avatar.customizer-mode .avatar-customizer {
   width: 100%;
+}
+
+.current-avatar .mascot-preview-area {
+  width: 100%;
+  max-width: 940px;
+  margin: 0 auto;
+  padding: 2.5rem;
+}
+
+.current-avatar .mascot-preview-wrapper {
+  padding: 18px;
 }
 
 .avatar-hero {

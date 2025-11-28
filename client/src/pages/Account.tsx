@@ -5,6 +5,7 @@ import { useNotification } from '../contexts/NotificationContext';
 import { getSupabaseClient } from '../utils/supabase';
 import AvatarCustomizer from '../components/AvatarCustomizer';
 import Avatar from '../components/Avatar';
+import MascotAvatar from '../components/MascotAvatar';
 import ConfirmDialog from '../components/ConfirmDialog';
 import './Account.css';
 
@@ -184,6 +185,10 @@ const Account: React.FC = () => {
 
         <div className="account-section avatar-section">
           <h2>Custom Avatar</h2>
+          {/*
+            To mirror the customizer view, the static card uses the same large preview treatment.
+            When opened, the same container remains and only the options appear below.
+          */}
           {showAvatarCustomizer ? (
             <div className="current-avatar customizer-mode">
               <AvatarCustomizer
@@ -201,29 +206,34 @@ const Account: React.FC = () => {
             </div>
           ) : (
             <div className="current-avatar">
-              <div className="avatar-hero">
-                <div className="avatar-hero-spotlight"></div>
-                <div className="avatar-hero-ring"></div>
-                {user?.avatar_style ? (
-                  <Avatar
-                    avatarStyle={user.avatar_style}
-                    avatarSeed={user.avatar_seed}
-                    avatarOptions={user.avatar_options}
-                    name={user.username || user.display_name}
-                    size={200}
-                    isPremium={true}
-                    className="avatar-large"
-                  />
-                ) : (
-                  <div className="avatar-placeholder">
-                    <span>
-                      {(user?.username || user?.display_name || '?').charAt(0).toUpperCase()}
-                    </span>
+              <div className="mascot-preview-area static-preview">
+                <div className="mascot-preview-wrapper">
+                  <div className="mascot-spotlight"></div>
+                  <div className="mascot-preview-ring" />
+                  {user?.avatar_style === 'custom-mascot' ? (
+                    <MascotAvatar config={(user?.avatar_options as Record<string, unknown>) || {}} size={230} />
+                  ) : user?.avatar_style ? (
+                    <Avatar
+                      avatarStyle={user.avatar_style}
+                      avatarSeed={user.avatar_seed}
+                      avatarOptions={user.avatar_options}
+                      name={user.username || user.display_name}
+                      size={210}
+                      isPremium={true}
+                      className="avatar-large"
+                    />
+                  ) : (
+                    <div className="avatar-placeholder">
+                      <span>
+                        {(user?.username || user?.display_name || '?').charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                  )}
+                  <div className="mascot-pedestal">
+                    <div className="pedestal-top" />
                   </div>
-                )}
-                <div className="avatar-pedestal">
-                  <div className="pedestal-top" />
                 </div>
+                <p className="mascot-helper-text">Select your avatar</p>
               </div>
               <button onClick={() => setShowAvatarCustomizer(true)} className="btn btn-secondary">
                 {user?.avatar_style ? 'Change Avatar' : 'Create Avatar'}
