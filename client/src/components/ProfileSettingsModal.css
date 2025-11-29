@@ -71,7 +71,8 @@
   justify-content: center;
   box-shadow: 0 8px 24px rgba(233, 69, 96, 0.4);
   margin-bottom: 0.75rem;
-  overflow: hidden;
+  overflow: visible;
+  padding: 6px;
 }
 
 .avatar-preview-img {
@@ -79,6 +80,16 @@
   height: 100%;
   object-fit: cover;
   border-radius: 50%;
+}
+
+.avatar-preview-container .mascot-avatar-container {
+  width: 100%;
+  height: 100%;
+  padding: 16%;
+}
+
+.avatar-preview-container .mascot-avatar-img {
+  object-fit: contain;
 }
 
 .avatar-preview-initial {
@@ -139,6 +150,20 @@
 /* Avatar Customizer Section */
 .avatar-customizer-section {
   margin-bottom: 1rem;
+}
+
+/* Ensure avatar cards in the customizer never crop premium badges */
+.avatar-customizer-section .mascot-option-btn {
+  overflow: visible;
+}
+
+.avatar-customizer-section .img-wrapper {
+  padding: 10px;
+  aspect-ratio: 1 / 1;
+}
+
+.avatar-customizer-section .premium-badge-icon {
+  transform: translate(6px, -6px);
 }
 
 /* Setting Sections */
