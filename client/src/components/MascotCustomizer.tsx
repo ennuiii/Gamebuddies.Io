@@ -145,18 +145,18 @@ const MascotCustomizer: React.FC<MascotCustomizerProps> = ({
                       <img src={item.src} alt={item.name} />
                       {item.premium && !item.hidden && (
                         <span className="premium-badge-icon" title="Premium">
-                          ƒ~.
+                          PRO
                         </span>
                       )}
                       {item.hidden && (
                         <span className="premium-badge-icon admin" title="Admin Only">
-                          ĐY'¯
+                          DEV
                         </span>
                       )}
                       {isLocked && (
                         <div className="lock-overlay">
                           <span style={{ fontSize: '0.8rem', fontWeight: 'bold' }}>
-                            {isLockedByLevel ? `Lvl ${levelReq}` : 'ĐY"'}
+                            {isLockedByLevel ? `Lvl ${levelReq}` : 'LOCKED'}
                           </span>
                         </div>
                       )}
