@@ -5,6 +5,7 @@ interface AdContextType {
   // Core state
   shouldShowAds: boolean;
   adsEnabled: boolean;
+  isAdBlocked: boolean;
 
   // Banner frequency limiting
   canShowBannerAd: boolean;
@@ -49,6 +50,7 @@ export const AdProvider: React.FC<AdProviderProps> = ({ children }) => {
 
   // Core state
   const [adsEnabled] = useState(true); // Global toggle for emergencies
+  const [isAdBlocked, setIsAdBlocked] = useState(false);
   const [isSupportModalOpen, setIsSupportModalOpen] = useState(false);
 
   // Session tracking for banner frequency
@@ -76,9 +78,46 @@ export const AdProvider: React.FC<AdProviderProps> = ({ children }) => {
   // Show ads to: authenticated free users AND guests (anyone who's not premium)
   const shouldShowAds = adsEnabled && !isPremium;
 
+  // Simple ad-block detection (prevents empty ad boxes when blocked)
+  useEffect(() => {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return;
+
+    let cancelled = false;
+    const bait = document.createElement('div');
+    bait.className = 'adsbox ad-banner';
+    bait.style.position = 'absolute';
+    bait.style.left = '-9999px';
+    bait.style.height = '10px';
+    bait.style.width = '10px';
+    bait.style.pointerEvents = 'none';
+    document.body.appendChild(bait);
+
+    const timer = window.setTimeout(() => {
+      const blocked = bait.offsetHeight === 0 || bait.clientHeight === 0;
+      if (!cancelled) {
+        setIsAdBlocked(blocked);
+      }
+      if (bait.parentNode) {
+        bait.parentNode.removeChild(bait);
+      }
+    }, 150);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+      if (bait.parentNode) {
+        bait.parentNode.removeChild(bait);
+      }
+    };
+  }, [shouldShowAds]);
+
   // Banner-specific checks
   const isInGracePeriod = currentTime - sessionStart < BANNER_GRACE_PERIOD_MS;
-  const canShowBannerAd = shouldShowAds && !isInGracePeriod && bannerImpressions < MAX_BANNER_IMPRESSIONS_PER_SESSION;
+  const canShowBannerAd =
+    shouldShowAds &&
+    !isAdBlocked &&
+    !isInGracePeriod &&
+    bannerImpressions < MAX_BANNER_IMPRESSIONS_PER_SESSION;
 
   // Track banner impression
   const onBannerImpression = useCallback(() => {
@@ -149,6 +188,7 @@ export const AdProvider: React.FC<AdProviderProps> = ({ children }) => {
   const value: AdContextType = {
     shouldShowAds,
     adsEnabled,
+    isAdBlocked,
     // Banner frequency
     canShowBannerAd,
     bannerImpressions,

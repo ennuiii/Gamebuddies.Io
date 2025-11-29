@@ -16,11 +16,11 @@ interface AdWrapperProps {
  * For other types: Just checks shouldShowAds.
  */
 const AdWrapper: React.FC<AdWrapperProps> = ({ children, type = 'banner', className = '' }) => {
-  const { shouldShowAds, canShowBannerAd, onBannerImpression } = useAds();
+  const { shouldShowAds, canShowBannerAd, onBannerImpression, isAdBlocked } = useAds();
   const hasTrackedImpression = useRef(false);
 
   // Determine if this ad should show
-  const shouldRender = type === 'banner' ? canShowBannerAd : shouldShowAds;
+  const shouldRender = !isAdBlocked && (type === 'banner' ? canShowBannerAd : shouldShowAds);
 
   // Track banner impression when first rendered
   useEffect(() => {
