@@ -120,36 +120,18 @@
   background-clip: text;
 }
 
-.hero-title {
-  font-family: 'Orbitron', sans-serif;
-  font-size: clamp(3rem, 8vw, 6rem);
-  font-weight: 900;
+/* Hero Logo */
+.hero-logo {
   margin-bottom: 1.5rem;
-  color: var(--text-primary);
-  line-height: 1.1;
+  display: flex;
+  justify-content: center;
 }
 
-.brand-text-white {
-  color: #ffffff;
-}
-
-.brand-text {
-  background: linear-gradient(135deg, var(--primary-color) 0%, #ff4757 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-  filter: drop-shadow(0 0 40px rgba(233, 69, 96, 0.3));
-}
-
-.brand-dot {
-  color: var(--secondary-color);
-  text-shadow: 0 0 15px rgba(0, 217, 255, 0.4);
-  animation: glow 2s ease-in-out infinite alternate;
-}
-
-@keyframes glow {
-  from { text-shadow: 0 0 15px rgba(0, 217, 255, 0.4); }
-  to { text-shadow: 0 0 25px rgba(0, 217, 255, 0.6); }
+.hero-logo-image {
+  max-width: 400px;
+  width: 100%;
+  height: auto;
+  filter: drop-shadow(0 10px 40px rgba(0, 0, 0, 0.4));
 }
 
 .hero-subtitle {

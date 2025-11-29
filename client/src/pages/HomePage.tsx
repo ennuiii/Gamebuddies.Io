@@ -441,15 +441,14 @@ const HomePage: React.FC<HomePageProps> = ({ setIsInLobby, setLobbyLeaveFn }) =>
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, ease: 'easeOut' }}
         >
-          <motion.h1
-            className="hero-title"
+          <motion.div
+            className="hero-logo"
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.3 }}
           >
-            <span className="brand-text-white">Game</span><span className="brand-text">Buddies</span>
-            <span className="brand-dot">.io</span>
-          </motion.h1>
+            <img src="/gblogo.png" alt="GameBuddies.io" className="hero-logo-image" />
+          </motion.div>
 
           <motion.p
             className="hero-subtitle"
