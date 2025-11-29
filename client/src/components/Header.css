@@ -171,10 +171,11 @@
 }
 
 .logo-image {
-  height: 70px;
+  height: 100px;
   width: auto;
   object-fit: contain;
   transition: all 0.3s ease;
+  margin: -15px 0; /* Logo overflows header bounds */
 }
 
 .logo:hover .logo-image {
