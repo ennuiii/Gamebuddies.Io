@@ -954,73 +954,66 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
 
   return (
     <div className="room-lobby">
-      <div className="lobby-header">
-        <div className="header-left-actions">
-          <button onClick={handleLeaveRoom} className="leave-button">
-            Leave Room
-          </button>
-          {isAuthenticated && (
-            <button
-              onClick={() => setShowProfileSettings(true)}
-              className="profile-settings-btn"
-              title="Profile Settings"
-            >
-              ⚙️ Profile
-            </button>
-          )}
-        </div>
+      {/* Redesigned Header Row */}
+      <div className="lobby-header-new">
+        <button onClick={handleLeaveRoom} className="leave-button-new">
+          <span className="leave-icon">←</span> Leave Room
+        </button>
 
-        <div className="room-info-header">
+        <div className="room-code-center">
+          <span className="room-label">ROOM:</span>
           {roomData?.streamer_mode ? (
-            <div className="room-code-display streamer-mode">
+            <span className="room-code-value">
               {showRoomCode ? roomCode : '••••••'}
               {currentIsHost && (
                 <button
-                  className="toggle-code-btn"
+                  className="toggle-code-btn-inline"
                   onClick={() => setShowRoomCode(!showRoomCode)}
                   title={showRoomCode ? 'Hide code' : 'Show code'}
                 >
                   {showRoomCode ? '🙈' : '👁️'}
                 </button>
               )}
-            </div>
+            </span>
           ) : (
-            <div className="room-code-display">{roomCode}</div>
+            <span className="room-code-value">{roomCode}</span>
           )}
-          <div className="room-status-section">
-            <div className="room-status-display">
-              <span className="status-label">Status:</span>
-              <span className={`status-badge status-${roomStatus}`}>
-                {roomStatus
-                  .replace(/_/g, ' ')
-                  .replace(/\b\w/g, (l) => l.toUpperCase())}
-              </span>
-            </div>
-          </div>
-          <div className="room-actions">
-            {!roomData?.streamer_mode && (
-              <>
-                <button
-                  className="copy-btn"
-                  onClick={() => navigator.clipboard.writeText(roomCode)}
-                >
-                  📋 Copy Code
-                </button>
-                <button
-                  className="copy-link-btn"
-                  onClick={() => {
-                    const roomUrl = `${window.location.origin}/?join=${roomCode}`;
-                    navigator.clipboard.writeText(roomUrl);
-                  }}
-                >
-                  🔗 Copy Link
-                </button>
-              </>
-            )}
-          </div>
+          <span className="lobby-status-pill">
+            <span className="status-dot"></span>
+            LOBBY
+          </span>
         </div>
 
-        <div style={{ width: '180px' }}></div>
+        <div className="header-actions-right">
+          {!roomData?.streamer_mode && (
+            <>
+              <button
+                className="header-action-btn"
+                onClick={() => navigator.clipboard.writeText(roomCode)}
+              >
+                <span className="btn-icon">📋</span> Copy Code
+              </button>
+              <button
+                className="header-action-btn"
+                onClick={() => {
+                  const roomUrl = `${window.location.origin}/?join=${roomCode}`;
+                  navigator.clipboard.writeText(roomUrl);
+                }}
+              >
+                <span className="btn-icon">🔗</span> Copy Link
+              </button>
+            </>
+          )}
+          {isAuthenticated && (
+            <button
+              onClick={() => setShowProfileSettings(true)}
+              className="header-action-btn profile-btn"
+              title="Profile Settings"
+            >
+              ⚙️
+            </button>
+          )}
+        </div>
       </div>
 
       <ProfileSettingsModal
@@ -1039,24 +1032,108 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
         />
       )}
 
-      <div className="lobby-content">
-        <div className="players-section">
-          <div className="section-header">
-            <h3 className="section-title">Players in Room</h3>
+      {/* Two-Column Layout */}
+      <div className="lobby-layout">
+        {/* Left Column - Main Content */}
+        <div className="lobby-main">
+          {/* Current Game Card */}
+          <div className="current-game-section">
+            <div className="section-label">CURRENT GAME</div>
+            {!selectedGame ? (
+              <GamePicker
+                onGameSelect={handleGameSelect}
+                isHost={currentIsHost}
+                disabled={!socket || !socketIsConnected}
+              />
+            ) : (
+              <div className="current-game-card">
+                <div className="game-mascot">
+                  {selectedGameInfo?.thumbnailUrl && !imageError ? (
+                    <img
+                      src={selectedGameInfo.thumbnailUrl}
+                      alt={selectedGameInfo.name || ''}
+                      onError={() => setImageError(true)}
+                    />
+                  ) : (
+                    <span className="game-icon-fallback">{selectedGameInfo?.icon || '🎮'}</span>
+                  )}
+                </div>
+                <div className="game-info">
+                  <h3 className="game-title">{selectedGameInfo?.name}</h3>
+                  <p className="game-description">{selectedGameInfo?.description}</p>
+                  {currentIsHost && (
+                    <button
+                      onClick={() => setSelectedGame(null)}
+                      className="change-game-link"
+                    >
+                      Change Game
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
-          <div className={`players-grid ${allPlayersReady ? 'all-ready' : ''}`}>
-            {playersWithStatus.map((player) => {
-              const { playerStatus, countdownTime, isDisconnectedWithTimer } = player;
-              const isJoining = recentlyJoinedPlayers.has(player.id);
-              const isReconnecting = reconnectingPlayers.has(player.id);
-              return (
-                <div
-                  key={player.id}
-                  className={`player-card ${player.isHost ? 'host' : ''} ${playerStatus.status} ${isDisconnectedWithTimer ? 'disconnecting' : ''} ${player.role === 'admin' ? 'premium-admin' : player.premiumTier === 'lifetime' ? 'premium-lifetime' : player.premiumTier === 'monthly' ? 'premium-monthly' : ''} ${isJoining ? 'player-joining' : ''} ${isReconnecting ? 'player-reconnecting' : ''}`}
-                >
-                  <div className="player-card-content">
+
+          {/* Team Battle Section */}
+          <div className="team-battle-section">
+            <TugOfWar playerName={playerNameRef.current} />
+          </div>
+
+          {/* Ready Section - shown for non-host players */}
+          {!currentIsHost && (
+            <div className="ready-section-new">
+              <button
+                onClick={handleToggleReady}
+                className={`ready-button-new ${currentUserReady ? 'ready' : 'not-ready'}`}
+                disabled={!socket || !socketIsConnected}
+              >
+                {currentUserReady ? 'Stand Down' : 'Ready Up'}
+              </button>
+              <p className="ready-hint">
+                {currentUserReady
+                  ? selectedGame
+                    ? 'Waiting for host to start the game...'
+                    : 'Waiting for host to select a game...'
+                  : 'Click Ready when you\'re set to play'}
+              </p>
+            </div>
+          )}
+
+          {/* Start Game Button - Host Only */}
+          {currentIsHost && selectedGame && (
+            <button
+              onClick={handleStartGame}
+              className="start-game-button-new"
+              disabled={!socket || !socketIsConnected || isStartingGame || !allPlayersReady}
+              title={!allPlayersReady ? 'Waiting for all players to ready up' : ''}
+            >
+              {isStartingGame ? 'Starting...' : !allPlayersReady ? 'Waiting for Players...' : 'START GAME'}
+            </button>
+          )}
+          {currentIsHost && selectedGame && !allPlayersReady && (
+            <p className="waiting-ready-hint">All players must be ready before starting</p>
+          )}
+        </div>
+
+        {/* Right Column - Sidebar */}
+        <div className="lobby-sidebar">
+          {/* Players List */}
+          <div className="sidebar-section players-section-new">
+            <div className="sidebar-header">
+              <span className="sidebar-title">PLAYERS ({players.length}/{selectedGameInfo?.maxPlayers || 10})</span>
+            </div>
+            <div className={`players-list ${allPlayersReady ? 'all-ready' : ''}`}>
+              {playersWithStatus.map((player) => {
+                const { playerStatus, countdownTime, isDisconnectedWithTimer } = player;
+                const isJoining = recentlyJoinedPlayers.has(player.id);
+                const isReconnecting = reconnectingPlayers.has(player.id);
+                return (
+                  <div
+                    key={player.id}
+                    className={`player-row ${player.isHost ? 'host' : ''} ${playerStatus.status} ${isDisconnectedWithTimer ? 'disconnecting' : ''} ${player.role === 'admin' ? 'premium-admin' : player.premiumTier === 'lifetime' ? 'premium-lifetime' : player.premiumTier === 'monthly' ? 'premium-monthly' : ''} ${isJoining ? 'player-joining' : ''} ${isReconnecting ? 'player-reconnecting' : ''}`}
+                  >
                     <div
-                      className={`player-avatar ${!player.isGuest ? 'clickable' : ''}`}
+                      className={`player-row-avatar ${!player.isGuest ? 'clickable' : ''}`}
                       onClick={() => !player.isGuest && setSelectedProfileUserId(player.id)}
                       title={!player.isGuest ? `View ${player.name}'s profile` : 'Guest profiles are not available'}
                       role={!player.isGuest ? 'button' : undefined}
@@ -1074,14 +1151,14 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
                         avatarSeed={player.avatarSeed}
                         avatarOptions={player.avatarOptions}
                         name={player.name}
-                        size={120}
+                        size={40}
                         isPremium={player.role === 'admin' || player.premiumTier !== 'free'}
-                        className="avatar-image"
+                        className="avatar-image-small"
                       />
                     </div>
-                    <div className="player-info">
+                    <div className="player-row-info">
                       <span
-                        className={`player-name ${!player.isGuest ? 'clickable' : ''}`}
+                        className={`player-row-name ${!player.isGuest ? 'clickable' : ''}`}
                         onClick={() => !player.isGuest && setSelectedProfileUserId(player.id)}
                         role={!player.isGuest ? 'button' : undefined}
                         tabIndex={!player.isGuest ? 0 : undefined}
@@ -1094,187 +1171,89 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
                       >
                         {player.name}
                       </span>
-                      <div className="player-badges">
-                        <span className="level-badge-lobby">Lvl {player.level}</span>
-                        {!player.isGuest && (player.achievementPoints ?? 0) > 0 && (
-                          <span className="achievement-badge" title={`${player.achievementPoints} Achievement Points`}>
-                            🏆 {player.achievementPoints}
-                          </span>
-                        )}
+                      <div className="player-row-badges">
+                        {player.isHost && <span className="badge-host">HOST</span>}
                         {player.isGuest ? (
-                          <span className="guest-badge">GUEST</span>
+                          <span className="badge-guest">GUEST</span>
                         ) : player.role === 'admin' ? (
-                          <span className="premium-badge lifetime">💻 ADMIN</span>
+                          <span className="badge-admin">ADMIN</span>
                         ) : player.premiumTier === 'lifetime' ? (
-                          <span className="premium-badge lifetime">PREMIUM</span>
+                          <span className="badge-premium">PREMIUM</span>
                         ) : player.premiumTier === 'monthly' ? (
-                          <span className="premium-badge monthly">PRO</span>
+                          <span className="badge-pro">PRO</span>
                         ) : null}
-                        {player.isHost && <span className="host-badge">Host</span>}
-                        {/* Ready indicator - host is always ready, show for non-host players */}
-                        {!player.isHost && (
-                          <span className={`ready-badge ${player.isReady ? 'is-ready' : 'not-ready'}`}>
-                            {player.isReady ? '✓ Ready' : '○ Not Ready'}
-                          </span>
-                        )}
-                        <span
-                          className="status-badge"
-                          style={{ backgroundColor: playerStatus.color }}
-                        >
-                          {playerStatus.icon} {playerStatus.label}
-                        </span>
-                        {isDisconnectedWithTimer && (
-                          <span className="countdown-badge">⏱️ {countdownTime}s</span>
-                        )}
                       </div>
                     </div>
-                  </div>
-                  {currentIsHost && !player.isHost && !isDisconnectedWithTimer && (
-                    <div className="player-actions">
-                      <button className="make-host-btn" onClick={() => handleTransferHost(player.id)}>
-                        👑 Make Host
-                      </button>
-                      <button
-                        className="kick-player-btn"
-                        onClick={() => handleKickPlayer(player.id, player.name)}
-                      >
-                        👢 Kick
-                      </button>
+                    <div className="player-row-status">
+                      <span className={`status-pill ${playerStatus.status}`}>
+                        {playerStatus.status === 'lobby' ? 'IN LOBBY' : playerStatus.status === 'in_game' ? 'IN GAME' : 'OFFLINE'}
+                      </span>
+                      {isDisconnectedWithTimer && (
+                        <span className="countdown-small">⏱️ {countdownTime}s</span>
+                      )}
                     </div>
-                  )}
-                  {/* Add Friend Button - only show for logged-in players who aren't guests or already friends */}
-                  {isAuthenticated && user?.id !== player.id && !player.isGuest && (() => {
-                    const friendStatus = getFriendshipStatus(player.id);
-                    if (friendStatus === 'friends') return null;
-                    if (friendStatus === 'sent') {
-                      return (
-                        <div className="player-friend-actions">
-                          <button className="add-friend-btn pending" disabled>
-                            ⏳ Request Sent
-                          </button>
-                        </div>
-                      );
-                    }
-                    if (friendStatus === 'received') {
-                      return (
-                        <div className="player-friend-actions">
-                          <button
-                            className="add-friend-btn accept"
-                            onClick={() => handleAcceptFriendRequest(player.id, player.name)}
-                            disabled={sendingFriendRequest.has(player.id)}
-                          >
-                            {sendingFriendRequest.has(player.id) ? '...' : '✓ Accept Friend'}
-                          </button>
-                        </div>
-                      );
-                    }
-                    return (
-                      <div className="player-friend-actions">
+                    {/* Player Actions Dropdown/Buttons */}
+                    {currentIsHost && !player.isHost && !isDisconnectedWithTimer && (
+                      <div className="player-row-actions">
+                        <button className="action-btn-small" onClick={() => handleTransferHost(player.id)} title="Make Host">
+                          👑
+                        </button>
                         <button
-                          className="add-friend-btn"
-                          onClick={() => handleSendFriendRequest(player.id, player.name)}
-                          disabled={sendingFriendRequest.has(player.id)}
+                          className="action-btn-small danger"
+                          onClick={() => handleKickPlayer(player.id, player.name)}
+                          title="Kick Player"
                         >
-                          {sendingFriendRequest.has(player.id) ? '...' : '➕ Add Friend'}
+                          👢
                         </button>
                       </div>
-                    );
-                  })()}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Ready Section - shown for non-host players above game selection */}
-        {!currentIsHost && (
-          <div className="ready-section">
-            <div className="player-ready-section">
-              <button
-                onClick={handleToggleReady}
-                className={`ready-button ${currentUserReady ? 'ready' : 'not-ready'}`}
-                disabled={!socket || !socketIsConnected}
-              >
-                {currentUserReady ? 'Stand Down' : 'Ready Up'}
-              </button>
-              <p className="waiting-host-text">
-                {currentUserReady
-                  ? selectedGame
-                    ? 'Waiting for host to start the game...'
-                    : 'Waiting for host to select a game...'
-                  : 'Click Ready when you\'re set to play'}
-              </p>
+                    )}
+                    {/* Friend Actions */}
+                    {isAuthenticated && user?.id !== player.id && !player.isGuest && !currentIsHost && (() => {
+                      const friendStatus = getFriendshipStatus(player.id);
+                      if (friendStatus === 'friends') return null;
+                      if (friendStatus === 'sent') {
+                        return <span className="friend-status-text">Pending</span>;
+                      }
+                      if (friendStatus === 'received') {
+                        return (
+                          <button
+                            className="action-btn-small accept"
+                            onClick={() => handleAcceptFriendRequest(player.id, player.name)}
+                            disabled={sendingFriendRequest.has(player.id)}
+                            title="Accept Friend Request"
+                          >
+                            ✓
+                          </button>
+                        );
+                      }
+                      return (
+                        <button
+                          className="action-btn-small"
+                          onClick={() => handleSendFriendRequest(player.id, player.name)}
+                          disabled={sendingFriendRequest.has(player.id)}
+                          title="Add Friend"
+                        >
+                          +
+                        </button>
+                      );
+                    })()}
+                  </div>
+                );
+              })}
             </div>
           </div>
-        )}
 
-        <div className="game-section">
-          <h3 className="section-title">Game Selection</h3>
-          {!selectedGame ? (
-            <GamePicker
-              onGameSelect={handleGameSelect}
-              isHost={currentIsHost}
-              disabled={!socket || !socketIsConnected}
+          {/* Lobby Chat */}
+          <div className="sidebar-section chat-section-new">
+            <div className="sidebar-header">
+              <span className="sidebar-title">LOBBY CHAT</span>
+            </div>
+            <ChatWindow
+              messages={messages}
+              onSendMessage={handleSendMessage}
+              currentPlayerName={playerNameRef.current}
             />
-          ) : (
-            <>
-              <div className="selected-game-card">
-                <div className="game-icon">
-                  {selectedGameInfo?.thumbnailUrl && !imageError ? (
-                    <img
-                      src={selectedGameInfo.thumbnailUrl}
-                      alt={selectedGameInfo.name || ''}
-                      style={{ width: '100px', height: '100px', objectFit: 'contain' }}
-                      onError={() => setImageError(true)}
-                    />
-                  ) : (
-                    selectedGameInfo?.icon || '🎮'
-                  )}
-                </div>
-                <div className="game-details">
-                  <h4>{selectedGameInfo?.name}</h4>
-                  <p>{selectedGameInfo?.description}</p>
-                </div>
-              </div>
-
-              <div className="game-controls">
-                {currentIsHost ? (
-                  <>
-                    <button
-                      onClick={handleStartGame}
-                      className="start-game-button"
-                      disabled={!socket || !socketIsConnected || isStartingGame || !allPlayersReady}
-                      title={!allPlayersReady ? 'Waiting for all players to ready up' : ''}
-                    >
-                      {isStartingGame ? 'Starting...' : !allPlayersReady ? 'Waiting for Players...' : 'Start Game'}
-                    </button>
-                    {!allPlayersReady && (
-                      <p className="waiting-ready-text">All players must be ready before starting</p>
-                    )}
-                    <button
-                      onClick={() => setSelectedGame(null)}
-                      className="change-game-btn"
-                    >
-                      Change Game
-                    </button>
-                  </>
-                ) : (
-                  <p className="waiting-host-text" style={{ textAlign: 'center' }}>
-                    Waiting for host to start the game...
-                  </p>
-                )}
-              </div>
-            </>
-          )}
-        </div>
-
-        <div className="lobby-extras">
-          <ChatWindow
-            messages={messages}
-            onSendMessage={handleSendMessage}
-            currentPlayerName={playerNameRef.current}
-          />
-          <TugOfWar playerName={playerNameRef.current} />
+          </div>
         </div>
       </div>
 
