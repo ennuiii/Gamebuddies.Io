@@ -37,14 +37,15 @@
 .chat-message {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
+  align-items: flex-end;
+  align-self: flex-end;
   max-width: 80%;
   gap: 0.25rem;
 }
 
 .chat-message.me {
-  align-self: flex-end;
-  align-items: flex-end;
+  align-self: flex-start;
+  align-items: flex-start;
 }
 
 .chat-message.system {
@@ -60,30 +61,36 @@
   font-size: 0.8rem;
   color: var(--text-secondary);
   margin-bottom: 2px;
-  margin-left: 8px;
+  margin-right: 8px;
 }
 
 .chat-message.me .chat-sender {
-  margin-right: 8px;
+  margin-left: 8px;
+  margin-right: 0;
 }
 
 .chat-text {
   padding: 0.65rem 1rem;
-  background: rgba(255, 255, 255, 0.09);
+  background: rgba(100, 100, 120, 0.4);
   border-radius: 14px;
   color: white;
   word-break: break-word;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
-}
-
-.chat-message.me .chat-text {
-  background: linear-gradient(135deg, var(--secondary-color), #7cf3ff);
-  color: #012;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   border-bottom-right-radius: 6px;
 }
 
-.chat-message:not(.me):not(.system) .chat-text {
+/* Own messages - cyan/teal gradient on LEFT */
+.chat-message.me .chat-text {
+  background: linear-gradient(135deg, var(--secondary-color), #7cf3ff);
+  color: #012;
+  border-bottom-right-radius: 14px;
   border-bottom-left-radius: 6px;
+}
+
+/* Others' messages on RIGHT */
+.chat-message:not(.me):not(.system) .chat-text {
+  border-bottom-left-radius: 14px;
+  border-bottom-right-radius: 6px;
 }
 
 .chat-input-form {
