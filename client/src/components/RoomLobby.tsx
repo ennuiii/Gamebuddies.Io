@@ -1312,7 +1312,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
           )}
 
           {/* Rewarded Ad Button */}
-          <div className="rewarded-section">
+          <div className="sidebar-section rewarded-section">
             <RewardedAdButton xpReward={50} />
           </div>
         </div>
