@@ -145,12 +145,12 @@ const MascotCustomizer: React.FC<MascotCustomizerProps> = ({
                       <img src={item.src} alt={item.name} />
                       {item.premium && !item.hidden && (
                         <span className="premium-badge-icon" title="Premium">
-                          PRO
+                          ★
                         </span>
                       )}
                       {item.hidden && (
                         <span className="premium-badge-icon admin" title="Admin Only">
-                          DEV
+                          ⚙
                         </span>
                       )}
                       {isLocked && (

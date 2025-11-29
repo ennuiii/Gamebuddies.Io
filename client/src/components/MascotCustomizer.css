@@ -143,20 +143,26 @@
 
 .premium-badge-icon {
   position: absolute;
-  top: 4px;
-  right: 4px;
-  background: #FFD700;
+  top: -5px;
+  right: -5px;
+  background: linear-gradient(135deg, #FFD700, #FFA500);
   color: #000;
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   font-weight: bold;
-  font-size: 12px;
-  box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-  z-index: 2;
+  font-size: 10px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+  z-index: 10;
+  border: 2px solid rgba(20, 20, 40, 0.95);
+}
+
+.premium-badge-icon.admin {
+  background: linear-gradient(135deg, #ff4444, #cc0000);
+  color: #fff;
 }
 
 .lock-overlay {
@@ -266,11 +272,12 @@
   }
 
   .premium-badge-icon {
-    width: 16px;
-    height: 16px;
-    font-size: 10px;
-    top: 2px;
-    right: 2px;
+    width: 14px;
+    height: 14px;
+    font-size: 8px;
+    top: -4px;
+    right: -4px;
+    border-width: 1.5px;
   }
 
   .lock-overlay {
