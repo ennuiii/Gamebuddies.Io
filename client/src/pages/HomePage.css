@@ -333,6 +333,12 @@
   background: rgba(0, 0, 0, 0.1);
 }
 
+/* Hide ad section when no ad is visible (premium users, frequency cap, or adblocker) */
+.home-ad-section:not(:has(.ad-placeholder)),
+.home-ad-section:has(.ad-container:empty) {
+  display: none;
+}
+
 /* Games Section */
 .games-section {
   padding: 6rem 0;
