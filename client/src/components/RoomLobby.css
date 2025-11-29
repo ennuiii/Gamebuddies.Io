@@ -2912,7 +2912,7 @@
 
 /* Rewarded Ad Section */
 .rewarded-section {
-  padding: 1rem;
+  padding: 0;
   display: flex;
   justify-content: center;
 }
