@@ -2423,10 +2423,45 @@
   cursor: not-allowed;
 }
 
-.waiting-text {
-  color: var(--text-secondary);
-  font-size: 0.85rem;
-  font-style: italic;
+/* Ready Button in Card (for non-host players) */
+.ready-btn-card {
+  padding: 0.9rem 1.8rem;
+  font-size: 1rem;
+  font-weight: 700;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  white-space: nowrap;
+}
+
+.ready-btn-card.not-ready {
+  background: linear-gradient(135deg, #4CAF50, #45a049);
+  color: white;
+  box-shadow: 0 4px 15px rgba(76, 175, 80, 0.4);
+}
+
+.ready-btn-card.not-ready:hover:not(:disabled) {
+  box-shadow: 0 6px 20px rgba(76, 175, 80, 0.5);
+  transform: translateY(-2px);
+}
+
+.ready-btn-card.ready {
+  background: linear-gradient(135deg, #2196F3, #1976D2);
+  color: white;
+  box-shadow: 0 4px 15px rgba(33, 150, 243, 0.4);
+}
+
+.ready-btn-card.ready:hover:not(:disabled) {
+  box-shadow: 0 6px 20px rgba(33, 150, 243, 0.5);
+  transform: translateY(-2px);
+}
+
+.ready-btn-card:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 /* Team Battle Section */

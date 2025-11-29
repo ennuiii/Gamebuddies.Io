@@ -1073,9 +1073,9 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
                   </div>
                   <p className="game-description">{selectedGameInfo?.description}</p>
                 </div>
-                {/* Start Game Button inside card */}
-                {currentIsHost && (
-                  <div className="game-card-actions">
+                {/* Start Game Button (host) or Ready Button (players) */}
+                <div className="game-card-actions">
+                  {currentIsHost ? (
                     <button
                       onClick={handleStartGame}
                       className="start-game-btn-card"
@@ -1084,13 +1084,16 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
                     >
                       {isStartingGame ? 'Starting...' : !allPlayersReady ? 'Waiting...' : 'START GAME'}
                     </button>
-                  </div>
-                )}
-                {!currentIsHost && (
-                  <div className="game-card-actions">
-                    <span className="waiting-text">Waiting for host...</span>
-                  </div>
-                )}
+                  ) : (
+                    <button
+                      onClick={handleToggleReady}
+                      className={`ready-btn-card ${currentUserReady ? 'ready' : 'not-ready'}`}
+                      disabled={!socket || !socketIsConnected}
+                    >
+                      {currentUserReady ? 'READY ✓' : 'READY UP'}
+                    </button>
+                  )}
+                </div>
               </div>
             )}
           </div>
@@ -1099,26 +1102,6 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
           <div className="team-battle-section">
             <TugOfWar playerName={playerNameRef.current} />
           </div>
-
-          {/* Ready Section - shown for non-host players */}
-          {!currentIsHost && (
-            <div className="ready-section-new">
-              <button
-                onClick={handleToggleReady}
-                className={`ready-button-new ${currentUserReady ? 'ready' : 'not-ready'}`}
-                disabled={!socket || !socketIsConnected}
-              >
-                {currentUserReady ? 'Stand Down' : 'Ready Up'}
-              </button>
-              <p className="ready-hint">
-                {currentUserReady
-                  ? selectedGame
-                    ? 'Waiting for host to start the game...'
-                    : 'Waiting for host to select a game...'
-                  : 'Click Ready when you\'re set to play'}
-              </p>
-            </div>
-          )}
 
         </div>
 
@@ -1261,14 +1244,6 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
         </div>
       </div>
 
-      {roomData && (
-        <div className="room-details">
-          <small>
-            Room created: {new Date(roomData.created_at).toLocaleString()}
-            {roomData.metadata?.created_by_name && <> by {roomData.metadata.created_by_name}</>}
-          </small>
-        </div>
-      )}
     </div>
   );
 };
