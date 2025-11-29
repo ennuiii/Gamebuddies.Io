@@ -130,6 +130,10 @@
   line-height: 1.1;
 }
 
+.brand-text-white {
+  color: #ffffff;
+}
+
 .brand-text {
   background: linear-gradient(135deg, var(--primary-color) 0%, #ff4757 100%);
   -webkit-background-clip: text;

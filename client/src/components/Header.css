@@ -154,6 +154,11 @@
   cursor: not-allowed;
 }
 
+/* Reduce left padding in header container to move logo closer to edge */
+.header .container {
+  padding-left: 10px;
+}
+
 .logo {
   text-decoration: none;
   font-family: 'Orbitron', sans-serif;

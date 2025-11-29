@@ -447,7 +447,7 @@ const HomePage: React.FC<HomePageProps> = ({ setIsInLobby, setLobbyLeaveFn }) =>
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.8, delay: 0.3 }}
           >
-            <span className="brand-text">GameBuddies</span>
+            <span className="brand-text-white">Game</span><span className="brand-text">Buddies</span>
             <span className="brand-dot">.io</span>
           </motion.h1>
 
