@@ -382,20 +382,22 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.75rem 1.25rem;
-  background: linear-gradient(135deg, rgba(255, 193, 7, 0.15), rgba(255, 152, 0, 0.15));
-  border: 1px solid rgba(255, 193, 7, 0.3);
+  background: linear-gradient(135deg, var(--color-primary, #e94560), var(--color-secondary, #00d9ff));
+  border: 1px solid rgba(233, 69, 96, 0.4);
   border-radius: 10px;
-  color: #ffc107;
+  color: #ffffff;
   font-size: 0.9rem;
   font-weight: 500;
   cursor: pointer;
   transition: all 0.2s ease;
+  box-shadow: 0 8px 20px rgba(0, 217, 255, 0.25);
 }
 
 .rewarded-ad-button:hover:not(:disabled) {
-  background: linear-gradient(135deg, rgba(255, 193, 7, 0.25), rgba(255, 152, 0, 0.25));
-  border-color: rgba(255, 193, 7, 0.5);
+  background: linear-gradient(135deg, var(--color-primary, #e94560), #ff5f70);
+  border-color: rgba(0, 217, 255, 0.5);
   transform: translateY(-1px);
+  box-shadow: 0 12px 25px rgba(0, 217, 255, 0.35);
 }
 
 .rewarded-ad-button:disabled {
@@ -404,13 +406,15 @@
 }
 
 .rewarded-ad-button.on-cooldown {
-  background: rgba(100, 100, 120, 0.2);
-  border-color: rgba(100, 100, 120, 0.3);
-  color: rgba(255, 255, 255, 0.5);
+  background: rgba(233, 69, 96, 0.15);
+  border-color: rgba(233, 69, 96, 0.25);
+  color: rgba(255, 255, 255, 0.7);
+  box-shadow: none;
 }
 
 .rewarded-ad-icon {
   font-size: 1.1rem;
+  filter: drop-shadow(0 0 6px rgba(0, 217, 255, 0.4));
 }
 
 .rewarded-ad-text {
@@ -418,7 +422,7 @@
 }
 
 .rewarded-ad-text strong {
-  color: #00e676;
+  color: var(--color-secondary, #00d9ff);
   font-weight: 700;
 }
 
@@ -428,9 +432,10 @@
   flex-direction: column;
   gap: 0.5rem;
   padding: 0.75rem 1rem;
-  background: rgba(76, 175, 80, 0.15);
-  border: 1px solid rgba(76, 175, 80, 0.3);
+  background: rgba(0, 217, 255, 0.12);
+  border: 1px solid rgba(0, 217, 255, 0.3);
   border-radius: 10px;
+  box-shadow: inset 0 0 12px rgba(233, 69, 96, 0.15);
 }
 
 .rewarded-ad-progress {
