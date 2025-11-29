@@ -9,13 +9,13 @@ interface AdWrapperProps {
 }
 
 /**
- * Wrapper component that only renders ads for free, authenticated users.
- * Premium users, guests, and unauthenticated users see nothing.
+ * Wrapper component that only renders ads for non-premium users.
+ * Premium users see nothing. Everyone else (free users, guests) sees ads.
  */
 const AdWrapper: React.FC<AdWrapperProps> = ({ children, type = 'banner', className = '' }) => {
   const { shouldShowAds } = useAds();
 
-  // Don't show ads to premium users, guests, or unauthenticated
+  // Only show ads to non-premium users
   if (!shouldShowAds) {
     return null;
   }
