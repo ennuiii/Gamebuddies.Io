@@ -1059,17 +1059,38 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
                   )}
                 </div>
                 <div className="game-info">
-                  <h3 className="game-title">{selectedGameInfo?.name}</h3>
+                  <div className="game-info-header">
+                    <h3 className="game-title">{selectedGameInfo?.name}</h3>
+                    {currentIsHost && (
+                      <button
+                        onClick={() => setSelectedGame(null)}
+                        className="change-game-btn-compact"
+                        title="Change Game"
+                      >
+                        Change
+                      </button>
+                    )}
+                  </div>
                   <p className="game-description">{selectedGameInfo?.description}</p>
-                  {currentIsHost && (
-                    <button
-                      onClick={() => setSelectedGame(null)}
-                      className="change-game-btn-new"
-                    >
-                      Change Game
-                    </button>
-                  )}
                 </div>
+                {/* Start Game Button inside card */}
+                {currentIsHost && (
+                  <div className="game-card-actions">
+                    <button
+                      onClick={handleStartGame}
+                      className="start-game-btn-card"
+                      disabled={!socket || !socketIsConnected || isStartingGame || !allPlayersReady}
+                      title={!allPlayersReady ? 'Waiting for all players to ready up' : ''}
+                    >
+                      {isStartingGame ? 'Starting...' : !allPlayersReady ? 'Waiting...' : 'START GAME'}
+                    </button>
+                  </div>
+                )}
+                {!currentIsHost && (
+                  <div className="game-card-actions">
+                    <span className="waiting-text">Waiting for host...</span>
+                  </div>
+                )}
               </div>
             )}
           </div>
@@ -1099,20 +1120,6 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
             </div>
           )}
 
-          {/* Start Game Button - Host Only */}
-          {currentIsHost && selectedGame && (
-            <button
-              onClick={handleStartGame}
-              className="start-game-button-new"
-              disabled={!socket || !socketIsConnected || isStartingGame || !allPlayersReady}
-              title={!allPlayersReady ? 'Waiting for all players to ready up' : ''}
-            >
-              {isStartingGame ? 'Starting...' : !allPlayersReady ? 'Waiting for Players...' : 'START GAME'}
-            </button>
-          )}
-          {currentIsHost && selectedGame && !allPlayersReady && (
-            <p className="waiting-ready-hint">All players must be ready before starting</p>
-          )}
         </div>
 
         {/* Right Column - Sidebar */}
