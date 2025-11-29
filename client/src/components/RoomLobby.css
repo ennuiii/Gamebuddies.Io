@@ -2805,6 +2805,33 @@
   border: none;
   border-radius: 0;
   background: transparent;
+  margin-top: 0;
+  height: auto;
+}
+
+/* Match chat header to players section header */
+.chat-section-new .chat-header {
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.chat-section-new .chat-header h3 {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  margin: 0;
+}
+
+.chat-section-new .chat-messages {
+  flex: 1;
+  min-height: 150px;
+}
+
+.chat-section-new .chat-input-form {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 /* Animation for joining players */
