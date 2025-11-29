@@ -381,9 +381,9 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  padding: 0.75rem 1.25rem;
-  background: linear-gradient(135deg, rgba(255, 193, 7, 0.15), rgba(255, 152, 0, 0.15));
-  border: 1px solid rgba(255, 193, 7, 0.3);
+  padding: 0.75rem 1rem;
+  background: transparent;
+  border: none;
   border-radius: 10px;
   color: #ffc107;
   font-size: 0.9rem;
@@ -393,8 +393,8 @@
 }
 
 .rewarded-ad-button:hover:not(:disabled) {
-  background: linear-gradient(135deg, rgba(255, 193, 7, 0.25), rgba(255, 152, 0, 0.25));
-  border-color: rgba(255, 193, 7, 0.5);
+  background: transparent;
+  border-color: transparent;
   transform: translateY(-1px);
 }
 
@@ -404,8 +404,8 @@
 }
 
 .rewarded-ad-button.on-cooldown {
-  background: rgba(100, 100, 120, 0.2);
-  border-color: rgba(100, 100, 120, 0.3);
+  background: transparent;
+  border-color: transparent;
   color: rgba(255, 255, 255, 0.5);
 }
 
@@ -428,8 +428,8 @@
   flex-direction: column;
   gap: 0.5rem;
   padding: 0.75rem 1rem;
-  background: rgba(76, 175, 80, 0.15);
-  border: 1px solid rgba(76, 175, 80, 0.3);
+  background: transparent;
+  border: none;
   border-radius: 10px;
 }
 
