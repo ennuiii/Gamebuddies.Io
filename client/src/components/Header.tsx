@@ -93,9 +93,7 @@ const Header: React.FC<HeaderProps> = ({ onNavigateHome, onNavigateGames, isInLo
         <div className="container">
           <div className="header-content">
             <Link to="/" className="logo" onClick={handleHomeClick}>
-              <span className="logo-text">Game</span>
-              <span className="logo-text accent">Buddies</span>
-              <span className="logo-dot">.io</span>
+              <img src="/logo.png" alt="GameBuddies.io" className="logo-image" />
             </Link>
 
             <div className="header-right">
