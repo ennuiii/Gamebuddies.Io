@@ -2891,17 +2891,15 @@
   border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
-/* Ad Section in Sidebar */
-.ad-section {
+/* Ad Section in Sidebar - class names trigger adblockers to hide the whole container */
+.ad-banner-container.ad-display-wrapper {
   padding: 1rem;
   display: flex;
   justify-content: center;
-}
-
-/* Hide ad section when no ad is visible (premium users, frequency cap, or adblocker) */
-.sidebar-section.ad-section:not(:has(.ad-placeholder)),
-.sidebar-section.ad-section:has(.ad-container:empty) {
-  display: none;
+  background: rgba(20, 20, 40, 0.6);
+  backdrop-filter: blur(20px);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 /* Rewarded Ad Section */
