@@ -1245,9 +1245,6 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
 
           {/* Lobby Chat */}
           <div className="sidebar-section chat-section-new">
-            <div className="sidebar-header">
-              <span className="sidebar-title">LOBBY CHAT</span>
-            </div>
             <ChatWindow
               messages={messages}
               onSendMessage={handleSendMessage}

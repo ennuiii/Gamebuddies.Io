@@ -1,6 +1,5 @@
 .room-lobby {
   min-height: calc(100vh - 80px); /* Subtract header height */
-  padding-top: 60px; /* Account for fixed beta disclaimer */
   background: 
     radial-gradient(circle at 20% 80%, rgba(120, 119, 198, 0.3) 0%, transparent 50%),
     radial-gradient(circle at 80% 20%, rgba(255, 107, 107, 0.3) 0%, transparent 50%),
@@ -2132,11 +2131,12 @@
   justify-content: space-between;
   align-items: center;
   padding: 1rem 1.5rem;
-  background: rgba(20, 20, 40, 0.8);
+  background: rgba(20, 20, 40, 0.95);
   backdrop-filter: blur(20px);
   border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.1);
   margin-bottom: 1.5rem;
+  margin-top: 50px; /* Space for beta banner */
   position: relative;
   z-index: 10;
 }
@@ -2761,8 +2761,8 @@
 /* Chat Section (New) */
 .chat-section-new {
   flex: 1;
-  min-height: 200px;
-  max-height: 300px;
+  min-height: 280px;
+  max-height: 400px;
   display: flex;
   flex-direction: column;
 }
