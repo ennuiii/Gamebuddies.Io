@@ -243,10 +243,10 @@ button {
   }
 }
 
-/* Beta Testing Disclaimer */
+/* Beta Testing Disclaimer - positioned directly under header cyan line */
 .beta-disclaimer {
   position: fixed;
-  top: 90px;
+  top: 86px; /* Directly under header (0.8rem padding + 70px logo + 0.8rem padding) */
   left: 0;
   right: 0;
   z-index: 999;
@@ -293,7 +293,7 @@ button {
 
 @media (max-width: 768px) {
   .beta-disclaimer {
-    top: 80px;
+    top: 76px; /* Smaller on mobile */
   }
 
   .beta-disclaimer-content {
