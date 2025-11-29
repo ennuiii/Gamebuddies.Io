@@ -124,15 +124,17 @@
   position: relative;
   width: 80px;
   height: 80px;
-  border-radius: 12px;
-  overflow: hidden;
-  background: transparent;
+  border-radius: 16px;
+  overflow: visible; /* allow premium badge to float outside */
+  background: rgba(6, 10, 24, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  padding: 6px;
 }
 
 .mascot-option-btn img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain; /* avoid cropping mascot art */
   object-position: center;
   transition: transform 0.3s;
 }

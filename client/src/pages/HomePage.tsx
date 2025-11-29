@@ -10,7 +10,7 @@ import JoinRoom from '../components/JoinRoom';
 import BrowseRooms from '../components/BrowseRooms';
 import RoomLobby from '../components/RoomLobby';
 import RecentAchievements from '../components/RecentAchievements';
-import { AdBanner } from '../components/ads';
+import { AdBanner, AdSidebar } from '../components/ads';
 import './HomePage.css';
 
 interface Game {
@@ -421,6 +421,10 @@ const HomePage: React.FC<HomePageProps> = ({ setIsInLobby, setLobbyLeaveFn }) =>
             transition={{ duration: 0.25, ease: 'easeInOut' }}
           >
             <div className="homepage">
+              {/* Sticky Side Ads - Only visible on wide screens (1400px+) */}
+              <AdSidebar position="left" />
+              <AdSidebar position="right" />
+
               <div className="background-animation">
                 <div className="floating-elements">
                   {[...Array(8)].map((_, i) => (
@@ -571,6 +575,11 @@ const HomePage: React.FC<HomePageProps> = ({ setIsInLobby, setLobbyLeaveFn }) =>
           )}
         </div>
       </section>
+
+      {/* Ad Banner - After Games Section */}
+      <div className="home-ad-section">
+        <AdBanner />
+      </div>
 
       {/* Recent Achievements Section - only shown for logged-in users */}
       <RecentAchievements maxDisplay={4} />

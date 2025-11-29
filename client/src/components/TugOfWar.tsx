@@ -17,7 +17,6 @@ type Team = 'red' | 'blue' | null;
 
 const TugOfWar: React.FC<TugOfWarProps> = ({ playerName }) => {
   const { socket, socketRef } = useSocket();
-
   const activeSocket = socket || socketRef?.current;
 
   const [gameState, setGameState] = useState<GameState>({ position: 50, redWins: 0, blueWins: 0 });
@@ -75,43 +74,61 @@ const TugOfWar: React.FC<TugOfWarProps> = ({ playerName }) => {
   return (
     <div className={`tug-of-war ${myTeam}-team`}>
       <div className="tow-header">
-        <h3>⚔️ Team Battle</h3>
+        <div className="tow-title-group">
+          <p className="tow-eyebrow">Waiting Room Mini-Game</p>
+          <h3>Team Battle Tug of War</h3>
+        </div>
         <div className="tow-scores">
-          <span className="score red" title="Red Team Wins">
-            {gameState.redWins}
-          </span>
-          <span className="vs">VS</span>
-          <span className="score blue" title="Blue Team Wins">
-            {gameState.blueWins}
-          </span>
+          <div className="score-chip red">
+            <span>Red</span>
+            <strong>{gameState.redWins}</strong>
+          </div>
+          <div className="score-chip blue">
+            <span>Blue</span>
+            <strong>{gameState.blueWins}</strong>
+          </div>
         </div>
       </div>
 
       <div className="tow-arena">
-        <div className="rope-track">
-          <div className="center-marker"></div>
-          <div className="knot" style={{ left: `${gameState.position}%` }}>
-            <div className="knot-marker"></div>
-          </div>
-          <div className="territory red" style={{ width: `${gameState.position}%` }}></div>
-          <div className="territory blue" style={{ width: `${100 - gameState.position}%` }}></div>
+        <div className="tow-team-card red">
+          <div className="tow-avatar" />
+          <span className="team-label">Red Crew</span>
         </div>
 
-        {lastWinner && (
-          <div className={`winner-overlay ${lastWinner}`}>
-            {lastWinner === 'red' ? '🔴 RED WINS!' : '🔵 BLUE WINS!'}
+        <div className="rope-stage">
+          <div className="rope-shadow" />
+          <div className="rope-track">
+            <div className="center-marker" />
+            <div className="rope-line" />
+            <div className="knot" style={{ left: `${gameState.position}%` }}>
+              <div className="knot-marker" />
+            </div>
+            <div className="territory red" style={{ width: `${gameState.position}%` }} />
+            <div className="territory blue" style={{ width: `${100 - gameState.position}%` }} />
           </div>
-        )}
+
+          {lastWinner && (
+            <div className={`winner-overlay ${lastWinner}`}>
+              {lastWinner === 'red' ? 'Red Crew Wins!' : 'Blue Crew Wins!'}
+            </div>
+          )}
+        </div>
+
+        <div className="tow-team-card blue">
+          <div className="tow-avatar" />
+          <span className="team-label">Blue Crew</span>
+        </div>
       </div>
 
       <div className="tow-controls">
         <div className="team-indicator">
           {myTeam ? (
             <>
-              You are on <span className={`team-name ${myTeam}`}>{myTeam.toUpperCase()}</span> team
+              You are on <span className={`team-name ${myTeam}`}>{myTeam.toUpperCase()}</span>
             </>
           ) : (
-            <>Click PULL to join a team!</>
+            <>Tap Pull to auto-assign a team.</>
           )}
         </div>
         <button
@@ -120,7 +137,7 @@ const TugOfWar: React.FC<TugOfWarProps> = ({ playerName }) => {
           onTouchStart={handlePull}
           disabled={!activeSocket}
         >
-          {myTeam ? 'PULL!' : 'JOIN & PULL!'}
+          {myTeam ? 'Pull!' : 'Join & Pull'}
         </button>
       </div>
     </div>

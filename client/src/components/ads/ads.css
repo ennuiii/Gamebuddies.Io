@@ -356,3 +356,54 @@
     justify-content: center;
   }
 }
+
+/* ===========================================
+   Sidebar Ads (Sticky Side Ads)
+   =========================================== */
+
+.ad-sidebar {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 100;
+  margin: 0;
+  display: none; /* Hidden by default, shown on wide screens */
+}
+
+.ad-sidebar-left {
+  left: 10px;
+}
+
+.ad-sidebar-right {
+  right: 10px;
+}
+
+.ad-sidebar-wrapper {
+  display: flex;
+  justify-content: center;
+}
+
+/* Only show sidebars on wide screens (1400px+) */
+@media (min-width: 1400px) {
+  .ad-sidebar {
+    display: flex;
+  }
+}
+
+/* Adjust for very wide screens */
+@media (min-width: 1600px) {
+  .ad-sidebar-left {
+    left: 20px;
+  }
+
+  .ad-sidebar-right {
+    right: 20px;
+  }
+}
+
+/* Hide sidebars when content needs more space */
+@media (max-width: 1399px) {
+  .ad-sidebar {
+    display: none !important;
+  }
+}
