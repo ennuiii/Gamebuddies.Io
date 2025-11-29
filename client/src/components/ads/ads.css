@@ -422,7 +422,7 @@
 }
 
 .rewarded-ad-text strong {
-  color: var(--color-secondary, #00d9ff);
+  color: var(--color-primary, #e94560);
   font-weight: 700;
 }
 
