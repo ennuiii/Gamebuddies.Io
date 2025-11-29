@@ -143,13 +143,13 @@
 
 .brand-dot {
   color: var(--secondary-color);
-  text-shadow: 0 0 30px rgba(0, 217, 255, 0.8);
+  text-shadow: 0 0 15px rgba(0, 217, 255, 0.4);
   animation: glow 2s ease-in-out infinite alternate;
 }
 
 @keyframes glow {
-  from { text-shadow: 0 0 30px rgba(0, 217, 255, 0.8); }
-  to { text-shadow: 0 0 50px rgba(0, 217, 255, 1), 0 0 80px rgba(0, 217, 255, 0.5); }
+  from { text-shadow: 0 0 15px rgba(0, 217, 255, 0.4); }
+  to { text-shadow: 0 0 25px rgba(0, 217, 255, 0.6); }
 }
 
 .hero-subtitle {
