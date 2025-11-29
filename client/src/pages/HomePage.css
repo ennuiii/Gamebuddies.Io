@@ -126,7 +126,6 @@
   font-weight: 900;
   margin-bottom: 1.5rem;
   color: var(--text-primary);
-  text-shadow: 0 0 40px rgba(233, 69, 96, 0.3);
   line-height: 1.1;
 }
 
@@ -139,6 +138,7 @@
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
+  filter: drop-shadow(0 0 40px rgba(233, 69, 96, 0.3));
 }
 
 .brand-dot {
