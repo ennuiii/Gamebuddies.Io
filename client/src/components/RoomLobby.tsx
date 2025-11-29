@@ -14,7 +14,7 @@ import { getSupabaseClient } from '../utils/supabase';
 import Avatar from './Avatar';
 // BUG FIX #21: Import centralized error messages
 import { getErrorMessage, SOCKET_ERROR_CODES } from '../utils/errorMessages';
-import { AdRectangle, SupportUsModal, RewardedAdButton } from './ads';
+import { AdRectangle, SupportUsModal, RewardedAdButton, useAds } from './ads';
 import './RoomLobby.css';
 
 interface Player {
@@ -126,6 +126,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
   const activeSocket = socket || socketRef?.current;
   const { addNotification } = useNotification();
   const { user, isAuthenticated, isPremium } = useAuth();
+  const { shouldShowAds, isAdBlocked } = useAds();
   const { updateLobbyInfo, friends, pendingRequests, sendFriendRequestById, acceptFriendRequest } = useFriends();
 
   const [players, setPlayers] = useState<Player[]>([]);
@@ -146,6 +147,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
   const [recentlyJoinedPlayers, setRecentlyJoinedPlayers] = useState<Set<string>>(new Set());
   const [reconnectingPlayers, setReconnectingPlayers] = useState<Set<string>>(new Set());
   const [selectedProfileUserId, setSelectedProfileUserId] = useState<string | null>(null);
+  const canShowLobbyAd = shouldShowAds && !isAdBlocked;
 
   const roomCodeRef = useRef<string>(roomCode);
   const playerNameRef = useRef<string>(playerName);
@@ -1296,9 +1298,11 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
           </div>
 
           {/* Ad Rectangle - Below Chat */}
-          <div className="adsbox ad-slot ad-unit" id="ad-container">
-            <AdRectangle />
-          </div>
+          {canShowLobbyAd && (
+            <div className="adsbox ad-slot ad-unit" id="ad-container">
+              <AdRectangle />
+            </div>
+          )}
 
           {/* Rewarded Ad Button */}
           <div className="sidebar-section rewarded-section">

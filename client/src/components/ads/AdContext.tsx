@@ -80,27 +80,28 @@ export const AdProvider: React.FC<AdProviderProps> = ({ children }) => {
 
   // Simple ad-block detection (prevents empty ad boxes when blocked)
   useEffect(() => {
-    if (typeof window === 'undefined' || typeof document === 'undefined') return;
+    if (!shouldShowAds || typeof window === 'undefined' || typeof document === 'undefined') return;
 
     let cancelled = false;
     const bait = document.createElement('div');
-    bait.className = 'adsbox ad-banner';
+    bait.className = 'adsbox ad-banner ad-unit';
+    bait.style.width = '50px';
+    bait.style.height = '50px';
     bait.style.position = 'absolute';
-    bait.style.left = '-9999px';
-    bait.style.height = '10px';
-    bait.style.width = '10px';
+    bait.style.opacity = '0';
     bait.style.pointerEvents = 'none';
+    bait.textContent = 'ad';
     document.body.appendChild(bait);
 
     const timer = window.setTimeout(() => {
-      const blocked = bait.offsetHeight === 0 || bait.clientHeight === 0;
+      const blocked = bait.offsetHeight === 0 || bait.clientHeight === 0 || window.getComputedStyle(bait).display === 'none';
       if (!cancelled) {
         setIsAdBlocked(blocked);
       }
       if (bait.parentNode) {
         bait.parentNode.removeChild(bait);
       }
-    }, 150);
+    }, 200);
 
     return () => {
       cancelled = true;
