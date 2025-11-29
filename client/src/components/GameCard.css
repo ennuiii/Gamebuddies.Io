@@ -67,6 +67,13 @@
   opacity: 0.7;
 }
 
+.placeholder-icon-img {
+  width: 90px;
+  height: 90px;
+  object-fit: contain;
+  opacity: 0.85;
+}
+
 .placeholder-text {
   font-size: 1.2rem;
   font-weight: 600;
@@ -134,6 +141,14 @@
   align-items: center;
   margin-top: auto;
   gap: 0.75rem;
+}
+
+.play-button-icon {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  margin-right: 0.35rem;
+  filter: drop-shadow(0 0 8px rgba(0, 217, 255, 0.4));
 }
 
 /* Removed game-status styles as they are no longer needed */

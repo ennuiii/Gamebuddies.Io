@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, MouseEvent, ChangeEvent } from 'react';
 import { useSocket } from '../contexts/LazySocketContext';
 import { SOCKET_EVENTS, SERVER_EVENTS } from '@shared/constants';
+import { DEFAULT_GAME_ICON } from '../constants/assets';
 import './BrowseRooms.css';
 
 interface Game {
@@ -213,6 +214,16 @@ const BrowseRooms: React.FC<BrowseRoomsProps> = ({ onRoomSelected, onCancel }) =
     return null;
   };
 
+  const renderGameIcon = (icon?: string, alt = 'Game icon'): React.ReactNode => {
+    if (!icon || icon === '🎮') {
+      return <img src={DEFAULT_GAME_ICON} alt={alt} className="game-icon-image" />;
+    }
+    if (icon.startsWith('/') || icon.startsWith('http')) {
+      return <img src={icon} alt={alt} className="game-icon-image" />;
+    }
+    return <span aria-hidden="true">{icon}</span>;
+  };
+
   return (
     <div className="browse-rooms-overlay">
       <div className="browse-rooms-modal">
@@ -239,7 +250,9 @@ const BrowseRooms: React.FC<BrowseRoomsProps> = ({ onRoomSelected, onCancel }) =
             >
               {selectedGame === 'all' ? (
                 <span className="trigger-content">
-                  <span className="dropdown-icon" aria-hidden="true">🎮</span>
+                  <span className="dropdown-icon" aria-hidden="true">
+                    {renderGameIcon('🎮')}
+                  </span>
                   <span>All Games</span>
                 </span>
               ) : (
@@ -251,7 +264,9 @@ const BrowseRooms: React.FC<BrowseRoomsProps> = ({ onRoomSelected, onCancel }) =
                       className="dropdown-thumbnail"
                     />
                   ) : (
-                    <span className="dropdown-icon" aria-hidden="true">{selectedGameInfo?.icon || '🎮'}</span>
+                    <span className="dropdown-icon" aria-hidden="true">
+                      {renderGameIcon(selectedGameInfo?.icon)}
+                    </span>
                   )}
                   <span>{selectedGameInfo?.name || 'Select Game'}</span>
                 </span>
@@ -276,7 +291,9 @@ const BrowseRooms: React.FC<BrowseRoomsProps> = ({ onRoomSelected, onCancel }) =
                     }
                   }}
                 >
-                  <span className="dropdown-icon" aria-hidden="true">🎮</span>
+                  <span className="dropdown-icon" aria-hidden="true">
+                    {renderGameIcon('🎮')}
+                  </span>
                   <span>All Games</span>
                 </div>
                 {games.map((game) => (
@@ -300,7 +317,9 @@ const BrowseRooms: React.FC<BrowseRoomsProps> = ({ onRoomSelected, onCancel }) =
                     {game.thumbnailUrl ? (
                       <img src={game.thumbnailUrl} alt="" className="dropdown-thumbnail" />
                     ) : (
-                      <span className="dropdown-icon" aria-hidden="true">{game.icon || '🎮'}</span>
+                      <span className="dropdown-icon" aria-hidden="true">
+                        {renderGameIcon(game.icon)}
+                      </span>
                     )}
                     <span>{game.name}</span>
                   </div>
@@ -354,7 +373,7 @@ const BrowseRooms: React.FC<BrowseRoomsProps> = ({ onRoomSelected, onCancel }) =
                         alt={gameInfo?.name || room.current_game}
                       />
                     ) : (
-                      <div className="icon-fallback">{gameInfo?.icon || '🎮'}</div>
+                      <div className="icon-fallback">{renderGameIcon(gameInfo?.icon)}</div>
                     )}
                   </div>
 

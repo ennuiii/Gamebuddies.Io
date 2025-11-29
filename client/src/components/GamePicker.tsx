@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import './GamePicker.css';
+import { DEFAULT_GAME_ICON } from '../constants/assets';
 
 interface Game {
   id: string;
@@ -23,6 +24,13 @@ const GamePicker: React.FC<GamePickerProps> = ({ onGameSelect, isHost, disabled 
   const [games, setGames] = useState<Game[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
+
+  const getIconSource = (icon?: string): string => {
+    if (!icon || icon === '🎮') {
+      return DEFAULT_GAME_ICON;
+    }
+    return icon;
+  };
 
   useEffect(() => {
     const fetchGames = async (): Promise<void> => {
@@ -161,7 +169,11 @@ const GamePicker: React.FC<GamePickerProps> = ({ onGameSelect, isHost, disabled 
               whileTap={{ scale: disabled ? 1 : 0.95 }}
             >
               <div className="game-icon">
-                {game.thumbnailUrl ? <img src={game.thumbnailUrl} alt={game.name} /> : game.icon || '🎮'}
+                {game.thumbnailUrl ? (
+                  <img src={game.thumbnailUrl} alt={game.name} />
+                ) : (
+                  <img src={getIconSource(game.icon)} alt="" />
+                )}
               </div>
               <h4 className="game-name">{game.name}</h4>
               <p className="game-description">{game.description}</p>

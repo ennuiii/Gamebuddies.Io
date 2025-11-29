@@ -12,6 +12,7 @@ import RoomLobby from '../components/RoomLobby';
 import RecentAchievements from '../components/RecentAchievements';
 import { AdBanner, AdSidebar } from '../components/ads';
 import './HomePage.css';
+import { DEFAULT_GAME_ICON } from '../constants/assets';
 
 interface Game {
   id: string;
@@ -601,7 +602,9 @@ const HomePage: React.FC<HomePageProps> = ({ setIsInLobby, setLobbyLeaveFn }) =>
               whileTap={{ scale: 0.95 }}
             >
               <span className="button-text">Start Playing Now</span>
-              <span className="button-icon" aria-hidden="true">🎮</span>
+              <span className="button-icon" aria-hidden="true">
+                <img src={DEFAULT_GAME_ICON} alt="" className="button-icon-image" />
+              </span>
             </motion.button>
           </motion.div>
         </div>

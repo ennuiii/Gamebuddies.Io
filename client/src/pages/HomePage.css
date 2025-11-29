@@ -275,6 +275,12 @@
   transition: transform 0.25s ease, filter 0.25s ease;
 }
 
+.cta-button .button-icon img {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+}
+
 .cta-button:hover .button-icon {
   transform: translateY(-1px);
 }

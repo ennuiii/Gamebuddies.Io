@@ -1,5 +1,6 @@
 import React, { useState, memo } from 'react';
 import { motion } from 'framer-motion';
+import { DEFAULT_GAME_ICON } from '../constants/assets';
 import './GameCard.css';
 
 interface Game {
@@ -16,6 +17,16 @@ interface Game {
 interface GameCardProps {
   game: Game;
 }
+
+const renderGameIcon = (icon?: string, className?: string): React.ReactNode => {
+  if (!icon || icon === '🎮') {
+    return <img src={DEFAULT_GAME_ICON} alt="" className={className} />;
+  }
+  if (icon.startsWith('/') || icon.startsWith('http')) {
+    return <img src={icon} alt="" className={className} />;
+  }
+  return <span aria-hidden="true">{icon}</span>;
+};
 
 const GameCard: React.FC<GameCardProps> = memo(
   ({ game }) => {
@@ -40,7 +51,9 @@ const GameCard: React.FC<GameCardProps> = memo(
               />
             ) : (
               <div className="game-card-placeholder">
-                <div className="placeholder-icon">{game.icon || '🎮'}</div>
+                <div className="placeholder-icon">
+                  {renderGameIcon(game.icon, 'placeholder-icon-img')}
+                </div>
                 <div className="placeholder-text">{game.name}</div>
               </div>
             )}
@@ -55,7 +68,8 @@ const GameCard: React.FC<GameCardProps> = memo(
 
             <div className="game-card-footer">
               <div className="btn btn-secondary play-button-small">
-                <span aria-hidden="true">🎮</span> Play
+                <img src={DEFAULT_GAME_ICON} alt="" className="play-button-icon" />
+                Play
               </div>
             </div>
           </div>

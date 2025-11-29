@@ -2339,6 +2339,13 @@
   font-size: 3rem;
 }
 
+.game-icon-fallback img {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 12px rgba(0, 217, 255, 0.4));
+}
+
 .game-info {
   flex: 1;
   min-width: 0;

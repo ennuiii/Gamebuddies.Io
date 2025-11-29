@@ -15,6 +15,7 @@ import Avatar from './Avatar';
 // BUG FIX #21: Import centralized error messages
 import { getErrorMessage, SOCKET_ERROR_CODES } from '../utils/errorMessages';
 import { AdRectangle, SupportUsModal, RewardedAdButton, useAds } from './ads';
+import { DEFAULT_GAME_ICON } from '../constants/assets';
 import './RoomLobby.css';
 
 interface Player {
@@ -1103,7 +1104,13 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
                       onError={() => setImageError(true)}
                     />
                   ) : (
-                    <span className="game-icon-fallback">{selectedGameInfo?.icon || '🎮'}</span>
+                    <span className="game-icon-fallback">
+                      {selectedGameInfo?.icon && selectedGameInfo.icon !== '🎮' ? (
+                        <span aria-hidden="true">{selectedGameInfo.icon}</span>
+                      ) : (
+                        <img src={DEFAULT_GAME_ICON} alt="" />
+                      )}
+                    </span>
                   )}
                 </div>
                 <div className="game-info">
