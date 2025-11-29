@@ -6,7 +6,13 @@ interface AdContextType {
   shouldShowAds: boolean;
   adsEnabled: boolean;
 
-  // Frequency limiting
+  // Banner frequency limiting
+  canShowBannerAd: boolean;
+  bannerImpressions: number;
+  isInGracePeriod: boolean;
+  onBannerImpression: () => void;
+
+  // Video/Rewarded frequency limiting
   lastVideoAdShown: number | null;
   canShowVideoAd: boolean;
   rewardedAdCooldown: number;
@@ -30,18 +36,27 @@ const AdContext = createContext<AdContextType | undefined>(undefined);
 const VIDEO_AD_COOLDOWN = 10 * 60 * 1000; // 10 minutes
 const REWARDED_AD_COOLDOWN = 5 * 60 * 1000; // 5 minutes
 
+// Banner ad frequency settings (based on industry research)
+const BANNER_GRACE_PERIOD_MS = 2 * 60 * 1000; // 2 minutes - let users enjoy the site first
+const MAX_BANNER_IMPRESSIONS_PER_SESSION = 3; // Max 3 banner views per session
+
 interface AdProviderProps {
   children: ReactNode;
 }
 
 export const AdProvider: React.FC<AdProviderProps> = ({ children }) => {
-  const { isPremium, isAuthenticated, isGuest } = useAuth();
+  const { isPremium } = useAuth();
 
   // Core state
   const [adsEnabled] = useState(true); // Global toggle for emergencies
   const [isSupportModalOpen, setIsSupportModalOpen] = useState(false);
 
-  // Frequency limiting
+  // Session tracking for banner frequency
+  const [sessionStart] = useState(Date.now());
+  const [bannerImpressions, setBannerImpressions] = useState(0);
+  const [currentTime, setCurrentTime] = useState(Date.now());
+
+  // Video/Rewarded frequency limiting
   const [lastVideoAdShown, setLastVideoAdShown] = useState<number | null>(null);
   const [lastRewardedAdShown, setLastRewardedAdShown] = useState<number | null>(null);
   const [rewardedAdCooldown, setRewardedAdCooldown] = useState(0);
@@ -49,9 +64,26 @@ export const AdProvider: React.FC<AdProviderProps> = ({ children }) => {
   // Stats
   const [totalAdsWatched, setTotalAdsWatched] = useState(0);
 
-  // Determine if ads should show
+  // Update current time every 30 seconds to check grace period
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(Date.now());
+    }, 30000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Determine if ads should show (base check)
   // Show ads to: authenticated free users AND guests (anyone who's not premium)
   const shouldShowAds = adsEnabled && !isPremium;
+
+  // Banner-specific checks
+  const isInGracePeriod = currentTime - sessionStart < BANNER_GRACE_PERIOD_MS;
+  const canShowBannerAd = shouldShowAds && !isInGracePeriod && bannerImpressions < MAX_BANNER_IMPRESSIONS_PER_SESSION;
+
+  // Track banner impression
+  const onBannerImpression = useCallback(() => {
+    setBannerImpressions(prev => prev + 1);
+  }, []);
 
   // Check if video ad can be shown (10 min cooldown)
   const canShowVideoAd = !lastVideoAdShown || (Date.now() - lastVideoAdShown) > VIDEO_AD_COOLDOWN;
@@ -117,10 +149,17 @@ export const AdProvider: React.FC<AdProviderProps> = ({ children }) => {
   const value: AdContextType = {
     shouldShowAds,
     adsEnabled,
+    // Banner frequency
+    canShowBannerAd,
+    bannerImpressions,
+    isInGracePeriod,
+    onBannerImpression,
+    // Video/Rewarded
     lastVideoAdShown,
     canShowVideoAd,
     rewardedAdCooldown,
     canShowRewardedAd,
+    // Actions
     showSupportModal,
     hideSupportModal,
     isSupportModalOpen,
