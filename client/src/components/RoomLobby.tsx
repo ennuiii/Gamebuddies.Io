@@ -1117,10 +1117,11 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
                 const { playerStatus, countdownTime, isDisconnectedWithTimer } = player;
                 const isJoining = recentlyJoinedPlayers.has(player.id);
                 const isReconnecting = reconnectingPlayers.has(player.id);
+                const isPlayerReady = player.isHost || player.isReady;
                 return (
                   <div
                     key={player.id}
-                    className={`player-row ${player.isHost ? 'host' : ''} ${playerStatus.status} ${isDisconnectedWithTimer ? 'disconnecting' : ''} ${player.role === 'admin' ? 'premium-admin' : player.premiumTier === 'lifetime' ? 'premium-lifetime' : player.premiumTier === 'monthly' ? 'premium-monthly' : ''} ${isJoining ? 'player-joining' : ''} ${isReconnecting ? 'player-reconnecting' : ''}`}
+                    className={`player-row ${player.isHost ? 'host' : ''} ${playerStatus.status} ${isDisconnectedWithTimer ? 'disconnecting' : ''} ${player.role === 'admin' ? 'premium-admin' : player.premiumTier === 'lifetime' ? 'premium-lifetime' : player.premiumTier === 'monthly' ? 'premium-monthly' : ''} ${isJoining ? 'player-joining' : ''} ${isReconnecting ? 'player-reconnecting' : ''} ${isPlayerReady ? 'player-ready' : 'player-not-ready'}`}
                   >
                     <div
                       className={`player-row-avatar ${!player.isGuest ? 'clickable' : ''}`}
@@ -1175,9 +1176,15 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
                       </div>
                     </div>
                     <div className="player-row-status">
-                      <span className={`status-pill ${playerStatus.status}`}>
-                        {playerStatus.status === 'lobby' ? 'IN LOBBY' : playerStatus.status === 'in_game' ? 'IN GAME' : 'OFFLINE'}
-                      </span>
+                      {playerStatus.status === 'lobby' ? (
+                        <span className={`status-pill ${isPlayerReady ? 'ready' : 'not-ready'}`}>
+                          {isPlayerReady ? '✓ READY' : 'NOT READY'}
+                        </span>
+                      ) : (
+                        <span className={`status-pill ${playerStatus.status}`}>
+                          {playerStatus.status === 'in_game' ? 'IN GAME' : 'OFFLINE'}
+                        </span>
+                      )}
                       {isDisconnectedWithTimer && (
                         <span className="countdown-small">⏱️ {countdownTime}s</span>
                       )}
