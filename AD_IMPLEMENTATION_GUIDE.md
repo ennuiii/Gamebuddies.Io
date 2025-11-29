@@ -46,8 +46,7 @@ client/src/components/ads/
 2. **AdWrapper** checks if the current user should see ads:
    - Premium users (monthly/lifetime) see NO ads
    - Admin users see NO ads
-   - Guest users see NO ads (to encourage sign-up)
-   - Only authenticated free users see ads
+   - Everyone else sees ads (free users AND guests)
 
 3. **Placeholder Components** display a styled placeholder where real ads will go
 
@@ -350,23 +349,14 @@ All ad containers have responsive styling:
 
 ### Premium User Exclusion
 
-The `AdWrapper` component automatically hides ads for:
-- Premium users (`isPremium === true`)
-- Admin users (`role === 'admin'`)
-- Guest users (to encourage sign-up)
+The `AdContext` automatically determines who sees ads:
+- Premium users (`isPremium === true`) see NO ads
+- Everyone else (free users AND guests) sees ads
 
 ```tsx
-// client/src/components/ads/AdWrapper.tsx
-const AdWrapper = ({ children }) => {
-  const { isPremium, isAuthenticated, isGuest, user } = useAuth();
-  const isAdmin = user?.role === 'admin';
-
-  if (isPremium || isAdmin || isGuest || !isAuthenticated) {
-    return null;
-  }
-
-  return <div className="ad-container">{children}</div>;
-};
+// client/src/components/ads/AdContext.tsx
+// Show ads to: authenticated free users AND guests (anyone who's not premium)
+const shouldShowAds = adsEnabled && !isPremium;
 ```
 
 ### Performance
