@@ -1296,7 +1296,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
           </div>
 
           {/* Ad Rectangle - Below Chat */}
-          <div className="ad-banner-container ad-display-wrapper">
+          <div className="adsbox ad-slot ad-unit" id="ad-container">
             <AdRectangle />
           </div>
 

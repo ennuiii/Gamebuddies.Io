@@ -2892,7 +2892,8 @@
 }
 
 /* Ad Section in Sidebar - class names trigger adblockers to hide the whole container */
-.ad-banner-container.ad-display-wrapper {
+.adsbox.ad-slot.ad-unit,
+#ad-container {
   padding: 1rem;
   display: flex;
   justify-content: center;
