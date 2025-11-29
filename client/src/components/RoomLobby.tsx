@@ -1064,7 +1064,7 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
                   {currentIsHost && (
                     <button
                       onClick={() => setSelectedGame(null)}
-                      className="change-game-link"
+                      className="change-game-btn-new"
                     >
                       Change Game
                     </button>
