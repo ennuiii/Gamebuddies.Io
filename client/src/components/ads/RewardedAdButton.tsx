@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useAds } from './AdContext';
+import { useAuth } from '../../contexts/AuthContext';
 import './ads.css';
 
 interface RewardedAdButtonProps {
@@ -10,7 +11,8 @@ interface RewardedAdButtonProps {
 
 /**
  * "Watch Ad for XP" button shown in lobby or profile.
- * Users can voluntarily watch an ad to earn XP.
+ * - Logged-in free users: "Watch Ad for +50 XP"
+ * - Guests: "Watch Ad to Support" (they don't have XP)
  */
 const RewardedAdButton: React.FC<RewardedAdButtonProps> = ({
   xpReward = 50,
@@ -18,6 +20,7 @@ const RewardedAdButton: React.FC<RewardedAdButtonProps> = ({
   onRewardEarned,
 }) => {
   const { shouldShowAds, canShowRewardedAd, rewardedAdCooldown, onRewardedAdComplete } = useAds();
+  const { isGuest } = useAuth();
   const [isWatching, setIsWatching] = useState(false);
   const [watchProgress, setWatchProgress] = useState(0);
 
@@ -72,17 +75,28 @@ const RewardedAdButton: React.FC<RewardedAdButtonProps> = ({
     );
   }
 
+  // Different messaging for guests vs logged-in users
+  const buttonTitle = !canShowRewardedAd
+    ? `Available in ${formatCooldown(rewardedAdCooldown)}`
+    : isGuest
+      ? 'Watch ad to support GameBuddies'
+      : `Watch ad for +${xpReward} XP`;
+
   return (
     <button
       className={`rewarded-ad-button ${!canShowRewardedAd ? 'on-cooldown' : ''} ${className}`}
       onClick={handleClick}
       disabled={!canShowRewardedAd}
-      title={!canShowRewardedAd ? `Available in ${formatCooldown(rewardedAdCooldown)}` : `Watch ad for +${xpReward} XP`}
+      title={buttonTitle}
     >
       <span className="rewarded-ad-icon">🎬</span>
       <span className="rewarded-ad-text">
         {canShowRewardedAd ? (
-          <>Watch Ad for <strong>+{xpReward} XP</strong></>
+          isGuest ? (
+            <>Watch Ad to <strong>Support Us</strong></>
+          ) : (
+            <>Watch Ad for <strong>+{xpReward} XP</strong></>
+          )
         ) : (
           <>Available in {formatCooldown(rewardedAdCooldown)}</>
         )}
