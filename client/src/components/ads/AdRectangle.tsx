@@ -1,6 +1,7 @@
 import React from 'react';
 import AdWrapper from './AdWrapper';
 import AdPlaceholder from './AdPlaceholder';
+import { useAds } from './AdContext';
 import './ads.css';
 
 interface AdRectangleProps {
@@ -18,7 +19,12 @@ const AdRectangle: React.FC<AdRectangleProps> = ({
   slot,
   size = 'medium',
 }) => {
+  const { shouldShowAds, isAdBlocked } = useAds();
   const dimensions = size === 'large' ? { width: 336, height: 280 } : { width: 300, height: 250 };
+
+  if (!shouldShowAds || isAdBlocked) {
+    return null;
+  }
 
   return (
     <AdWrapper type="rectangle" className={className}>
