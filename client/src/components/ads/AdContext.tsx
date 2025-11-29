@@ -51,7 +51,9 @@ export const AdProvider: React.FC<AdProviderProps> = ({ children }) => {
 
   // Determine if ads should show
   // Show ads to: authenticated free users AND guests (anyone who's not premium)
-  const shouldShowAds = adsEnabled && !isPremium;
+  // DEV MODE: Force show ads for testing (set to true to always show fake ads)
+  const DEV_FORCE_SHOW_ADS = true;
+  const shouldShowAds = DEV_FORCE_SHOW_ADS || (adsEnabled && !isPremium);
 
   // Check if video ad can be shown (10 min cooldown)
   const canShowVideoAd = !lastVideoAdShown || (Date.now() - lastVideoAdShown) > VIDEO_AD_COOLDOWN;

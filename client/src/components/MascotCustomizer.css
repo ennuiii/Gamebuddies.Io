@@ -100,6 +100,7 @@
   padding: 0.75rem;
   cursor: pointer;
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  overflow: visible; /* let premium icons float outside */
 }
 
 .mascot-option-btn:hover:not(:disabled) {
@@ -124,11 +125,12 @@
   position: relative;
   width: 80px;
   height: 80px;
+  aspect-ratio: 1 / 1;
   border-radius: 16px;
   overflow: visible; /* allow premium badge to float outside */
   background: rgba(6, 10, 24, 0.7);
   border: 1px solid rgba(255, 255, 255, 0.08);
-  padding: 6px;
+  padding: 10px;
 }
 
 .mascot-option-btn img {
@@ -225,6 +227,7 @@
     width: 70px;
     height: 70px;
     border-radius: 10px;
+    padding: 8px;
   }
 
   .mascot-option-btn .option-label {
@@ -271,6 +274,7 @@
     width: 56px;
     height: 56px;
     border-radius: 10px;
+    padding: 6px;
   }
 
   .premium-badge-icon {
