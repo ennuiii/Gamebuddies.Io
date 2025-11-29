@@ -2898,6 +2898,12 @@
   justify-content: center;
 }
 
+/* Hide ad section when no ad is visible (premium users, frequency cap, or adblocker) */
+.sidebar-section.ad-section:not(:has(.ad-placeholder)),
+.sidebar-section.ad-section:has(.ad-container:empty) {
+  display: none;
+}
+
 /* Rewarded Ad Section */
 .rewarded-section {
   padding: 1rem;
