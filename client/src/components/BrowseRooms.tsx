@@ -217,7 +217,7 @@ const BrowseRooms: React.FC<BrowseRoomsProps> = ({ onRoomSelected, onCancel }) =
     <div className="browse-rooms-overlay">
       <div className="browse-rooms-modal">
         <div className="browse-header">
-          <h2>🌍 Browse Public Rooms</h2>
+          <h2><span className="header-dot"></span> Browse Public Rooms</h2>
           <button className="close-button" onClick={onCancel}>
             ×
           </button>
@@ -340,62 +340,62 @@ const BrowseRooms: React.FC<BrowseRoomsProps> = ({ onRoomSelected, onCancel }) =
           <div className="rooms-list">
             {getFilteredRooms().map((room) => {
               const gameInfo = getGameInfo(room.current_game);
+              const hostInfo = getHostInfo(room);
+              const connectedPlayers = room.members?.filter((m) => m.is_connected).length || 0;
+              const playerPercentage = (connectedPlayers / room.max_players) * 100;
+
               return (
-                <div key={room.id} className={`room-card ${room.status}`}>
-                  <div className="room-card-header">
-                    <div className="game-section">
-                      {gameInfo?.thumbnailUrl ? (
-                        <img
-                          src={gameInfo.thumbnailUrl}
-                          alt={gameInfo?.name || room.current_game}
-                          className="game-thumbnail"
-                        />
-                      ) : (
-                        <div className="game-icon-box">{gameInfo?.icon || '🎮'}</div>
-                      )}
-                      <div className="game-info">
-                        <span className="game-title">
-                          {gameInfo?.name || 'No Game Selected'}
-                        </span>
-                        <div className="room-meta">
-                          <span className="room-code">{room.room_code}</span>
-                          {getStatusBadge(room)}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="room-details">
-                    <div className="detail-item">
-                      <span className="detail-icon">👤</span>
-                      <span className="detail-text">
-                        Host: {getHostInfo(room).name}{' '}
-                        {getPremiumBadge(getHostInfo(room).premiumTier, getHostInfo(room).role)}
-                      </span>
-                    </div>
-
-                    <div className="detail-item">
-                      <span className="detail-icon">👥</span>
-                      <span className="detail-text">Players: {getPlayerCount(room)}</span>
-                    </div>
-
-                    {room.streamer_mode && (
-                      <div className="detail-item">
-                        <span className="detail-icon">🎥</span>
-                        <span className="detail-text">Streamer Mode</span>
-                      </div>
+                <div key={room.id} className={`room-row ${room.status}`}>
+                  {/* Game Icon */}
+                  <div className="room-icon">
+                    {gameInfo?.thumbnailUrl ? (
+                      <img
+                        src={gameInfo.thumbnailUrl}
+                        alt={gameInfo?.name || room.current_game}
+                      />
+                    ) : (
+                      <div className="icon-fallback">{gameInfo?.icon || '🎮'}</div>
                     )}
                   </div>
 
-                  <div className="room-actions">
-                    <button
-                      className="join-room-button"
-                      onClick={() => handleJoinRoom(room)}
-                      disabled={room.status === 'in_game'}
-                    >
-                      {room.status === 'in_game' ? 'Game in Progress' : 'Join Room'}
-                    </button>
+                  {/* Game Name + Host */}
+                  <div className="room-info">
+                    <span className="room-game-name">
+                      {gameInfo?.name || 'No Game Selected'}
+                    </span>
+                    <span className="room-host">
+                      Host: {hostInfo.name}
+                      {getPremiumBadge(hostInfo.premiumTier, hostInfo.role)}
+                    </span>
                   </div>
+
+                  {/* Status Badge */}
+                  <div className="room-status">
+                    {getStatusBadge(room)}
+                  </div>
+
+                  {/* Player Count + Progress Bar */}
+                  <div className="room-players">
+                    <span className="player-count">
+                      <span className="player-count-icon">👥</span>
+                      {connectedPlayers}/{room.max_players} Players
+                    </span>
+                    <div className="player-bar">
+                      <div
+                        className="player-bar-fill"
+                        style={{ width: `${playerPercentage}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Join Button */}
+                  <button
+                    className="room-join-btn"
+                    onClick={() => handleJoinRoom(room)}
+                    disabled={room.status === 'in_game'}
+                  >
+                    JOIN
+                  </button>
                 </div>
               );
             })}
