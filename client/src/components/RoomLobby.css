@@ -2891,6 +2891,20 @@
   border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
+/* Ad Section in Sidebar */
+.ad-section {
+  padding: 1rem;
+  display: flex;
+  justify-content: center;
+}
+
+/* Rewarded Ad Section */
+.rewarded-section {
+  padding: 1rem;
+  display: flex;
+  justify-content: center;
+}
+
 /* Animation for joining players */
 .player-row.player-joining {
   animation: playerRowJoin 0.4s ease-out;

@@ -14,6 +14,7 @@ import { getSupabaseClient } from '../utils/supabase';
 import Avatar from './Avatar';
 // BUG FIX #21: Import centralized error messages
 import { getErrorMessage, SOCKET_ERROR_CODES } from '../utils/errorMessages';
+import { AdRectangle, SupportUsModal, RewardedAdButton } from './ads';
 import './RoomLobby.css';
 
 interface Player {
@@ -101,6 +102,7 @@ interface ChatMessage {
   message: string;
   playerName?: string;
   timestamp?: number;
+  isOwnMessage?: boolean;
 }
 
 interface RoomLobbyProps {
@@ -327,7 +329,37 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
     if (!activeSocket) return;
 
     const handleChatMessage = (msg: ChatMessage): void => {
-      setMessages((prev) => [...prev, msg]);
+      setMessages((prev) => {
+        // If this message has an ID that starts with 'local-', it was our own message
+        // and we already added it optimistically - skip it
+        if (msg.id && prev.some((m) => m.id === msg.id)) {
+          return prev;
+        }
+
+        // Check if this is likely our own message echoed back (by matching content and sender)
+        // within a short time window - skip to avoid duplicates
+        const currentName = playerNameRef.current;
+        const recentOwnMessages = prev.filter(
+          (m) =>
+            m.isOwnMessage &&
+            m.message === msg.message &&
+            m.playerName === msg.playerName &&
+            m.timestamp &&
+            Date.now() - m.timestamp < 5000
+        );
+        if (recentOwnMessages.length > 0) {
+          return prev;
+        }
+
+        // This is a message from someone else - add it with isOwnMessage: false
+        return [
+          ...prev,
+          {
+            ...msg,
+            isOwnMessage: msg.playerName === currentName ? true : false,
+          },
+        ];
+      });
     };
 
     activeSocket.on(SERVER_EVENTS.CHAT.MESSAGE, handleChatMessage);
@@ -350,9 +382,23 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
     }
 
     const nameToSend = me ? me.name : playerNameRef.current;
+    const messageId = `local-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+    // Optimistically add our own message to the list immediately
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: messageId,
+        playerName: nameToSend,
+        message: text,
+        type: 'user',
+        timestamp: Date.now(),
+        isOwnMessage: true,
+      },
+    ]);
 
     if (activeSocket) {
-      activeSocket.emit(SOCKET_EVENTS.CHAT.MESSAGE, { message: text, playerName: nameToSend });
+      activeSocket.emit(SOCKET_EVENTS.CHAT.MESSAGE, { message: text, playerName: nameToSend, messageId });
     }
   };
 
@@ -1248,8 +1294,21 @@ const RoomLobby: React.FC<RoomLobbyProps> = ({ roomCode, playerName, isHost, onL
               currentPlayerName={playerNameRef.current}
             />
           </div>
+
+          {/* Ad Rectangle - Below Chat */}
+          <div className="sidebar-section ad-section">
+            <AdRectangle />
+          </div>
+
+          {/* Rewarded Ad Button */}
+          <div className="sidebar-section rewarded-section">
+            <RewardedAdButton xpReward={50} />
+          </div>
         </div>
       </div>
+
+      {/* Support Us Modal - Shows after game rounds */}
+      <SupportUsModal />
 
     </div>
   );

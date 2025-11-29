@@ -10,6 +10,7 @@ import JoinRoom from '../components/JoinRoom';
 import BrowseRooms from '../components/BrowseRooms';
 import RoomLobby from '../components/RoomLobby';
 import RecentAchievements from '../components/RecentAchievements';
+import { AdBanner } from '../components/ads';
 import './HomePage.css';
 
 interface Game {
@@ -515,6 +516,11 @@ const HomePage: React.FC<HomePageProps> = ({ setIsInLobby, setLobbyLeaveFn }) =>
           )}
         </motion.div>
       </section>
+
+      {/* Ad Banner - Between Hero and Games */}
+      <div className="home-ad-section">
+        <AdBanner />
+      </div>
 
       <section className="games-section" id="games-section">
         <div className="container">

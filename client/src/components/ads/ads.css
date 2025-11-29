@@ -1,0 +1,357 @@
+/* ===========================================
+   GameBuddies Ad System Styles
+   =========================================== */
+
+/* Ad Container Base */
+.ad-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 1rem 0;
+}
+
+.ad-container.ad-banner {
+  width: 100%;
+}
+
+.ad-container.ad-rectangle {
+  width: fit-content;
+}
+
+/* Ad Placeholder (Development) */
+.ad-placeholder {
+  background: linear-gradient(135deg, rgba(20, 20, 40, 0.8), rgba(30, 30, 60, 0.8));
+  border: 1px dashed rgba(255, 255, 255, 0.15);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.ad-placeholder::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    45deg,
+    transparent 45%,
+    rgba(255, 255, 255, 0.02) 45%,
+    rgba(255, 255, 255, 0.02) 55%,
+    transparent 55%
+  );
+  background-size: 20px 20px;
+}
+
+.ad-placeholder-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  z-index: 1;
+}
+
+.ad-placeholder-icon {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.1);
+  padding: 0.2rem 0.5rem;
+  border-radius: 4px;
+  letter-spacing: 1px;
+}
+
+.ad-placeholder-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.ad-placeholder-support {
+  font-size: 0.7rem;
+  color: rgba(255, 255, 255, 0.25);
+}
+
+/* Banner Wrapper */
+.ad-banner-wrapper {
+  display: flex;
+  justify-content: center;
+  width: 100%;
+}
+
+.ad-banner-desktop {
+  display: block;
+}
+
+.ad-banner-mobile {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .ad-banner-desktop {
+    display: none;
+  }
+
+  .ad-banner-mobile {
+    display: block;
+  }
+}
+
+/* Rectangle Wrapper */
+.ad-rectangle-wrapper {
+  display: flex;
+  justify-content: center;
+}
+
+/* Support Us Modal */
+.support-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  padding: 1rem;
+}
+
+.support-modal {
+  background: linear-gradient(145deg, rgba(25, 25, 50, 0.98), rgba(15, 15, 35, 0.98));
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  padding: 2rem;
+  max-width: 450px;
+  width: 100%;
+  text-align: center;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+}
+
+.support-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.support-modal-heart {
+  font-size: 2rem;
+  animation: heartbeat 1.5s ease-in-out infinite;
+}
+
+@keyframes heartbeat {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.1); }
+}
+
+.support-modal-header h3 {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: white;
+  margin: 0;
+}
+
+.support-modal-text {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.95rem;
+  line-height: 1.5;
+  margin-bottom: 1.5rem;
+}
+
+.support-modal-preview {
+  margin-bottom: 1.5rem;
+  display: flex;
+  justify-content: center;
+}
+
+.support-modal-actions {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.support-modal-skip {
+  padding: 0.75rem 1.5rem;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.support-modal-skip:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: white;
+}
+
+.support-modal-watch {
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, #4CAF50, #45a049);
+  border: none;
+  border-radius: 10px;
+  color: white;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 15px rgba(76, 175, 80, 0.4);
+}
+
+.support-modal-watch:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(76, 175, 80, 0.5);
+}
+
+.support-modal-premium-hint {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.4);
+  margin: 0;
+}
+
+/* Watching State */
+.support-modal-watching {
+  padding: 1rem 0;
+}
+
+.support-modal-watching h3 {
+  font-size: 1.2rem;
+  color: white;
+  margin-bottom: 1.5rem;
+}
+
+.ad-video-container {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 1rem;
+}
+
+.ad-progress-bar {
+  width: 100%;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 0.5rem;
+}
+
+.ad-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4CAF50, #00e676);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.ad-progress-text {
+  font-size: 0.85rem;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+/* Rewarded Ad Button */
+.rewarded-ad-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  background: linear-gradient(135deg, rgba(255, 193, 7, 0.15), rgba(255, 152, 0, 0.15));
+  border: 1px solid rgba(255, 193, 7, 0.3);
+  border-radius: 10px;
+  color: #ffc107;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.rewarded-ad-button:hover:not(:disabled) {
+  background: linear-gradient(135deg, rgba(255, 193, 7, 0.25), rgba(255, 152, 0, 0.25));
+  border-color: rgba(255, 193, 7, 0.5);
+  transform: translateY(-1px);
+}
+
+.rewarded-ad-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.rewarded-ad-button.on-cooldown {
+  background: rgba(100, 100, 120, 0.2);
+  border-color: rgba(100, 100, 120, 0.3);
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.rewarded-ad-icon {
+  font-size: 1.1rem;
+}
+
+.rewarded-ad-text {
+  font-size: 0.85rem;
+}
+
+.rewarded-ad-text strong {
+  color: #00e676;
+  font-weight: 700;
+}
+
+/* Rewarded Ad Watching State */
+.rewarded-ad-watching {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: rgba(76, 175, 80, 0.15);
+  border: 1px solid rgba(76, 175, 80, 0.3);
+  border-radius: 10px;
+}
+
+.rewarded-ad-progress {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.rewarded-ad-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #4CAF50, #00e676);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.rewarded-ad-progress-text {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.7);
+  text-align: center;
+}
+
+/* Responsive */
+@media (max-width: 480px) {
+  .support-modal {
+    padding: 1.5rem;
+    border-radius: 16px;
+  }
+
+  .support-modal-header h3 {
+    font-size: 1.2rem;
+  }
+
+  .support-modal-actions {
+    flex-direction: column;
+  }
+
+  .support-modal-skip,
+  .support-modal-watch {
+    width: 100%;
+  }
+
+  .rewarded-ad-button {
+    width: 100%;
+    justify-content: center;
+  }
+}

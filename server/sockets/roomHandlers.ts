@@ -401,6 +401,31 @@ export function registerRoomHandlers(
           return;
         }
 
+        // Check for duplicate player names BEFORE joining
+        // Compare against all name sources: custom_lobby_name, display_name, and username
+        const duplicateNameParticipant = room.participants?.find(p => {
+          if (!p.is_connected) return false; // Only check connected players
+
+          // Get the effective display name for this participant
+          const participantName = p.custom_lobby_name || p.user?.display_name || p.user?.username || '';
+
+          // Case-insensitive comparison
+          const nameMatches = participantName.toLowerCase().trim() === playerName.toLowerCase().trim();
+
+          // Don't flag if this is the same user rejoining (by supabaseUserId)
+          if (supabaseUserId && p.user_id === supabaseUserId) return false;
+
+          return nameMatches;
+        });
+
+        if (duplicateNameParticipant) {
+          socket.emit('error', {
+            message: `The name "${playerName}" is already taken in this room. Please choose a different name.`,
+            code: 'DUPLICATE_PLAYER_NAME'
+          });
+          return;
+        }
+
         // Check for existing participant (for rejoining)
         let existingParticipant: RoomParticipant | undefined;
         let matchMethod: string | null = null;
@@ -595,20 +620,7 @@ export function registerRoomHandlers(
             );
           }
 
-          // Check for duplicate connected participants
-          const duplicateConnectedParticipant = room.participants?.find(p =>
-            p.user?.username === data.playerName &&
-            p.is_connected === true &&
-            p.user_id !== existingParticipant?.user_id
-          );
-
-          if (duplicateConnectedParticipant) {
-            socket.emit('error', {
-              message: 'A player with this name is already in the room. Please choose a different name.',
-              code: 'DUPLICATE_PLAYER'
-            });
-            return;
-          }
+          // Note: Duplicate name check already done earlier in the flow (line 404-427)
 
           // Determine role
           userRole = isOriginalCreator ? 'host' : 'player';

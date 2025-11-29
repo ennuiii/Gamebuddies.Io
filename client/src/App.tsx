@@ -6,6 +6,7 @@ import { LazySocketProvider } from './contexts/LazySocketContext';
 import { NotificationProvider } from './contexts/NotificationContext';
 import { AuthProvider } from './contexts/AuthContext';
 import { FriendProvider } from './contexts/FriendContext';
+import { AdProvider } from './components/ads';
 import Notification from './components/Notification';
 import Header from './components/Header';
 import Footer from './components/Footer';
@@ -420,15 +421,17 @@ function App(): React.ReactElement {
     <ThemeProvider>
       <Router>
         <AuthProvider>
-          <LazySocketProvider>
-            <NotificationProvider>
-              <FriendProvider>
-                <ErrorBoundary>
-                  <AppContent />
-                </ErrorBoundary>
-              </FriendProvider>
-            </NotificationProvider>
-          </LazySocketProvider>
+          <AdProvider>
+            <LazySocketProvider>
+              <NotificationProvider>
+                <FriendProvider>
+                  <ErrorBoundary>
+                    <AppContent />
+                  </ErrorBoundary>
+                </FriendProvider>
+              </NotificationProvider>
+            </LazySocketProvider>
+          </AdProvider>
         </AuthProvider>
       </Router>
     </ThemeProvider>

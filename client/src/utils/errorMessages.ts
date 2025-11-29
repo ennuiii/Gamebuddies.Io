@@ -27,6 +27,7 @@ export const SOCKET_ERROR_CODES = {
 
   // Player errors
   DUPLICATE_PLAYER: 'DUPLICATE_PLAYER',
+  DUPLICATE_PLAYER_NAME: 'DUPLICATE_PLAYER_NAME',
   PLAYER_NOT_FOUND: 'PLAYER_NOT_FOUND',
   NOT_HOST: 'NOT_HOST',
   ALREADY_IN_ROOM: 'ALREADY_IN_ROOM',
@@ -94,6 +95,12 @@ export const ERROR_MESSAGES: Record<ErrorCode, ErrorMessage> = {
     title: 'Name Already Taken',
     message: 'A player with this name is already in the room.',
     action: 'Choose a different display name.',
+    recoverable: true,
+  },
+  [SOCKET_ERROR_CODES.DUPLICATE_PLAYER_NAME]: {
+    title: 'Name Already Taken',
+    message: 'This name is already in use in this room.',
+    action: 'Please choose a different name to join.',
     recoverable: true,
   },
   [SOCKET_ERROR_CODES.PLAYER_NOT_FOUND]: {

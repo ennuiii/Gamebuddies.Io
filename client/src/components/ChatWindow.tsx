@@ -6,6 +6,7 @@ interface ChatMessage {
   playerName: string;
   message: string;
   type?: 'system' | 'user';
+  isOwnMessage?: boolean;
 }
 
 interface ChatWindowProps {
@@ -38,7 +39,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({ messages, onSendMessage, curren
         aria-label="Chat messages"
       >
         {messages.map((msg, index) => {
-          const isMe = msg.playerName === currentPlayerName;
+          // Use isOwnMessage flag if set, otherwise fall back to name comparison
+          const isMe = msg.isOwnMessage !== undefined
+            ? msg.isOwnMessage
+            : msg.playerName === currentPlayerName;
           const isSystem = msg.type === 'system';
 
           return (

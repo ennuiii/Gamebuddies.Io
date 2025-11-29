@@ -325,6 +325,14 @@
   font-weight: 300;
 }
 
+/* Home Ad Section */
+.home-ad-section {
+  padding: 2rem 0;
+  display: flex;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.1);
+}
+
 /* Games Section */
 .games-section {
   padding: 6rem 0;
