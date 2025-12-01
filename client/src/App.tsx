@@ -183,8 +183,10 @@ function AppContent(): React.ReactElement {
         window.scrollTo({ top: 0, behavior: 'smooth' });
       }, 100);
     } else {
-      navigate('/', { replace: true });
-      window.scrollTo({ top: 0, behavior: 'smooth' });
+      // Force a full page reload to reset any potential layout/CSS state issues
+      // This addresses a specific bug where navigating back to home causes
+      // the RecentAchievements card layout to break (clipping/overlay).
+      window.location.href = '/';
     }
   }, [isInLobby, lobbyLeaveFn, navigate]);
 
