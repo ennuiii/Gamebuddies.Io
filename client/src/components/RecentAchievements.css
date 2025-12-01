@@ -74,7 +74,7 @@
 /* Achievement Card */
 .recent-achievement-card {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: 56px 1fr 70px; /* Explicit columns for icon, info, points */
   align-items: start;
   gap: 1rem;
   padding: 1.25rem;
