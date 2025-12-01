@@ -40,7 +40,7 @@
 
   /* Gradients */
   --gradient-primary: linear-gradient(135deg, var(--color-primary) 0%, var(--color-accent) 100%);
-  --gradient-secondary: linear-gradient(135deg, var(--color-secondary) 0%, #00ff88 100%);
+  --gradient-secondary: linear-gradient(135deg, var(--color-secondary) 0%, #00b4d8 100%);
   --gradient-surface: linear-gradient(145deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02));
 
   /* Aliases for existing variables (to avoid breaking current CSS) */

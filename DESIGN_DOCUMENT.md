@@ -1,118 +1,101 @@
-# GameBuddies.io Design Document
+# Gamebuddies.Io Design System
 
-This document outlines the visual design system, color palette, typography, and key UI components for the GameBuddies.io platform, based on the client codebase.
+This document outlines the design system, visual language, and style guidelines for the Gamebuddies.Io client application.
 
-## 1. Visual Identity & Theme
+## 1. Color Palette
 
-GameBuddies.io features a modern, dark-themed "gamer" aesthetic characterized by:
-- **Deep dark backgrounds** (Midnight Blue/Black)
-- **Vibrant neon accents** (Cyberpunk Pink & Cyan)
-- **Glassmorphism** (Translucent surfaces with background blur)
-- **Gradients** & **Glow effects**
+### Backgrounds
+*   **Primary Background (`--color-bg-1`)**: `#0d0f1a` - Deep dark blue/black, main application background.
+*   **Secondary Background (`--color-bg-2`)**: `#12172a` - Slightly lighter dark blue, used for contrast or alternate sections.
 
-## 2. Color Palette
+### Surfaces (Cards, Modals, etc.)
+*   **Surface 1 (`--color-surface-1`)**: `#151b30` - Default card background.
+*   **Surface 2 (`--color-surface-2`)**: `#1c2240` - Elevated or highlighted surface.
 
-### Core Colors
-| Name | Hex | CSS Variable | Usage |
-| :--- | :--- | :--- | :--- |
-| **Background 1** | `#0d0f1a` | `--color-bg-1` / `--primary-bg` | Main page background |
-| **Background 2** | `#12172a` | `--color-bg-2` / `--secondary-bg` | Secondary sections, alternate bg |
-| **Surface 1** | `#151b30` | `--color-surface-1` / `--card-bg` | Cards, panels, modals |
-| **Surface 2** | `#1c2240` | `--color-surface-2` | Nested elements, inputs |
-| **Primary** | `#e94560` | `--color-primary` | Primary actions, brand accent (Pink/Red) |
-| **Secondary** | `#00d9ff` | `--color-secondary` | Secondary actions, highlights (Cyan) |
-| **Accent** | `#ff6b6b` | `--color-accent` | Highlights, gradients |
+### Brand Colors
+*   **Primary (`--color-primary`)**: `#e94560` - Vibrant Red/Pink. Used for primary actions and highlights.
+*   **Secondary (`--color-secondary`)**: `#00d9ff` - Cyan/Electric Blue. Used for secondary actions and accents.
+*   **Accent (`--color-accent`)**: `#ff6b6b` - Light Red/Salmon. Often paired with Primary in gradients.
 
-### Functional Colors
-| Name | Hex | CSS Variable | Usage |
-| :--- | :--- | :--- | :--- |
-| **Success** | `#4caf50` | `--color-success` | Success states, confirmations |
-| **Warning** | `#ff9800` | `--color-warning` | Alerts, warnings |
-| **Danger** | `#d90429` | `--color-danger` | Errors, destructive actions |
-| **Text Primary** | `#ffffff` | `--color-text-primary` | Headings, main text |
-| **Text Secondary** | `#a8aec7` | `--color-text-secondary` | Subtitles, descriptions |
-| **Text Muted** | `#8a90aa` | `--color-text-muted` | Disabled text, placeholders |
-| **Border Subtle** | `rgba(255, 255, 255, 0.08)` | `--color-border-subtle` | Dividers, card borders |
-| **Border Strong** | `rgba(255, 255, 255, 0.18)` | `--color-border-strong` | Input borders, active states |
+### Status Colors
+*   **Success (`--color-success`)**: `#4caf50` - Green.
+*   **Warning (`--color-warning`)**: `#ff9800` - Orange.
+*   **Danger (`--color-danger`)**: `#d90429` - Deep Red.
 
-### Gradients
-- **Primary Gradient:** `linear-gradient(135deg, #e94560 0%, #ff6b6b 100%)`
-- **Secondary Gradient:** `linear-gradient(135deg, #00d9ff 0%, #00ff88 100%)`
-- **Surface Gradient:** `linear-gradient(145deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02))`
-- **App Background:** Radial gradients mixed with linear gradient (see `App.css`)
+### Text Colors
+*   **Primary (`--color-text-primary`)**: `#ffffff` - White. High emphasis text.
+*   **Secondary (`--color-text-secondary`)**: `#a8aec7` - Light Grey/Blue. Medium emphasis.
+*   **Muted (`--color-text-muted`)**: `#8a90aa` - Grey. Low emphasis, placeholders.
 
-## 3. Typography
+### Borders
+*   **Subtle (`--color-border-subtle`)**: `rgba(255, 255, 255, 0.08)` - For dividers and low contrast borders.
+*   **Strong (`--color-border-strong`)**: `rgba(255, 255, 255, 0.18)` - For inputs and active states.
+
+---
+
+## 2. Typography
+
+Fonts are self-hosted to ensure privacy and performance.
 
 ### Font Families
-- **Body:** `'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif` (`--font-body`)
-- **Display/Headings:** `'Orbitron', 'Inter', 'Segoe UI', system-ui, sans-serif` (`--font-display`)
+*   **Body (`--font-body`)**: `'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif`
+    *   Weights: Light (300), Regular (400), Medium (500), Semi-Bold (600), Bold (700)
+*   **Display (`--font-display`)**: `'Orbitron', 'Inter', 'Segoe UI', system-ui, sans-serif`
+    *   Used for headings and branding.
+    *   Weights: Regular (400), Bold (700), Black (900)
 
-### Font Weights
-- **Light:** 300
-- **Regular:** 400
-- **Medium:** 500
-- **Semi-Bold:** 600
-- **Bold:** 700
-- **Black:** 900
+---
 
-## 4. UI Primitives
+## 3. UI Elements & Effects
+
+### Gradients
+*   **Primary Gradient**: `linear-gradient(135deg, #e94560 0%, #ff6b6b 100%)`
+*   **Secondary Gradient**: `linear-gradient(135deg, #00d9ff 0%, #00ff88 100%)`
+*   **Surface Gradient**: `linear-gradient(145deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.02))`
+
+### Shadows & Elevation
+*   **Small (`--shadow-sm`)**: `0 6px 18px rgba(0, 0, 0, 0.25)`
+*   **Medium (`--shadow-md`)**: `0 10px 30px rgba(0, 0, 0, 0.35)`
+*   **Large (`--shadow-lg`)**: `0 20px 60px rgba(0, 0, 0, 0.45)`
+*   **Neon Glow**: `0 0 20px rgba(0, 217, 255, 0.8)`
 
 ### Radii
-- **Small:** `8px` (`--radius-sm`)
-- **Medium:** `12px` (`--radius-md`)
-- **Large:** `16px` (`--radius-lg`)
-- **Extra Large:** `20px` (`--radius-xl`)
-- **Pill:** `999px` (`--radius-pill`)
+*   **Small**: `8px`
+*   **Medium**: `12px` (Standard for cards/buttons)
+*   **Large**: `16px`
+*   **Pill**: `999px` (Fully rounded)
 
-### Shadows
-- **Small:** `0 6px 18px rgba(0, 0, 0, 0.25)` (`--shadow-sm`)
-- **Medium:** `0 10px 30px rgba(0, 0, 0, 0.35)` (`--shadow-md`)
-- **Large:** `0 20px 60px rgba(0, 0, 0, 0.45)` (`--shadow-lg`)
-- **Neon Glow:** `0 0 20px rgba(0, 217, 255, 0.8)` (`--neon-glow`)
+### Glassmorphism
+*   **Glass 1**: `rgba(255, 255, 255, 0.06)`
+*   **Glass 2**: `rgba(255, 255, 255, 0.1)` + `backdrop-filter: blur(12px)`
 
-### Effects
-- **Glass 1:** `rgba(255, 255, 255, 0.06)`
-- **Glass 2:** `rgba(255, 255, 255, 0.1)` with `backdrop-filter: blur(12px)`
+---
 
-## 5. Key Components
+## 4. Common Components
 
 ### Buttons (`.btn`)
-- **Base:** Inline-flex, center alignment, `min-height: 44px` (mobile-friendly), `font-weight: 700`.
-- **Primary (`.btn-primary`):** Primary Gradient background, white text, subtle shadow. Lifts on hover.
-- **Secondary (`.btn-secondary`):** Secondary Gradient background, dark text (`#0d0f1a`). Lifts on hover.
-- **Ghost (`.btn-ghost`):** Transparent/Glass background, subtle border.
+Base styles: Inline-flex, centered, min-height ~44px, radius 16px, font-weight 700.
 
-### Cards (`.card`, `.game-card`)
-- **Background:** Surface 1 (`#151b30`).
-- **Border:** Subtle white border (`rgba(255, 255, 255, 0.08)`).
-- **Shadow:** Medium shadow.
-- **Hover Effect:** Lifts up (`translateY`), shadow intensifies, border brightens (Cyan glow).
-- **Game Card Specifics:**
-    - Image container with `object-fit: contain`.
-    - Overlay on hover/touch with action buttons.
+*   **Primary**: Uses Primary Gradient. White text. Hover: lift + shadow.
+*   **Secondary**: Uses Secondary Gradient. Dark text (`#0d0f1a`). Hover: lift + shadow.
+*   **Ghost**: Glass background. Secondary text color. Hover: Glass 2 background + Primary text.
+*   **Danger**: Danger Gradient. White text.
 
-### Header (`.header`)
-- **Position:** Fixed at top (`top: 0`, `left: 0`, `right: 0`).
-- **Background:** Dark blue with high transparency (`rgba(15, 18, 34, 0.72)`).
-- **Effect:** `backdrop-filter: blur(16px)` (Glassmorphism).
-- **Border:** Bottom border `2px solid #00d9ff`.
-- **Shadow:** Soft drop shadow + Cyan glow (`0 2px 10px rgba(0, 217, 255, 0.2)`).
+### Cards (`.card`)
+*   Background: Surface 1 (`#151b30`)
+*   Border: Subtle (`1px solid rgba(255, 255, 255, 0.08)`)
+*   Radius: Large (`16px`)
+*   Shadow: Medium
 
-### Footer (`.app-footer`)
-- **Background:** Secondary Background (`#1a1a2e`).
-- **Border:** Top border `1px solid rgba(255, 255, 255, 0.1)`.
-- **Text:** Secondary Text (`#a8a8a8`).
+### Glass Container (`.glass`)
+*   Background: Glass 2
+*   Border: Subtle
+*   Effect: Blur 12px
 
-## 6. Responsive Breakpoints
+---
 
-- **XS:** `320px` (Tiny phones)
-- **SM:** `480px` (Mobile portrait)
-- **MD:** `768px` (Tablets)
-- **LG:** `1024px` (Desktop/Landscape tablet)
-- **XL:** `1400px` (Large Desktop)
-
-## 7. Mobile & Touch Considerations
-- **Touch Targets:** Minimum `44px` (`--touch-target-min`).
-- **Inputs:** `font-size: 16px` to prevent iOS zoom.
-- **Interactions:** Hover effects are adapted or removed for touch devices; active states are enhanced for feedback.
-- **Safe Areas:** Uses `env(safe-area-inset-*)` for notched devices.
+## 5. Usage Guidelines
+1.  **Contrast**: Ensure text contrast ratios are maintained, especially on glass or gradient backgrounds.
+2.  **Spacing**: Use standard spacing units (likely based on 4px or 8px grid, though not explicitly defined in theme variables yet).
+3.  **Feedback**: Interactive elements (buttons, links) should always have hover/active states (transform, opacity change, or shadow).
+4.  **Consistency**: Use CSS variables (`var(--name)`) instead of hardcoded hex values to ensure easy theming and consistency.
