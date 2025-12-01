@@ -73,7 +73,7 @@
 
 /* Achievement Card */
 .recent-achievement-card {
-  display: grid;
+  display: grid !important; /* Force grid layout to override any framer-motion inline styles */
   grid-template-columns: 56px 1fr 70px; /* Explicit columns for icon, info, points */
   align-items: start;
   gap: 1rem;
@@ -275,7 +275,7 @@
   border: 1px solid rgba(74, 222, 128, 0.3);
   flex-shrink: 0;
   min-width: 70px;
-  z-index: 2;
+  z-index: 10;
 }
 
 .achievement-points .points-value {
@@ -384,7 +384,7 @@
 
 @media (max-width: 480px) {
   .recent-achievement-card {
-    display: flex; /* Switch back to flex for wrapping behavior on mobile */
+    display: flex !important; /* Switch back to flex for wrapping behavior on mobile, overriding grid */
     flex-wrap: wrap;
   }
 
