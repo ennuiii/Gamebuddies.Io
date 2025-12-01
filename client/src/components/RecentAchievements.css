@@ -195,9 +195,11 @@
 .achievement-info {
   flex: 1;
   min-width: 0;
+  width: 0; /* Force flex item to respect bounds */
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
+  overflow: hidden; /* Prevent content from bleeding out */
 }
 
 .achievement-name {
@@ -269,11 +271,13 @@
   align-items: center;
   padding: 0.5rem 0.75rem;
   background: rgba(74, 222, 128, 0.1);
+  backdrop-filter: blur(4px);
   border-radius: 10px;
   border: 1px solid rgba(74, 222, 128, 0.3);
   flex-shrink: 0;
   min-width: 70px;
   margin-left: auto;
+  z-index: 2;
 }
 
 .achievement-points .points-value {
