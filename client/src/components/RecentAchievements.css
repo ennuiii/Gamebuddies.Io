@@ -73,9 +73,8 @@
 
 /* Achievement Card */
 .recent-achievement-card {
-  display: grid !important; /* Force grid layout to override any framer-motion inline styles */
-  grid-template-columns: 56px 1fr 70px; /* Explicit columns for icon, info, points */
-  align-items: start;
+  display: flex !important;
+  align-items: flex-start;
   gap: 1rem;
   padding: 1.25rem;
   background: rgba(255, 255, 255, 0.05);
@@ -83,7 +82,7 @@
   border: 1px solid rgba(255, 255, 255, 0.1);
   cursor: pointer;
   transition: all 0.3s ease;
-  position: relative;
+  position: relative; /* For absolute positioning of points */
   overflow: hidden;
 }
 
@@ -194,11 +193,13 @@
 
 /* Info */
 .achievement-info {
-  min-width: 0; /* Allow truncation within grid item */
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
   overflow: hidden;
+  padding-right: 80px; /* Reserve space for the absolute points badge */
 }
 
 .achievement-name {
@@ -265,6 +266,9 @@
 
 /* Points */
 .achievement-points {
+  position: absolute;
+  top: 1.25rem;
+  right: 1.25rem;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -273,7 +277,6 @@
   backdrop-filter: blur(4px);
   border-radius: 10px;
   border: 1px solid rgba(74, 222, 128, 0.3);
-  flex-shrink: 0;
   min-width: 70px;
   z-index: 10;
 }
@@ -384,16 +387,18 @@
 
 @media (max-width: 480px) {
   .recent-achievement-card {
-    display: flex !important; /* Switch back to flex for wrapping behavior on mobile, overriding grid */
+    display: flex !important;
     flex-wrap: wrap;
   }
 
   .achievement-info {
     flex: 1 1 calc(100% - 70px);
+    padding-right: 0; /* Reset padding on mobile as badge wraps */
   }
 
   .achievement-points {
-    margin-left: auto; /* Restore margin-left for mobile flex layout */
+    position: static; /* Reset absolute positioning */
+    margin-left: auto;
     margin-top: 0.5rem;
   }
 
