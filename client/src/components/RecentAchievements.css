@@ -73,8 +73,9 @@
 
 /* Achievement Card */
 .recent-achievement-card {
-  display: flex;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: start;
   gap: 1rem;
   padding: 1.25rem;
   background: rgba(255, 255, 255, 0.05);
@@ -193,13 +194,11 @@
 
 /* Info */
 .achievement-info {
-  flex: 1;
-  min-width: 0;
-  width: 0; /* Force flex item to respect bounds */
+  min-width: 0; /* Allow truncation within grid item */
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
-  overflow: hidden; /* Prevent content from bleeding out */
+  overflow: hidden;
 }
 
 .achievement-name {
@@ -276,7 +275,6 @@
   border: 1px solid rgba(74, 222, 128, 0.3);
   flex-shrink: 0;
   min-width: 70px;
-  margin-left: auto;
   z-index: 2;
 }
 
@@ -386,6 +384,7 @@
 
 @media (max-width: 480px) {
   .recent-achievement-card {
+    display: flex; /* Switch back to flex for wrapping behavior on mobile */
     flex-wrap: wrap;
   }
 
@@ -394,7 +393,7 @@
   }
 
   .achievement-points {
-    margin-left: auto;
+    margin-left: auto; /* Restore margin-left for mobile flex layout */
     margin-top: 0.5rem;
   }
 
