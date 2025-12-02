@@ -10,15 +10,14 @@ const helmetConfig = {
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'"], // unsafe-eval needed for React dev
+      scriptSrc: ["'self'", "'unsafe-inline'", "'unsafe-eval'", "'wasm-unsafe-eval'"], // unsafe-eval for React dev, wasm-unsafe-eval for MediaPipe
       styleSrc: ["'self'", "'unsafe-inline'"], // unsafe-inline needed for styled-components
       imgSrc: ["'self'", 'data:', 'https:', 'blob:'],
       fontSrc: ["'self'", 'data:'],
       connectSrc: [
         "'self'",
         'wss:', 'ws:', // WebSocket for Socket.io
-        'https://*.supabase.co', // Supabase real-time
-        'https://*.onrender.com', // External games
+        'https:', // Allow all HTTPS (Unsplash for virtual backgrounds, APIs, etc.)
       ],
       frameSrc: [
         "'self'",
