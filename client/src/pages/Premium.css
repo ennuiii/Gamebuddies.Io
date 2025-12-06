@@ -349,7 +349,7 @@
   margin-top: 1rem;
 }
 
-/* Responsive */
+/* Responsive - Tablet */
 @media (max-width: 768px) {
   .premium-page {
     padding: 100px 15px 40px 15px;
@@ -379,6 +379,243 @@
 
   .faq-grid {
     grid-template-columns: 1fr;
+  }
+
+  .action-button {
+    min-height: 48px;
+  }
+}
+
+/* Responsive - Mobile */
+@media (max-width: 480px) {
+  .premium-page {
+    padding: 85px 12px 30px 12px;
+  }
+
+  .premium-header {
+    margin-bottom: 2rem;
+  }
+
+  .premium-header h1 {
+    font-size: 1.8rem;
+  }
+
+  .premium-subtitle {
+    font-size: 0.95rem;
+  }
+
+  .current-tier-banner {
+    padding: 1rem;
+    margin-bottom: 2rem;
+  }
+
+  .tier-badge {
+    font-size: 1.2rem;
+  }
+
+  .pricing-card {
+    padding: 1.25rem;
+    border-radius: 16px;
+  }
+
+  .tier-header h2 {
+    font-size: 1.5rem;
+  }
+
+  .price .amount {
+    font-size: 2rem;
+  }
+
+  .recommended-badge,
+  .best-value-badge {
+    padding: 0.4rem 1rem;
+    font-size: 0.8rem;
+  }
+
+  .features li {
+    font-size: 0.95rem;
+    padding: 0.6rem 0;
+  }
+
+  .premium-faq h2 {
+    font-size: 1.8rem;
+  }
+
+  .faq-item {
+    padding: 1rem;
+  }
+
+  .faq-item h3 {
+    font-size: 1rem;
+  }
+
+  .referral-code-section {
+    padding: 1.25rem;
+    margin-bottom: 2.5rem;
+  }
+}
+
+/* Tiny screens (320px - iPhone SE) */
+@media (max-width: 359px) {
+  .premium-page {
+    padding: 75px 10px 25px 10px;
+  }
+
+  .premium-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .premium-subtitle {
+    font-size: 0.9rem;
+  }
+
+  .pricing-card {
+    padding: 1rem;
+  }
+
+  .tier-header h2 {
+    font-size: 1.3rem;
+  }
+
+  .price .amount {
+    font-size: 1.75rem;
+  }
+
+  .action-button {
+    padding: 0.8rem 1.5rem;
+    font-size: 1rem;
+  }
+
+  .premium-faq h2 {
+    font-size: 1.5rem;
+  }
+
+  .faq-item h3 {
+    font-size: 0.95rem;
+  }
+}
+
+/* Landscape orientation on mobile */
+@media (max-width: 767px) and (orientation: landscape) {
+  .premium-page {
+    padding: 70px 20px 30px 20px;
+  }
+
+  .premium-header {
+    margin-bottom: 1.5rem;
+  }
+
+  .premium-header h1 {
+    font-size: 1.8rem;
+  }
+
+  .pricing-tiers {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+
+  .pricing-card {
+    padding: 1rem;
+  }
+
+  .tier-header {
+    margin-bottom: 1rem;
+  }
+
+  .tier-header h2 {
+    font-size: 1.2rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .price .amount {
+    font-size: 1.8rem;
+  }
+
+  .features li {
+    padding: 0.4rem 0;
+    font-size: 0.85rem;
+  }
+
+  .faq-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+}
+
+/* Landscape on very small height screens */
+@media (max-height: 500px) and (orientation: landscape) {
+  .premium-page {
+    padding-top: 60px;
+  }
+
+  .pricing-card {
+    padding: 0.75rem;
+  }
+
+  .tier-header h2 {
+    font-size: 1.1rem;
+  }
+
+  .price .amount {
+    font-size: 1.5rem;
+  }
+
+  .features li {
+    padding: 0.3rem 0;
+    font-size: 0.8rem;
+  }
+
+  .action-button {
+    padding: 0.6rem 1rem;
+    font-size: 0.9rem;
+  }
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+  .pricing-card:hover {
+    transform: none;
+  }
+
+  .pricing-card:active {
+    transform: scale(0.99);
+  }
+
+  .action-button,
+  .manage-button {
+    min-height: 48px;
+  }
+
+  .action-button:hover:not(:disabled) {
+    transform: none;
+  }
+
+  .action-button:active:not(:disabled) {
+    transform: scale(0.98);
+  }
+
+  .manage-button:hover {
+    transform: none;
+  }
+
+  .manage-button:active {
+    transform: scale(0.98);
+  }
+
+  .referral-code-section input {
+    font-size: 16px; /* Prevents iOS zoom */
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .pricing-card:hover {
+    transform: none;
+  }
+
+  .action-button:hover:not(:disabled),
+  .manage-button:hover {
+    transform: none;
   }
 }
 

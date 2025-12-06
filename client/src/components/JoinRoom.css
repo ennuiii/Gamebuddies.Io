@@ -483,15 +483,15 @@
     padding: 1.5rem;
     margin: 1rem;
   }
-  
+
   .join-room-title {
     font-size: 1.8rem;
     margin-bottom: 2rem;
   }
-  
+
   .form-group input[type="text"] {
     padding: 1rem 1.2rem;
-    font-size: 1rem;
+    font-size: 16px; /* Prevents iOS zoom */
     background: rgba(15, 15, 35, 0.98);
     border: 2px solid rgba(0, 217, 255, 0.5);
     color: #ffffff !important;
@@ -501,7 +501,7 @@
     appearance: none;
     outline: none;
   }
-  
+
   .room-code-input {
     font-size: 1.3rem;
     letter-spacing: 0.2em;
@@ -509,11 +509,165 @@
     color: #ffffff !important;
     -webkit-text-fill-color: #ffffff !important;
   }
-  
+
   .cancel-button,
   .join-button {
     padding: 1rem 1.5rem;
     font-size: 1rem;
     min-height: 50px;
+  }
+}
+
+/* Tiny screens (320px - iPhone SE) */
+@media (max-width: 359px) {
+  .join-room-overlay {
+    padding: 10px;
+  }
+
+  .join-room-modal {
+    padding: 1rem;
+    border-radius: 16px;
+  }
+
+  .join-room-title {
+    font-size: 1.5rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .join-room-form {
+    gap: 1rem;
+  }
+
+  .form-group input[type="text"] {
+    padding: 0.875rem 1rem;
+  }
+
+  .room-code-input {
+    font-size: 1.1rem;
+    letter-spacing: 0.15em;
+  }
+
+  .form-actions {
+    gap: 0.75rem;
+  }
+
+  .cancel-button,
+  .join-button {
+    padding: 0.875rem 1rem;
+    font-size: 0.9rem;
+    min-height: 48px;
+  }
+}
+
+/* Landscape orientation on mobile */
+@media (max-width: 767px) and (orientation: landscape) {
+  .join-room-overlay {
+    padding: 10px 20px;
+  }
+
+  .join-room-modal {
+    padding: 1.25rem 1.5rem;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  .join-room-title {
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+  }
+
+  .join-room-form {
+    gap: 0.75rem;
+  }
+
+  .form-group input[type="text"] {
+    padding: 0.75rem 1rem;
+  }
+
+  .form-actions {
+    margin-top: 0.5rem;
+  }
+}
+
+/* Landscape on very small height screens */
+@media (max-height: 450px) and (orientation: landscape) {
+  .join-room-modal {
+    padding: 1rem;
+  }
+
+  .join-room-title {
+    font-size: 1.25rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .join-room-form {
+    gap: 0.5rem;
+  }
+
+  .form-group label {
+    font-size: 0.75rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .form-group input[type="text"] {
+    padding: 0.6rem 0.875rem;
+  }
+
+  .room-code-input {
+    font-size: 1.1rem;
+  }
+
+  .form-actions {
+    margin-top: 0.25rem;
+  }
+
+  .cancel-button,
+  .join-button {
+    padding: 0.6rem 1rem;
+    min-height: 44px;
+  }
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+  .cancel-button:hover,
+  .join-button:hover {
+    transform: none;
+  }
+
+  .cancel-button:active {
+    transform: scale(0.98);
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  .join-button:active {
+    transform: scale(0.98);
+    box-shadow: 0 3px 15px rgba(0, 217, 255, 0.5);
+  }
+
+  .cancel-button,
+  .join-button {
+    min-height: var(--touch-target-comfortable, 48px);
+  }
+
+  .form-group input[type="text"] {
+    font-size: 16px; /* Prevents iOS zoom */
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .join-room-overlay,
+  .join-room-modal,
+  .join-room-modal::before,
+  .join-room-title,
+  .error-message,
+  .validation-icon {
+    animation: none;
+  }
+
+  .join-button:hover,
+  .cancel-button:hover {
+    transform: none;
   }
 } 

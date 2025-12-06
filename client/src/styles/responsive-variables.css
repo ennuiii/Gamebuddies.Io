@@ -118,3 +118,101 @@
     display: none !important;
   }
 }
+
+/* =================================================================
+   MODERN VIEWPORT UNITS
+   svh = small viewport height (when mobile browser UI is expanded)
+   lvh = large viewport height (when mobile browser UI is collapsed)
+   dvh = dynamic viewport height (adjusts with UI changes)
+   ================================================================= */
+
+/* Modern viewport height with fallback */
+.full-height {
+  height: 100vh; /* Fallback for older browsers */
+  height: 100dvh; /* Dynamic viewport for modern browsers */
+}
+
+.full-height-small {
+  height: 100vh;
+  height: 100svh; /* Safe minimum viewport height */
+}
+
+.full-height-large {
+  height: 100vh;
+  height: 100lvh; /* Maximum viewport height */
+}
+
+/* Minimum heights with modern units */
+.min-height-screen {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.min-height-screen-small {
+  min-height: 100vh;
+  min-height: 100svh;
+}
+
+/* =================================================================
+   ORIENTATION UTILITIES
+   ================================================================= */
+
+/* Hide on landscape */
+@media (orientation: landscape) {
+  .hide-landscape {
+    display: none !important;
+  }
+}
+
+/* Hide on portrait */
+@media (orientation: portrait) {
+  .hide-portrait {
+    display: none !important;
+  }
+}
+
+/* Show only in landscape */
+@media (orientation: portrait) {
+  .show-landscape-only {
+    display: none !important;
+  }
+}
+
+/* Show only in portrait */
+@media (orientation: landscape) {
+  .show-portrait-only {
+    display: none !important;
+  }
+}
+
+/* =================================================================
+   REDUCED MOTION
+   ================================================================= */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* =================================================================
+   IOS INPUT ZOOM PREVENTION
+   Ensures inputs are 16px+ to prevent iOS auto-zoom
+   ================================================================= */
+@media (max-width: 767px) {
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="number"],
+  input[type="search"],
+  input[type="tel"],
+  input[type="url"],
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}

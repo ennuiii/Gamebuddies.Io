@@ -745,4 +745,132 @@
     transform: scale(0.95) rotate(45deg);
     background: rgba(233, 69, 96, 0.3);
   }
+
+  /* Ensure touch targets are large enough */
+  .room-join-btn,
+  .refresh-button,
+  .cancel-button,
+  .close-button {
+    min-height: var(--touch-target-min, 44px);
+  }
+
+  .game-filter-option {
+    min-height: var(--touch-target-min, 44px);
+  }
+}
+
+/* Landscape orientation on mobile */
+@media (max-width: 767px) and (orientation: landscape) {
+  .browse-rooms-modal {
+    max-height: 85vh;
+    padding: 1rem 1.5rem;
+  }
+
+  .browse-header {
+    margin-bottom: 0.75rem;
+    padding-bottom: 0.5rem;
+  }
+
+  .browse-header h2 {
+    font-size: 1.4rem;
+  }
+
+  .browse-filters {
+    margin-bottom: 0.75rem;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 0.5rem;
+  }
+
+  .search-input {
+    min-width: 150px;
+    flex: 1;
+  }
+
+  .game-filter-dropdown {
+    min-width: 140px;
+    flex-shrink: 0;
+  }
+
+  .rooms-list {
+    gap: 0.5rem;
+    max-height: calc(85vh - 180px);
+    overflow-y: auto;
+  }
+
+  .room-row {
+    flex-wrap: nowrap;
+    padding: 0.5rem 0.75rem;
+    gap: 0.5rem;
+  }
+
+  .room-info {
+    flex: 1 1 auto;
+  }
+
+  .room-status,
+  .room-players {
+    min-width: auto;
+  }
+
+  .browse-footer {
+    padding-top: 0.75rem;
+  }
+}
+
+/* Landscape on very small height screens */
+@media (max-height: 500px) and (orientation: landscape) {
+  .browse-rooms-modal {
+    padding: 0.75rem 1rem;
+    max-height: 90vh;
+  }
+
+  .browse-header h2 {
+    font-size: 1.2rem;
+  }
+
+  .header-dot {
+    width: 10px;
+    height: 10px;
+  }
+
+  .close-button {
+    width: 36px;
+    height: 36px;
+    font-size: 1.3rem;
+  }
+
+  .rooms-list {
+    max-height: calc(90vh - 150px);
+  }
+
+  .room-row {
+    padding: 0.4rem 0.6rem;
+  }
+
+  .room-icon {
+    width: 32px;
+    height: 32px;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .browse-rooms-overlay,
+  .browse-rooms-modal,
+  .room-row,
+  .game-filter-menu {
+    animation: none;
+  }
+
+  .close-button:hover {
+    transform: none;
+  }
+
+  .room-join-btn:hover:not(:disabled),
+  .refresh-button:hover,
+  .cancel-button:hover {
+    transform: none;
+  }
 }

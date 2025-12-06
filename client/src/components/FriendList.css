@@ -447,6 +447,149 @@
   .add-friend-section input,
   .add-friend-section button {
     padding: 10px;
-    font-size: 13px;
+    font-size: 16px; /* Prevents iOS zoom */
+    min-height: var(--touch-target-min, 44px);
+  }
+}
+
+/* Tiny screens (320px - iPhone SE) */
+@media (max-width: 359px) {
+  .friend-list-toggle {
+    bottom: 12px;
+    right: 12px;
+    width: 50px;
+    height: 50px;
+    font-size: 22px;
+  }
+
+  .friend-list-container {
+    bottom: calc(var(--mobile-nav-height, 64px) + var(--safe-area-bottom, 0px));
+    max-height: calc(70vh - var(--mobile-nav-height, 64px));
+  }
+
+  .friend-list-header h3 {
+    font-size: 16px;
+  }
+
+  .friend-tabs button {
+    font-size: 10px;
+    padding: 8px 4px;
+  }
+
+  .friend-item {
+    padding: 8px 6px;
+  }
+
+  .avatar-wrapper img {
+    width: 32px;
+    height: 32px;
+  }
+
+  .avatar-wrapper {
+    margin-right: 8px;
+  }
+
+  .info .username {
+    font-size: 12px;
+  }
+
+  .info .level {
+    font-size: 10px;
+  }
+
+  .actions button {
+    padding: 4px 8px;
+    font-size: 9px;
+    margin-left: 3px;
+  }
+
+  .add-friend-section input,
+  .add-friend-section button {
+    padding: 8px;
+    font-size: 12px;
+  }
+}
+
+/* Landscape orientation on mobile */
+@media (max-width: 767px) and (orientation: landscape) {
+  .friend-list-toggle {
+    bottom: 15px;
+    right: 15px;
+  }
+
+  .friend-list-container {
+    bottom: 75px;
+    right: 15px;
+    width: 280px;
+    height: min(380px, calc(100vh - 100px));
+    max-height: none;
+  }
+
+  .friend-list-header {
+    padding: 12px 16px;
+  }
+
+  .friend-list-header::before {
+    display: none;
+  }
+
+  .friend-list-content {
+    padding: 8px;
+  }
+
+  .friend-item {
+    padding: 8px;
+  }
+
+  .friend-tabs button {
+    padding: 6px 4px;
+    font-size: 11px;
+  }
+}
+
+/* Landscape on very small height screens */
+@media (max-height: 500px) and (orientation: landscape) {
+  .friend-list-container {
+    height: min(320px, calc(100vh - 80px));
+  }
+
+  .friend-list-header {
+    padding: 10px 14px;
+  }
+
+  .friend-item {
+    padding: 6px;
+  }
+
+  .avatar-wrapper img {
+    width: 32px;
+    height: 32px;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .friend-list-toggle,
+  .friend-list-container {
+    animation: none;
+    transition: none;
+  }
+
+  .friend-list-toggle:hover {
+    transform: none;
+  }
+
+  @keyframes slideUp {
+    from, to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes slideUpMobile {
+    from, to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 }
