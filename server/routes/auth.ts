@@ -1,11 +1,25 @@
 import express, { Request, Response, Router } from 'express';
 import { User } from '@supabase/supabase-js';
+import rateLimit from 'express-rate-limit';
 import { supabaseAdmin } from '../lib/supabase';
 import { requireAuth, requireOwnAccount, AuthenticatedRequest } from '../middlewares/auth';
 import fs from 'fs';
 import path from 'path';
 
 const router: Router = express.Router();
+
+// SECURITY: Rate limiter for sync-user endpoint to prevent abuse
+const syncUserLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 10, // Max 10 requests per IP per 15 minutes
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    success: false,
+    error: 'Too many sync requests, please try again later',
+    code: 'RATE_LIMITED'
+  }
+});
 
 // Type definitions
 interface AvatarOptions {
@@ -135,7 +149,7 @@ router.get('/me', requireAuth, async (req: AuthenticatedRequest, res: Response):
  * POST /api/auth/sync-user
  * Sync Supabase auth.users to public.users table
  */
-router.post('/sync-user', async (req: SyncUserRequest, res: Response): Promise<void> => {
+router.post('/sync-user', syncUserLimiter, async (req: SyncUserRequest, res: Response): Promise<void> => {
   try {
     const {
       supabase_user_id,
@@ -175,6 +189,24 @@ router.post('/sync-user', async (req: SyncUserRequest, res: Response): Promise<v
       return;
     }
 
+
+    // SECURITY: Validate that user exists in Supabase Auth
+    // This prevents attackers from creating fake entries in public.users
+    const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.getUserById(supabase_user_id);
+
+    if (authError || !authUser?.user) {
+      console.warn(`⚠️ [SERVER AUTH] Invalid supabase_user_id: ${supabase_user_id} - user not found in auth.users`);
+      res.status(403).json({
+        error: 'Invalid user ID - user must be registered via Supabase Auth'
+      });
+      return;
+    }
+
+    // SECURITY: Sanitize display_name to prevent XSS
+    const sanitizedDisplayName = display_name
+      ? display_name.replace(/<[^>]*>/g, '').substring(0, 50).trim()
+      : undefined;
+
     // Check if user already exists by ID
     console.log('🔍 [SERVER AUTH] Checking if user exists by ID...');
     const { data: existingUser, error: existingError } = await supabaseAdmin
@@ -199,7 +231,7 @@ router.post('/sync-user', async (req: SyncUserRequest, res: Response): Promise<v
           oauth_id,
           // Preserve existing avatar/name if they exist; otherwise use new values
           avatar_url: (existingUser as UserProfile).avatar_url || avatar_url,
-          display_name: (existingUser as UserProfile).display_name || display_name,
+          display_name: (existingUser as UserProfile).display_name || sanitizedDisplayName,
           last_seen: new Date().toISOString(),
           is_guest: false,
           email_verified: isEmailVerified
