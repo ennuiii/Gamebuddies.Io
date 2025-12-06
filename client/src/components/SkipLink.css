@@ -14,6 +14,11 @@
   border-radius: 0 0 12px 12px;
   box-shadow: 0 4px 20px rgba(0, 217, 255, 0.4);
   transition: top 0.3s ease;
+  /* Ensure touch target size */
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .skip-link:focus {
@@ -24,6 +29,19 @@
 .skip-link:focus-visible {
   outline: 3px solid #fff;
   outline-offset: 2px;
+}
+
+/* Mobile adjustments */
+@media (max-width: 479px) {
+  .skip-link {
+    padding: 0.75rem 1.5rem;
+    font-size: 0.9rem;
+    left: 10px;
+    right: 10px;
+    transform: none;
+    width: calc(100% - 20px);
+    text-align: center;
+  }
 }
 
 /* Reduced motion */

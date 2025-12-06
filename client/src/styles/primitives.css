@@ -105,3 +105,60 @@
 .shadow-sm { box-shadow: var(--shadow-sm); }
 .shadow-md { box-shadow: var(--shadow-md); }
 .shadow-lg { box-shadow: var(--shadow-lg); }
+
+/* Responsive Button Sizing */
+@media (max-width: 767px) {
+  .btn {
+    padding: 0.8rem 1.4rem;
+    font-size: 0.95rem;
+  }
+
+  .btn-lg {
+    padding: 1rem 1.8rem;
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 479px) {
+  .btn {
+    padding: 0.75rem 1.2rem;
+    font-size: 0.9rem;
+    /* Ensure minimum touch target */
+    min-height: var(--touch-target-min, 44px);
+  }
+
+  .btn-lg {
+    padding: 0.9rem 1.5rem;
+    font-size: 0.95rem;
+  }
+
+  /* Full width buttons on mobile when in flex containers */
+  .btn-mobile-full {
+    width: 100%;
+  }
+}
+
+/* Touch device enhancements */
+@media (hover: none) and (pointer: coarse) {
+  .btn {
+    /* Larger comfortable touch target on touch devices */
+    min-height: var(--touch-target-comfortable, 48px);
+  }
+
+  .btn:hover {
+    /* Disable hover transform on touch */
+    transform: none;
+  }
+
+  .btn:active {
+    transform: scale(0.98);
+  }
+
+  .btn-primary:active {
+    box-shadow: var(--shadow-sm);
+  }
+
+  .btn-secondary:active {
+    box-shadow: var(--shadow-sm);
+  }
+}
