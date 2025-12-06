@@ -577,7 +577,7 @@
 @media (max-width: 768px) {
   .hero {
     min-height: auto;
-    padding: 2.5rem 16px;
+    padding: calc(var(--total-top-offset, 126px) + 1.5rem) 16px 2.5rem;
   }
   
   .hero-content {
@@ -630,7 +630,7 @@
 
 @media (max-width: 480px) {
   .hero {
-    padding: 1.25rem 14px 2rem;
+    padding: calc(var(--total-top-offset, 130px) + 1rem) 14px 2rem;
   }
   
   .hero-badge {
@@ -689,7 +689,7 @@
 @media (max-width: 768px) and (orientation: landscape) {
   .hero {
     min-height: 90vh;
-    padding: 1.5rem 18px;
+    padding: calc(var(--total-top-offset, 126px) + 1rem) 18px 1.5rem;
   }
   
   .hero-title {
@@ -732,7 +732,7 @@
 /* Tiny screens (320px - iPhone SE) */
 @media (max-width: 359px) {
   .hero {
-    padding: 2rem 12px;
+    padding: calc(var(--total-top-offset, 127px) + 0.5rem) 12px 2rem;
   }
 
   .hero-title {
