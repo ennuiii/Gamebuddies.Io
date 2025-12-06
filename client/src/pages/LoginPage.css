@@ -739,6 +739,79 @@
   }
 }
 
+/* Landscape orientation on mobile */
+@media (max-width: 767px) and (orientation: landscape) {
+  .login-page {
+    padding: 70px 20px 20px 20px;
+  }
+
+  .login-container {
+    padding: 25px 30px;
+    max-width: 500px;
+  }
+
+  .login-header {
+    margin-bottom: 20px;
+  }
+
+  .login-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .login-subtitle {
+    font-size: 0.9rem;
+  }
+
+  .form-group {
+    margin-bottom: 1rem;
+  }
+
+  .auth-button {
+    padding: 10px 16px;
+    min-height: 44px;
+  }
+
+  .mode-button {
+    padding: 6px 12px;
+    min-height: 40px;
+  }
+}
+
+/* Landscape on very small height screens */
+@media (max-height: 450px) and (orientation: landscape) {
+  .login-page {
+    padding: 60px 15px 15px 15px;
+    align-items: flex-start;
+  }
+
+  .login-container {
+    padding: 20px 25px;
+  }
+
+  .login-header {
+    margin-bottom: 15px;
+  }
+
+  .login-header h1 {
+    font-size: 1.3rem;
+    margin-bottom: 5px;
+  }
+
+  .login-subtitle {
+    font-size: 0.85rem;
+  }
+
+  .form-group input {
+    padding: 10px 12px;
+    min-height: 42px;
+  }
+
+  .auth-button {
+    padding: 8px 14px;
+    min-height: 40px;
+  }
+}
+
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   .login-container {

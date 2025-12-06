@@ -473,6 +473,173 @@
 
   .search-input {
     padding: 10px 36px 10px 40px;
-    font-size: 0.9rem;
+    font-size: 16px; /* Prevents iOS zoom */
+  }
+
+  .filter-group select {
+    font-size: 16px; /* Prevents iOS zoom */
+    min-height: 44px;
+  }
+
+  .error-container button {
+    min-height: 44px;
+  }
+}
+
+/* Tiny screens (320px - iPhone SE) */
+@media (max-width: 359px) {
+  .achievements-page {
+    padding: 0.75rem;
+    padding-top: calc(70px + 0.75rem);
+  }
+
+  .achievements-header h1 {
+    font-size: 1.4rem;
+  }
+
+  .stat-item .stat-value,
+  .stat-item .stat-label {
+    font-size: 1.25rem;
+  }
+
+  .stat-item .stat-name {
+    font-size: 0.85rem;
+  }
+
+  .rarity-stat {
+    padding: 0.3rem 0.5rem;
+    min-width: 50px;
+  }
+
+  .rarity-icon {
+    font-size: 0.8rem;
+  }
+
+  .rarity-count {
+    font-size: 0.75rem;
+  }
+
+  .filters-bar {
+    padding: 0.5rem;
+  }
+
+  .search-input {
+    padding: 8px 32px 8px 36px;
+  }
+}
+
+/* Landscape orientation on mobile */
+@media (max-width: 767px) and (orientation: landscape) {
+  .achievements-page {
+    padding: 1rem;
+    padding-top: calc(60px + 1rem);
+  }
+
+  .achievements-header {
+    margin-bottom: 1rem;
+  }
+
+  .achievements-header h1 {
+    font-size: 1.5rem;
+    margin-bottom: 1rem;
+  }
+
+  .stats-summary {
+    flex-direction: row;
+    gap: 2rem;
+    margin-bottom: 1rem;
+  }
+
+  .stat-item .stat-value,
+  .stat-item .stat-label {
+    font-size: 1.25rem;
+  }
+
+  .rarity-breakdown {
+    margin-top: 0.75rem;
+  }
+
+  .filters-bar {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+
+  .filter-group {
+    min-width: 120px;
+    flex-shrink: 0;
+  }
+
+  .achievements-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1rem;
+  }
+}
+
+/* Landscape on very small height screens */
+@media (max-height: 500px) and (orientation: landscape) {
+  .achievements-page {
+    padding-top: calc(50px + 0.5rem);
+  }
+
+  .achievements-header h1 {
+    font-size: 1.25rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .stats-summary {
+    margin-bottom: 0.5rem;
+  }
+
+  .stat-item .stat-value,
+  .stat-item .stat-label {
+    font-size: 1rem;
+  }
+
+  .completion-bar {
+    height: 6px;
+  }
+
+  .rarity-stat {
+    padding: 0.3rem 0.5rem;
+  }
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+  .achievement-card-wrapper:hover {
+    transform: none;
+  }
+
+  .achievement-card-wrapper:active {
+    transform: scale(0.98);
+  }
+
+  .search-clear-btn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .filter-group select {
+    min-height: 44px;
+  }
+
+  .error-container button {
+    min-height: 48px;
+  }
+
+  .search-input {
+    font-size: 16px; /* Prevents iOS zoom */
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .achievement-card-wrapper:hover {
+    transform: none;
+  }
+
+  .completion-fill {
+    transition: none;
   }
 }

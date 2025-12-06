@@ -553,3 +553,66 @@
     display: none;
   }
 }
+
+/* Landscape orientation on mobile */
+@media (max-width: 767px) and (orientation: landscape) {
+  .header {
+    padding: calc(0.4rem + var(--safe-area-top, 0px)) var(--safe-area-right, 0px) 0.4rem var(--safe-area-left, 0px);
+  }
+
+  .logo-image {
+    height: 50px;
+    margin: -4px 0;
+  }
+
+  .header-right {
+    gap: 0.5rem;
+  }
+
+  .user-info {
+    padding: 0.3rem 0.5rem;
+    min-height: 40px;
+  }
+
+  .logout-button,
+  .login-link {
+    padding: 0.4rem 0.8rem;
+    min-height: 40px;
+    font-size: 0.8rem;
+  }
+
+  .settings-button {
+    width: 40px;
+    height: 40px;
+  }
+
+  .achievement-points-badge {
+    padding: 0.2rem 0.4rem;
+    font-size: 0.65rem;
+  }
+}
+
+/* Landscape on very small height screens */
+@media (max-height: 450px) and (orientation: landscape) {
+  .header {
+    padding: 0.3rem var(--safe-area-right, 0px) 0.3rem var(--safe-area-left, 0px);
+  }
+
+  .logo-image {
+    height: 40px;
+    margin: -2px 0;
+  }
+
+  .user-info,
+  .logout-button,
+  .login-link,
+  .settings-button {
+    min-height: 36px;
+  }
+
+  .logout-button,
+  .login-link {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.75rem;
+  }
+}
