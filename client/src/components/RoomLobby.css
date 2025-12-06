@@ -3052,11 +3052,20 @@
   }
 
   /* Fix white background issue - use solid dark background on mobile */
-  .current-game-section {
+  .current-game-section,
+  .team-battle-section,
+  .ready-section-new,
+  .ready-section,
+  .sidebar-section,
+  .lobby-header-new {
     background: linear-gradient(135deg, #14142a 0%, #1a1a38 100%);
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
-    border: 1px solid rgba(0, 217, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+  }
+
+  .current-game-section {
+    border-color: rgba(0, 217, 255, 0.2);
   }
 }
 
