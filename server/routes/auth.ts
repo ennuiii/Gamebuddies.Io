@@ -451,6 +451,14 @@ router.put('/users/avatar', requireAuth, async (req: UpdateAvatarRequest, res: R
       return;
     }
 
+    // SECURITY: Check if user is trying to use a premium avatar without premium subscription
+    if (newAvatarUrl && newAvatarUrl.includes('/avatars/premium/') &&
+        (!typedUser.premium_tier || typedUser.premium_tier === 'free')) {
+      console.warn(`⚠️ [AUTH] User ${userId} tried to use premium avatar without premium subscription`);
+      res.status(403).json({ error: 'This avatar requires a premium subscription' });
+      return;
+    }
+
     // Update avatar settings
     const { data: updatedUser, error: updateError } = await supabaseAdmin
       .from('users')

@@ -12,14 +12,6 @@ import { supabaseAdmin } from '../lib/supabase';
  */
 const VALID_CODES: Record<string, string> = {
   'GAMEBUDDIES2024': 'early_adopter',
-  'SECRETCODE': 'first_game',
-  'WINNER': 'first_win',
-  // Additional test codes
-  'TESTXP100': 'games_10',        // 10 games played
-  'TESTXP200': 'games_50',        // 50 games played
-  'STREAK3': 'win_streak_3',      // 3 win streak
-  'SOCIAL5': 'friends_5',         // 5 friends
-  'HOSTED10': 'rooms_hosted_10',  // 10 rooms hosted
 };
 
 /**
