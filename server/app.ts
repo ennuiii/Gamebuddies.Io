@@ -88,6 +88,7 @@ export function createApp(
   });
 
   // Game session lookup endpoint (for external games)
+  // SECURITY: Validates premium status server-side instead of trusting client metadata
   app.get('/api/game-sessions/:token', async (req, res) => {
     try {
       const { token } = req.params;
@@ -121,6 +122,54 @@ export function createApp(
         gameType: session.game_type
       });
 
+      // SECURITY FIX: Validate premium status from database instead of trusting metadata
+      let validatedPremiumTier = 'free';
+
+      if (session.user_id) {
+        // Look up user's CURRENT premium status from database
+        const { data: user, error: userError } = await dbService.adminClient
+          .from('users')
+          .select('premium_tier, premium_expires_at')
+          .eq('id', session.user_id)
+          .single();
+
+        if (!userError && user) {
+          const userPremiumTier = user.premium_tier || 'free';
+          const premiumExpiresAt = user.premium_expires_at;
+
+          // Check if subscription has expired
+          if (userPremiumTier !== 'free' && userPremiumTier !== 'lifetime') {
+            // Monthly/yearly subscriptions have expiration dates
+            if (premiumExpiresAt) {
+              const expiryDate = new Date(premiumExpiresAt);
+              const currentDate = new Date();
+
+              if (expiryDate > currentDate) {
+                validatedPremiumTier = userPremiumTier;
+                console.log(`💎 [PREMIUM] User ${session.user_id} has valid ${userPremiumTier} (expires ${premiumExpiresAt})`);
+              } else {
+                console.log(`⚠️ [PREMIUM] User ${session.user_id}'s ${userPremiumTier} subscription expired on ${premiumExpiresAt}`);
+                validatedPremiumTier = 'free';
+              }
+            } else {
+              // No expiry date set - treat as expired for safety
+              console.log(`⚠️ [PREMIUM] User ${session.user_id} has ${userPremiumTier} but no expiry date`);
+              validatedPremiumTier = 'free';
+            }
+          } else if (userPremiumTier === 'lifetime') {
+            // Lifetime never expires
+            validatedPremiumTier = 'lifetime';
+            console.log(`💎 [PREMIUM] User ${session.user_id} has lifetime premium`);
+          }
+        } else {
+          console.log(`⚠️ [PREMIUM] Could not look up user ${session.user_id}, defaulting to free`);
+        }
+      } else {
+        // Guest user - use metadata but log warning
+        console.log(`⚠️ [PREMIUM] Guest session (no user_id), using metadata premium: ${session.metadata?.premium_tier || 'free'}`);
+        validatedPremiumTier = session.metadata?.premium_tier || 'free';
+      }
+
       res.json({
         success: true,
         session: {
@@ -129,7 +178,7 @@ export function createApp(
           gameType: session.game_type,
           isHost: session.metadata?.is_host || false,
           playerName: session.metadata?.player_name || 'Player',
-          premiumTier: session.metadata?.premium_tier || 'free',
+          premiumTier: validatedPremiumTier, // SECURITY: Server-validated premium tier
           avatarUrl: session.metadata?.avatar_url,
           avatarStyle: session.metadata?.avatar_style,
           avatarSeed: session.metadata?.avatar_seed,
