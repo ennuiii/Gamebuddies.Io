@@ -246,28 +246,28 @@ button {
 /* Beta Testing Disclaimer - positioned directly under header cyan line */
 /* CSS variables for layout calculations */
 :root {
-  --header-height: 86px;
+  --header-height: 90px;
   --beta-banner-height: 50px;
   --total-top-offset: calc(var(--header-height) + var(--beta-banner-height));
 }
 
 @media (max-width: 767px) {
   :root {
-    --header-height: 70px;
+    --header-height: 76px;
     --beta-banner-height: 56px;
   }
 }
 
 @media (max-width: 479px) {
   :root {
-    --header-height: 60px;
+    --header-height: 68px;
     --beta-banner-height: 70px;
   }
 }
 
 @media (max-width: 359px) {
   :root {
-    --header-height: 52px;
+    --header-height: 60px;
     --beta-banner-height: 75px;
   }
 }
