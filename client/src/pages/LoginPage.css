@@ -8,7 +8,8 @@
   align-items: flex-start; /* Changed from center to flex-start */
   justify-content: center;
   background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 50%, #16213e 100%);
-  padding: 120px 20px 40px 20px; /* Increased top padding for header clearance */
+  /* Use CSS variable to account for header + beta banner */
+  padding: calc(var(--total-top-offset, 136px) + 20px) 20px 40px 20px;
   overflow-y: auto;
   box-sizing: border-box;
 }
@@ -531,7 +532,7 @@
 /* Responsive - Tablet */
 @media (max-width: 767px) {
   .login-page {
-    padding: 100px 15px 30px 15px;
+    padding: calc(var(--total-top-offset, 126px) + 15px) 15px 30px 15px;
   }
 
   .login-container {
@@ -560,7 +561,7 @@
 /* Responsive - Mobile */
 @media (max-width: 600px) {
   .login-page {
-    padding: 90px 12px 25px 12px;
+    padding: calc(var(--total-top-offset, 130px) + 12px) 12px 25px 12px;
   }
 
   .login-container {
@@ -642,7 +643,7 @@
 /* Responsive - Small Mobile */
 @media (max-width: 479px) {
   .login-page {
-    padding: 80px 10px 20px 10px;
+    padding: calc(var(--total-top-offset, 130px) + 10px) 10px 20px 10px;
   }
 
   .login-container {
@@ -670,7 +671,7 @@
 /* Responsive - Tiny screens (320px - iPhone SE) */
 @media (max-width: 359px) {
   .login-page {
-    padding: 75px 8px 15px 8px;
+    padding: calc(var(--total-top-offset, 127px) + 8px) 8px 15px 8px;
   }
 
   .login-container {
@@ -742,7 +743,7 @@
 /* Landscape orientation on mobile */
 @media (max-width: 767px) and (orientation: landscape) {
   .login-page {
-    padding: 70px 20px 20px 20px;
+    padding: calc(var(--total-top-offset, 126px) + 10px) 20px 20px 20px;
   }
 
   .login-container {
@@ -780,7 +781,7 @@
 /* Landscape on very small height screens */
 @media (max-height: 450px) and (orientation: landscape) {
   .login-page {
-    padding: 60px 15px 15px 15px;
+    padding: calc(var(--total-top-offset, 126px) + 5px) 15px 15px 15px;
     align-items: flex-start;
   }
 

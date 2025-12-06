@@ -3,7 +3,8 @@
   background: radial-gradient(circle at 20% 20%, rgba(49, 224, 255, 0.08), transparent 40%),
     radial-gradient(circle at 80% 10%, rgba(233, 69, 96, 0.08), transparent 45%),
     linear-gradient(135deg, #1a1a2e 0%, #0f1324 100%);
-  padding: 100px 20px 40px 20px;
+  /* Use CSS variable to account for header + beta banner */
+  padding: calc(var(--total-top-offset, 136px) + 20px) 20px 40px 20px;
   color: #fff;
 }
 
@@ -402,7 +403,7 @@
 /* Responsive Design */
 @media (max-width: 768px) {
   .account-page {
-    padding: 80px 15px 30px 15px;
+    padding: calc(var(--total-top-offset, 126px) + 15px) 15px 30px 15px;
   }
 
   .account-header h1 {
@@ -443,7 +444,7 @@
 
 @media (max-width: 480px) {
   .account-page {
-    padding-top: 70px;
+    padding-top: calc(var(--total-top-offset, 130px) + 10px);
   }
 
   .account-header h1 {
@@ -496,7 +497,7 @@
 /* Tiny screens (320px - iPhone SE) */
 @media (max-width: 359px) {
   .account-page {
-    padding: 65px 10px 25px 10px;
+    padding: calc(var(--total-top-offset, 127px) + 10px) 10px 25px 10px;
   }
 
   .account-header h1 {
@@ -551,7 +552,7 @@
 /* Landscape orientation on mobile */
 @media (max-width: 767px) and (orientation: landscape) {
   .account-page {
-    padding: 70px 20px 30px 20px;
+    padding: calc(var(--total-top-offset, 126px) + 10px) 20px 30px 20px;
   }
 
   .account-header {
@@ -591,7 +592,7 @@
 /* Landscape on very small height screens */
 @media (max-height: 500px) and (orientation: landscape) {
   .account-page {
-    padding-top: 60px;
+    padding-top: calc(var(--total-top-offset, 126px) + 5px);
   }
 
   .account-header {
@@ -642,5 +643,53 @@
 @media (prefers-reduced-motion: reduce) {
   .pricing-card:hover {
     transform: none;
+  }
+}
+
+/* Logout Section */
+.logout-section {
+  text-align: center;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.btn-logout {
+  background: linear-gradient(135deg, #dc3545, #c82333);
+  color: white;
+  border: none;
+  padding: 1rem 2.5rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(220, 53, 69, 0.3);
+  min-height: 48px;
+}
+
+.btn-logout:hover:not(:disabled) {
+  background: linear-gradient(135deg, #c82333, #bd2130);
+  box-shadow: 0 6px 20px rgba(220, 53, 69, 0.4);
+  transform: translateY(-2px);
+}
+
+.btn-logout:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+  transform: none;
+}
+
+@media (max-width: 480px) {
+  .btn-logout {
+    width: 100%;
+    padding: 0.9rem 2rem;
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 359px) {
+  .btn-logout {
+    padding: 0.8rem 1.5rem;
+    font-size: 0.95rem;
   }
 }

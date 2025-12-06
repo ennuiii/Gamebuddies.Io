@@ -4,7 +4,8 @@
   align-items: center;
   justify-content: center;
   background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 50%, #16213e 100%);
-  padding: 120px 20px 60px;
+  /* Use CSS variable to account for header + beta banner */
+  padding: calc(var(--total-top-offset, 136px) + 20px) 20px 60px;
 }
 
 .result-container {
@@ -171,7 +172,7 @@
 /* Responsive - Tablet */
 @media (max-width: 767px) {
   .payment-result-page {
-    padding: 100px 15px 50px;
+    padding: calc(var(--total-top-offset, 126px) + 15px) 15px 50px;
   }
 
   .result-container {
@@ -195,7 +196,7 @@
 /* Responsive - Mobile */
 @media (max-width: 479px) {
   .payment-result-page {
-    padding: 80px 12px 40px;
+    padding: calc(var(--total-top-offset, 130px) + 10px) 12px 40px;
   }
 
   .result-container {

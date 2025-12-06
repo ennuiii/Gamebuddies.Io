@@ -1,7 +1,8 @@
 .premium-page {
   min-height: 100vh;
   background: linear-gradient(135deg, #0a0a0f 0%, #1a1a2e 50%, #16213e 100%);
-  padding: 120px 20px 60px 20px;
+  /* Use CSS variable to account for header + beta banner */
+  padding: calc(var(--total-top-offset, 136px) + 20px) 20px 60px 20px;
   color: var(--text-primary);
 }
 
@@ -352,7 +353,7 @@
 /* Responsive - Tablet */
 @media (max-width: 768px) {
   .premium-page {
-    padding: 100px 15px 40px 15px;
+    padding: calc(var(--total-top-offset, 126px) + 15px) 15px 40px 15px;
   }
 
   .premium-header h1 {
@@ -389,7 +390,7 @@
 /* Responsive - Mobile */
 @media (max-width: 480px) {
   .premium-page {
-    padding: 85px 12px 30px 12px;
+    padding: calc(var(--total-top-offset, 130px) + 10px) 12px 30px 12px;
   }
 
   .premium-header {
@@ -458,7 +459,7 @@
 /* Tiny screens (320px - iPhone SE) */
 @media (max-width: 359px) {
   .premium-page {
-    padding: 75px 10px 25px 10px;
+    padding: calc(var(--total-top-offset, 127px) + 10px) 10px 25px 10px;
   }
 
   .premium-header h1 {
@@ -498,7 +499,7 @@
 /* Landscape orientation on mobile */
 @media (max-width: 767px) and (orientation: landscape) {
   .premium-page {
-    padding: 70px 20px 30px 20px;
+    padding: calc(var(--total-top-offset, 126px) + 10px) 20px 30px 20px;
   }
 
   .premium-header {
@@ -545,7 +546,7 @@
 /* Landscape on very small height screens */
 @media (max-height: 500px) and (orientation: landscape) {
   .premium-page {
-    padding-top: 60px;
+    padding-top: calc(var(--total-top-offset, 126px) + 5px);
   }
 
   .pricing-card {
