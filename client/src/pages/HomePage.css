@@ -77,7 +77,8 @@
   justify-content: center;
   position: relative;
   padding: 4rem 20px 3rem;
-  padding-top: calc(4rem + var(--safe-area-top, 0px));
+  /* Account for fixed header + beta banner */
+  padding-top: calc(var(--total-top-offset, 136px) + 2rem + var(--safe-area-top, 0px));
   background:
     radial-gradient(ellipse at 20% 15%, rgba(233, 69, 96, 0.12) 0%, transparent 55%),
     radial-gradient(ellipse at 80% 85%, rgba(0, 217, 255, 0.12) 0%, transparent 55%);

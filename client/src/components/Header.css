@@ -381,9 +381,7 @@
   }
 
   .logout-button {
-    padding: 0.5rem 0.7rem;
-    font-size: 0.8rem;
-    min-height: 44px;
+    display: none; /* Hide logout on mobile - accessible via account page */
   }
 
   .login-link {
@@ -396,6 +394,15 @@
     width: 44px;
     height: 44px;
     font-size: 1.1rem;
+  }
+
+  /* Simplify header for mobile - just show essential elements */
+  .achievement-points-badge .points-value {
+    display: none;
+  }
+
+  .premium-badge {
+    display: none;
   }
 }
 
