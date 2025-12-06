@@ -4,74 +4,78 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: 
-    radial-gradient(circle at 30% 70%, rgba(0, 217, 255, 0.4) 0%, transparent 70%),
-    radial-gradient(circle at 70% 30%, rgba(120, 119, 198, 0.3) 0%, transparent 70%),
-    rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(10px);
+  background:
+    radial-gradient(circle at 20% 80%, rgba(0, 217, 255, 0.15) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(233, 69, 96, 0.15) 0%, transparent 50%),
+    rgba(10, 10, 20, 0.92);
+  backdrop-filter: blur(12px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 2000;
   padding: 20px;
-  animation: overlayFadeIn 0.4s ease-out;
+  animation: overlayFadeIn 0.3s ease-out;
 }
 
 /* Fallback for browsers that don't support backdrop-filter */
-@supports not (backdrop-filter: blur(10px)) {
+@supports not (backdrop-filter: blur(12px)) {
   .join-room-overlay {
-    background: 
-      radial-gradient(circle at 30% 70%, rgba(0, 217, 255, 0.6) 0%, transparent 70%),
-      radial-gradient(circle at 70% 30%, rgba(120, 119, 198, 0.5) 0%, transparent 70%),
-      rgba(0, 0, 0, 0.92);
+    background:
+      radial-gradient(circle at 20% 80%, rgba(0, 217, 255, 0.2) 0%, transparent 50%),
+      radial-gradient(circle at 80% 20%, rgba(233, 69, 96, 0.2) 0%, transparent 50%),
+      rgba(10, 10, 20, 0.98);
   }
 }
 
 @keyframes overlayFadeIn {
-  from { 
+  from {
     opacity: 0;
-    backdrop-filter: blur(0px);
   }
-  to { 
+  to {
     opacity: 1;
-    backdrop-filter: blur(10px);
   }
 }
 
 .join-room-modal {
-  background: rgba(255, 255, 255, 0.08);
-  backdrop-filter: blur(25px);
-  border-radius: 25px;
-  padding: 3rem;
-  max-width: 500px;
+  background: linear-gradient(165deg, rgba(26, 26, 46, 0.95) 0%, rgba(15, 20, 40, 0.98) 100%);
+  backdrop-filter: blur(20px);
+  border-radius: 24px;
+  padding: 2.5rem;
+  max-width: 480px;
   width: 100%;
-  box-shadow: 
-    0 25px 60px rgba(0, 0, 0, 0.8),
-    0 0 0 1px rgba(255, 255, 255, 0.1),
-    inset 0 1px 0 rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow:
+    0 25px 80px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(0, 217, 255, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  border: 2px solid rgba(0, 217, 255, 0.2);
   position: relative;
   overflow: hidden;
-  animation: modalSlideUp 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  animation: modalSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Fallback for browsers that don't support backdrop-filter */
-@supports not (backdrop-filter: blur(25px)) {
-  .join-room-modal {
-    background: rgba(15, 15, 35, 0.95);
-    border: 1px solid rgba(255, 255, 255, 0.25);
-  }
-}
-
+/* Decorative corner accents */
 .join-room-modal::before {
   content: '';
   position: absolute;
   top: 0;
-  left: -100%;
-  width: 100%;
-  height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(0, 217, 255, 0.1), transparent);
-  animation: modalShine 3s linear infinite;
+  left: 0;
+  width: 80px;
+  height: 80px;
+  background: linear-gradient(135deg, rgba(0, 217, 255, 0.15) 0%, transparent 70%);
+  border-radius: 24px 0 0 0;
+  pointer-events: none;
+}
+
+.join-room-modal::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 80px;
+  height: 80px;
+  background: linear-gradient(-45deg, rgba(233, 69, 96, 0.15) 0%, transparent 70%);
+  border-radius: 0 0 24px 0;
+  pointer-events: none;
 }
 
 @keyframes modalSlideUp {
@@ -85,36 +89,31 @@
   }
 }
 
-@keyframes modalShine {
-  0% { left: -100%; }
-  100% { left: 100%; }
-}
-
 .join-room-title {
   font-family: 'Orbitron', sans-serif;
-  font-size: 2.5rem;
-  font-weight: 900;
+  font-size: 2rem;
+  font-weight: 800;
   text-align: center;
-  margin-bottom: 2.5rem;
-  background: linear-gradient(135deg, #00d9ff 0%, #00ff88 50%, #ff6b6b 100%);
+  margin-bottom: 2rem;
+  background: linear-gradient(135deg, #00d9ff 0%, #e94560 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
-  text-shadow: 0 0 30px rgba(0, 217, 255, 0.5);
-  animation: titleGlow 2s ease-in-out infinite;
   position: relative;
   z-index: 1;
+  letter-spacing: 1px;
 }
 
-@keyframes titleGlow {
-  0%, 100% { 
-    filter: brightness(1);
-    transform: scale(1);
-  }
-  50% { 
-    filter: brightness(1.1);
-    transform: scale(1.01);
-  }
+.join-room-title::after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 3px;
+  background: linear-gradient(90deg, #00d9ff, #e94560);
+  border-radius: 2px;
 }
 
 .join-room-form {
@@ -367,11 +366,10 @@
 .cancel-button,
 .join-button {
   flex: 1;
-  padding: 0.8rem 1.5rem;
+  padding: 1rem 1.5rem;
   font-size: 1rem;
   font-weight: 600;
-  border: none;
-  border-radius: 25px;
+  border-radius: 12px;
   cursor: pointer;
   transition: all 0.3s ease;
   text-transform: uppercase;
@@ -384,29 +382,54 @@
   color: var(--text-secondary);
 }
 
-.cancel-button:hover {
+.cancel-button:hover:not(:disabled) {
   border-color: rgba(255, 255, 255, 0.4);
   color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.cancel-button:disabled,
+.join-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .join-button {
   background: linear-gradient(135deg, var(--secondary-color) 0%, #00ff88 100%);
-  color: white;
+  border: none;
+  color: #0a0a14;
+  font-weight: 700;
   box-shadow: 0 5px 20px rgba(0, 217, 255, 0.4);
 }
 
-.join-button:hover {
+.join-button:hover:not(:disabled) {
   box-shadow: 0 8px 30px rgba(0, 217, 255, 0.6);
   transform: translateY(-2px);
 }
 
-/* Mobile-specific improvements */
-@media (max-width: 768px) {
-  .join-room-modal {
-    padding: 2rem;
-    margin: 1rem;
+/* Mobile-specific fixes for beta banner */
+@media (max-width: 767px) {
+  .join-room-overlay {
+    /* Solid background for mobile - no backdrop-filter white issue */
+    background: linear-gradient(135deg, rgba(10, 10, 20, 0.98) 0%, rgba(15, 15, 35, 0.98) 100%);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    /* Account for beta banner */
+    padding-top: calc(var(--total-top-offset, 126px) + 20px);
+    align-items: flex-start;
+    overflow-y: auto;
   }
-  
+
+  .join-room-modal {
+    /* Solid background for mobile - no backdrop-filter white issue */
+    background: linear-gradient(165deg, #1a1a2e 0%, #0f1428 100%);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border: 2px solid rgba(0, 217, 255, 0.3);
+    padding: 2rem;
+    margin-bottom: 20px;
+  }
+
   .form-group input[type="text"] {
     padding: 1.2rem 1.5rem;
     font-size: 1rem;
@@ -419,38 +442,38 @@
     -webkit-appearance: none;
     appearance: none;
   }
-  
+
   .form-group input[type="text"]:focus {
     background: rgba(15, 15, 35, 0.98);
     border-color: var(--secondary-color);
-    box-shadow: 
+    box-shadow:
       0 0 20px rgba(0, 217, 255, 0.5),
       0 0 0 1px rgba(0, 217, 255, 0.3);
     color: #ffffff !important;
     -webkit-text-fill-color: #ffffff !important;
   }
-  
+
   .form-group input[type="text"]::placeholder {
     color: rgba(255, 255, 255, 0.7) !important;
     -webkit-text-fill-color: rgba(255, 255, 255, 0.7) !important;
     opacity: 1;
   }
-  
+
   /* Ensure consistent styling across all mobile browsers */
   .form-group input[type="text"]::-webkit-input-placeholder {
     color: rgba(255, 255, 255, 0.7) !important;
     -webkit-text-fill-color: rgba(255, 255, 255, 0.7) !important;
   }
-  
+
   .form-group input[type="text"]::-moz-placeholder {
     color: rgba(255, 255, 255, 0.7) !important;
     opacity: 1;
   }
-  
+
   .form-group input[type="text"]:-ms-input-placeholder {
     color: rgba(255, 255, 255, 0.7) !important;
   }
-  
+
   .room-code-input {
     text-align: center;
     font-family: 'Orbitron', sans-serif;
@@ -463,14 +486,14 @@
     -webkit-text-fill-color: #ffffff !important;
     text-shadow: 0 0 4px rgba(0, 0, 0, 1);
   }
-  
+
   .room-code-input:focus {
     background: rgba(15, 15, 35, 1) !important;
-    box-shadow: 
+    box-shadow:
       0 0 25px rgba(0, 217, 255, 0.6),
       0 0 0 2px rgba(0, 217, 255, 0.4);
   }
-  
+
   .cancel-button,
   .join-button {
     padding: 1rem 1.5rem;
@@ -479,14 +502,18 @@
 }
 
 @media (max-width: 480px) {
+  .join-room-overlay {
+    padding-top: calc(var(--total-top-offset, 138px) + 15px);
+  }
+
   .join-room-modal {
     padding: 1.5rem;
     margin: 1rem;
   }
 
   .join-room-title {
-    font-size: 1.8rem;
-    margin-bottom: 2rem;
+    font-size: 1.6rem;
+    margin-bottom: 1.5rem;
   }
 
   .form-group input[type="text"] {
@@ -521,17 +548,20 @@
 /* Tiny screens (320px - iPhone SE) */
 @media (max-width: 359px) {
   .join-room-overlay {
-    padding: 10px;
+    padding-top: calc(var(--total-top-offset, 135px) + 10px);
+    padding-left: 10px;
+    padding-right: 10px;
   }
 
   .join-room-modal {
-    padding: 1rem;
+    padding: 1.25rem;
+    margin: 0.5rem;
     border-radius: 16px;
   }
 
   .join-room-title {
-    font-size: 1.5rem;
-    margin-bottom: 1.5rem;
+    font-size: 1.3rem;
+    margin-bottom: 1.25rem;
   }
 
   .join-room-form {
@@ -562,18 +592,22 @@
 /* Landscape orientation on mobile */
 @media (max-width: 767px) and (orientation: landscape) {
   .join-room-overlay {
-    padding: 10px 20px;
+    padding-top: calc(var(--total-top-offset, 126px) + 10px);
+    padding-bottom: 10px;
+    padding-left: 20px;
+    padding-right: 20px;
   }
 
   .join-room-modal {
     padding: 1.25rem 1.5rem;
-    max-height: 90vh;
+    margin: 0.5rem 1rem;
+    max-height: calc(100vh - var(--total-top-offset, 126px) - 40px);
     overflow-y: auto;
   }
 
   .join-room-title {
-    font-size: 1.5rem;
-    margin-bottom: 1rem;
+    font-size: 1.4rem;
+    margin-bottom: 0.75rem;
   }
 
   .join-room-form {
@@ -586,6 +620,13 @@
 
   .form-actions {
     margin-top: 0.5rem;
+    gap: 0.75rem;
+  }
+
+  .cancel-button,
+  .join-button {
+    padding: 0.75rem 1.25rem;
+    min-height: 44px;
   }
 }
 
