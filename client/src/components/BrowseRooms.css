@@ -1,33 +1,86 @@
-.browse-rooms-overlay {
+﻿.browse-rooms-overlay {
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(0, 0, 0, 0.85);
-  backdrop-filter: blur(10px);
+  background:
+    radial-gradient(circle at 20% 80%, rgba(0, 217, 255, 0.15) 0%, transparent 50%),
+    radial-gradient(circle at 80% 20%, rgba(233, 69, 96, 0.15) 0%, transparent 50%),
+    rgba(10, 10, 20, 0.92);
+  backdrop-filter: blur(12px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: var(--z-modal, 2000);
-  animation: fadeIn 0.3s ease;
+  animation: overlayFadeIn 0.3s ease-out;
   /* Safe area padding for notched devices */
   padding: var(--safe-area-top, 0px) var(--safe-area-right, 0px) var(--safe-area-bottom, 0px) var(--safe-area-left, 0px);
 }
 
 .browse-rooms-modal {
-  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-  border-radius: 25px;
+  background: linear-gradient(165deg, rgba(26, 26, 46, 0.95) 0%, rgba(15, 20, 40, 0.98) 100%);
+  backdrop-filter: blur(20px);
+  border-radius: 24px;
   padding: 2.5rem;
   width: 90%;
   max-width: 900px;
   max-height: 85vh;
   overflow-y: auto;
   box-shadow:
-    0 20px 60px rgba(0, 0, 0, 0.5),
-    0 0 0 1px rgba(255, 255, 255, 0.1);
-  animation: slideUp 0.3s ease;
+    0 25px 80px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(0, 217, 255, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  border: 2px solid rgba(0, 217, 255, 0.2);
+  position: relative;
+  animation: modalSlideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
 }
+
+/* Decorative corner accents */
+.browse-rooms-modal::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 80px;
+  height: 80px;
+  background: linear-gradient(135deg, rgba(0, 217, 255, 0.15) 0%, transparent 70%);
+  border-radius: 24px 0 0 0;
+  pointer-events: none;
+}
+
+.browse-rooms-modal::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 80px;
+  height: 80px;
+  background: linear-gradient(-45deg, rgba(233, 69, 96, 0.15) 0%, transparent 70%);
+  border-radius: 0 0 24px 0;
+  pointer-events: none;
+}
+
+@keyframes modalSlideUp {
+  from {
+    opacity: 0;
+    transform: translateY(50px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes overlayFadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 
 .browse-header {
   display: flex;
@@ -41,7 +94,7 @@
 .browse-header h2 {
   font-size: 2rem;
   font-weight: 700;
-  background: linear-gradient(135deg, #00d9ff, #00ff88);
+  background: linear-gradient(135deg, #00d9ff 0%, #e94560 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -319,7 +372,7 @@
   border: 2px solid rgba(255, 255, 255, 0.1);
   border-radius: 16px;
   transition: all 0.3s ease;
-  animation: fadeIn 0.3s ease;
+  animation: overlayFadeIn 0.3s ease-out;
 }
 
 .room-row:hover {
@@ -463,7 +516,7 @@
 .room-join-btn {
   flex-shrink: 0;
   padding: 0.5rem 1.25rem;
-  background: linear-gradient(135deg, #00d9ff, #00ff88);
+  background: linear-gradient(135deg, #00d9ff 0%, #e94560 100%);
   border: none;
   border-radius: 8px;
   color: white;
@@ -874,3 +927,9 @@
     transform: none;
   }
 }
+
+
+
+
+
+
