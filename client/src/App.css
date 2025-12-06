@@ -244,9 +244,37 @@ button {
 }
 
 /* Beta Testing Disclaimer - positioned directly under header cyan line */
+/* CSS variables for layout calculations */
+:root {
+  --header-height: 86px;
+  --beta-banner-height: 50px;
+  --total-top-offset: calc(var(--header-height) + var(--beta-banner-height));
+}
+
+@media (max-width: 767px) {
+  :root {
+    --header-height: 70px;
+    --beta-banner-height: 56px;
+  }
+}
+
+@media (max-width: 479px) {
+  :root {
+    --header-height: 60px;
+    --beta-banner-height: 70px;
+  }
+}
+
+@media (max-width: 359px) {
+  :root {
+    --header-height: 52px;
+    --beta-banner-height: 75px;
+  }
+}
+
 .beta-disclaimer {
   position: fixed;
-  top: 86px; /* Directly under header (0.8rem padding + 70px logo + 0.8rem padding) */
+  top: var(--header-height);
   left: 0;
   right: 0;
   z-index: 999;
@@ -292,10 +320,6 @@ button {
 }
 
 @media (max-width: 768px) {
-  .beta-disclaimer {
-    top: 76px; /* Smaller on mobile */
-  }
-
   .beta-disclaimer-content {
     padding: 0.6rem 1rem;
     gap: 0.5rem;
@@ -320,5 +344,21 @@ button {
 
   .beta-text {
     font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 359px) {
+  .beta-disclaimer-content {
+    padding: 0.4rem 0.5rem;
+    gap: 0.3rem;
+  }
+
+  .beta-badge {
+    font-size: 0.7rem;
+    padding: 0.2rem 0.5rem;
+  }
+
+  .beta-text {
+    font-size: 0.75rem;
   }
 } 

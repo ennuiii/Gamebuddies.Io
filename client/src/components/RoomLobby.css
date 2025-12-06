@@ -977,16 +977,17 @@
 }
 
 .selected-game-card {
-  background: rgba(255, 255, 255, 0.05);
+  background: linear-gradient(135deg, rgba(26, 26, 46, 0.95) 0%, rgba(22, 33, 62, 0.95) 100%);
   backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border-radius: 25px;
   padding: 3rem;
   display: flex;
   align-items: center;
   gap: 3rem;
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 
-    0 15px 40px rgba(0, 0, 0, 0.3),
+  border: 1px solid rgba(0, 217, 255, 0.2);
+  box-shadow:
+    0 15px 40px rgba(0, 0, 0, 0.5),
     inset 0 1px 0 rgba(255, 255, 255, 0.1);
   position: relative;
   overflow: visible; /* Changed from hidden to visible */
@@ -1000,8 +1001,18 @@
 /* Fallback for selected game card */
 @supports not (backdrop-filter: blur(20px)) {
   .selected-game-card {
-    background: rgba(15, 15, 35, 0.9);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: linear-gradient(135deg, rgba(26, 26, 46, 0.98) 0%, rgba(22, 33, 62, 0.98) 100%);
+    border: 1px solid rgba(0, 217, 255, 0.3);
+  }
+}
+
+/* Mobile-specific: Force solid dark background on mobile */
+@media (max-width: 767px) {
+  .selected-game-card {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border: 2px solid rgba(0, 217, 255, 0.3);
   }
 }
 
