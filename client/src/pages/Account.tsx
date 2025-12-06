@@ -17,13 +17,14 @@ interface AvatarData {
 
 const Account: React.FC = () => {
   const navigate = useNavigate();
-  const { user, isAuthenticated, loading: authLoading, session, refreshUser, isPremium } = useAuth();
+  const { user, isAuthenticated, loading: authLoading, session, refreshUser, isPremium, signOut } = useAuth();
   const { addNotification } = useNotification();
   const [loading, setLoading] = useState<boolean>(false);
   const [avatarLoading, setAvatarLoading] = useState<boolean>(false);
   const [showAvatarCustomizer, setShowAvatarCustomizer] = useState<boolean>(false);
   const [showCancelDialog, setShowCancelDialog] = useState<boolean>(false);
   const [isCanceling, setIsCanceling] = useState<boolean>(false);
+  const [isLoggingOut, setIsLoggingOut] = useState<boolean>(false);
 
   if (!isAuthenticated) {
     navigate('/login');
@@ -34,6 +35,22 @@ const Account: React.FC = () => {
   const isMonthly = user?.premium_tier === 'monthly';
   const isCanceled = user?.subscription_canceled_at && isPremium;
   const wasPremium = !isPremium && user?.premium_expires_at;
+
+  const handleLogout = async (): Promise<void> => {
+    if (isLoggingOut) return;
+
+    setIsLoggingOut(true);
+    try {
+      await signOut();
+      sessionStorage.removeItem('gamebuddies-session-temp');
+      navigate('/');
+    } catch (err) {
+      console.error('Logout error:', err);
+      addNotification('An error occurred during logout.', 'error');
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
 
   const formatDate = (dateString: string | null | undefined): string => {
     if (!dateString) return 'N/A';
@@ -315,6 +332,17 @@ const Account: React.FC = () => {
             className="btn btn-outline"
           >
             Contact Support
+          </button>
+        </div>
+
+        <div className="account-section logout-section">
+          <h2>Session</h2>
+          <button
+            onClick={handleLogout}
+            className="btn btn-logout"
+            disabled={isLoggingOut}
+          >
+            {isLoggingOut ? 'Logging out...' : 'Log Out'}
           </button>
         </div>
       </div>

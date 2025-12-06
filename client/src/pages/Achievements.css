@@ -1,7 +1,8 @@
 .achievements-page {
   min-height: 100vh;
   padding: 2rem;
-  padding-top: calc(80px + 2rem); /* Account for fixed header + existing padding */
+  /* Use CSS variable to account for header + beta banner */
+  padding-top: calc(var(--total-top-offset, 136px) + 2rem);
   background: linear-gradient(135deg, var(--bg-primary, #0f0f23) 0%, var(--bg-secondary, #1a1a2e) 100%);
 }
 
@@ -490,7 +491,7 @@
 @media (max-width: 359px) {
   .achievements-page {
     padding: 0.75rem;
-    padding-top: calc(70px + 0.75rem);
+    padding-top: calc(var(--total-top-offset, 127px) + 0.75rem);
   }
 
   .achievements-header h1 {
@@ -532,7 +533,7 @@
 @media (max-width: 767px) and (orientation: landscape) {
   .achievements-page {
     padding: 1rem;
-    padding-top: calc(60px + 1rem);
+    padding-top: calc(var(--total-top-offset, 126px) + 1rem);
   }
 
   .achievements-header {
@@ -579,7 +580,7 @@
 /* Landscape on very small height screens */
 @media (max-height: 500px) and (orientation: landscape) {
   .achievements-page {
-    padding-top: calc(50px + 0.5rem);
+    padding-top: calc(var(--total-top-offset, 126px) + 0.5rem);
   }
 
   .achievements-header h1 {
