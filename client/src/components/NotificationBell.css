@@ -325,4 +325,195 @@
   .notification-item {
     padding: 14px 20px;
   }
+
+  .notification-bell-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+}
+
+/* Mobile - Small screens */
+@media (max-width: 480px) {
+  .notification-dropdown {
+    max-height: 65vh;
+  }
+
+  .notification-list {
+    max-height: calc(65vh - 60px);
+  }
+
+  .mark-all-read {
+    min-height: var(--touch-target-min, 44px);
+    padding: 8px 12px;
+  }
+}
+
+/* Tiny screens (320px - iPhone SE) */
+@media (max-width: 359px) {
+  .notification-dropdown {
+    max-height: 60vh;
+    border-radius: 14px 14px 0 0;
+  }
+
+  .notification-header {
+    padding: 12px 14px;
+  }
+
+  .notification-header h4 {
+    font-size: 13px;
+  }
+
+  .mark-all-read {
+    font-size: 11px;
+    padding: 6px 10px;
+  }
+
+  .notification-list {
+    max-height: calc(60vh - 50px);
+  }
+
+  .notification-item {
+    padding: 10px 14px;
+    gap: 10px;
+  }
+
+  .notification-icon {
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
+  }
+
+  .notification-icon img {
+    width: 24px;
+    height: 24px;
+  }
+
+  .notification-name {
+    font-size: 13px;
+  }
+
+  .notification-title {
+    font-size: 9px;
+  }
+
+  .rarity-tag {
+    font-size: 8px;
+    padding: 1px 4px;
+  }
+
+  .time-ago {
+    font-size: 10px;
+  }
+
+  .notification-empty {
+    padding: 30px 15px;
+  }
+
+  .notification-empty .empty-icon {
+    font-size: 28px;
+  }
+}
+
+/* Landscape orientation on mobile */
+@media (max-width: 767px) and (orientation: landscape) {
+  .notification-dropdown {
+    position: absolute;
+    bottom: auto;
+    top: calc(100% + 8px);
+    left: auto;
+    right: 0;
+    width: 320px;
+    max-height: calc(100vh - 80px);
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .notification-header {
+    padding: 12px 14px;
+  }
+
+  .notification-list {
+    max-height: calc(100vh - 150px);
+  }
+
+  .notification-item {
+    padding: 10px 14px;
+  }
+}
+
+/* Landscape on very small height screens */
+@media (max-height: 500px) and (orientation: landscape) {
+  .notification-dropdown {
+    max-height: calc(100vh - 60px);
+  }
+
+  .notification-header {
+    padding: 10px 12px;
+  }
+
+  .notification-item {
+    padding: 8px 12px;
+  }
+
+  .notification-icon {
+    width: 32px;
+    height: 32px;
+  }
+
+  .notification-empty {
+    padding: 20px 15px;
+  }
+}
+
+/* Touch device optimizations */
+@media (hover: none) and (pointer: coarse) {
+  .notification-bell-button:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+
+  .notification-bell-button:active {
+    transform: scale(0.95);
+    background: rgba(255, 255, 255, 0.2);
+  }
+
+  .notification-item:hover {
+    background: none;
+  }
+
+  .notification-item:active {
+    background: rgba(255, 255, 255, 0.08);
+  }
+
+  .notification-item:hover .notification-arrow {
+    opacity: 0;
+  }
+
+  .mark-all-read:hover {
+    background: none;
+  }
+
+  .mark-all-read:active {
+    background: rgba(0, 217, 255, 0.15);
+  }
+
+  .notification-bell-button,
+  .notification-item,
+  .mark-all-read {
+    min-height: var(--touch-target-min, 44px);
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .notification-bell-button.has-notifications {
+    animation: none;
+  }
+
+  .notification-dropdown {
+    animation: none;
+  }
+
+  .notification-arrow {
+    transition: none;
+  }
 }
