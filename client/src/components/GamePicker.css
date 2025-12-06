@@ -231,6 +231,27 @@
   }
 }
 
+/* Fix backdrop-filter white background on mobile */
+@media (max-width: 767px) {
+  .game-picker {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border: 1px solid rgba(0, 217, 255, 0.2);
+  }
+
+  .game-option {
+    background: linear-gradient(145deg, rgba(30, 35, 55, 0.95) 0%, rgba(25, 30, 50, 0.95) 100%);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    border: 2px solid rgba(255, 255, 255, 0.12);
+  }
+
+  .game-option:hover:not(:disabled) {
+    background: linear-gradient(145deg, rgba(40, 50, 70, 0.95) 0%, rgba(35, 45, 65, 0.95) 100%);
+  }
+}
+
 /* Waiting for host styles */
 .waiting-for-host {
   text-align: center;
