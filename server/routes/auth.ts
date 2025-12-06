@@ -5,6 +5,7 @@ import { supabaseAdmin } from '../lib/supabase';
 import { requireAuth, requireOwnAccount, AuthenticatedRequest } from '../middlewares/auth';
 import fs from 'fs';
 import path from 'path';
+import { validateApiKey } from '../lib/validation';
 
 const router: Router = express.Router();
 
@@ -431,6 +432,64 @@ router.get('/users/:userId', requireAuth, requireOwnAccount, async (req: Authent
     });
   }
 });
+
+/**
+ * GET /api/auth/users/:userId/premium
+ * Get user's premium status by user ID
+ * SECURITY: Requires API key authentication (for external game servers)
+ */
+router.get('/users/:userId/premium', validateApiKey, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { userId } = req.params;
+
+    console.log(`💎 [PREMIUM API] GET /api/auth/users/${userId}/premium called`);
+
+    // Fetch premium fields from users table
+    const { data: user, error } = await supabaseAdmin
+      .from('users')
+      .select('id, premium_tier, premium_expires_at, subscription_canceled_at')
+      .eq('id', userId)
+      .single();
+
+    if (error || !user) {
+      console.warn(`[PREMIUM API] User ${userId} not found`);
+      res.status(404).json({
+        success: false,
+        error: 'User not found',
+        code: 'USER_NOT_FOUND'
+      });
+      return;
+    }
+
+    // Calculate if premium is currently active
+    const now = new Date();
+    const expiresAt = user.premium_expires_at ? new Date(user.premium_expires_at) : null;
+    const tier = user.premium_tier || 'free';
+
+    // Active if: has a tier, tier is not 'free', and either no expiry or expiry is in the future
+    const isActive = tier !== 'free' && (!expiresAt || expiresAt > now);
+
+    console.log(`💎 [PREMIUM API] User ${userId}: tier=${tier}, expires=${expiresAt}, active=${isActive}`);
+
+    res.json({
+      success: true,
+      userId: user.id,
+      premium_tier: tier,
+      premium_expires_at: user.premium_expires_at,
+      subscription_canceled_at: user.subscription_canceled_at,
+      is_active: isActive
+    });
+
+  } catch (error) {
+    console.error('[PREMIUM API] Error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Internal server error',
+      code: 'INTERNAL_ERROR'
+    });
+  }
+});
+
 
 /**
  * PUT /api/users/avatar
